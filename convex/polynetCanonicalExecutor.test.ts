@@ -19,6 +19,7 @@ import { buildCommunityFunnelContentTestFixture } from "../scripts/community_fun
 import { renderCommunityMemberSelfContext } from "../shared/communityMemberSelfContext";
 import { recordTrustedCommunitySourceTraceCore } from "./communityIntelligenceDirectory";
 import { settleCommunityIntelligenceFromDigestItemsCore } from "./communityCompilerCandidates";
+import { planContentPush, resolveCourses, stageChangeset } from "../packages/polynet-cli/content.mjs";
 
 const selfContextPath = "/communities/canonical-community/members/me/context.md";
 test.each(["deployment", "member", "community", "config", "expired", "disabled"])("pilot %s denial precedes remote initiation", async mode => {
@@ -3788,4 +3789,91 @@ test("the web app reads lesson fields with resources and sets the member's own p
   expect(state.lessons.find((lesson: any) => lesson.ref === `resource:${ids.gate}`)).toMatchObject({ status: "done" });
   expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...args, resourceId: ids.skill, status: "in_progress" }))
     .toMatchObject({ ok: true });
+});
+
+test("polynet push stages a courses folder through the MCP tools, and a second push after Apply changes nothing", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  // The CLI's MCP client, replaced by the executor the MCP runs.
+  const call = async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(asOwner), authSubject: fixture.ownerSubject, userId: fixture.ownerId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+    return result.value;
+  };
+  const community = "canonical-community";
+  const folder = (welcome: string, lesson: Record<string, unknown>) => resolveCourses([{
+    key: "01-start-here", folder: "01-start-here", name: "Start here", description: "Begin with the map.", status: "live",
+    lessons: [
+      { path: "01-start-here/01-welcome.md", title: "Welcome", lesson, source_md: welcome },
+      { path: "01-start-here/02-map.md", title: "Map the business", lesson: { kind: "build", stage: "Map", order: 2 },
+        source_md: "```polynet-embed\nsrc: embeds/xray/business-map.html\nheight: 900\n```" },
+    ],
+  }], "https://canonical-community.polynet.page");
+  const apply = async (changesetId: string) =>
+    await asOwner.mutation(api.communityResources.applyCommunityResourceBuilderChangeset, {
+      communityId: fixture.communityId, changesetId: changesetId as any,
+    });
+
+  const first = await planContentPush({ community, courses: folder("Hello ![Slide](../media/a.png)", { stage: "Map", order: 1 }), call });
+  expect(first.changesets).toHaveLength(1);
+  expect(first.changesets[0].operations.map((op: any) => op.op)).toEqual(["create_module", "create_page", "create_page"]);
+  const staged = await stageChangeset({ community, changeset: first.changesets[0], call });
+  expect(staged).toMatchObject({ ok: true, deduped: false });
+  // Running push again before Apply finds the same changeset, not a second one.
+  const again = await planContentPush({ community, courses: folder("Hello ![Slide](../media/a.png)", { stage: "Map", order: 1 }), call });
+  expect(await stageChangeset({ community, changeset: again.changesets[0], call })).toMatchObject({ ok: true, ref: staged.ref, deduped: true });
+  await apply(staged.ref);
+
+  const pages = await t.run(async (ctx) => await ctx.db.query("communityResources").collect());
+  const body = async (resourceId: any) => await t.run(async (ctx) =>
+    (await ctx.db.query("communityResourceContents").collect()).find((row: any) => row.resourceId === resourceId)?.bodyMd);
+  const welcome = pages.find((row: any) => row.title === "Welcome")!;
+  expect(welcome).toMatchObject({ status: "draft", lesson: { stage: "Map", order: 1 } });
+  expect(await body(welcome._id)).toBe("Hello ![Slide](https://canonical-community.polynet.page/media/a.png)");
+  expect(await body(pages.find((row: any) => row.title === "Map the business")!._id)).toContain("src: embeds/xray/business-map.html");
+  expect((await planContentPush({ community, courses: folder("Hello ![Slide](../media/a.png)", { stage: "Map", order: 1 }), call })).changesets).toEqual([]);
+
+  // An edited lesson becomes one edit_page with only what changed.
+  const edited = await planContentPush({ community, courses: folder("Hello again", { stage: "Map", order: 1, minutes: 5 }), call });
+  expect(edited.changesets).toHaveLength(1);
+  expect(edited.changesets[0].operations).toEqual([
+    { op: "edit_page", resource_id: String(welcome._id), expected_updated_at: welcome.updatedAt, body_md: "Hello again", lesson: { stage: "Map", order: 1, minutes: 5 } },
+  ]);
+  await apply((await stageChangeset({ community, changeset: edited.changesets[0], call })).ref);
+  expect((await t.run(async (ctx) => await ctx.db.get(welcome._id)))).toMatchObject({ lesson: { minutes: 5 } });
+  expect(await body(welcome._id)).toBe("Hello again");
+  expect((await planContentPush({ community, courses: folder("Hello again", { stage: "Map", order: 1, minutes: 5 }), call })).changesets).toEqual([]);
+});
+
+test("builder/resources/ pages through every resource with the cursor it returns", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  await t.run(async (ctx) => {
+    const now = Date.now();
+    for (let i = 0; i < 60; i += 1) {
+      await ctx.db.insert("communityResources", {
+        communityId: fixture.communityId, createdByUserId: fixture.ownerId, type: "post", role: "page",
+        status: "draft", title: `Lesson ${i}`, pinned: false, sortOrder: i, createdAt: now, updatedAt: now,
+      });
+    }
+  });
+  const list = async (cursor?: string) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject: fixture.ownerSubject })), authSubject: fixture.ownerSubject,
+      userId: fixture.ownerId, principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: "polynet_list",
+      input: { path: "/communities/canonical-community/builder/resources/", limit: 50, ...(cursor ? { cursor } : {}) },
+    });
+    if (!result.ok) throw new Error(result.message);
+    return result.value as any;
+  };
+  const first = await list();
+  expect(first).toMatchObject({ truncated: true, next_cursor: "builder-resources:50" });
+  const second = await list(first.next_cursor);
+  expect(second).toMatchObject({ truncated: false, next_cursor: null });
+  const titles = [...first.entries, ...second.entries].filter((row: any) => row.resource_role === "page").map((row: any) => row.title);
+  expect(new Set(titles).size).toBe(60);
 });
