@@ -2,6 +2,9 @@ import { describe, expect, test } from "vitest";
 
 import {
   computeCommunityLessonStages,
+  gradeCommunityLessonResponse,
+  parseCommunityLessonElements,
+  redactCommunityLessonAnswers,
   normalizeCommunityLessonFields,
   parseCommunityLessonMarkdown,
   projectCommunityLessonBody,
@@ -135,6 +138,7 @@ describe("lesson body projection", () => {
       variants: [],
       slides: [],
       commands: [],
+      elements: [],
     });
   });
 });
@@ -167,5 +171,106 @@ describe("lesson stages and gates", () => {
       ["System", true, "resource:b1"],
     ]);
     expect(lockedRefs.has("resource:lib")).toBe(false);
+  });
+});
+
+describe("follow-along elements", () => {
+  const BODY = [
+    "Intro.",
+    "```bash",
+    "npm i -g @anthropic-ai/claude-code",
+    "```",
+    "```quiz multi required",
+    "Which two run locally?",
+    "- [x] Claude Code",
+    "- [ ] Claude in the browser",
+    "- [X] Codex CLI {#codex}",
+    "> Both run in your terminal.",
+    "```",
+    "```checklist steps",
+    "- Open the terminal",
+    "- [ ] Run claude",
+    "```",
+  ].join("\n");
+
+  test("parses elements and keeps them out of commands", () => {
+    const elements = parseCommunityLessonElements(BODY);
+    expect(elements.map((element) => [element.id, element.type, element.required])).toEqual([
+      ["multi", "quiz", true],
+      ["steps", "checklist", false],
+    ]);
+    expect(elements[0]).toMatchObject({
+      multiple: true, correct: ["claude-code", "codex"], explanation_md: "Both run in your terminal.",
+    });
+    expect(elements[1].choices?.map((choice) => choice.id)).toEqual(["open-the-terminal", "run-claude"]);
+    const projection = projectCommunityLessonBody(BODY);
+    expect(projection.commands).toEqual([{ variant: null, language: "bash", text: "npm i -g @anthropic-ai/claude-code" }]);
+    expect(projection.elements[0]).not.toHaveProperty("correct");
+    expect(projection.elements[0]).not.toHaveProperty("explanation_md");
+    expect(projection.intro_md).not.toContain("[x]");
+    expect(projection.intro_md).not.toContain("Both run");
+  });
+
+  test("redaction strips only quiz answers", () => {
+    const redacted = redactCommunityLessonAnswers(BODY);
+    expect(redacted).toContain("- [ ] Claude Code");
+    expect(redacted).toContain("- [ ] Codex CLI {#codex}");
+    expect(redacted).not.toContain("Both run");
+    expect(redacted).toContain("npm i -g");
+    expect(redactCommunityLessonAnswers("- [x] my own todo")).toBe("- [x] my own todo");
+  });
+
+  test("strict parsing names the broken block; lenient parsing skips it", () => {
+    const broken = "```quiz q1\nWhich?\n- [ ] A\n- [ ] B\n```\n```button ok\nGo\n```";
+    expect(() => parseCommunityLessonElements(broken, { strict: true })).toThrow("community_lesson_element_invalid:q1:answer");
+    expect(parseCommunityLessonElements(broken).map((element) => element.id)).toEqual(["ok"]);
+    expect(() => parseCommunityLessonElements("```button no!\nGo\n```", { strict: true })).toThrow(":id");
+    expect(() => parseCommunityLessonElements("```button a\nGo\n```\n```button a\nAgain\n```", { strict: true }))
+      .toThrow("duplicate_id");
+  });
+
+  test("grades responses", () => {
+    const [quiz, checklist] = parseCommunityLessonElements(BODY);
+    expect(gradeCommunityLessonResponse(quiz, ["codex", "claude-code"])).toEqual({
+      value: ["codex", "claude-code"], correct: true, complete: true,
+    });
+    expect(gradeCommunityLessonResponse(quiz, ["codex"])).toMatchObject({ correct: false, complete: false });
+    expect(() => gradeCommunityLessonResponse(quiz, ["nope"])).toThrow();
+    expect(() => gradeCommunityLessonResponse(quiz, [])).toThrow();
+    expect(gradeCommunityLessonResponse(checklist, ["run-claude", "open-the-terminal"])).toMatchObject({ complete: true, correct: null });
+    expect(gradeCommunityLessonResponse(checklist, [])).toMatchObject({ complete: false });
+    const [button] = parseCommunityLessonElements("```button done\nI did it\n```");
+    expect(gradeCommunityLessonResponse(button, true)).toEqual({ value: true, correct: null, complete: true });
+    expect(() => gradeCommunityLessonResponse(button, false)).toThrow();
+  });
+
+  test("buttons call existing actions and form blocks point at a Polynet Form", () => {
+    const body = [
+      "```button finish action=mark_done",
+      "I'm done",
+      "```",
+      "```button help action=ask_agent",
+      "Review my map",
+      "```",
+      "```button open action=open_form:map-checkpoint",
+      "Submit my map",
+      "```",
+      "```form proof form=map-checkpoint",
+      "Send your map for review.",
+      "```",
+    ].join("\n");
+    const elements = parseCommunityLessonElements(body, { strict: true });
+    expect(elements.map((element) => [element.id, element.type, element.action ?? null, element.form_key ?? null])).toEqual([
+      ["finish", "button", "mark_done", null],
+      ["help", "button", "ask_agent", null],
+      ["open", "button", "open_form", "map-checkpoint"],
+      ["proof", "form", null, "map-checkpoint"],
+    ]);
+    expect(parseCommunityLessonElements("```button ok\nGo\n```")[0].action).toBe("confirm");
+    expect(() => parseCommunityLessonElements("```button x action=open_form\nGo\n```", { strict: true })).toThrow(":flag");
+    expect(() => parseCommunityLessonElements("```button x action=delete_all\nGo\n```", { strict: true })).toThrow(":flag");
+    expect(() => parseCommunityLessonElements("```form f required form=k\nGo\n```", { strict: true })).toThrow(":flag");
+    expect(() => parseCommunityLessonElements("```form f\nGo\n```", { strict: true })).toThrow(":form");
+    expect(() => gradeCommunityLessonResponse(elements[3], true)).toThrow();
   });
 });

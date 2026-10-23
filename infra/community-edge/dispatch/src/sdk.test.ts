@@ -318,12 +318,27 @@ test("lessons, lesson, progress and setProgress read one set of resources for an
       if (tool === "polynet_read" && input.path === "/communities/run-club/members/me/progress.json") {
         return ok({ body: JSON.stringify({ journey: null, stages: [{ name: "Map the business", locked: false }], lessons: [] }) });
       }
+      if (tool === "polynet_list" && input.path === "/communities/run-club/members/me/forms/") {
+        return ok({ entries: [{ kind: "document", form_key: "map-checkpoint", path: "/communities/run-club/members/me/forms/f1.json" }] });
+      }
+      if (tool === "polynet_read" && input.path === "/communities/run-club/members/me/forms/f1.json") {
+        return ok({ body: JSON.stringify({ ref: "form-request:f1", form_version_ref: "form-version:v1", revision: 2, questions: [], answers: {} }) });
+      }
       if (tool === "polynet_call") return ok({ ok: true, ref: input.input.ref, status: input.input.status });
       return Response.json({ ok: false, code: "unexpected" });
     },
   });
   const polynet = await loadSdk();
   await polynet.session();
+
+  expect(await polynet.lessonForm({ type: "form", form_key: "other" })).toBeNull();
+  const form = await polynet.lessonForm({ type: "form", form_key: "map-checkpoint" });
+  expect(form).toMatchObject({ ref: "form-request:f1", revision: 2 });
+  await polynet.submitLessonForm(form, { goal: "Ship it" });
+  expect(calls.filter((call) => call.body?.tool === "polynet_call").at(-1)!.body.input).toMatchObject({
+    operation: "community.form.submit",
+    input: { form_request_ref: "form-request:f1", form_version_ref: "form-version:v1", expected_revision: 2, answers: { goal: "Ship it" } },
+  });
 
   const all = await polynet.lessons();
   expect(all).toEqual([
@@ -338,4 +353,12 @@ test("lessons, lesson, progress and setProgress read one set of resources for an
     target: "/communities/run-club/capabilities/community.resource.progress.set.json",
     operation: "community.resource.progress.set", version: 1, input: { ref: "resource:r1", status: "done" },
   });
+  await polynet.answer(all[0], "pick-tool", ["claude-code"]);
+  const answerCall = calls.filter((call) => call.body?.tool === "polynet_call").at(-1)!.body.input;
+  expect(answerCall).toMatchObject({
+    target: "/communities/run-club/capabilities/community.resource.response.set.json",
+    operation: "community.resource.response.set", input: { ref: "resource:r1", element: "pick-tool", value: ["claude-code"] },
+  });
+  await polynet.answer("resource:r1", "pick-tool");
+  expect(calls.filter((call) => call.body?.tool === "polynet_call").at(-1)!.body.input.input.value).toBeNull();
 });

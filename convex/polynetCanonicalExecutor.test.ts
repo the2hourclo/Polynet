@@ -3748,3 +3748,177 @@ test("members set their own lesson progress, gates lock later stages, and progre
     },
   })).resolves.toMatchObject({ ok: false, code: "invalid_tool_args" });
 });
+
+test("members answer lesson buttons, checklists and quizzes, and owners see course completion", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const body = [
+    "Follow along.",
+    "```button installed required",
+    "I installed Claude Code",
+    "```",
+    "```checklist setup",
+    "- [ ] Open the terminal",
+    "- [ ] Run claude {#run}",
+    "```",
+    "```quiz pick-tool required",
+    "Which app runs on your own computer?",
+    "- [ ] Claude in the browser",
+    "- [x] Claude Code",
+    "> Claude Code runs locally, so it can read your files.",
+    "```",
+  ].join("\n");
+  const pages = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: fixture.communityId, createdByUserId: fixture.ownerId, status: "live",
+      name: "Get set up", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    const page = async (title: string, sortOrder: number, bodyMd: string) =>
+      await ctx.db.insert("communityResources", {
+        communityId: fixture.communityId, moduleId, createdByUserId: fixture.ownerId, type: "post",
+        role: "page", status: "published", title, bodyMd, bodyChars: bodyMd.length,
+        pinned: false, sortOrder, lesson: { kind: "build" } as any, createdAt: now, updatedAt: now,
+      });
+    const install = await page("Install Claude Code", 1, body);
+    const next = await page("Say hello", 2, "Say hello to Claude.");
+    return { course: `module:${moduleId}`, install: `resource:${install}`, next: `resource:${next}` };
+  });
+
+  const asMember = t.withIdentity({ subject: fixture.memberSubject });
+  const run = (toolName: "polynet_read" | "polynet_call", input: Record<string, unknown>) =>
+    executePolynetCanonicalTool({
+      ctx: executionContext(asMember), authSubject: fixture.memberSubject, userId: fixture.memberId,
+      principalKind: "community_app", mountedCommunityId: fixture.communityId,
+      evidenceSurface: "external_mcp", toolName, input,
+    });
+  let key = 0;
+  const callOp = (operation: string, input: Record<string, unknown>) => run("polynet_call", {
+    operation, version: 1, target: `/communities/canonical-community/capabilities/${operation}.json`,
+    input, idempotency_key: `answer-${key++}`,
+  });
+  const answer = (element: string, value: unknown) =>
+    callOp("community.resource.response.set", { ref: pages.install, element, value });
+
+  // Members see the elements, never the quiz answer.
+  const courses = await run("polynet_list" as any, { path: "/communities/canonical-community/resources/" });
+  const course = ((courses as any).value.entries as any[]).find((entry) => entry.name === "Get set up");
+  const lessonsListing = await run("polynet_list" as any, { path: course.path });
+  const entry = ((lessonsListing as any).value.entries as any[]).find((item) => item.name === "Install Claude Code");
+  const read = await run("polynet_read", { path: entry.path });
+  expect(read, JSON.stringify(read)).toMatchObject({ ok: true });
+  const elements = (read as any).value.lesson.elements;
+  expect(elements).toEqual([
+    { id: "installed", type: "button", required: true, prompt: "", label: "I installed Claude Code", action: "confirm" },
+    { id: "setup", type: "checklist", required: false, prompt: "",
+      choices: [{ id: "open-the-terminal", label: "Open the terminal" }, { id: "run", label: "Run claude" }] },
+    { id: "pick-tool", type: "quiz", required: true, prompt: "Which app runs on your own computer?", multiple: false,
+      choices: [{ id: "claude-in-the-browser", label: "Claude in the browser" }, { id: "claude-code", label: "Claude Code" }] },
+  ]);
+  expect(JSON.stringify(read)).not.toContain("runs locally");
+  expect((read as any).value.lesson.commands).toEqual([]);
+
+  await expect(callOp("community.resource.progress.set", { ref: pages.install, status: "done" }))
+    .resolves.toMatchObject({ ok: false, code: "lesson_elements_incomplete" });
+  await expect(answer("installed", true)).resolves.toMatchObject({
+    ok: true, value: { response: { value: true, complete: true }, required_remaining: ["pick-tool"] } });
+  await expect(answer("setup", ["run"])).resolves.toMatchObject({ ok: true, value: { response: { complete: false } } });
+  await expect(answer("setup", ["nope"])).resolves.toMatchObject({ ok: false, code: "invalid_response" });
+  await expect(answer("missing", true)).resolves.toMatchObject({ ok: false, code: "element_unavailable" });
+  await expect(answer("pick-tool", ["claude-in-the-browser", "claude-code"])).resolves.toMatchObject({ ok: false, code: "invalid_response" });
+  // A wrong answer shows the explanation but not the answer; the right one shows both.
+  await expect(answer("pick-tool", ["claude-in-the-browser"])).resolves.toMatchObject({ ok: true, value: {
+    response: { correct: false, complete: false, answer: null, explanation_md: "Claude Code runs locally, so it can read your files." },
+    required_remaining: ["pick-tool"] } });
+  await expect(answer("pick-tool", ["claude-code"])).resolves.toMatchObject({ ok: true, value: {
+    response: { correct: true, complete: true, answer: ["claude-code"] }, required_remaining: [] } });
+  await expect(callOp("community.resource.progress.set", { ref: pages.install, status: "done" }))
+    .resolves.toMatchObject({ ok: true, value: { status: "done" } });
+
+  const mine = await run("polynet_read", { path: "/communities/canonical-community/members/me/progress.json" });
+  const state = JSON.parse(String((mine as any).value.body));
+  expect(state.courses).toEqual([{ ref: pages.course, name: "Get set up", lesson_count: 2, done_count: 1, percent: 50, completed_at: null }]);
+  expect(state.lessons.find((lesson: any) => lesson.ref === pages.install).responses.map((row: any) => [row.element, row.value, row.correct]))
+    .toEqual([["installed", true, null], ["setup", ["run"], null], ["pick-tool", ["claude-code"], true]]);
+
+  // Owners see each member's completion; members cannot.
+  const asOwner = (toolName: "polynet_list" | "polynet_read", path: string, subject = fixture.ownerSubject, userId: any = fixture.ownerId) =>
+    executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName, input: { path },
+    });
+  const builder = await asOwner("polynet_list", "/communities/canonical-community/builder/");
+  expect(JSON.stringify(builder)).toContain("/builder/progress/");
+  const report = await asOwner("polynet_list", "/communities/canonical-community/builder/progress/");
+  expect(report, JSON.stringify(report)).toMatchObject({ ok: true, value: {
+    courses: [{ ref: pages.course, name: "Get set up", lesson_count: 2 }] } });
+  const row = ((report as any).value.entries as any[]).find((entry) => entry.user_id === String(fixture.memberId));
+  expect(row).toMatchObject({
+    name: "canonical-member", lessons_done: 1, quizzes: { answered: 1, correct: 1 },
+    courses: [{ ref: pages.course, lesson_count: 2, done_count: 1, percent: 50, completed_at: null }],
+  });
+  const detail = await asOwner("polynet_read", row.path);
+  expect(detail, JSON.stringify(detail)).toMatchObject({ ok: true });
+  const detailState = JSON.parse(String((detail as any).value.body));
+  expect(detailState).toMatchObject({ kind: "community_member_progress_report", name: "canonical-member" });
+  expect(detailState.lessons.find((lesson: any) => lesson.ref === pages.install).status).toBe("done");
+  const dossier = await asOwner("polynet_read", `/communities/canonical-community/builder/workflow-members/${row.membership_id}.md`);
+  expect(dossier, JSON.stringify(dossier)).toMatchObject({ ok: true });
+  expect(String((dossier as any).value.body)).toContain("- Get set up: 1 of 2 lessons (50%)");
+
+  // The web app's resource list hides quiz answers from members, not owners.
+  const memberRows = await asMember.query(api.communityResources.listCommunityResources, { communityId: fixture.communityId });
+  const memberLesson = memberRows.find((resource: any) => resource.title === "Install Claude Code")!;
+  expect(memberLesson.body_md).not.toContain("runs locally");
+  expect(memberLesson.body_md).not.toContain("[x]");
+  expect(memberLesson.lesson_elements).toEqual(elements);
+  const ownerRows = await t.withIdentity({ subject: fixture.ownerSubject })
+    .query(api.communityResources.listCommunityResources, { communityId: fixture.communityId });
+  expect(ownerRows.find((resource: any) => resource.title === "Install Claude Code")!.body_md).toContain("- [x] Claude Code");
+
+  // The web app reads and writes the same state through public functions.
+  const web = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: fixture.communityId });
+  expect(web.courses[0]).toMatchObject({ done_count: 1, percent: 50 });
+  await expect(asMember.mutation(api.communityResourceProgress.setOwnLessonResponse, {
+    communityId: fixture.communityId, resourceId: pages.install.slice("resource:".length), element: "setup", value: null,
+  })).resolves.toMatchObject({ ok: true, response: null });
+  await expect(asMember.query(api.communityResourceProgress.listCommunityProgressReport, { communityId: fixture.communityId }))
+    .rejects.toThrow();
+  const ownerReport = await t.withIdentity({ subject: fixture.ownerSubject })
+    .query(api.communityResourceProgress.listCommunityProgressReport, { communityId: fixture.communityId });
+  expect(ownerReport.members.find((member: any) => member.user_id === String(fixture.memberId))).toMatchObject({ lessons_done: 1 });
+  await expect(t.withIdentity({ subject: fixture.ownerSubject }).query(api.communityResourceProgress.getMemberProgressReport, {
+    communityId: fixture.communityId, membershipId: row.membership_id,
+  })).resolves.toMatchObject({ kind: "community_member_progress_report" });
+
+  await expect(asOwner("polynet_list", "/communities/canonical-community/builder/progress/", fixture.memberSubject, fixture.memberId))
+    .resolves.toMatchObject({ ok: false });
+  await expect(asOwner("polynet_read", row.path, fixture.memberSubject, fixture.memberId))
+    .resolves.toMatchObject({ ok: false });
+});
+
+test("a staged lesson body with a broken quiz is refused before the changeset is stored", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const result = await executePolynetCanonicalTool({
+    ctx: executionContext(asOwner), authSubject: fixture.ownerSubject, userId: fixture.ownerId,
+    principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: "polynet_write",
+    input: {
+      path: "/communities/canonical-community/builder/resources/",
+      mode: "create",
+      content: {
+        summary: "Quiz with no right answer.",
+        operations: [
+          { op: "create_module", module_key: "m", name: "M" },
+          { op: "create_page", module_key: "m", title: "Quiz", lesson: { kind: "lesson" },
+            body_md: "```quiz q1\nWhich?\n- [ ] A\n- [ ] B\n```" },
+        ],
+      },
+      idempotency_key: "lesson-bad-quiz",
+    },
+  });
+  expect(result.ok).toBe(false);
+  const changesets = await t.run(async (ctx) => await ctx.db.query("communityResourceBuilderChangesets").collect());
+  expect(changesets).toHaveLength(0);
+});
