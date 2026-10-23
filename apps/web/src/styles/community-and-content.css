@@ -3865,7 +3865,7 @@
   margin: -2px -2px 8px;
   padding: 8px 10px;
   border: 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
   border-radius: 12px 12px 4px 4px;
   background: color-mix(in srgb, var(--bg-card-alt) 72%, transparent);
 }
@@ -3892,7 +3892,7 @@
   flex: 0 0 auto;
   margin-bottom: 0;
   padding: calc(var(--web-topbar-height, 48px) + 12px) 18px 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
   background: color-mix(in srgb, var(--bg-workspace) 94%, var(--bg-card) 6%);
 }
 
@@ -3915,7 +3915,7 @@
 .community-interaction-icon-button {
   width: 32px;
   height: 32px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg-card) 86%, transparent);
   color: var(--text-muted);
@@ -4434,7 +4434,7 @@
 
 .community-interaction-drawer-root {
   padding: 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
   background: transparent;
 }
 
@@ -4586,7 +4586,7 @@
   gap: 12px;
   margin: 4px 12px 8px;
   padding: 8px 10px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   color: var(--text-muted);
   font-size: 12px;
@@ -8498,7 +8498,7 @@ button.chat-reply-quote:hover {
 
 .resource-delete-confirm-fields input {
   width: 100%;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg-workspace, var(--bg-app)) 76%, transparent);
   color: var(--text-primary);
@@ -12822,4 +12822,39 @@ button.chat-reply-quote:hover {
   .model-picker-nav {
     width: 56px;
   }
+}
+
+/* Interactive widgets in lessons (polynet-embed blocks) */
+.md-community-embed {
+  margin: 20px 0;
+  display: grid;
+  gap: 8px;
+}
+.md-community-embed-frame {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-radius-card, 12px);
+  background: var(--surface-card);
+  transition: height 120ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-community-embed-frame { transition: none; }
+}
+.md-community-embed-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.md-community-embed--placeholder {
+  padding: 16px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--pn-radius-card, 12px);
+}
+.md-community-embed--placeholder img {
+  max-width: 100%;
+  border-radius: 8px;
 }

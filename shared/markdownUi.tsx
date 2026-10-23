@@ -6,6 +6,8 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
 import { parseEmbedUrl, StableMediaEmbedFrame, type ParsedEmbed } from "./linkEmbedUi";
+import { COMMUNITY_EMBED_LANGUAGE, parseCommunityEmbedBlock } from "./communityEmbed";
+import { CommunityEmbedFrame, CommunityEmbedPlaceholder, type CommunityEmbedContext } from "./communityEmbedUi";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import css from "highlight.js/lib/languages/css";
@@ -76,6 +78,9 @@ const CODE_BLOCK_LANGUAGES = new Set([
 
 export type MarkdownRenderOptions = {
   embedStandaloneMedia?: boolean;
+  // Lessons: `polynet-embed` blocks show widgets from this community's site.
+  // Without it they show their fallback image, so other surfaces stay inert.
+  communityEmbeds?: CommunityEmbedContext | null;
   headingLevelOffset?: number;
   onCopyCode?: (text: string) => Promise<void> | void;
 };
@@ -359,6 +364,16 @@ function MarkdownMediaEmbed({ embed, href }: { embed: ParsedEmbed; href: string 
   );
 }
 
+function renderCommunityEmbed(raw: string, context: CommunityEmbedContext | null): ReactNode {
+  const parsed = parseCommunityEmbedBlock(raw);
+  if (!parsed.ok) return <CommunityEmbedPlaceholder title="Interactive" message={parsed.message} />;
+  const { block } = parsed;
+  if (!context) {
+    return <CommunityEmbedPlaceholder title={block.title} message="Open this lesson in the community to use it." />;
+  }
+  return <CommunityEmbedFrame block={block} context={context} />;
+}
+
 function MarkdownTable({
   children,
   onCopyText,
@@ -620,6 +635,9 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
       }
       const match = className.match(/language-([\w-]+)/);
       const language = match?.[1];
+      if (language === COMMUNITY_EMBED_LANGUAGE) {
+        return renderCommunityEmbed(raw, options?.communityEmbeds ?? null);
+      }
       if (!hasExplicitCodeLanguage(language) && looksLikeDiagram(raw)) {
         return (
           <ArtifactBlock

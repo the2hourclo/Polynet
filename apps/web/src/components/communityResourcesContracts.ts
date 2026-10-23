@@ -57,6 +57,8 @@ export type CommunityResourcesCapabilities = {
   hasActiveCommunity: boolean;
   activeCommunityId: string | null;
   activeCommunityName: string | null;
+  // Where the community's site lives, for interactive widgets in lessons.
+  activeCommunitySiteOrigin?: string | null;
   canOperateResources: boolean;
 };
 

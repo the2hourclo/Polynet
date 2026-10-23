@@ -1,6 +1,7 @@
 import type { AppPage, CommunitySettingsPane, CommunityTab } from "../../../../shared/appShellNavigation";
 import type { WebCommunityChatPanelProps } from "../components/WebCommunityChatPanel";
 import type { WebCommunitySecondaryPanelsProps } from "../components/WebCommunitySecondaryPanels";
+import { communitySiteOrigin } from "../communitySiteOrigin";
 
 type CommunitySurfaceCommunityLike =
   | (NonNullable<WebCommunitySecondaryPanelsProps["settings"]["activeCommunity"]> & {
@@ -242,6 +243,7 @@ export function buildWebCommunitySurfaceProjection(
         hasActiveCommunity: Boolean(params.activeCommunity),
         activeCommunityId: params.activeCommunity?.id ?? null,
         activeCommunityName: params.activeCommunity?.name ?? null,
+        activeCommunitySiteOrigin: communitySiteOrigin(params.activeCommunity?.slug ?? null),
         canOperateResources: Boolean(params.hasSession && params.canManageResourcesActiveCommunity),
       },
       state: params.resourcesState,
