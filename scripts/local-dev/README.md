@@ -16,8 +16,8 @@ npm run local
 
 | Piece | URL | What it is |
 |---|---|---|
-| dev-idp | http://127.0.0.1:8799 | `dev-idp.mjs`: local OIDC provider. `/authorize` lets you pick **Rashid (owner)** or **Test Member**, `/token` does PKCE + refresh, `/.well-known/jwks.json` serves the RS256 key. |
-| site-server | http://127.0.0.1:8797/sites/{slug} | `site-server.mjs`: stand-in for `https://{slug}.polynet.page` (`/__polynet/embed.js`, `/sites/<slug>/embeds/*`, `/sites/<slug>/media/*`). Sends `frame-ancestors` + CORS for localhost:5174. |
+| dev-idp | http://127.0.0.1:8799 | `dev-idp.mjs`: local OIDC provider. `/authorize` signs in **Rashid (owner)** straight away (`DEV_IDP_AUTO_USER`, see below), `/token` does PKCE + refresh, `/.well-known/jwks.json` serves the RS256 key. |
+| site-server | http://127.0.0.1:8797/sites/{slug} | `site-server.mjs`: stand-in for `https://{slug}.polynet.page` (`/__polynet/embed.js`, `/sites/<slug>/embeds/*`, `/sites/<slug>/media/*`), plus the `/open/<slug>` links below. Sends `frame-ancestors` + CORS for localhost:5174. |
 | convex | http://127.0.0.1:3210 (site :3211) | `convex dev` on the anonymous local deployment (`CONVEX_AGENT_MODE=anonymous`), pushing functions on change. |
 | env | | `setup-env.mjs`: writes the root `.env` and sets the same auth vars on the **local** Convex deployment (refuses a non-local one). |
 | web | http://localhost:5174 | Vite with `vite.local.config.ts`, which wraps `apps/web/vite.config.ts` unchanged and serves `api/**/*.js` (the `/api/auth/*` sign-in bridge) Vercel-style. |
@@ -25,9 +25,24 @@ npm run local
 The first run creates the anonymous local deployment (`.env.local`). Keys and
 secrets are generated into `scripts/local-dev/.state/` (gitignored).
 
-Sign in from the app's normal sign-in button, or go straight to
-`http://localhost:5174/api/auth/google/start?return_to=/`. Signing in again
-as the other user replaces the session.
+## Open a community without signing in
+
+`npm run local` prints these when it is ready. Each one signs you in as the
+owner and lands on that community's Knowledge page (`/c/<slug>/resources`):
+
+- AI Employee Builders: http://localhost:8797/open/ai-employee-builders
+- The 2 Hour Club: http://localhost:8797/open/the-2-hour-club
+
+Add `?as=member` to open as **Test Member** instead.
+
+Sign-in is automatic: `/authorize` signs in `DEV_IDP_AUTO_USER` (default
+`owner`) with no picker. `DEV_IDP_AUTO_USER=member` makes the member the
+default; `DEV_IDP_AUTO_USER=off` brings the picker back. A one-off hint beats
+the default: `?dev_user=member` on `/authorize`, or
+`http://127.0.0.1:8799/as?user=member&next=<local url>` (a two-minute cookie,
+which is what `?as=member` uses). The app's own sign-in button, or
+`http://localhost:5174/api/auth/google/start?return_to=/`, goes through the
+same flow. Signing in again as the other user replaces the session.
 
 ## Seed
 

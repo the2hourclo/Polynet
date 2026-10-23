@@ -5,6 +5,8 @@
 //   /__polynet/embed.js           EMBED_SOURCE from infra/community-edge
 //   /sites/<slug>/embeds/*        from the slug's embeds folder
 //   /sites/<slug>/media/*         from the slug's media folder
+//   /open/<slug>[?as=member]      sign in (dev-idp auto sign-in) and land on
+//                                 that community's Knowledge page
 //
 // Env:
 //   POLYNET_SITE_PORT        default 8797
@@ -19,8 +21,9 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, resolve, sep } from "node:path";
 import { EMBED_SOURCE } from "../../infra/community-edge/dispatch/src/embed.ts";
 import { CONTENT_ROOT } from "./content-paths.mjs";
+import { DEV_IDP, DEV_USERS, OPEN_COMMUNITIES, SITE_PORT, WEB_ORIGIN } from "./config.mjs";
 
-const port = Number(process.env.POLYNET_SITE_PORT || 8797);
+const port = SITE_PORT;
 const allowed = String(process.env.POLYNET_SITE_ALLOWED || "http://localhost:5174,http://127.0.0.1:5174")
   .split(",")
   .map((value) => value.trim())
@@ -88,6 +91,21 @@ createServer((req, res) => {
   if (url.pathname === "/__polynet/embed.js") {
     res.writeHead(200, { ...baseHeaders(req), "Content-Type": "text/javascript; charset=utf-8" });
     return res.end(EMBED_SOURCE);
+  }
+  const open = /^\/open\/([a-z0-9-]+)\/?$/.exec(url.pathname);
+  if (open && OPEN_COMMUNITIES[open[1]]) {
+    const start = new URL("/api/auth/google/start", WEB_ORIGIN);
+    start.searchParams.set("return_to", OPEN_COMMUNITIES[open[1]].returnTo);
+    const as = String(url.searchParams.get("as") ?? "").trim().toLowerCase();
+    let location = start.toString();
+    if (DEV_USERS[as]) {
+      const hint = new URL("/as", DEV_IDP.issuer);
+      hint.searchParams.set("user", as);
+      hint.searchParams.set("next", location);
+      location = hint.toString();
+    }
+    res.writeHead(302, { "Cache-Control": "no-store", Location: location });
+    return res.end();
   }
   const match = /^\/sites\/([a-z0-9-]+)\/(embeds|media)\/(.+)$/.exec(url.pathname);
   if (match && sites[match[1]]?.[match[2]]) {

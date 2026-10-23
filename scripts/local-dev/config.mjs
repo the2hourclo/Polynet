@@ -35,3 +35,14 @@ export const LOCAL_CONVEX = {
 };
 
 export const WEB_ORIGIN = "http://localhost:5174";
+
+// Zero-click links served by site-server: /open/<slug> → sign in → Knowledge.
+// Add ?as=member to open as the test member instead of the owner.
+export const SITE_PORT = Number(process.env.POLYNET_SITE_PORT || 8797);
+
+export const OPEN_COMMUNITIES = {
+  "ai-employee-builders": { label: "AI Employee Builders", returnTo: "/c/ai-employee-builders/resources" },
+  "the-2-hour-club": { label: "The 2 Hour Club", returnTo: "/c/the-2-hour-club/resources" },
+};
+
+export const openCommunityUrl = (slug) => `http://localhost:${SITE_PORT}/open/${slug}`;

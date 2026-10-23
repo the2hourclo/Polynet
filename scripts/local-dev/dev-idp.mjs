@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 // Local-only OIDC provider for running Polynet against a local Convex backend.
-// Never point a hosted deployment at this. It signs in whichever dev user you
-// pick, with no password, and its keys live in scripts/local-dev/.state/.
+// Never point a hosted deployment at this. It signs in a dev user with no
+// password, and its keys live in scripts/local-dev/.state/.
 //
-//   GET  /authorize                   pick a dev user, redirect back with a code
+// Auto sign-in: /authorize signs in DEV_IDP_AUTO_USER (default "owner") at once.
+// DEV_IDP_AUTO_USER=off shows the picker instead. A one-off hint overrides it:
+// ?dev_user=<key> on /authorize, or GET /as?user=<key>&next=<url> first (sets a
+// short-lived cookie, then redirects to next).
+//
+//   GET  /authorize                   sign in the auto/hinted user, or pick one
+//   GET  /as                          set a one-off dev_user hint, then redirect
 //   POST /token                       authorization_code (PKCE S256) + refresh_token
 //   GET  /.well-known/jwks.json       RS256 public key
 //   GET  /.well-known/openid-configuration
@@ -108,6 +114,45 @@ function issueTokens(userKey) {
 
 const pendingCodes = new Map();
 
+const AUTO_USER = String(process.env.DEV_IDP_AUTO_USER ?? "owner").trim().toLowerCase();
+const HINT_COOKIE = "dev_idp_user";
+
+function readCookie(req, name) {
+  for (const part of String(req.headers.cookie ?? "").split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
+
+// Hint (query, then cookie) wins over the env default; "off" or unknown = picker.
+function pickAutoUser(req, params) {
+  for (const candidate of [params.get("dev_user"), readCookie(req, HINT_COOKIE), AUTO_USER]) {
+    const key = String(candidate ?? "").trim().toLowerCase();
+    if (!key) continue;
+    return DEV_USERS[key] ? key : null;
+  }
+  return null;
+}
+
+function redirectWithCode(res, params, userKey, extraHeaders = {}) {
+  const redirect = new URL(params.get("redirect_uri"));
+  const code = randomBytes(24).toString("base64url");
+  pendingCodes.set(code, {
+    userKey,
+    clientId: params.get("client_id"),
+    redirectUri: params.get("redirect_uri"),
+    challenge: params.get("code_challenge"),
+    method: params.get("code_challenge_method") || "S256",
+    expiresAt: Date.now() + 5 * 60 * 1000,
+  });
+  redirect.searchParams.set("code", code);
+  if (params.get("state")) redirect.searchParams.set("state", params.get("state"));
+  return send(res, 302, "", { Location: redirect.toString(), ...extraHeaders });
+}
+
+const clearHintCookie = { "Set-Cookie": `${HINT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax` };
+
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { "Cache-Control": "no-store", ...headers });
   res.end(body);
@@ -178,26 +223,26 @@ const server = createServer(async (req, res) => {
       if (!url.searchParams.get("redirect_uri") || !url.searchParams.get("code_challenge")) {
         return send(res, 400, "redirect_uri and code_challenge are required.");
       }
+      const autoUser = pickAutoUser(req, url.searchParams);
+      if (autoUser) return redirectWithCode(res, url.searchParams, autoUser, clearHintCookie);
       return send(res, 200, renderPicker(url.searchParams), { "Content-Type": "text/html; charset=utf-8" });
+    }
+    if (url.pathname === "/as" && req.method === "GET") {
+      const userKey = String(url.searchParams.get("user") ?? "").trim().toLowerCase();
+      if (!DEV_USERS[userKey]) return send(res, 400, "Unknown dev user.");
+      const next = url.searchParams.get("next") ?? "";
+      if (!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(next)) return send(res, 400, "next must be a local URL.");
+      return send(res, 302, "", {
+        Location: next,
+        "Set-Cookie": `${HINT_COOKIE}=${userKey}; Path=/; Max-Age=120; HttpOnly; SameSite=Lax`,
+      });
     }
     if (url.pathname === "/authorize" && req.method === "POST") {
       const form = await readForm(req);
       const userKey = form.get("user");
       if (!DEV_USERS[userKey]) return send(res, 400, "Unknown dev user.");
       if (form.get("client_id") !== DEV_IDP.clientId) return send(res, 400, "Unknown client_id.");
-      const redirect = new URL(form.get("redirect_uri"));
-      const code = randomBytes(24).toString("base64url");
-      pendingCodes.set(code, {
-        userKey,
-        clientId: form.get("client_id"),
-        redirectUri: form.get("redirect_uri"),
-        challenge: form.get("code_challenge"),
-        method: form.get("code_challenge_method") || "S256",
-        expiresAt: Date.now() + 5 * 60 * 1000,
-      });
-      redirect.searchParams.set("code", code);
-      if (form.get("state")) redirect.searchParams.set("state", form.get("state"));
-      return send(res, 302, "", { Location: redirect.toString() });
+      return redirectWithCode(res, form, userKey);
     }
     if (url.pathname === "/token" && req.method === "POST") {
       const form = await readForm(req);
@@ -239,5 +284,6 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(DEV_IDP.port, DEV_IDP.host, () => {
-  console.log(`[dev-idp] ${DEV_IDP.issuer} (client ${DEV_IDP.clientId})`);
+  const mode = DEV_USERS[AUTO_USER] ? `auto sign-in as ${AUTO_USER}` : "picker";
+  console.log(`[dev-idp] ${DEV_IDP.issuer} (client ${DEV_IDP.clientId}, ${mode})`);
 });

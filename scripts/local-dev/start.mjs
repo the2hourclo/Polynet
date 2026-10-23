@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // `npm run local`: the whole local stack in one terminal.
 //   1. dev-idp       http://127.0.0.1:8799   (local OIDC sign-in)
-//   2. site-server   http://127.0.0.1:8797   (community sites: embeds + media)
+//   2. site-server   http://127.0.0.1:8797   (community sites + /open/<slug> links)
 //   3. convex dev    http://127.0.0.1:3210   (anonymous LOCAL backend, pushes functions)
 //   4. env           points .env + the local Convex env at the dev-idp
 //   5. web           http://localhost:5174   (Vite + the /api/auth/* handlers)
@@ -11,6 +11,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { OPEN_COMMUNITIES, openCommunityUrl } from "./config.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../..");
@@ -90,7 +91,12 @@ async function main() {
     { cwd: join(repoRoot, "apps", "web") },
   );
   await waitFor("http://localhost:5174/api/auth/session", "web");
-  console.log("\n[local] ready: http://localhost:5174  (seed: npm run seed:preview)\n");
+  console.log("\n[local] ready: http://localhost:5174  (seed: npm run seed:preview)");
+  console.log("[local] open a community, already signed in as the owner (add ?as=member for the member):");
+  for (const [slug, { label }] of Object.entries(OPEN_COMMUNITIES)) {
+    console.log(`[local]   ${label.padEnd(22)} ${openCommunityUrl(slug)}`);
+  }
+  console.log("");
 }
 
 main().catch((error) => {
