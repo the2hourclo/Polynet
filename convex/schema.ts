@@ -2715,6 +2715,22 @@ export default defineSchema({
     ])
     .index("by_createdBy", ["createdByUserId"]),
 
+  // A member's own progress through lesson pages. Locks are computed on read
+  // from lesson gates; only completion state is stored.
+  communityResourceProgress: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    resourceId: v.id("communityResources"),
+    status: v.union(v.literal("in_progress"), v.literal("done")),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_community_user", ["communityId", "userId"])
+    .index("by_community_user_resource", ["communityId", "userId", "resourceId"])
+    .index("by_resource", ["resourceId"])
+    .index("by_user", ["userId"]),
+
   communityResourceContents: defineTable({
     communityId: v.id("communities"),
     resourceId: v.id("communityResources"),

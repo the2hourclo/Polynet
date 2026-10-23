@@ -4,7 +4,7 @@ import { siteFileMimeType, siteHostname, siteScriptName, validateSiteManifest } 
 import { executeCommunityIntegrationRead, type IntegrationReadDependencies } from "./communityIntegrationReadCore";
 import { renderCommunitySubmittedFormsMarkdown, renderCommunityMemberSuccessDossierMarkdown } from "../shared/communityMemberSuccessDossier";
 import type { CommunityEvidenceSurface } from "../shared/communityEvidenceContract.ts";
-import { parseCommunityInteractionEvidenceRef } from "../shared/communityEvidenceContract.ts";
+import { parseCommunityInteractionEvidenceRef, parseCommunityResourceEvidenceRef } from "../shared/communityEvidenceContract.ts";
 import {
   WORKFLOW_MEMBERS_DIRECTORY,
   POLYNET_JOIN_REQUESTS_DIRECTORY_PATH,
@@ -78,7 +78,10 @@ const SITE_DEPLOY_MAX_FILES = 200;
 const SITE_DEPLOY_MAX_BYTES = 5 * 1024 * 1024;
 const FORM_SUBMIT_OPERATION = "community.form.submit";
 const REACT_OPERATION = "community.interaction.react";
+// A member marks their own lesson progress; locks come from lesson gates.
+const RESOURCE_PROGRESS_OPERATION = "community.resource.progress.set";
 const SELF_FORMS_DIRECTORY = "/members/me/forms/";
+const SELF_PROGRESS_PATH = "/members/me/progress.json";
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
@@ -665,13 +668,15 @@ function capabilityDocument(args: {
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isReactCapability = args.operation === REACT_OPERATION &&
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
+  const isProgressCapability = args.operation === RESOURCE_PROGRESS_OPERATION &&
+    args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isWorkflowApprovalCapability = args.operation === APPROVE_MILESTONE_OPERATION &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
   const isSiteDeployCapability = args.operation === SITE_DEPLOY_OPERATION &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
-  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isSiteDeployCapability) {
+  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isProgressCapability && !isSiteDeployCapability) {
     return null;
   }
   const operationDefinition: Record<string, unknown> = {
@@ -682,7 +687,14 @@ function capabilityDocument(args: {
     authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability ? "builder" : "member",
     idempotency_required: true,
   };
-  if (isReactCapability) {
+  if (isProgressCapability) {
+    operationDefinition.input = { required: ["ref", "status"],
+      ref: "resource:<id> of a lesson page from a resources listing",
+      status: "not_started, in_progress or done",
+      result: `the new status; read ${SELF_PROGRESS_PATH} for stages, locks and the workflow journey`,
+      refusals: { lesson_locked: "a gate in an earlier stage is not done yet" },
+      effects: ["set_own_lesson_progress"], forbidden_effects: ["set_progress_for_someone_else", "advance_workflow_milestone"] };
+  } else if (isReactCapability) {
     operationDefinition.input = { required: ["ref", "emoji", "on"],
       ref: "interaction:root:<id> or interaction:reply:<id> from a channel or thread listing",
       emoji: "up to 32 characters", on: "true adds your reaction, false removes it",
@@ -834,7 +846,8 @@ async function executeCanonicalList(args: {
         path: absolutePath,
         entries: [{ path: mountedPath(target.communitySlug, COMMUNITY_MEMBER_SELF_CONTEXT_PATH), kind: "document", type: "member_self_context" },
           ...(args.evidenceSurface === "community_funnel_builder" ? [] :
-            [{ path: mountedPath(target.communitySlug, SELF_FORMS_DIRECTORY), kind: "directory", type: "private_assigned_forms" }])],
+            [{ path: mountedPath(target.communitySlug, SELF_FORMS_DIRECTORY), kind: "directory", type: "private_assigned_forms" },
+              { path: mountedPath(target.communitySlug, SELF_PROGRESS_PATH), kind: "document", type: "member_progress" }])],
         searchable: false, writable: false,
       }),
     };
@@ -1081,7 +1094,7 @@ async function executeCanonicalList(args: {
       ...(args.evidenceSurface === "community_funnel_builder"
         ? []
         : MEMBER_CAPABILITIES),
-      ...[REACT_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION].filter(operation => capabilityDocument({ target, operation,
+      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION].filter(operation => capabilityDocument({ target, operation,
         evidenceSurface: args.evidenceSurface, principalKind: args.principalKind })),
     ];
     return {
@@ -1347,6 +1360,18 @@ async function executeCanonicalRead(args: {
         ? canonicalError("form_payload_too_large", "Assigned form exceeds the 24000-character adapter budget.")
         : canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
+  }
+
+  if (target.localPath === SELF_PROGRESS_PATH) {
+    if (args.principalKind === "community_agent" || args.evidenceSurface === "community_funnel_builder")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    try {
+      const payload = await args.ctx.runQuery(
+        (internal as any).communityResourceProgress.readOwnResourceProgressInternal,
+        { userId: args.userId, communityId: target.communityId });
+      return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+        writable: false, searchable: false } };
+    } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
   }
 
   if (target.localPath.startsWith(COMMUNITY_MEMBER_SELF_DIRECTORY)) {
@@ -2221,6 +2246,21 @@ async function executeCanonicalCall(args: {
         value.retryAfterMs ? { retry_after_ms: value.retryAfterMs } : undefined);
       return { ok: true, value };
     } catch { return canonicalError("workflow_approval_unavailable", "Observed milestone not available or approval not authorized."); }
+  }
+  if (operation === RESOURCE_PROGRESS_OPERATION) {
+    const ref = parseCommunityResourceEvidenceRef(rawInput.ref);
+    const status = rawInput.status;
+    if (target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json` || !ref ||
+        (status !== "not_started" && status !== "in_progress" && status !== "done") ||
+        Object.keys(rawInput).some(key => !["ref", "status"].includes(key)))
+      return canonicalError("invalid_tool_args", "A resource ref and a status (not_started, in_progress or done) are required.");
+    try {
+      const value = await args.ctx.runMutation(
+        (internal as any).communityResourceProgress.setOwnResourceProgressInternal,
+        { userId: args.userId, communityId: target.communityId, resourceId: ref, status });
+      if (value.ok === false) return canonicalError(value.code, value.message);
+      return { ok: true, value };
+    } catch { return canonicalError("resource_unavailable", "That lesson is not available."); }
   }
   if (operation === REACT_OPERATION) {
     const ref = parseCommunityInteractionEvidenceRef(rawInput.ref);
