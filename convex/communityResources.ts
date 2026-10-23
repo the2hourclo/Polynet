@@ -8,6 +8,11 @@ import {
 } from "./providerConnections";
 import { readCanonicalPublicAppOrigin } from "./publicAppUrl";
 import {
+  normalizeCommunityLessonFields,
+  projectCommunityLessonBody,
+  type CommunityLessonFields,
+} from "../shared/communityLessonContract";
+import {
   type CommunityResourceModuleLike,
   type CommunityResourceLike,
   communityResourceBodyChars,
@@ -342,6 +347,7 @@ type CommunityResourceBuilderChangesetOperation =
       url?: string | null;
       resource_status?: string;
       pinned?: boolean;
+      lesson?: CommunityLessonFields | null;
     }
   | {
       op: "edit_page";
@@ -355,6 +361,7 @@ type CommunityResourceBuilderChangesetOperation =
       url?: string | null;
       resource_status?: string;
       pinned?: boolean;
+      lesson?: CommunityLessonFields | null;
     }
   | {
       op: "move_resource";
@@ -2324,6 +2331,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
           ? { resource_status: normalizeChangesetPageStatus(record.resource_status) }
           : null),
         ...(hasOwnField(record, "pinned") ? { pinned: Boolean(record.pinned) } : null),
+        ...(hasOwnField(record, "lesson") ? { lesson: normalizeCommunityLessonFields(record.lesson) } : null),
       };
     }
     if (op === "edit_page") {
@@ -2342,6 +2350,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
       if (hasOwnField(record, "url")) next.url = normalizeOptionalUrl(record.url) ?? null;
       if (hasOwnField(record, "resource_status")) next.resource_status = normalizeChangesetPageStatus(record.resource_status);
       if (hasOwnField(record, "pinned")) next.pinned = Boolean(record.pinned);
+      if (hasOwnField(record, "lesson")) next.lesson = normalizeCommunityLessonFields(record.lesson);
       if (Object.keys(next).length <= 3) {
         throw new Error("community_resource_changeset_edit_page_empty");
       }
@@ -2878,6 +2887,7 @@ async function createPageFromChangesetOperation(args: {
     sourceIngestionStatus: "not_required",
     sourceIngestionKind: "manual",
     pinned: Boolean(args.operation.pinned),
+    ...(args.operation.lesson ? { lesson: args.operation.lesson } : {}),
     sortOrder,
     createdAt: args.nowMs,
     updatedAt: args.nowMs,
@@ -2957,6 +2967,7 @@ async function editPageFromChangesetOperation(args: {
     ...(hasOwnField(args.operation as any, "title") ? { title: normalizeName(args.operation.title) } : {}),
     ...(hasOwnField(args.operation as any, "url") ? { url: normalizeOptionalUrl(args.operation.url) } : {}),
     ...(hasOwnField(args.operation as any, "pinned") ? { pinned: Boolean(args.operation.pinned) } : {}),
+    ...(hasOwnField(args.operation as any, "lesson") ? { lesson: args.operation.lesson ?? undefined } : {}),
     ...(typeof nextSortOrder === "number" ? { sortOrder: nextSortOrder } : {}),
     updatedAt: args.nowMs,
   });
@@ -3328,6 +3339,7 @@ function mapCommunityResourceSemanticPageEntry(args: {
     ref: buildCommunityResourceEvidenceRef(resourceId),
     directory_path: directory.directory_path,
     directory_uri: directory.directory_uri,
+    lesson: args.resource.lesson ?? null,
   };
 }
 
@@ -3536,6 +3548,7 @@ function buildResourceDirectoryEntry(
     url: row.url ?? null,
     has_file: Boolean(row.fileKey),
     summary: compactResourceSummary(row),
+    lesson: row.lesson ?? null,
     lineage: deriveCommunityResourceLineageEnvelope({
       communityId: normalizeIdValue(row.communityId),
       resourceId,
@@ -4087,6 +4100,7 @@ async function buildCommunityResourceDirectoryReadPayload(args: {
       truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
       unavailable_reason: readContentUnavailableReason(row),
     },
+    lesson_body: row.lesson ? projectCommunityLessonBody(body) : null,
   };
 }
 
@@ -4427,6 +4441,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
         truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
         unavailable_reason: readContentUnavailableReason(row),
       },
+      lesson_body: row.lesson ? projectCommunityLessonBody(body) : null,
     };
   },
 });

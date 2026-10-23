@@ -8,6 +8,7 @@ import {
   communityResourceModuleIsMemberLive,
 } from "../shared/communityResourceVisibility";
 import type { CommunityVisualIdentity } from "../shared/communityVisualIdentity";
+import type { CommunityLessonFields } from "../shared/communityLessonContract";
 import {
   communityIsActive,
   type CommunityLifecycleStatus,
@@ -244,6 +245,7 @@ export type CommunityResourceLike = {
   sourceExternalModifiedAt?: number;
   pinned: boolean;
   sortOrder?: number;
+  lesson?: CommunityLessonFields;
   createdAt: number;
   updatedAt: number;
 };
