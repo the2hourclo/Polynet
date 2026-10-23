@@ -39,6 +39,11 @@ export type CommunityThemeV1 = {
   shadow: "none" | "soft" | "hard";
   density: "compact" | "comfortable" | "roomy";
   media_plate: "none" | "light";
+  // Course catalog: cover shape and fit, and how big each card is (Skool-style
+  // big covers are "16:9" with "large" cards).
+  course_cover_ratio: "auto" | "16:9" | "3:2" | "4:3" | "1:1" | "21:9";
+  course_cover_fit: "cover" | "contain";
+  course_card_size: "default" | "small" | "medium" | "large";
 };
 
 export type CommunityThemeProblem = {
@@ -109,6 +114,9 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   shadow: "none",
   density: "comfortable",
   media_plate: "none",
+  course_cover_ratio: "auto",
+  course_cover_fit: "cover",
+  course_card_size: "default",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -133,6 +141,9 @@ const ENUMS = {
   shadow: ["none", "soft", "hard"],
   density: ["compact", "comfortable", "roomy"],
   media_plate: ["none", "light"],
+  course_cover_ratio: ["auto", "16:9", "3:2", "4:3", "1:1", "21:9"],
+  course_cover_fit: ["cover", "contain"],
+  course_card_size: ["default", "small", "medium", "large"],
 } as const;
 
 const RANGES = {
@@ -379,6 +390,14 @@ function shadows(theme: CommunityThemeV1, scheme: CommunityThemeScheme): { card:
 
 const DENSITY = { compact: 0.85, comfortable: 1, roomy: 1.15 } as const;
 
+// Minimum card width per size; "default" keeps Polynet's two-column catalog.
+const COURSE_CARD_MIN_WIDTH = { small: 220, medium: 300, large: 420 } as const;
+
+function courseColumns(theme: CommunityThemeV1): string {
+  if (theme.course_card_size === "default") return "repeat(2, minmax(0, 1fr))";
+  return `repeat(auto-fill, minmax(min(100%, ${COURSE_CARD_MIN_WIDTH[theme.course_card_size]}px), 1fr))`;
+}
+
 // The variables a community area gets for one scheme: the public --pn-* set
 // (also what custom sites and <polynet-account> read) and Polynet's internal
 // variables derived from it.
@@ -422,6 +441,10 @@ export function communityThemeVariables(
     "--pn-space": String(DENSITY[theme.density]),
     "--pn-media-plate": plate ? "#F4F4F0" : "transparent",
     "--pn-media-plate-pad": plate ? "8px" : "0px",
+    "--pn-course-columns": courseColumns(theme),
+    "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
+    "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",
+    "--pn-course-cover-fit": theme.course_cover_fit,
     // <polynet-account> on community sites.
     "--polynet-accent": c.accent,
     "--polynet-on-accent": c.on_accent,

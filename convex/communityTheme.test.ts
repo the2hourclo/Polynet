@@ -49,6 +49,8 @@ const STOPWATCH_THEME = {
   button_shape: "square",
   density: "compact",
   media_plate: "light",
+  course_cover_ratio: "16:9",
+  course_card_size: "medium",
 };
 
 describe("community theme validation", () => {
@@ -140,6 +142,19 @@ describe("community theme compilation", () => {
     expect(vars["--accent-brand"]).toBe("#2B863A");
     expect(vars["--pn-radius-card"]).toBe("15px 4px 15px 4px");
     expect(vars["--pn-radius-button"]).toContain("255px");
+  });
+
+  test("course cards: Polynet's two columns by default, or sized cards with a cover ratio", () => {
+    const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
+    expect(defaults["--pn-course-columns"]).toBe("repeat(2, minmax(0, 1fr))");
+    expect(defaults["--pn-course-cover-ratio"]).toBe("auto");
+    const stopwatch = normalizeCommunityTheme(STOPWATCH_THEME);
+    if (!stopwatch.ok) throw new Error("invalid");
+    const vars = communityThemeVariables(stopwatch.theme, "dark");
+    expect(vars["--pn-course-columns"]).toBe("repeat(auto-fill, minmax(min(100%, 300px), 1fr))");
+    expect(vars["--pn-course-cover-ratio"]).toBe("16 / 9");
+    expect(vars["--pn-course-cover-height"]).toBe("auto");
+    expect(normalizeCommunityTheme({ course_cover_ratio: "2:1" }).ok).toBe(false);
   });
 
   test("only Google faces add a stylesheet", () => {
