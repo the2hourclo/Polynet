@@ -11,6 +11,7 @@
 import { SDK_SOURCE } from "./sdk";
 import { LLMS_TXT } from "./llms";
 import { UI_SOURCE } from "./ui";
+import { EMBED_SOURCE } from "./embed";
 // The live-updates client, served from this domain so no community site loads a third-party script.
 import LIVE_CLIENT_BUNDLE from "../../node_modules/convex/dist/browser.bundle.js";
 
@@ -378,6 +379,17 @@ export default {
       });
     }
     if (url.pathname === "/__polynet/account") return await proxyAccount(request, url, env);
+    if (url.pathname === "/__polynet/embed.js") {
+      return new Response(EMBED_SOURCE, {
+        headers: {
+          "Content-Type": "text/javascript; charset=utf-8",
+          "Cache-Control": "public, max-age=300",
+          "X-Content-Type-Options": "nosniff",
+          // Widgets run in frames with an opaque origin; the script must load from there.
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
     if (url.pathname === "/__polynet/ui.js") {
       return new Response(UI_SOURCE, {
         headers: {

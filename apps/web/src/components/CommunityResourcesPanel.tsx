@@ -21,6 +21,7 @@ import {
 } from "./WebCommunityResourceViewerContent";
 import { WebDeleteResourceModal } from "./WebDeleteResourceModal";
 import { ResourceCourseCatalog, type ResourceCourseProgress } from "./ResourceCourseCatalog";
+import { createBrowserCommunityEmbedStorage, type CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
 
 type CommunityResourcesPanelProps = {
   capabilities: CommunityResourcesCapabilities;
@@ -317,6 +318,17 @@ function ResourceRailItem(props: {
 export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   const { capabilities, state, actions, courseProgress } = props;
   const selectedModuleId = state.selectedModuleId;
+  // Widget answers stay in this browser until Polynet keeps them per member.
+  const communityEmbeds = useMemo<CommunityEmbedContext | null>(
+    () =>
+      capabilities.activeCommunityId && capabilities.activeCommunitySiteOrigin
+        ? {
+            siteOrigin: capabilities.activeCommunitySiteOrigin,
+            storage: createBrowserCommunityEmbedStorage(capabilities.activeCommunityId),
+          }
+        : null,
+    [capabilities.activeCommunityId, capabilities.activeCommunitySiteOrigin],
+  );
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [pendingDeleteResourceId, setPendingDeleteResourceId] = useState<string | null>(null);
   const [isDeletingResource, setIsDeletingResource] = useState(false);
@@ -977,6 +989,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                 <WebCommunityResourceViewerContent
                   resource={selectedResource}
                   editor={selectedResourceInlineEditor}
+                  communityEmbeds={communityEmbeds}
                 />
               ) : (
                 <div className="community-panel-state-shell">

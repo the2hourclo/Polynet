@@ -9,12 +9,14 @@ import {
 
 import { normalizeExternalUrl, parseEmbedUrl, StableMediaEmbedFrame } from "../../../../shared/linkEmbedUi";
 import { renderMarkdown } from "../../../../shared/markdownUi";
+import type { CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
 import type { CommunityResource } from "./communityResourcesContracts";
 
 type WebCommunityResourceViewerContentProps = {
   resource: CommunityResource;
   editor?: WebCommunityResourceInlineEditor | null;
+  communityEmbeds?: CommunityEmbedContext | null;
 };
 
 export type WebCommunityResourceInlineEditorField = "title" | "body" | "pin";
@@ -120,8 +122,15 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const isBodyEditing = isEditing && activeField === "body";
   const isPinned = editor?.isEditing ? editor.pinnedInput : resource.pinned;
   const renderedBodyMarkdown = useMemo(
-    () => (hasBody ? renderMarkdown(trimmedBody, { embedStandaloneMedia: true, headingLevelOffset: 1 }) : null),
-    [hasBody, trimmedBody],
+    () =>
+      hasBody
+        ? renderMarkdown(trimmedBody, {
+            embedStandaloneMedia: true,
+            headingLevelOffset: 1,
+            communityEmbeds: props.communityEmbeds ?? null,
+          })
+        : null,
+    [hasBody, trimmedBody, props.communityEmbeds],
   );
 
   const syncBodyTextareaHeight = () => {

@@ -238,6 +238,29 @@ own rather than avatar_url (which is the member's).
 - knowledge(query?) -> what the community knows: top memories, or a search.
   Each has title, type, grade, applies_when.
 
+## Interactive widgets in lessons
+
+Lessons never run HTML. For a calculator, diagram or scorecard, deploy it as
+its own page on this site (for example embeds/scorecard.html) and place it in
+a lesson's text with a fenced block (~~~ or three backticks):
+
+    ~~~polynet-embed
+    src: embeds/scorecard.html
+    title: Asset scorecard
+    height: 900
+    fallback: media/scorecard.png
+    ~~~
+
+src is required; height is the starting height in pixels (the frame grows to
+fit); fallback is an image shown where the widget can't run. Polynet shows the
+page in a sandboxed frame with no access to the member's session. In the
+widget, load /__polynet/embed.js (a plain script tag, not a module) for:
+- polynetEmbed.load(key) -> the member's saved string, or null
+- polynetEmbed.save(key, value) -> saves a string (64 KB at most)
+- the community's theme as CSS variables: var(--pn-accent), var(--pn-text),
+  var(--pn-surface), var(--pn-font-body) and the rest of --pn-*.
+Wrap any localStorage use in try/catch: it can be unavailable in the frame.
+
 ## The community agent
 
 Each community has one AI agent. Members talk to it privately:
