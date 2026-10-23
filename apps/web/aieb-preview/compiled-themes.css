@@ -28,6 +28,10 @@
   --pn-space: 1;
   --pn-media-plate: transparent;
   --pn-media-plate-pad: 0px;
+  --pn-course-columns: repeat(2, minmax(0, 1fr));
+  --pn-course-cover-ratio: auto;
+  --pn-course-cover-height: clamp(118px, 17vw, 158px);
+  --pn-course-cover-fit: cover;
   --polynet-accent: #2B863A;
   --polynet-on-accent: #FFFFFF;
   --polynet-surface: #FFFFFF;
@@ -135,6 +139,10 @@
   --pn-space: 0.85;
   --pn-media-plate: #F4F4F0;
   --pn-media-plate-pad: 8px;
+  --pn-course-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  --pn-course-cover-ratio: 16 / 9;
+  --pn-course-cover-height: auto;
+  --pn-course-cover-fit: cover;
   --polynet-accent: #3FD15A;
   --polynet-on-accent: #0B0B0B;
   --polynet-surface: #151515;

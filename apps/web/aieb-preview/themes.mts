@@ -31,6 +31,7 @@ const THEMES: Record<string, unknown> = {
     },
     font_body: "IBM Plex Sans", font_heading: "Barlow Condensed", heading_weight: 600, heading_case: "upper",
     numerals: "tabular", radius: 3, button_shape: "square", density: "compact", media_plate: "light",
+    course_cover_ratio: "16:9", course_card_size: "medium",
   },
 };
 
