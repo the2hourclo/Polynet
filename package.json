@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "npm run dev:web",
     "dev:web": "npm --prefix apps/web run dev -- --port 5174 --strictPort",
+    "local": "node scripts/local-dev/start.mjs",
+    "seed:preview": "node --no-warnings scripts/seed-preview/seed.mjs",
     "test": "vitest run",
     "check:loading-correctness": "vitest run scripts/profile_draft_state.test.ts scripts/image_resource_lifecycle.test.ts scripts/web_data_result_integrity_contract.test.ts && node scripts/loading_correctness_browser_proof.mjs",
     "build": "npm --prefix apps/web run build",
