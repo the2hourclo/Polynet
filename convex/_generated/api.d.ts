@@ -127,6 +127,7 @@ import type * as communityResourceContent from "../communityResourceContent.js";
 import type * as communityResourceEvidence from "../communityResourceEvidence.js";
 import type * as communityResourceEvidenceCore from "../communityResourceEvidenceCore.js";
 import type * as communityResourceMemoryProjection from "../communityResourceMemoryProjection.js";
+import type * as communityResourceProgress from "../communityResourceProgress.js";
 import type * as communityResources from "../communityResources.js";
 import type * as communitySemanticMembers from "../communitySemanticMembers.js";
 import type * as communitySiteDeploy from "../communitySiteDeploy.js";
@@ -381,6 +382,7 @@ declare const fullApi: ApiFromModules<{
   communityResourceEvidence: typeof communityResourceEvidence;
   communityResourceEvidenceCore: typeof communityResourceEvidenceCore;
   communityResourceMemoryProjection: typeof communityResourceMemoryProjection;
+  communityResourceProgress: typeof communityResourceProgress;
   communityResources: typeof communityResources;
   communitySemanticMembers: typeof communitySemanticMembers;
   communitySiteDeploy: typeof communitySiteDeploy;
