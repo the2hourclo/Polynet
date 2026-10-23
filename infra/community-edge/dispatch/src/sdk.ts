@@ -223,6 +223,43 @@ async function resources(path) {
   return listAll(path || root() + "resources/");
 }
 
+// Every lesson in every course, in course order: [{ title, ref, path, course, course_path, lesson }].
+// lesson holds the board fields (kind, stage, stage_order, order, minutes,
+// video_url, gate, summary) or null for a plain page.
+async function lessons() {
+  const courses = (await resources()).filter(function (entry) { return entry.kind === "directory"; });
+  const all = [];
+  for (const course of courses) {
+    for (const entry of await resources(course.path)) {
+      if (entry.kind !== "document") continue;
+      all.push({ title: entry.name, ref: entry.ref, path: entry.path, course: course.name, course_path: course.path, lesson: entry.lesson || null });
+    }
+  }
+  return all;
+}
+
+// One lesson, whole: { title, ref, path, body, lesson } where lesson adds
+// intro_md, variants [{ key, label, body_md }] (the "### In <Platform>"
+// sections), slides [{ image, alt, note_md }] and commands [{ variant, language, text }].
+async function lesson(entry) {
+  const value = await read(entry.path || entry);
+  return { title: entry.name || entry.title || null, ref: value.ref, path: value.path, body: value.body, lesson: value.lesson || null };
+}
+
+// The member's own progress: { journey, stages, lessons }. journey is their
+// place in the community workflow ({ current_milestone_key,
+// current_milestone_name, milestones [{ key, name, position }] }) or null;
+// stages are board columns with locked and blocked_by; lessons carry status
+// ("not_started", "in_progress", "done") and locked.
+async function progress() {
+  const value = await read(root() + "members/me/progress.json");
+  return JSON.parse(value.body);
+}
+
+// Set your status on a lesson (entry or "resource:<id>"). A locked lesson
+// rejects with code "lesson_locked".
+const setProgress = function (entry, status) { return call("community.resource.progress.set", { ref: entry.ref || entry, status: status }); };
+
 // A document's text: a lesson, a memory, or a post (posts from feed/thread already have .text).
 async function readText(entry) {
   if (entry && entry.type === "interaction" && typeof entry.text === "string") return entry.text;
@@ -443,6 +480,7 @@ const polynet = {
   session: session, signIn: signIn, signOut: signOut, community: community, account: account,
   channels: channels, feed: feed, thread: thread, post: post, edit: edit, remove: remove, react: react, fileUrl: fileUrl, watch: watch,
   events: events, resources: resources, readText: readText, knowledge: knowledge, members: members,
+  lessons: lessons, lesson: lesson, progress: progress, setProgress: setProgress,
   agentHistory: agentHistory, askAgent: askAgent, markdown: markdown,
   door: { list: list, read: read, search: search, write: write, call: call },
 };
