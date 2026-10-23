@@ -1,4 +1,4 @@
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import {
   communityMembershipRowIsActive,
@@ -7,6 +7,7 @@ import {
   normalizeIdValue,
   requireCommunityChatAccess,
   requireCommunityManager,
+  resolveUserIdForAuthenticatedRequest,
   type CommunityResourceLike,
   type CommunityResourceModuleLike,
 } from "./communityCore";
@@ -178,57 +179,58 @@ function courseSummaries(source: LessonPages, rows: ProgressRow[]) {
   }).filter((course) => course.lesson_count > 0);
 }
 
-export const readOwnResourceProgressInternal = internalQuery({
-  args: {
+const readOwnResourceProgressArgs = {
     userId: v.id("users"),
     communityId: v.id("communities"),
-  },
-  handler: async (ctx, args) => {
-    await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
-    const source = await listMemberVisibleLessonPages(ctx, args.communityId);
-    const rows = await readProgressRows(ctx, args.communityId, args.userId);
-    const { stages, lessons } = await buildMemberProgress(ctx, source, rows);
+};
 
-    // The member's place in the community workflow, from the same owner as
-    // /members/me/context.md. Stage names only: builder instructions and goals
-    // stay private.
-    const self = await resolveSelfCommunityMembershipContext({
-      ctx,
-      actorUserId: args.userId,
-      communityId: args.communityId,
-    });
-    const workflow = self.workflow
-      ? await ctx.db.get(self.workflow.id as any)
-      : null;
-    const journey = self.workflow
-      ? {
-          current_milestone_key: self.workflow.current_milestone_key,
-          current_milestone_name: self.workflow.current_milestone_name,
-          entered_at: self.workflow.current_milestone_entered_at,
-          completed_at: self.workflow.completed_at,
-          all_actions_complete: self.workflow.action_progress?.all_actions_complete ?? null,
-          awaiting_approval: Boolean(self.workflow.require_human_approval),
-          milestones: ((workflow as any)?.milestones ?? []).map(
-            (milestone: { key: string; name: string }, index: number) => ({
-              key: milestone.key,
-              name: milestone.name,
-              position: index + 1,
-            }),
-          ),
-        }
-      : null;
+async function readOwnResourceProgress(ctx: any, args: any) {
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
+  const source = await listMemberVisibleLessonPages(ctx, args.communityId);
+  const rows = await readProgressRows(ctx, args.communityId, args.userId);
+  const { stages, lessons } = await buildMemberProgress(ctx, source, rows);
 
-    return {
-      kind: "community_resource_progress",
-      read_at: new Date().toISOString(),
-      journey,
-      courses: courseSummaries(source, rows),
-      stages,
-      lessons,
-      truncated: source.truncated,
-    };
-  },
-});
+  // The member's place in the community workflow, from the same owner as
+  // /members/me/context.md. Stage names only: builder instructions and goals
+  // stay private.
+  const self = await resolveSelfCommunityMembershipContext({
+    ctx,
+    actorUserId: args.userId,
+    communityId: args.communityId,
+  });
+  const workflow = self.workflow
+    ? await ctx.db.get(self.workflow.id as any)
+    : null;
+  const journey = self.workflow
+    ? {
+        current_milestone_key: self.workflow.current_milestone_key,
+        current_milestone_name: self.workflow.current_milestone_name,
+        entered_at: self.workflow.current_milestone_entered_at,
+        completed_at: self.workflow.completed_at,
+        all_actions_complete: self.workflow.action_progress?.all_actions_complete ?? null,
+        awaiting_approval: Boolean(self.workflow.require_human_approval),
+        milestones: ((workflow as any)?.milestones ?? []).map(
+          (milestone: { key: string; name: string }, index: number) => ({
+            key: milestone.key,
+            name: milestone.name,
+            position: index + 1,
+          }),
+        ),
+      }
+    : null;
+
+  return {
+    kind: "community_resource_progress",
+    read_at: new Date().toISOString(),
+    journey,
+    courses: courseSummaries(source, rows),
+    stages,
+    lessons,
+    truncated: source.truncated,
+  };
+}
+
+export const readOwnResourceProgressInternal = internalQuery({ args: readOwnResourceProgressArgs, handler: (ctx, args) => readOwnResourceProgress(ctx, args) });
 
 async function findVisibleLesson(ctx: any, communityId: any, rawResourceId: string) {
   const resourceId = ctx.db.normalizeId("communityResources", rawResourceId);
@@ -251,206 +253,247 @@ async function findOwnRow(ctx: any, communityId: any, userId: any, resourceId: a
 const UNAVAILABLE = { ok: false as const, code: "resource_unavailable", message: "That lesson is not available." };
 const LOCKED = { ok: false as const, code: "lesson_locked", message: "Finish the gate in an earlier stage first." };
 
-export const setOwnResourceProgressInternal = internalMutation({
-  args: {
+const setOwnResourceProgressArgs = {
     userId: v.id("users"),
     communityId: v.id("communities"),
     resourceId: v.string(),
     status: v.union(v.literal("not_started"), v.literal("in_progress"), v.literal("done")),
-  },
-  handler: async (ctx, args) => {
-    await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
-    const found = await findVisibleLesson(ctx, args.communityId, args.resourceId);
-    if (!found) return UNAVAILABLE;
-    const { resourceId, page, source } = found;
-    const ref = buildCommunityResourceEvidenceRef(normalizeIdValue(resourceId));
-    const existing = await findOwnRow(ctx, args.communityId, args.userId, resourceId);
-    if (args.status !== "not_started") {
-      const rows = await readProgressRows(ctx, args.communityId, args.userId);
-      if (lessonLocks(source.pages, rows).lockedRefs.has(ref)) return LOCKED;
-    }
-    if (args.status === "done") {
-      const remaining = requiredRemaining(await lessonElements(ctx, page), existing?.responses);
-      if (remaining.length) {
-        return {
-          ok: false as const,
-          code: "lesson_elements_incomplete",
-          message: `Finish the required parts of this lesson first: ${remaining.join(", ")}.`,
-        };
-      }
-    }
-    const nowMs = Date.now();
-    // Setting (not toggling) a status makes retries safe. not_started is a
-    // full reset, answers included.
-    if (args.status === "not_started") {
-      if (existing) await ctx.db.delete(existing._id);
-    } else if (!existing) {
-      await ctx.db.insert("communityResourceProgress", {
-        communityId: args.communityId,
-        userId: args.userId,
-        resourceId,
-        status: args.status,
-        startedAt: nowMs,
-        ...(args.status === "done" ? { completedAt: nowMs } : {}),
-        updatedAt: nowMs,
-      });
-    } else if (existing.status !== args.status) {
-      await ctx.db.patch(existing._id, {
-        status: args.status,
-        completedAt: args.status === "done" ? nowMs : undefined,
-        updatedAt: nowMs,
-      });
-    }
-    return { ok: true as const, ref, status: args.status };
-  },
-});
+};
 
-export const setOwnLessonResponseInternal = internalMutation({
-  args: {
+async function setOwnResourceProgress(ctx: any, args: any) {
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
+  const found = await findVisibleLesson(ctx, args.communityId, args.resourceId);
+  if (!found) return UNAVAILABLE;
+  const { resourceId, page, source } = found;
+  const ref = buildCommunityResourceEvidenceRef(normalizeIdValue(resourceId));
+  const existing = await findOwnRow(ctx, args.communityId, args.userId, resourceId);
+  if (args.status !== "not_started") {
+    const rows = await readProgressRows(ctx, args.communityId, args.userId);
+    if (lessonLocks(source.pages, rows).lockedRefs.has(ref)) return LOCKED;
+  }
+  if (args.status === "done") {
+    const remaining = requiredRemaining(await lessonElements(ctx, page), existing?.responses);
+    if (remaining.length) {
+      return {
+        ok: false as const,
+        code: "lesson_elements_incomplete",
+        message: `Finish the required parts of this lesson first: ${remaining.join(", ")}.`,
+      };
+    }
+  }
+  const nowMs = Date.now();
+  // Setting (not toggling) a status makes retries safe. not_started is a
+  // full reset, answers included.
+  if (args.status === "not_started") {
+    if (existing) await ctx.db.delete(existing._id);
+  } else if (!existing) {
+    await ctx.db.insert("communityResourceProgress", {
+      communityId: args.communityId,
+      userId: args.userId,
+      resourceId,
+      status: args.status,
+      startedAt: nowMs,
+      ...(args.status === "done" ? { completedAt: nowMs } : {}),
+      updatedAt: nowMs,
+    });
+  } else if (existing.status !== args.status) {
+    await ctx.db.patch(existing._id, {
+      status: args.status,
+      completedAt: args.status === "done" ? nowMs : undefined,
+      updatedAt: nowMs,
+    });
+  }
+  return { ok: true as const, ref, status: args.status };
+}
+
+export const setOwnResourceProgressInternal = internalMutation({ args: setOwnResourceProgressArgs, handler: (ctx, args) => setOwnResourceProgress(ctx, args) });
+
+const setOwnLessonResponseArgs = {
     userId: v.id("users"),
     communityId: v.id("communities"),
     resourceId: v.string(),
     element: v.string(),
     // null clears the answer.
     value: v.union(v.null(), v.boolean(), v.array(v.string())),
-  },
-  handler: async (ctx, args) => {
-    await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
-    const found = await findVisibleLesson(ctx, args.communityId, args.resourceId);
-    if (!found) return UNAVAILABLE;
-    const { resourceId, page, source } = found;
-    const ref = buildCommunityResourceEvidenceRef(normalizeIdValue(resourceId));
-    const elements = await lessonElements(ctx, page);
-    const element = elements.find((candidate) => candidate.id === args.element);
-    if (!element) {
-      return { ok: false as const, code: "element_unavailable", message: "That lesson has no element with this id." };
+};
+
+async function saveOwnLessonResponse(ctx: any, args: any) {
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
+  const found = await findVisibleLesson(ctx, args.communityId, args.resourceId);
+  if (!found) return UNAVAILABLE;
+  const { resourceId, page, source } = found;
+  const ref = buildCommunityResourceEvidenceRef(normalizeIdValue(resourceId));
+  const elements = await lessonElements(ctx, page);
+  const element = elements.find((candidate) => candidate.id === args.element);
+  if (!element) {
+    return { ok: false as const, code: "element_unavailable", message: "That lesson has no element with this id." };
+  }
+  const rows = await readProgressRows(ctx, args.communityId, args.userId);
+  if (lessonLocks(source.pages, rows).lockedRefs.has(ref)) return LOCKED;
+  let graded: ReturnType<typeof gradeCommunityLessonResponse> | null = null;
+  if (args.value !== null) {
+    try {
+      graded = gradeCommunityLessonResponse(element, args.value);
+    } catch {
+      return { ok: false as const, code: "invalid_response", message: "That answer does not fit this element." };
     }
-    const rows = await readProgressRows(ctx, args.communityId, args.userId);
-    if (lessonLocks(source.pages, rows).lockedRefs.has(ref)) return LOCKED;
-    let graded: ReturnType<typeof gradeCommunityLessonResponse> | null = null;
-    if (args.value !== null) {
-      try {
-        graded = gradeCommunityLessonResponse(element, args.value);
-      } catch {
-        return { ok: false as const, code: "invalid_response", message: "That answer does not fit this element." };
+  }
+  const nowMs = Date.now();
+  const existing = await findOwnRow(ctx, args.communityId, args.userId, resourceId);
+  const kept = (existing?.responses ?? []).filter((row) => row.element !== element.id);
+  const response: ResponseRow | null = graded
+    ? {
+        element: element.id,
+        value: graded.value,
+        ...(graded.correct === null ? {} : { correct: graded.correct }),
+        complete: graded.complete,
+        at: nowMs,
       }
+    : null;
+  const responses = response ? [...kept, response] : kept;
+  if (!existing) {
+    if (response) {
+      await ctx.db.insert("communityResourceProgress", {
+        communityId: args.communityId,
+        userId: args.userId,
+        resourceId,
+        status: "in_progress",
+        startedAt: nowMs,
+        responses,
+        updatedAt: nowMs,
+      });
     }
-    const nowMs = Date.now();
-    const existing = await findOwnRow(ctx, args.communityId, args.userId, resourceId);
-    const kept = (existing?.responses ?? []).filter((row) => row.element !== element.id);
-    const response: ResponseRow | null = graded
-      ? {
-          element: element.id,
-          value: graded.value,
-          ...(graded.correct === null ? {} : { correct: graded.correct }),
-          complete: graded.complete,
-          at: nowMs,
-        }
-      : null;
-    const responses = response ? [...kept, response] : kept;
-    if (!existing) {
-      if (response) {
-        await ctx.db.insert("communityResourceProgress", {
-          communityId: args.communityId,
-          userId: args.userId,
-          resourceId,
-          status: "in_progress",
-          startedAt: nowMs,
-          responses,
-          updatedAt: nowMs,
-        });
-      }
-    } else {
-      await ctx.db.patch(existing._id, { responses, updatedAt: nowMs });
-    }
-    return {
-      ok: true as const,
-      ref,
-      element: element.id,
-      response: response ? responseView(response, element) : null,
-      // The required elements still open; empty means the lesson can be marked done.
-      required_remaining: requiredRemaining(elements, responses),
-    };
-  },
-});
+  } else {
+    await ctx.db.patch(existing._id, { responses, updatedAt: nowMs });
+  }
+  return {
+    ok: true as const,
+    ref,
+    element: element.id,
+    response: response ? responseView(response, element) : null,
+    // The required elements still open; empty means the lesson can be marked done.
+    required_remaining: requiredRemaining(elements, responses),
+  };
+}
+
+export const setOwnLessonResponseInternal = internalMutation({ args: setOwnLessonResponseArgs, handler: (ctx, args) => saveOwnLessonResponse(ctx, args) });
 
 /**
  * Course completion for every member, for the community's owner and admins.
  * One page of members at a time, each with a per-course summary and their
  * quiz record.
  */
-export const listCommunityProgressReportInternal = internalQuery({
-  args: {
+const listCommunityProgressReportArgs = {
     userId: v.id("users"),
     communityId: v.id("communities"),
     cursor: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
-    const source = await listMemberVisibleLessonPages(ctx, args.communityId);
-    const visibleIds = new Set(source.pages.map((page) => normalizeIdValue(page._id)));
-    const page = await ctx.db
-      .query("communityMemberships")
-      .withIndex("by_community", (q) => q.eq("communityId", args.communityId))
-      .paginate({ numItems: REPORT_PAGE_SIZE, cursor: args.cursor ?? null });
-    const members = await Promise.all(page.page.filter(communityMembershipRowIsActive).map(async (membership) => {
-      const [profile, rows] = await Promise.all([
-        resolveUserProfileDisplayProjection(ctx, membership.userId),
-        readProgressRows(ctx, args.communityId, membership.userId),
-      ]);
-      const visibleRows = rows.filter((row) => visibleIds.has(normalizeIdValue(row.resourceId)));
-      const quizzes = visibleRows.flatMap((row) => (row.responses ?? []).filter((response) => response.correct !== undefined));
-      return {
-        membership_id: String(membership._id),
-        user_id: String(membership.userId),
-        name: profile.display_name,
-        last_activity_at: toIso(visibleRows.reduce((latest, row) => Math.max(latest, row.updatedAt), 0) || undefined),
-        lessons_done: visibleRows.filter((row) => row.status === "done").length,
-        courses: courseSummaries(source, visibleRows).map(({ name: _name, ...course }) => course),
-        quizzes: {
-          answered: quizzes.length,
-          correct: quizzes.filter((response) => response.correct).length,
-        },
-      };
-    }));
-    return {
-      courses: courseSummaries(source, []).map(({ ref, name, lesson_count }) => ({ ref, name, lesson_count })),
-      members,
-      next_cursor: page.isDone ? null : page.continueCursor,
-      truncated: source.truncated,
-    };
-  },
-});
+};
 
-/** One member's lesson-by-lesson progress and answers, for the owner and admins. */
-export const readMemberProgressReportInternal = internalQuery({
-  args: {
-    userId: v.id("users"),
-    communityId: v.id("communities"),
-    membershipId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
-    const membershipId = ctx.db.normalizeId("communityMemberships", args.membershipId);
-    const membership = membershipId ? await ctx.db.get(membershipId) : null;
-    if (!membership || normalizeIdValue(membership.communityId) !== normalizeIdValue(args.communityId)) {
-      throw new Error("community_member_not_found");
-    }
-    const source = await listMemberVisibleLessonPages(ctx, args.communityId);
-    const rows = await readProgressRows(ctx, args.communityId, membership.userId);
-    const { stages, lessons } = await buildMemberProgress(ctx, source, rows);
-    const profile = await resolveUserProfileDisplayProjection(ctx, membership.userId);
+async function listProgressReport(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  const source = await listMemberVisibleLessonPages(ctx, args.communityId);
+  const visibleIds = new Set(source.pages.map((page) => normalizeIdValue(page._id)));
+  const page = await ctx.db
+    .query("communityMemberships")
+    .withIndex("by_community", (q: any) => q.eq("communityId", args.communityId))
+    .paginate({ numItems: REPORT_PAGE_SIZE, cursor: args.cursor ?? null });
+  const members = await Promise.all(page.page.filter(communityMembershipRowIsActive).map(async (membership: any) => {
+    const [profile, rows] = await Promise.all([
+      resolveUserProfileDisplayProjection(ctx, membership.userId),
+      readProgressRows(ctx, args.communityId, membership.userId),
+    ]);
+    const visibleRows = rows.filter((row) => visibleIds.has(normalizeIdValue(row.resourceId)));
+    const quizzes = visibleRows.flatMap((row) => (row.responses ?? []).filter((response) => response.correct !== undefined));
     return {
-      kind: "community_member_progress_report",
-      read_at: new Date().toISOString(),
       membership_id: String(membership._id),
       user_id: String(membership.userId),
       name: profile.display_name,
-      active: communityMembershipRowIsActive(membership),
-      courses: courseSummaries(source, rows),
-      stages,
-      lessons,
-      truncated: source.truncated,
+      last_activity_at: toIso(visibleRows.reduce((latest, row) => Math.max(latest, row.updatedAt), 0) || undefined),
+      lessons_done: visibleRows.filter((row) => row.status === "done").length,
+      courses: courseSummaries(source, visibleRows).map(({ name: _name, ...course }) => course),
+      quizzes: {
+        answered: quizzes.length,
+        correct: quizzes.filter((response) => response.correct).length,
+      },
     };
-  },
+  }));
+  return {
+    courses: courseSummaries(source, []).map(({ ref, name, lesson_count }) => ({ ref, name, lesson_count })),
+    members,
+    next_cursor: page.isDone ? null : page.continueCursor,
+    truncated: source.truncated,
+  };
+}
+
+export const listCommunityProgressReportInternal = internalQuery({ args: listCommunityProgressReportArgs, handler: (ctx, args) => listProgressReport(ctx, args) });
+
+/** One member's lesson-by-lesson progress and answers, for the owner and admins. */
+const readMemberProgressReportArgs = {
+    userId: v.id("users"),
+    communityId: v.id("communities"),
+    membershipId: v.string(),
+};
+
+async function readMemberProgressReport(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  const membershipId = ctx.db.normalizeId("communityMemberships", args.membershipId);
+  const membership = membershipId ? await ctx.db.get(membershipId) : null;
+  if (!membership || normalizeIdValue(membership.communityId) !== normalizeIdValue(args.communityId)) {
+    throw new Error("community_member_not_found");
+  }
+  const source = await listMemberVisibleLessonPages(ctx, args.communityId);
+  const rows = await readProgressRows(ctx, args.communityId, membership.userId);
+  const { stages, lessons } = await buildMemberProgress(ctx, source, rows);
+  const profile = await resolveUserProfileDisplayProjection(ctx, membership.userId);
+  return {
+    kind: "community_member_progress_report",
+    read_at: new Date().toISOString(),
+    membership_id: String(membership._id),
+    user_id: String(membership.userId),
+    name: profile.display_name,
+    active: communityMembershipRowIsActive(membership),
+    courses: courseSummaries(source, rows),
+    stages,
+    lessons,
+    truncated: source.truncated,
+  };
+}
+
+export const readMemberProgressReportInternal = internalQuery({ args: readMemberProgressReportArgs, handler: (ctx, args) => readMemberProgressReport(ctx, args) });
+
+// The same reads and writes for the signed-in member, or owner, in the web app.
+function signedIn<A extends { userId: unknown }>(validators: A) {
+  const { userId: _userId, ...rest } = validators;
+  return { authSubject: v.optional(v.string()), ...rest };
+}
+
+async function signedInArgs(ctx: any, args: { authSubject?: string } & Record<string, unknown>) {
+  const { authSubject, ...rest } = args;
+  const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: authSubject ?? null });
+  return { ...rest, userId };
+}
+
+export const getOwnResourceProgress = query({
+  args: signedIn(readOwnResourceProgressArgs),
+  handler: async (ctx, args) => readOwnResourceProgress(ctx, await signedInArgs(ctx, args)),
+});
+
+export const setOwnResourceProgressStatus = mutation({
+  args: signedIn(setOwnResourceProgressArgs),
+  handler: async (ctx, args) => setOwnResourceProgress(ctx, await signedInArgs(ctx, args)),
+});
+
+export const setOwnLessonResponse = mutation({
+  args: signedIn(setOwnLessonResponseArgs),
+  handler: async (ctx, args) => saveOwnLessonResponse(ctx, await signedInArgs(ctx, args)),
+});
+
+export const listCommunityProgressReport = query({
+  args: signedIn(listCommunityProgressReportArgs),
+  handler: async (ctx, args) => listProgressReport(ctx, await signedInArgs(ctx, args)),
+});
+
+export const getMemberProgressReport = query({
+  args: signedIn(readMemberProgressReportArgs),
+  handler: async (ctx, args) => readMemberProgressReport(ctx, await signedInArgs(ctx, args)),
 });

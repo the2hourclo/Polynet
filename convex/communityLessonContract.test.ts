@@ -243,4 +243,34 @@ describe("follow-along elements", () => {
     expect(gradeCommunityLessonResponse(button, true)).toEqual({ value: true, correct: null, complete: true });
     expect(() => gradeCommunityLessonResponse(button, false)).toThrow();
   });
+
+  test("buttons call existing actions and form blocks point at a Polynet Form", () => {
+    const body = [
+      "```button finish action=mark_done",
+      "I'm done",
+      "```",
+      "```button help action=ask_agent",
+      "Review my map",
+      "```",
+      "```button open action=open_form:map-checkpoint",
+      "Submit my map",
+      "```",
+      "```form proof form=map-checkpoint",
+      "Send your map for review.",
+      "```",
+    ].join("\n");
+    const elements = parseCommunityLessonElements(body, { strict: true });
+    expect(elements.map((element) => [element.id, element.type, element.action ?? null, element.form_key ?? null])).toEqual([
+      ["finish", "button", "mark_done", null],
+      ["help", "button", "ask_agent", null],
+      ["open", "button", "open_form", "map-checkpoint"],
+      ["proof", "form", null, "map-checkpoint"],
+    ]);
+    expect(parseCommunityLessonElements("```button ok\nGo\n```")[0].action).toBe("confirm");
+    expect(() => parseCommunityLessonElements("```button x action=open_form\nGo\n```", { strict: true })).toThrow(":flag");
+    expect(() => parseCommunityLessonElements("```button x action=delete_all\nGo\n```", { strict: true })).toThrow(":flag");
+    expect(() => parseCommunityLessonElements("```form f required form=k\nGo\n```", { strict: true })).toThrow(":flag");
+    expect(() => parseCommunityLessonElements("```form f\nGo\n```", { strict: true })).toThrow(":form");
+    expect(() => gradeCommunityLessonResponse(elements[3], true)).toThrow();
+  });
 });

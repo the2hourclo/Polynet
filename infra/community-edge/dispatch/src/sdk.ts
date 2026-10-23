@@ -241,8 +241,9 @@ async function lessons() {
 // One lesson, whole: { title, ref, path, body, lesson } where lesson adds
 // intro_md, variants [{ key, label, body_md }] (the "### In <Platform>"
 // sections), slides [{ image, alt, note_md }], commands [{ variant, language, text }]
-// and elements [{ id, type, required, prompt, label, choices, multiple }]: the
-// lesson's buttons, checklists and quizzes, without the answers.
+// and elements [{ id, type, required, prompt, label, choices, multiple, action,
+// form_key }]: the lesson's buttons, checklists, quizzes and forms, without
+// the answers.
 async function lesson(entry) {
   const value = await read(entry.path || entry);
   return { title: entry.name || entry.title || null, ref: value.ref, path: value.path, body: value.body, lesson: value.lesson || null };
@@ -270,6 +271,25 @@ const setProgress = function (entry, status) { return call("community.resource.p
 // required_remaining, the required elements still open.
 const answer = function (entry, element, value) {
   return call("community.resource.response.set", { ref: entry.ref || entry, element: element, value: value === undefined ? null : value });
+};
+
+// The Polynet Form a lesson's form block shows: the member's open request for
+// that form key (a Workflow stage assigns it), read whole, or null when no
+// stage has asked for it yet. { ref, form_version_ref, name, questions,
+// answers, revision, status }.
+async function lessonForm(element) {
+  const key = element.form_key || element;
+  const entries = await listAll(root() + "members/me/forms/");
+  const match = entries.filter(function (entry) { return entry.form_key === key; })[0];
+  if (!match) return null;
+  const value = await read(match.path);
+  return JSON.parse(value.body);
+}
+
+// Submit a form from lessonForm() with answers { questionKey: text or [choices] }.
+const submitLessonForm = function (form, answers) {
+  return call("community.form.submit", { form_request_ref: form.ref, form_version_ref: form.form_version_ref,
+    expected_revision: form.revision, answers: answers });
 };
 
 // Owners and admins: course completion for every member.
@@ -519,6 +539,7 @@ const polynet = {
   events: events, resources: resources, readText: readText, knowledge: knowledge, members: members,
   lessons: lessons, lesson: lesson, progress: progress, setProgress: setProgress,
   answer: answer, courseReport: courseReport, memberProgress: memberProgress,
+  lessonForm: lessonForm, submitLessonForm: submitLessonForm,
   agentHistory: agentHistory, askAgent: askAgent, markdown: markdown,
   door: { list: list, read: read, search: search, write: write, call: call },
 };

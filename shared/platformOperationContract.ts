@@ -222,7 +222,9 @@ const COMMUNITY_LESSON_READ_SCHEMA: PlatformOperationJsonSchema = {
         required: ["id", "type", "required", "prompt"],
         properties: {
           id: { type: "string", maxLength: 40 },
-          type: { type: "string", enum: ["button", "checklist", "quiz"] },
+          type: { type: "string", enum: ["button", "checklist", "quiz", "form"] },
+          action: { type: "string", enum: ["confirm", "mark_done", "ask_agent", "open_form"] },
+          form_key: { type: "string", maxLength: 80 },
           required: { type: "boolean" },
           prompt: { type: "string", maxLength: 1_000 },
           label: { type: "string", maxLength: 300 },

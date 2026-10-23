@@ -224,10 +224,19 @@ own rather than avatar_url (which is the member's).
   sections (for example cowork, claude_code, codex), slides [{ image, alt,
   note_md }] from a "## Slides" section, commands [{ variant, language,
   text }] from fenced code blocks, and elements [{ id, type, required,
-  prompt, label, choices [{ id, label }], multiple }]: the lesson's follow-
-  along buttons, checklists and quizzes (fenced blocks named button,
-  checklist or quiz in the body). Quiz answers are not included. Render each
-  element where its block sits in the body.
+  prompt, label, choices [{ id, label }], multiple, action, form_key }]: the
+  lesson's follow-along buttons, checklists, quizzes and forms (fenced
+  blocks named button, checklist, quiz or form in the body). Quiz answers
+  are not included. Render each element where its block sits in the body.
+  A button's action says what it does: "confirm" (answer(entry, id, true)),
+  "mark_done" (setProgress(entry, "done")), "ask_agent" (askAgent(label))
+  or "open_form" (show lessonForm(form_key)). A form element shows a
+  Polynet Form inside the lesson: use lessonForm() and submitLessonForm().
+- lessonForm(element) -> the member's open Polynet Form for that form_key,
+  assigned by a Workflow stage: { ref, form_version_ref, name, questions,
+  answers, revision, status }, or null when no stage has asked for it yet.
+- submitLessonForm(form, answers) -> submits it through Polynet Forms, so
+  the Workflow, the agent and the owner's dossier see the answers.
 - progress() -> the member's own { journey, courses, stages, lessons }.
   courses: [{ ref, name, lesson_count, done_count, percent, completed_at }].
   stages: [{ name, order, lesson_count, done_count, locked, blocked_by }].

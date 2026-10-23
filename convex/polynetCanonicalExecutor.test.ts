@@ -3809,7 +3809,7 @@ test("members answer lesson buttons, checklists and quizzes, and owners see cour
   expect(read, JSON.stringify(read)).toMatchObject({ ok: true });
   const elements = (read as any).value.lesson.elements;
   expect(elements).toEqual([
-    { id: "installed", type: "button", required: true, prompt: "", label: "I installed Claude Code" },
+    { id: "installed", type: "button", required: true, prompt: "", label: "I installed Claude Code", action: "confirm" },
     { id: "setup", type: "checklist", required: false, prompt: "",
       choices: [{ id: "open-the-terminal", label: "Open the terminal" }, { id: "run", label: "Run claude" }] },
     { id: "pick-tool", type: "quiz", required: true, prompt: "Which app runs on your own computer?", multiple: false,
@@ -3862,6 +3862,25 @@ test("members answer lesson buttons, checklists and quizzes, and owners see cour
   const detailState = JSON.parse(String((detail as any).value.body));
   expect(detailState).toMatchObject({ kind: "community_member_progress_report", name: "canonical-member" });
   expect(detailState.lessons.find((lesson: any) => lesson.ref === pages.install).status).toBe("done");
+  const dossier = await asOwner("polynet_read", `/communities/canonical-community/builder/workflow-members/${row.membership_id}.md`);
+  expect(dossier, JSON.stringify(dossier)).toMatchObject({ ok: true });
+  expect(String((dossier as any).value.body)).toContain("- Get set up: 1 of 2 lessons (50%)");
+
+  // The web app reads and writes the same state through public functions.
+  const web = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: fixture.communityId });
+  expect(web.courses[0]).toMatchObject({ done_count: 1, percent: 50 });
+  await expect(asMember.mutation(api.communityResourceProgress.setOwnLessonResponse, {
+    communityId: fixture.communityId, resourceId: pages.install.slice("resource:".length), element: "setup", value: null,
+  })).resolves.toMatchObject({ ok: true, response: null });
+  await expect(asMember.query(api.communityResourceProgress.listCommunityProgressReport, { communityId: fixture.communityId }))
+    .rejects.toThrow();
+  const ownerReport = await t.withIdentity({ subject: fixture.ownerSubject })
+    .query(api.communityResourceProgress.listCommunityProgressReport, { communityId: fixture.communityId });
+  expect(ownerReport.members.find((member: any) => member.user_id === String(fixture.memberId))).toMatchObject({ lessons_done: 1 });
+  await expect(t.withIdentity({ subject: fixture.ownerSubject }).query(api.communityResourceProgress.getMemberProgressReport, {
+    communityId: fixture.communityId, membershipId: row.membership_id,
+  })).resolves.toMatchObject({ kind: "community_member_progress_report" });
+
   await expect(asOwner("polynet_list", "/communities/canonical-community/builder/progress/", fixture.memberSubject, fixture.memberId))
     .resolves.toMatchObject({ ok: false });
   await expect(asOwner("polynet_read", row.path, fixture.memberSubject, fixture.memberId))
