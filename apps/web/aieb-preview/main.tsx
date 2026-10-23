@@ -10,8 +10,9 @@ import "@fontsource-variable/ibm-plex-sans/wght.css";
 import "../src/index.css";
 import "../src/components/WebCommunityKnowledgePanel.css";
 import "../src/components/WebCommunityWorkflowsSection.css";
+import "./excalifont.css";
+import "./compiled-themes.css";
 import "./preview.css";
-import "./clo-theme.css";
 
 import { CommunityNav } from "../../../shared/CommunityNav";
 import { CommunityAvatar } from "../../../shared/CommunityAvatar";
@@ -28,7 +29,23 @@ import fixtures from "./fixtures.json";
 type Lesson = { ref: string; title: string; module_id: string; lesson: CommunityLessonFields | null };
 type Status = "not_started" | "in_progress" | "done";
 
-const COMMUNITY = { id: "aieb", slug: "ai-employee-builders", name: "AI Employee Builders", banner_url: null };
+// ?theme=clo (default) | the-2-hour-club | none picks the community theme the
+// preview shows. Themes come from themes.mts, compiled by Polynet's own theme
+// compiler, and apply to the community area only, never the rail.
+const THEME_PARAM = new URLSearchParams(window.location.search).get("theme") ?? "clo";
+const THEME = THEME_PARAM === "none" ? null : THEME_PARAM;
+const COMMUNITY = THEME === "the-2-hour-club"
+  ? { id: "the-2-hour-club", slug: "the-2-hour-club", name: "The 2 Hour Club", banner_url: null }
+  : { id: "aieb", slug: "ai-employee-builders", name: "AI Employee Builders", banner_url: null };
+const THEME_FONTS: Record<string, string> = {
+  "the-2-hour-club": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap",
+};
+if (THEME && THEME_FONTS[THEME]) {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = THEME_FONTS[THEME];
+  document.head.appendChild(link);
+}
 const modules = fixtures.modules as CommunityResourceModule[];
 const resources = fixtures.resources as CommunityResource[];
 const lessons = fixtures.lessons as Lesson[];
@@ -284,7 +301,7 @@ function App() {
     <div className="app-root">
       <div className="app-shell with-community-rail framed-shell community-layout sessions-compact no-right">
         <Rail />
-        <div className="product-shell-surface product-shell-surface--community">
+        <div className="product-shell-surface product-shell-surface--community" data-community-theme={THEME ?? undefined}>
           <CommunityNav
             activeCommunity={COMMUNITY}
             communityTab={tab}
