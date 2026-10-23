@@ -5,6 +5,11 @@
    class is fixed here once for every community. Applies only inside an
    element with data-community-theme; without one, nothing changes. */
 
+/* Mobile and single-pane pages: the wrapper only carries the theme, it adds no box. */
+.community-theme-scope {
+  display: contents;
+}
+
 [data-community-theme] {
   font-family: var(--pn-font-body);
   font-variant-numeric: var(--pn-numerals);

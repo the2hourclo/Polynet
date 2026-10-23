@@ -80,10 +80,27 @@ Themes never name Polynet's classes. Where a component should use a shape or
 type token, the rule lives in `community-theme-hooks.css`, maintained with
 the components.
 
+## Storage and the web app
+
+`convex/communityThemes.ts` keeps one draft and one published theme per
+community in `communityThemes`. Managers read the draft
+(`getCommunityThemeDraft`), replace it (`saveCommunityThemeDraft`, rejected
+with every problem when invalid), publish it, or discard it back to the
+published theme. Every write names the draft revision it started from, so a
+stale editor gets `community_theme_revision_conflict` instead of overwriting.
+`getPublishedCommunityTheme` needs no session: a theme is how a public page
+looks, never private data.
+
+The web app reads the published theme for the open community
+(`useWebCommunityThemeStyle`), installs the compiled CSS once, and sets
+`data-community-theme` on the community's own area: home, channels,
+Knowledge, Events, agent and Workflows. Community settings, analytics,
+Discover, messages and account pages keep Polynet's look. A failed read keeps
+Polynet's look too.
+
 ## Not in this change
 
-- Storing the record on the community (a `communityThemes` table with draft,
-  published and revision, like `communityFunnels`), the MCP operations
-  `community.theme.get/set`, and setting `data-community-theme` in the web app.
+- An editor screen in community settings, and the MCP operations
+  `community.theme.get/set` through agent changesets.
 - Serving `/__polynet/theme.css` on community sites.
 - Hosting Excalifont with Polynet (the AIEB preview inlines it today).
