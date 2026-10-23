@@ -8,6 +8,13 @@ import {
 } from "./providerConnections";
 import { readCanonicalPublicAppOrigin } from "./publicAppUrl";
 import {
+  normalizeCommunityLessonFields,
+  parseCommunityLessonElements,
+  redactCommunityLessonAnswers,
+  projectCommunityLessonBody,
+  type CommunityLessonFields,
+} from "../shared/communityLessonContract";
+import {
   type CommunityResourceModuleLike,
   type CommunityResourceLike,
   communityResourceBodyChars,
@@ -235,11 +242,12 @@ const GITHUB_SOURCE_READABLE_EXTENSIONS = new Set([
 async function mapCommunityResourceRowWithBody(
   ctx: any,
   row: CommunityResourceLike,
+  viewer: { canManage: boolean },
   userIdCache?: Map<string, string | null>,
   moduleNameCache?: Map<string, string | null>,
 ) {
   const hydrated = await hydrateCommunityResourceBody(ctx, row) ?? row;
-  return await mapCommunityResourceRow(ctx, hydrated, userIdCache, moduleNameCache);
+  return await mapCommunityResourceRow(ctx, hydrated, userIdCache, moduleNameCache, viewer);
 }
 
 type SourceIntegrationProvider = typeof GOOGLE_DRIVE_SOURCE_PROVIDER | typeof GITHUB_SOURCE_PROVIDER;
@@ -342,6 +350,7 @@ type CommunityResourceBuilderChangesetOperation =
       url?: string | null;
       resource_status?: string;
       pinned?: boolean;
+      lesson?: CommunityLessonFields | null;
     }
   | {
       op: "edit_page";
@@ -355,6 +364,7 @@ type CommunityResourceBuilderChangesetOperation =
       url?: string | null;
       resource_status?: string;
       pinned?: boolean;
+      lesson?: CommunityLessonFields | null;
     }
   | {
       op: "move_resource";
@@ -2215,6 +2225,19 @@ function normalizeBuilderResourceStatus(args: {
   return next;
 }
 
+// Members never get a quiz's answer key in the lesson text.
+function memberLessonBody(row: CommunityResourceLike): string {
+  const body = String(row.bodyMd ?? "");
+  return row.lesson ? redactCommunityLessonAnswers(body) : body;
+}
+
+// An agent staging a body hears about a broken button, checklist or quiz right
+// away; a body edited by hand just shows a bad block as plain code.
+function strictLessonBody<T extends string | null | undefined>(bodyMd: T): T {
+  parseCommunityLessonElements(bodyMd, { strict: true });
+  return bodyMd;
+}
+
 function hasOwnField(record: Record<string, unknown>, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, field);
 }
@@ -2315,7 +2338,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
           : null),
         title: normalizeName(record.title),
         body_md: hasOwnField(record, "body_md")
-          ? normalizeCommunityResourceBodyMd(record.body_md, 20_000)
+          ? strictLessonBody(normalizeCommunityResourceBodyMd(record.body_md, 20_000))
           : null,
         source_resource_id: normalizeOptionalModuleId(record.source_resource_id),
         ...(hasOwnField(record, "type") ? { type: normalizeResourceType(record.type) } : null),
@@ -2324,6 +2347,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
           ? { resource_status: normalizeChangesetPageStatus(record.resource_status) }
           : null),
         ...(hasOwnField(record, "pinned") ? { pinned: Boolean(record.pinned) } : null),
+        ...(hasOwnField(record, "lesson") ? { lesson: normalizeCommunityLessonFields(record.lesson) } : null),
       };
     }
     if (op === "edit_page") {
@@ -2334,7 +2358,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
       };
       if (hasOwnField(record, "module_id")) next.module_id = normalizeOptionalModuleId(record.module_id);
       if (hasOwnField(record, "title")) next.title = normalizeName(record.title);
-      if (hasOwnField(record, "body_md")) next.body_md = normalizeCommunityResourceBodyMd(record.body_md, 20_000);
+      if (hasOwnField(record, "body_md")) next.body_md = strictLessonBody(normalizeCommunityResourceBodyMd(record.body_md, 20_000));
       if (hasOwnField(record, "source_resource_id")) {
         next.source_resource_id = normalizeOptionalModuleId(record.source_resource_id);
       }
@@ -2342,6 +2366,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
       if (hasOwnField(record, "url")) next.url = normalizeOptionalUrl(record.url) ?? null;
       if (hasOwnField(record, "resource_status")) next.resource_status = normalizeChangesetPageStatus(record.resource_status);
       if (hasOwnField(record, "pinned")) next.pinned = Boolean(record.pinned);
+      if (hasOwnField(record, "lesson")) next.lesson = normalizeCommunityLessonFields(record.lesson);
       if (Object.keys(next).length <= 3) {
         throw new Error("community_resource_changeset_edit_page_empty");
       }
@@ -2878,6 +2903,7 @@ async function createPageFromChangesetOperation(args: {
     sourceIngestionStatus: "not_required",
     sourceIngestionKind: "manual",
     pinned: Boolean(args.operation.pinned),
+    ...(args.operation.lesson ? { lesson: args.operation.lesson } : {}),
     sortOrder,
     createdAt: args.nowMs,
     updatedAt: args.nowMs,
@@ -2957,6 +2983,7 @@ async function editPageFromChangesetOperation(args: {
     ...(hasOwnField(args.operation as any, "title") ? { title: normalizeName(args.operation.title) } : {}),
     ...(hasOwnField(args.operation as any, "url") ? { url: normalizeOptionalUrl(args.operation.url) } : {}),
     ...(hasOwnField(args.operation as any, "pinned") ? { pinned: Boolean(args.operation.pinned) } : {}),
+    ...(hasOwnField(args.operation as any, "lesson") ? { lesson: args.operation.lesson ?? undefined } : {}),
     ...(typeof nextSortOrder === "number" ? { sortOrder: nextSortOrder } : {}),
     updatedAt: args.nowMs,
   });
@@ -3328,6 +3355,7 @@ function mapCommunityResourceSemanticPageEntry(args: {
     ref: buildCommunityResourceEvidenceRef(resourceId),
     directory_path: directory.directory_path,
     directory_uri: directory.directory_uri,
+    lesson: args.resource.lesson ?? null,
   };
 }
 
@@ -3536,6 +3564,7 @@ function buildResourceDirectoryEntry(
     url: row.url ?? null,
     has_file: Boolean(row.fileKey),
     summary: compactResourceSummary(row),
+    lesson: row.lesson ?? null,
     lineage: deriveCommunityResourceLineageEnvelope({
       communityId: normalizeIdValue(row.communityId),
       resourceId,
@@ -4070,7 +4099,7 @@ async function buildCommunityResourceDirectoryReadPayload(args: {
   limit: unknown;
 }) {
   const row = await hydrateCommunityResourceBody(args.ctx, args.resource) ?? args.resource;
-  const body = String(row.bodyMd ?? "");
+  const body = memberLessonBody(row);
   const offset = boundedReadOffset(args.offset);
   const limit = boundedReadLimit(args.limit);
   const bodySlice = body ? body.slice(offset, offset + limit) : null;
@@ -4087,6 +4116,7 @@ async function buildCommunityResourceDirectoryReadPayload(args: {
       truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
       unavailable_reason: readContentUnavailableReason(row),
     },
+    lesson_body: row.lesson ? projectCommunityLessonBody(row.bodyMd) : null,
   };
 }
 
@@ -4150,7 +4180,7 @@ async function buildBatchReadResourceResult(args: {
   }
 
   const row = await hydrateCommunityResourceBody(args.ctx, resolved.resource) ?? resolved.resource;
-  const body = String(row.bodyMd ?? "");
+  const body = args.builder ? String(row.bodyMd ?? "") : memberLessonBody(row);
   const contentLimit = Math.max(0, Math.floor(args.contentLimit));
   const bodySlice = body && contentLimit > 0 ? body.slice(0, contentLimit) : null;
   const source = args.builder && row.sourceResourceId
@@ -4410,7 +4440,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
     }
 
     const row = await hydrateCommunityResourceBody(ctx, resolved.resource) ?? resolved.resource;
-    const body = String(row.bodyMd ?? "");
+    const body = memberLessonBody(row);
     const offset = boundedReadOffset(args.offset);
     const limit = boundedReadLimit(args.limit);
     const bodySlice = body ? body.slice(offset, offset + limit) : null;
@@ -4427,6 +4457,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
         truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
         unavailable_reason: readContentUnavailableReason(row),
       },
+      lesson_body: row.lesson ? projectCommunityLessonBody(row.bodyMd) : null,
     };
   },
 });
@@ -5141,7 +5172,7 @@ async function readCommunityResourceBuilderResourceCore(args: {
       ok: true,
       kind: "community_resource_builder_read",
       target_type: "resource",
-      resource: await mapCommunityResourceRowWithBody(args.ctx, resolved.resource),
+      resource: await mapCommunityResourceRowWithBody(args.ctx, resolved.resource, { canManage: true }),
     };
   }
   return await buildCommunityResourceBuilderModuleReadPayload({
@@ -6412,7 +6443,7 @@ export const listCommunityResources = query({
         .filter((row) => canManageResources || communityResourceIsLiveModulePage(row, liveModuleIds))
         .sort(compareCommunityResources)
         .slice(0, limit)
-        .map((row) => mapCommunityResourceRowWithBody(ctx, row, userIdCache, moduleNameCache)),
+        .map((row) => mapCommunityResourceRowWithBody(ctx, row, { canManage: canManageResources }, userIdCache, moduleNameCache)),
     );
   },
 });
@@ -8253,7 +8284,7 @@ export const insertGoogleDriveSourceResourceInternal = internalMutation({
     });
     const row = (await ctx.db.get(id as any)) as CommunityResourceLike | null;
     if (!row) throw new Error("community_google_drive_source_create_failed");
-    return await mapCommunityResourceRow(ctx, row);
+    return await mapCommunityResourceRow(ctx, row, undefined, undefined, { canManage: true });
   },
 });
 
@@ -8302,7 +8333,7 @@ export const insertGitHubSourceResourceInternal = internalMutation({
     });
     const row = (await ctx.db.get(id as any)) as CommunityResourceLike | null;
     if (!row) throw new Error("community_github_source_create_failed");
-    return await mapCommunityResourceRow(ctx, row);
+    return await mapCommunityResourceRow(ctx, row, undefined, undefined, { canManage: true });
   },
 });
 
@@ -8598,7 +8629,7 @@ export const finalizeCommunitySourceIngestionInternal = internalMutation({
     }
     const hydrated = await hydrateCommunityResourceBody(ctx, updated) ?? updated;
     await syncCommunityResourceMemoryProjection(ctx, hydrated, nowMs);
-    return { ok: true, resource: await mapCommunityResourceRow(ctx, hydrated) };
+    return { ok: true, resource: await mapCommunityResourceRow(ctx, hydrated, undefined, undefined, { canManage: true }) };
   },
 });
 
@@ -9957,7 +9988,7 @@ export const saveCommunityResource = mutation({
       }
       const hydrated = await hydrateCommunityResourceBody(ctx, updated) ?? updated;
       await syncCommunityResourceMemoryProjection(ctx, hydrated, nowMs);
-      return await mapCommunityResourceRow(ctx, hydrated);
+      return await mapCommunityResourceRow(ctx, hydrated, undefined, undefined, { canManage: true });
     }
 
     const communityIdRaw = args.communityId ?? (payload.community_id as any);
@@ -10079,7 +10110,7 @@ export const saveCommunityResource = mutation({
         nowMs,
       });
     }
-    return await mapCommunityResourceRow(ctx, hydrated);
+    return await mapCommunityResourceRow(ctx, hydrated, undefined, undefined, { canManage: true });
   },
 });
 

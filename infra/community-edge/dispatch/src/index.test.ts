@@ -179,6 +179,17 @@ test("community pages are served untransformed, so Cloudflare injects no scripts
   expect(css.headers.get("cache-control")).toBe("public, max-age=3600");
 });
 
+test("every site gets the widget helper (embed.js), loadable from a sandboxed frame", async () => {
+  resetEdgeCaches();
+  const res = await edge.fetch(request("/__polynet/embed.js"), env());
+  expect(res.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
+  expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  const source = await res.text();
+  expect(source).toContain("window.polynetEmbed = {");
+  expect(source).toContain("event.source !== window.parent");
+  expect(source).not.toContain("https://");
+});
+
 test("every site gets the shell (ui.js) and the member's account, read with their session", async () => {
   resetEdgeCaches();
   const ui = await edge.fetch(request("/__polynet/ui.js"), env());

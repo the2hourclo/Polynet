@@ -212,10 +212,82 @@ own rather than avatar_url (which is the member's).
 - resources(path?) -> courses (kind "directory") and lessons (kind
   "document"). Pass a course's path to list its lessons.
 - readText(entry) -> the text of a lesson, a memory or a post (markdown).
+- lessons() -> every lesson in every course, in order: [{ title, ref, path,
+  course, course_path, lesson }]. lesson is null for a plain page, or the
+  board fields: kind ("lesson", "build", "checkpoint", "prompt", "skill",
+  "video", "doc"), stage (board column; none means library only),
+  stage_order, order, minutes, video_url, gate (later stages stay locked
+  until it is done) and summary. Show the same lessons as a board (group by
+  stage), a library (group by course) or a wizard (one at a time).
+- lesson(entry) -> { title, ref, path, body, lesson }. Here lesson also has
+  intro_md, variants [{ key, label, body_md }] from "### In <Platform>"
+  sections (for example cowork, claude_code, codex), slides [{ image, alt,
+  note_md }] from a "## Slides" section, commands [{ variant, language,
+  text }] from fenced code blocks, and elements [{ id, type, required,
+  prompt, label, choices [{ id, label }], multiple, action, form_key }]: the
+  lesson's follow-along buttons, checklists, quizzes and forms (fenced
+  blocks named button, checklist, quiz or form in the body). Quiz answers
+  are not included. Render each element where its block sits in the body.
+  A button's action says what it does: "confirm" (answer(entry, id, true)),
+  "mark_done" (setProgress(entry, "done")), "ask_agent" (askAgent(label))
+  or "open_form" (show lessonForm(form_key)). A form element shows a
+  Polynet Form inside the lesson: use lessonForm() and submitLessonForm().
+- lessonForm(element) -> the member's open Polynet Form for that form_key,
+  assigned by a Workflow stage: { ref, form_version_ref, name, questions,
+  answers, revision, status }, or null when no stage has asked for it yet.
+- submitLessonForm(form, answers) -> submits it through Polynet Forms, so
+  the Workflow, the agent and the owner's dossier see the answers.
+- progress() -> the member's own { journey, courses, stages, lessons }.
+  courses: [{ ref, name, lesson_count, done_count, percent, completed_at }].
+  stages: [{ name, order, lesson_count, done_count, locked, blocked_by }].
+  lessons: [{ ref, title, course_ref, status, locked, started_at,
+  completed_at, responses }], status "not_started", "in_progress" or "done";
+  responses are the member's answers [{ element, value, correct, complete,
+  answered_at, explanation_md, answer }]. journey is null or the member's
+  place in the community workflow: { current_milestone_key,
+  current_milestone_name, entered_at, completed_at, milestones [{ key, name,
+  position }] }.
+- setProgress(entry, status) -> sets your status on a lesson. Rejects with
+  code "lesson_locked" while a gate in an earlier stage is unfinished, and
+  "lesson_elements_incomplete" (to "done") while a required element is open.
+- answer(entry, elementId, value) -> answers a lesson element: true for a
+  button, the ticked item ids for a checklist, the chosen option ids for a
+  quiz, null to clear. Returns { response { value, correct, complete,
+  explanation_md, answer }, required_remaining }. Quizzes are graded on the
+  server; the right answer shows once the member gets it right.
+- courseReport() -> owners and admins only: { courses, members [{ name,
+  membership_id, path, last_activity_at, lessons_done, courses [{ ref,
+  lesson_count, done_count, percent, completed_at }], quizzes { answered,
+  correct } }] }. Rejects for everyone else.
+- memberProgress(member) -> owners and admins only: one member's courses,
+  stages and lessons with their answers, as in progress().
 - members() -> [{ name, role, ref, path }], role "owner", "admin",
   "moderator" or "member".
 - knowledge(query?) -> what the community knows: top memories, or a search.
   Each has title, type, grade, applies_when.
+
+## Interactive widgets in lessons
+
+Lessons never run HTML. For a calculator, diagram or scorecard, deploy it as
+its own page on this site (for example embeds/scorecard.html) and place it in
+a lesson's text with a fenced block (~~~ or three backticks):
+
+    ~~~polynet-embed
+    src: embeds/scorecard.html
+    title: Asset scorecard
+    height: 900
+    fallback: media/scorecard.png
+    ~~~
+
+src is required; height is the starting height in pixels (the frame grows to
+fit); fallback is an image shown where the widget can't run. Polynet shows the
+page in a sandboxed frame with no access to the member's session. In the
+widget, load /__polynet/embed.js (a plain script tag, not a module) for:
+- polynetEmbed.load(key) -> the member's saved string, or null
+- polynetEmbed.save(key, value) -> saves a string (64 KB at most)
+- the community's theme as CSS variables: var(--pn-accent), var(--pn-text),
+  var(--pn-surface), var(--pn-font-body) and the rest of --pn-*.
+Wrap any localStorage use in try/catch: it can be unavailable in the frame.
 
 ## The community agent
 

@@ -45,7 +45,7 @@ async function listOwnRequests(ctx: QueryCtx, args: { communityId: Id<"communiti
   for (const row of rows) {
     if (!await requestIsCurrent(ctx, row)) continue;
     const version = await ctx.db.get(row.versionId);
-    if (version) result.push({ id: row._id, name: version.name, answered: version.questions.filter(q => formQuestionAnswered(q, row.answers)).length, total: version.questions.length, createdAt: row.createdAt });
+    if (version) result.push({ id: row._id, form_key: row.formKey, name: version.name, answered: version.questions.filter(q => formQuestionAnswered(q, row.answers)).length, total: version.questions.length, createdAt: row.createdAt });
   }
   result.sort((a, b) => a.createdAt - b.createdAt);
   return args.paged ? { rows: result, nextCursor: page.isDone ? null : page.continueCursor, visit: visitKey } : result;

@@ -2,6 +2,7 @@ import { founderProviderRequestUsageValidator } from "./founderPlanPricing";
 import { defineSchema, defineTable } from "convex/server";
 import { integrationReceiptIntentValidator } from "./communityIntegrationReceiptIntent";
 import { communityFormQuestionValidator } from "./communityFormValidators";
+import { communityLessonFieldsValidator } from "./communityLessonValidators";
 import { v } from "convex/values";
 import { communityFunnelContentV2Validator } from "./communityFunnelValidators";
 import { communityWeeklyDigestSnapshotValidator } from "./communityWeeklyDigestValidators";
@@ -1507,6 +1508,23 @@ export default defineSchema({
   })
     .index("by_community", ["communityId"]),
 
+  // A community's look (shared/communityTheme.ts). Members see the published
+  // theme; managers edit the draft. Both are stored normalized.
+  communityThemes: defineTable({
+    communityId: v.id("communities"),
+    draftTheme: v.any(),
+    draftRevision: v.number(),
+    draftUpdatedAt: v.number(),
+    draftUpdatedByUserId: v.id("users"),
+    publishedTheme: v.optional(v.any()),
+    publishedDraftRevision: v.optional(v.number()),
+    publishedAt: v.optional(v.number()),
+    publishedByUserId: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"]),
+
   communityAnalyticsEvents: defineTable({
     communityId: v.id("communities"),
     eventType: v.union(v.literal("funnel_visit")),
@@ -2693,6 +2711,8 @@ export default defineSchema({
     sourceExternalModifiedAt: v.optional(v.number()),
     pinned: v.boolean(),
     sortOrder: v.optional(v.number()),
+    // Board, library and wizard presentation (shared/communityLessonContract.ts).
+    lesson: v.optional(communityLessonFieldsValidator),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -2711,6 +2731,30 @@ export default defineSchema({
       "updatedAt",
     ])
     .index("by_createdBy", ["createdByUserId"]),
+
+  // A member's own progress through lesson pages. Locks are computed on read
+  // from lesson gates; only completion state is stored.
+  communityResourceProgress: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    resourceId: v.id("communityResources"),
+    status: v.union(v.literal("in_progress"), v.literal("done")),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    // Answers to the lesson's follow-along elements, one per element id.
+    responses: v.optional(v.array(v.object({
+      element: v.string(),
+      value: v.union(v.boolean(), v.array(v.string())),
+      correct: v.optional(v.boolean()),
+      complete: v.boolean(),
+      at: v.number(),
+    }))),
+    updatedAt: v.number(),
+  })
+    .index("by_community_user", ["communityId", "userId"])
+    .index("by_community_user_resource", ["communityId", "userId", "resourceId"])
+    .index("by_resource", ["resourceId"])
+    .index("by_user", ["userId"]),
 
   communityResourceContents: defineTable({
     communityId: v.id("communities"),

@@ -18,14 +18,20 @@ import type {
 import {
   WebCommunityResourceViewerContent,
   type WebCommunityResourceInlineEditorField,
+  type WebLessonActivity,
 } from "./WebCommunityResourceViewerContent";
 import { WebDeleteResourceModal } from "./WebDeleteResourceModal";
-import { ResourceCourseCatalog } from "./ResourceCourseCatalog";
+import { ResourceCourseCatalog, type ResourceCourseProgress } from "./ResourceCourseCatalog";
+import { createBrowserCommunityEmbedStorage, type CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
 
 type CommunityResourcesPanelProps = {
   capabilities: CommunityResourcesCapabilities;
   state: CommunityResourcesState;
   actions: CommunityResourcesActions;
+  // The viewing member's progress per course (module id), when known.
+  courseProgress?: Readonly<Record<string, ResourceCourseProgress>>;
+  // The member's answers to lesson buttons, checklists, quizzes and forms.
+  lessonActivity?: WebLessonActivity | null;
 };
 
 const MODULE_DRAG_MIME = "application/x-polynet-community-resource-module";
@@ -313,8 +319,19 @@ function ResourceRailItem(props: {
 
 
 export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
-  const { capabilities, state, actions } = props;
+  const { capabilities, state, actions, courseProgress } = props;
   const selectedModuleId = state.selectedModuleId;
+  // Widget answers stay in this browser until Polynet keeps them per member.
+  const communityEmbeds = useMemo<CommunityEmbedContext | null>(
+    () =>
+      capabilities.activeCommunityId && capabilities.activeCommunitySiteOrigin
+        ? {
+            siteOrigin: capabilities.activeCommunitySiteOrigin,
+            storage: createBrowserCommunityEmbedStorage(capabilities.activeCommunityId),
+          }
+        : null,
+    [capabilities.activeCommunityId, capabilities.activeCommunitySiteOrigin],
+  );
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [pendingDeleteResourceId, setPendingDeleteResourceId] = useState<string | null>(null);
   const [isDeletingResource, setIsDeletingResource] = useState(false);
@@ -397,8 +414,9 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
       .map((section) => ({
         module: section.module,
         lessonCount: state.resourceRead.hasData ? section.lessonResources.length : null,
+        progress: courseProgress?.[section.module.id] ?? null,
       })),
-    [moduleSections, state.resourceRead.hasData],
+    [moduleSections, state.resourceRead.hasData, courseProgress],
   );
   const allLessonResources = useMemo(
     () => moduleSections.flatMap((section) => section.lessonResources),
@@ -974,6 +992,8 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                 <WebCommunityResourceViewerContent
                   resource={selectedResource}
                   editor={selectedResourceInlineEditor}
+                  communityEmbeds={communityEmbeds}
+                  lessonActivity={props.lessonActivity ?? null}
                 />
               ) : (
                 <div className="community-panel-state-shell">

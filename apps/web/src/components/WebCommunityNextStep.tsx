@@ -57,7 +57,7 @@ function MemberFormDialog(props: Props & { rows: MemberFormSummary[]; hasMore: b
       {props.hasMore ? <button className="member-form-list-row" onClick={props.onLoadMore}>Load more</button> : null}</>}
   </div></div>, document.body);
 }
-function MemberFormRunner(props: Props & { requestId: string; onClose: () => void }) {
+export function MemberFormRunner(props: Props & { requestId: string; onClose: () => void }) {
   const [request, setRequest] = useState<MemberFormRequest | null>(null);
   const [answers, setAnswers] = useState<FormAnswers>({});
   const [index, setIndex] = useState(0);

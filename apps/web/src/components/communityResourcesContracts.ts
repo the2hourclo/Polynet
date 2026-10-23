@@ -1,3 +1,4 @@
+import type { CommunityLessonElement, CommunityLessonFields } from "../../../../shared/communityLessonContract";
 import type {
   CommunitySourceIntakePhase,
   CommunitySourceIntakeResult,
@@ -34,6 +35,10 @@ export type CommunityResource = {
   source_external_modified_at?: string | null;
   pinned: boolean;
   sort_order: number | null;
+  // Board fields (stage, order, gate...) when the page is a lesson.
+  lesson?: CommunityLessonFields | null;
+  // A lesson's follow-along elements without their answers, when the server sends them.
+  lesson_elements?: CommunityLessonElement[] | null;
   created_at: string;
 };
 
@@ -57,6 +62,8 @@ export type CommunityResourcesCapabilities = {
   hasActiveCommunity: boolean;
   activeCommunityId: string | null;
   activeCommunityName: string | null;
+  // Where the community's site lives, for interactive widgets in lessons.
+  activeCommunitySiteOrigin?: string | null;
   canOperateResources: boolean;
 };
 

@@ -5,6 +5,10 @@ import {
   parseCommunityResourceDirectoryUri,
 } from "./communityResourceDirectory.ts";
 import { parseCommunityResourceEvidenceRef } from "./communityEvidenceContract.ts";
+import type {
+  CommunityLessonFields,
+  CommunityLessonProjection,
+} from "./communityLessonContract.ts";
 import {
   isRetiredAiFeedSemanticPath,
   parsePolynetSemanticRepositoryPath,
@@ -140,6 +144,7 @@ export type CommunityResourceSemanticDirectorySource =
         ref: string;
         directoryPath: string;
         directoryUri: string;
+        lesson?: CommunityLessonFields | null;
       }>;
       nextCursor: string | null;
     };
@@ -154,6 +159,8 @@ export type CommunityResourceSemanticReadSource = {
   offset: number;
   totalChars: number;
   truncated: boolean;
+  lesson?: CommunityLessonFields | null;
+  lessonBody?: CommunityLessonProjection | null;
 };
 
 const semanticError = (
@@ -580,9 +587,12 @@ export function validatePolynetSemanticRepositoryOperationInput(args: {
   if (repositoryPath.kind === "community") {
     // This self-only subtree is served by the canonical executor, not the
     // legacy local-path reader. Reuse fixed document/directory input rules.
-    if (repositoryPath.localPath === "/members/me/forms/" || /^\/members\/me\/forms\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath)) {
+    if (repositoryPath.localPath === "/members/me/forms/" || /^\/members\/me\/forms\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
+        repositoryPath.localPath === "/members/me/progress.json" ||
+        repositoryPath.localPath === "/builder/progress/" || /^\/builder\/progress\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath)) {
+      const isDirectory = repositoryPath.localPath.endsWith("/");
       const validated = validateCommunitySemanticOperationInput({ ...args,
-        path: repositoryPath.localPath === "/members/me/forms/" ? POLYNET_JOIN_REQUESTS_DIRECTORY_PATH : "/community.md" });
+        path: isDirectory ? POLYNET_JOIN_REQUESTS_DIRECTORY_PATH : "/community.md" });
       return validated.ok ? { ...validated, path: repositoryPath.path } : validated;
     }
     if (repositoryPath.localPath === COMMUNITY_MEMBER_SELF_DIRECTORY || repositoryPath.localPath === COMMUNITY_MEMBER_SELF_CONTEXT_PATH) {
@@ -1169,6 +1179,7 @@ export function listCommunitySemanticResources(args: {
             kind: "document" as const,
             name: normalizeInlineText(entry.title, 180) ?? "Resource",
             ref,
+            ...(entry.lesson ? { lesson: entry.lesson } : null),
           };
         });
   const nextCursor = normalizeText(args.source.nextCursor, 2_048);
@@ -1238,6 +1249,9 @@ export function readCommunitySemanticResourceDocument(args: {
       ref,
       total_chars: totalChars,
       next_offset: truncated ? offset + body.length : null,
+      ...(args.source.lesson
+        ? { lesson: { ...args.source.lesson, ...(args.source.lessonBody ?? null) } }
+        : null),
     },
   };
 }
