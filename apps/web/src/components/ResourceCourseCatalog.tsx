@@ -6,6 +6,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  Lock,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -17,9 +18,17 @@ import type { CommunityResourceModule } from "./communityResourcesContracts";
 
 type ReorderDirection = "up" | "down";
 
+// A member's place in a course: lessons done, and why it is locked if it is.
+export type ResourceCourseProgress = {
+  done: number;
+  total: number;
+  lockedReason?: string | null;
+};
+
 export type ResourceCourseCatalogItem = {
   module: CommunityResourceModule;
   lessonCount: number | null;
+  progress?: ResourceCourseProgress | null;
 };
 
 type ResourceCourseCatalogProps = {
@@ -79,7 +88,11 @@ function ResourceCourseCard(props: {
     onDrop,
     onDragEnd,
   } = props;
-  const { module, lessonCount } = item;
+  const { module, lessonCount, progress } = item;
+  const lockedReason = progress?.lockedReason?.trim() || null;
+  const percent = progress && progress.total > 0
+    ? Math.min(100, Math.round((progress.done / progress.total) * 100))
+    : null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isDraft = module.module_status !== "live";
 
@@ -96,6 +109,7 @@ function ResourceCourseCard(props: {
         canReorder ? "can-reorder" : "",
         isDragging ? "is-dragging" : "",
         isDropTarget ? "is-drop-target" : "",
+        lockedReason ? "is-locked" : "",
       ].filter(Boolean).join(" ")}
       draggable={canReorder}
       onDragStart={onDragStart}
@@ -176,6 +190,12 @@ function ResourceCourseCard(props: {
           fetchPriority="low"
           aria-hidden
         />
+        {lockedReason ? (
+          <span className="resource-course-card-lock">
+            <Lock aria-hidden="true" />
+            <span>{lockedReason}</span>
+          </span>
+        ) : null}
         <span className="resource-course-card-body">
           <span className="resource-course-card-heading">
             <strong>{module.name}</strong>
@@ -184,9 +204,25 @@ function ResourceCourseCard(props: {
           <span className="resource-course-card-description">
             {module.description_md?.trim() || "A guided collection of community lessons."}
           </span>
-          <span className="resource-course-card-meta">
-            {lessonCount === null ? "Lessons not loaded" : `${lessonCount} ${lessonCount === 1 ? "lesson" : "lessons"}`}
-          </span>
+          {percent !== null && !lockedReason ? (
+            <span className="resource-course-card-progress">
+              <span
+                className="resource-course-card-progress-track"
+                role="progressbar"
+                aria-label={`${module.name} progress`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={percent}
+              >
+                <span style={{ width: `${percent}%` }} />
+              </span>
+              <span className="resource-course-card-progress-label">{percent}%</span>
+            </span>
+          ) : (
+            <span className="resource-course-card-meta">
+              {lessonCount === null ? "Lessons not loaded" : `${lessonCount} ${lessonCount === 1 ? "lesson" : "lessons"}`}
+            </span>
+          )}
         </span>
       </button>
     </article>

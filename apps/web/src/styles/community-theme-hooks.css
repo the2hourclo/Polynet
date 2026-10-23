@@ -1,0 +1,87 @@
+/* Where Polynet's components use a community theme's shape and type tokens
+   (--pn-*, compiled by shared/communityTheme.ts). Colours need no rules here:
+   the compiled theme sets Polynet's own colour variables. These rules live with
+   Polynet's components, so themes never name Polynet's classes, and a renamed
+   class is fixed here once for every community. Applies only inside an
+   element with data-community-theme; without one, nothing changes. */
+
+[data-community-theme] {
+  font-family: var(--pn-font-body);
+  font-variant-numeric: var(--pn-numerals);
+  color: var(--text-primary);
+  background: var(--bg-workspace);
+}
+
+/* Headings */
+[data-community-theme] :is(
+  h1, h2, h3,
+  .community-knowledge-header h1,
+  .workflow-milestone-column-header h2,
+  .resource-course-outline-title,
+  .resource-course-card-heading,
+  .resource-viewer-title
+) {
+  font-family: var(--pn-font-heading);
+  font-weight: var(--pn-heading-weight);
+  text-transform: var(--pn-heading-case);
+  letter-spacing: var(--pn-heading-tracking);
+}
+
+/* Cards */
+[data-community-theme] :is(
+  .resource-course-card,
+  .resource-course-create-card,
+  .workflow-milestone-column,
+  .workflow-member-stub
+) {
+  border-width: var(--pn-border-width);
+  border-radius: var(--pn-radius-card);
+  box-shadow: var(--pn-shadow-card);
+}
+[data-community-theme] .resource-course-card-cover {
+  border-radius: var(--pn-radius-card-top);
+}
+
+/* Buttons */
+[data-community-theme] :is(.settings-primary-action, .community-events-primary-link, .knowledge-source-intake-primary, .platform-save-button) {
+  border-radius: var(--pn-radius-button);
+  box-shadow: var(--pn-shadow-button);
+}
+
+/* Course catalog: card size and cover shape */
+[data-community-theme] .resource-course-grid {
+  grid-template-columns: var(--pn-course-columns);
+}
+[data-community-theme] .resource-course-card-cover {
+  position: relative;
+  aspect-ratio: var(--pn-course-cover-ratio);
+  height: var(--pn-course-cover-height);
+}
+/* Cards line up row by row: two-line titles, three-line descriptions. */
+[data-community-theme] .resource-course-card-heading > strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: calc(16px * var(--pn-type-scale));
+}
+[data-community-theme] .resource-course-card-description {
+  -webkit-line-clamp: 3;
+  min-height: calc(3 * 1.5em);
+  font-size: calc(13px * var(--pn-type-scale));
+}
+
+/* Images drawn on white sit on a light plate in dark themes, so they don't glare. */
+[data-community-theme] :is(.resource-course-card-cover-image, .resource-viewer-prose img) {
+  background: var(--pn-media-plate);
+  padding: var(--pn-media-plate-pad);
+  box-sizing: border-box;
+}
+[data-community-theme] .resource-viewer-prose img {
+  object-fit: contain;
+}
+
+/* Code */
+[data-community-theme] :is(code, pre, kbd) {
+  font-family: var(--pn-font-mono);
+}

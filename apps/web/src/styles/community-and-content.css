@@ -9635,7 +9635,12 @@ button.chat-reply-quote:hover {
 }
 
 .resource-course-card-main {
+  position: relative;
   appearance: none;
+  /* A column, so the cover stays on top and the footer at the bottom
+     whatever the text length (a button centres its content by default). */
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-height: 100%;
   overflow: hidden;
@@ -9654,6 +9659,7 @@ button.chat-reply-quote:hover {
 }
 
 .resource-course-card-cover {
+  flex: none;
   height: clamp(118px, 17vw, 158px);
   display: grid;
   place-items: center;
@@ -9678,6 +9684,7 @@ button.chat-reply-quote:hover {
 }
 
 .resource-course-card-body {
+  flex: 1;
   min-height: 132px;
   display: flex;
   flex-direction: column;
@@ -9728,6 +9735,65 @@ button.chat-reply-quote:hover {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
+}
+
+.resource-course-card-progress {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.resource-course-card-progress-track {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+.resource-course-card-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-brand);
+}
+
+.resource-course-card-progress-label {
+  min-width: 3ch;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.resource-course-card-lock {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--pn-course-cover-height, clamp(118px, 17vw, 158px));
+  aspect-ratio: var(--pn-course-cover-ratio, auto);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--pn-radius-card-top, 15px 15px 0 0);
+  background: color-mix(in srgb, var(--bg-app) 72%, transparent);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.resource-course-card-lock > svg {
+  width: 22px;
+  height: 22px;
+}
+
+.resource-course-card.is-locked .resource-course-card-cover-image {
+  filter: grayscale(0.6);
 }
 
 .resource-course-card-menu,
