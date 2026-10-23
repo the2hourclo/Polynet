@@ -140,6 +140,8 @@ export function normalizeCommunityLessonFields(raw: unknown): CommunityLessonFie
   return Object.keys(next).length ? next : null;
 }
 
+const COMMENTABLE_KEYS = new Set(["stage_order", "order", "minutes", "gate"]);
+
 const FRONT_MATTER_KEYS: Record<string, keyof CommunityLessonFields> = {
   type: "kind",
   kind: "kind",
@@ -169,10 +171,13 @@ export function parseCommunityLessonMarkdown(source: string): {
   let title: string | null = null;
   const raw: Record<string, unknown> = {};
   for (const line of match[1].split("\n")) {
-    const pair = /^([A-Za-z_]+):\s*(.*)$/.exec(line.replace(/\s+#.*$/, ""));
+    const pair = /^([A-Za-z_]+):\s*(.*)$/.exec(line);
     if (!pair) continue;
     const key = pair[1].toLowerCase();
-    const value = pair[2].trim().replace(/^(["'])(.*)\1$/, "$2");
+    // Only number and yes/no fields take a trailing "# comment"; text keeps
+    // its "#" (a summary can say "post it in #wins").
+    const text = COMMENTABLE_KEYS.has(key) ? pair[2].replace(/\s+#.*$/, "") : pair[2];
+    const value = text.trim().replace(/^(["'])(.*)\1$/, "$2");
     if (key === "title") {
       title = value || null;
       continue;

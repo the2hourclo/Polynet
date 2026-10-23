@@ -66,6 +66,14 @@ describe("lesson fields", () => {
     expect(parsed.body_md.startsWith("Draw.io holds")).toBe(true);
   });
 
+  test("a # inside text is kept; comments only trail numbers and yes/no", () => {
+    const parsed = parseCommunityLessonMarkdown(
+      ["---", "title: Share it in #wins", "stage: Map", "summary: Post your result in #wins", "order: 3 # third", "gate: yes # checkpoint", "---", "Body"].join("\n"),
+    );
+    expect(parsed.title).toBe("Share it in #wins");
+    expect(parsed.lesson).toEqual({ stage: "Map", summary: "Post your result in #wins", order: 3, gate: true });
+  });
+
   test("a file without front matter is all body", () => {
     expect(parseCommunityLessonMarkdown("# Hi\n\nText")).toEqual({ title: null, lesson: null, body_md: "# Hi\n\nText" });
   });
