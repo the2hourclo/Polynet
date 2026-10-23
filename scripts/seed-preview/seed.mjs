@@ -257,9 +257,11 @@ function readCourses(slug) {
     .map((folder) => {
       const dir = join(root, folder);
       const meta = JSON.parse(readFileSync(join(dir, "course.json"), "utf8"));
+      // Sort on the name without ".md" so "10-x.md" comes before "10-x-part-2.md".
+      const stem = (name) => name.slice(0, -3);
       const lessons = readdirSync(dir)
         .filter((name) => name.endsWith(".md"))
-        .sort()
+        .sort((a, b) => (stem(a) < stem(b) ? -1 : stem(a) > stem(b) ? 1 : 0))
         .map((name) => {
           const parsed = parseCommunityLessonMarkdown(readFileSync(join(dir, name), "utf8"));
           // Lesson media lives on the community site (media/...). polynet-embed
@@ -342,6 +344,7 @@ async function seedCourses(owner, ownerUserId, communityId, slug) {
     const resources = asList(
       await owner.client.query(api.communityResources.listCommunityResources, { communityId, limit: 500 }),
     );
+    const seededIds = [];
     for (const lesson of course.lessons) {
       let page = resources.find(
         (row) => row.title === lesson.title && String(row.module_id ?? row.moduleId ?? "") === moduleId,
@@ -358,7 +361,20 @@ async function seedCourses(owner, ownerUserId, communityId, slug) {
         },
       });
       pending.push({ resourceId: idOf(page), lesson: lesson.lesson });
+      seededIds.push(idOf(page));
     }
+    // New lessons are appended, so put the course back in file order; pages
+    // the seed did not write keep their place after the seeded ones.
+    const inModule = asList(
+      await owner.client.query(api.communityResources.listCommunityResources, { communityId, limit: 500 }),
+    )
+      .filter((row) => String(row.module_id ?? row.moduleId ?? "") === moduleId && (row.resource_role ?? "page") === "page")
+      .map(idOf);
+    await owner.client.mutation(api.communityResources.reorderCommunityResources, {
+      communityId,
+      moduleId,
+      resourceIds: [...seededIds, ...inModule.filter((id) => !seededIds.includes(id))],
+    });
   }
   await owner.client.mutation(api.communityResources.reorderCommunityResourceModules, {
     communityId,
