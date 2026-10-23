@@ -242,11 +242,12 @@ const GITHUB_SOURCE_READABLE_EXTENSIONS = new Set([
 async function mapCommunityResourceRowWithBody(
   ctx: any,
   row: CommunityResourceLike,
+  viewer: { canManage: boolean },
   userIdCache?: Map<string, string | null>,
   moduleNameCache?: Map<string, string | null>,
 ) {
   const hydrated = await hydrateCommunityResourceBody(ctx, row) ?? row;
-  return await mapCommunityResourceRow(ctx, hydrated, userIdCache, moduleNameCache);
+  return await mapCommunityResourceRow(ctx, hydrated, userIdCache, moduleNameCache, viewer);
 }
 
 type SourceIntegrationProvider = typeof GOOGLE_DRIVE_SOURCE_PROVIDER | typeof GITHUB_SOURCE_PROVIDER;
@@ -5171,7 +5172,7 @@ async function readCommunityResourceBuilderResourceCore(args: {
       ok: true,
       kind: "community_resource_builder_read",
       target_type: "resource",
-      resource: await mapCommunityResourceRowWithBody(args.ctx, resolved.resource),
+      resource: await mapCommunityResourceRowWithBody(args.ctx, resolved.resource, { canManage: true }),
     };
   }
   return await buildCommunityResourceBuilderModuleReadPayload({
@@ -6442,7 +6443,7 @@ export const listCommunityResources = query({
         .filter((row) => canManageResources || communityResourceIsLiveModulePage(row, liveModuleIds))
         .sort(compareCommunityResources)
         .slice(0, limit)
-        .map((row) => mapCommunityResourceRowWithBody(ctx, row, userIdCache, moduleNameCache)),
+        .map((row) => mapCommunityResourceRowWithBody(ctx, row, { canManage: canManageResources }, userIdCache, moduleNameCache)),
     );
   },
 });
@@ -8283,7 +8284,7 @@ export const insertGoogleDriveSourceResourceInternal = internalMutation({
     });
     const row = (await ctx.db.get(id as any)) as CommunityResourceLike | null;
     if (!row) throw new Error("community_google_drive_source_create_failed");
-    return await mapCommunityResourceRow(ctx, row);
+    return await mapCommunityResourceRow(ctx, row, undefined, undefined, { canManage: true });
   },
 });
 
@@ -8332,7 +8333,7 @@ export const insertGitHubSourceResourceInternal = internalMutation({
     });
     const row = (await ctx.db.get(id as any)) as CommunityResourceLike | null;
     if (!row) throw new Error("community_github_source_create_failed");
-    return await mapCommunityResourceRow(ctx, row);
+    return await mapCommunityResourceRow(ctx, row, undefined, undefined, { canManage: true });
   },
 });
 
@@ -8628,7 +8629,7 @@ export const finalizeCommunitySourceIngestionInternal = internalMutation({
     }
     const hydrated = await hydrateCommunityResourceBody(ctx, updated) ?? updated;
     await syncCommunityResourceMemoryProjection(ctx, hydrated, nowMs);
-    return { ok: true, resource: await mapCommunityResourceRow(ctx, hydrated) };
+    return { ok: true, resource: await mapCommunityResourceRow(ctx, hydrated, undefined, undefined, { canManage: true }) };
   },
 });
 
@@ -9987,7 +9988,7 @@ export const saveCommunityResource = mutation({
       }
       const hydrated = await hydrateCommunityResourceBody(ctx, updated) ?? updated;
       await syncCommunityResourceMemoryProjection(ctx, hydrated, nowMs);
-      return await mapCommunityResourceRow(ctx, hydrated);
+      return await mapCommunityResourceRow(ctx, hydrated, undefined, undefined, { canManage: true });
     }
 
     const communityIdRaw = args.communityId ?? (payload.community_id as any);
@@ -10109,7 +10110,7 @@ export const saveCommunityResource = mutation({
         nowMs,
       });
     }
-    return await mapCommunityResourceRow(ctx, hydrated);
+    return await mapCommunityResourceRow(ctx, hydrated, undefined, undefined, { canManage: true });
   },
 });
 
