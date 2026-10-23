@@ -1,16 +1,16 @@
 /* CLO skin for Polynet: the course portal's paper / ink / green look applied
    through Polynet's own theme tokens, so every Polynet component picks it up
    unchanged. Values come from clo-courses tokens.css (white-excali skin).
-   Turn it on with data-community-theme="clo" on <html>. */
+   Turn it on with data-community-theme="clo" on <html>. Only the community's
+   own area (.workspace) is skinned: the community rail and nav keep Polynet's
+   look everywhere. */
 @import "./excalifont.css";
 
-:root[data-theme="light"][data-community-theme="clo"] {
+:root[data-theme="light"][data-community-theme="clo"] .workspace {
   /* Surfaces: paper page, white cards, faint cream panels */
   --bg-app: #FAFAFA;
   --bg-workspace: #FAFAFA;
   --bg-panel: #F4F4F0;
-  --surface-nav: #F4F4F0;
-  --surface-rail: #FAFAFA;
   --surface-panel: #F4F4F0;
   --surface-card: #FFFFFF;
   --bg-card: #FFFFFF;
@@ -61,7 +61,7 @@
   --aieb-shadow-strong: 3px 4px 0 rgba(33, 33, 30, 0.55);
 }
 
-[data-community-theme="clo"] body { font-family: var(--aieb-font-body); }
+[data-community-theme="clo"] .workspace { font-family: var(--aieb-font-body); }
 
 /* Excalifont accents: page labels, course titles, stage names, badges */
 [data-community-theme="clo"] .community-knowledge-header h1,
