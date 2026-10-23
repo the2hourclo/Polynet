@@ -3866,6 +3866,16 @@ test("members answer lesson buttons, checklists and quizzes, and owners see cour
   expect(dossier, JSON.stringify(dossier)).toMatchObject({ ok: true });
   expect(String((dossier as any).value.body)).toContain("- Get set up: 1 of 2 lessons (50%)");
 
+  // The web app's resource list hides quiz answers from members, not owners.
+  const memberRows = await asMember.query(api.communityResources.listCommunityResources, { communityId: fixture.communityId });
+  const memberLesson = memberRows.find((resource: any) => resource.title === "Install Claude Code")!;
+  expect(memberLesson.body_md).not.toContain("runs locally");
+  expect(memberLesson.body_md).not.toContain("[x]");
+  expect(memberLesson.lesson_elements).toEqual(elements);
+  const ownerRows = await t.withIdentity({ subject: fixture.ownerSubject })
+    .query(api.communityResources.listCommunityResources, { communityId: fixture.communityId });
+  expect(ownerRows.find((resource: any) => resource.title === "Install Claude Code")!.body_md).toContain("- [x] Claude Code");
+
   // The web app reads and writes the same state through public functions.
   const web = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: fixture.communityId });
   expect(web.courses[0]).toMatchObject({ done_count: 1, percent: 50 });

@@ -10,6 +10,11 @@ import {
 import type { CommunityVisualIdentity } from "../shared/communityVisualIdentity";
 import type { CommunityLessonFields } from "../shared/communityLessonContract";
 import {
+  parseCommunityLessonElements,
+  publicCommunityLessonElement,
+  redactCommunityLessonAnswers,
+} from "../shared/communityLessonContract";
+import {
   communityIsActive,
   type CommunityLifecycleStatus,
 } from "../shared/communityLifecycle";
@@ -1024,7 +1029,16 @@ export async function mapCommunityResourceRow(
   row: CommunityResourceLike,
   userIdCache?: Map<string, string | null>,
   moduleNameCache?: Map<string, string | null>,
+  // Members get lesson bodies without quiz answers; only people who can edit
+  // the resource see (and save back) the original.
+  viewer: { canManage: boolean } = { canManage: false },
 ) {
+  const lessonElements = row.lesson
+    ? parseCommunityLessonElements(row.bodyMd).map(publicCommunityLessonElement)
+    : null;
+  const bodyMd = row.lesson && !viewer.canManage && row.bodyMd
+    ? redactCommunityLessonAnswers(row.bodyMd)
+    : row.bodyMd;
   const resourceDirectory = buildCommunityResourceDirectoryFields({
     communityId: String(row.communityId),
     moduleId: row.moduleId ? String(row.moduleId) : null,
@@ -1044,7 +1058,7 @@ export async function mapCommunityResourceRow(
     resource_status: normalizeResourceStatus(row.status),
     source_resource_id: row.sourceResourceId ? String(row.sourceResourceId) : null,
     title: row.title,
-    body_md: row.bodyMd ?? null,
+    body_md: bodyMd ?? null,
     body_chars: communityResourceBodyChars(row),
     url: row.url ?? null,
     file_key: row.fileKey ?? null,
@@ -1070,6 +1084,8 @@ export async function mapCommunityResourceRow(
       typeof row.sourceExternalModifiedAt === "number" ? toIsoString(row.sourceExternalModifiedAt) : null,
     pinned: Boolean(row.pinned),
     sort_order: Number.isFinite(row.sortOrder) ? row.sortOrder : null,
+    lesson: row.lesson ?? null,
+    lesson_elements: lessonElements,
     created_by: (await resolvePublicUserId(ctx, row.createdByUserId, userIdCache)) ?? String(row.createdByUserId),
     created_at: toIsoString(row.createdAt),
     updated_at: toIsoString(row.updatedAt),
