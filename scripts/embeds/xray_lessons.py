@@ -3,7 +3,7 @@
 # out in full (the port had kept only what was visible on first load).
 import json, re, sys, os
 CONTENT, DATA, MANIFEST = sys.argv[1:4]
-d = json.load(open(DATA)); man = {m["id"]: m for m in json.load(open(MANIFEST))}
+d = json.load(open(DATA, encoding="utf-8")); man = {m["id"]: m for m in json.load(open(MANIFEST, encoding="utf-8"))}
 
 def embed(wid):
     m = man[wid]
@@ -16,8 +16,8 @@ def cut(text, start, end):
     return text[:i], text[j:]
 
 def write(name, fn):
-    p = os.path.join(CONTENT, name); t = open(p).read(); t2 = fn(t)
-    open(p, "w").write(re.sub(r"\n{3,}", "\n\n", t2)); print(name, len(t), "->", len(t2))
+    p = os.path.join(CONTENT, name); t = open(p, encoding="utf-8").read(); t2 = fn(t)
+    open(p, "w", encoding="utf-8", newline="").write(re.sub(r"\n{3,}", "\n\n", t2)); print(name, len(t), "->", len(t2))
 
 def bizmap(t):
     a, b = cut(t, "### Explore Each Column", "**Think of it as a pipeline:**")
@@ -83,7 +83,7 @@ def assetmap(t):
     part2 = ("---" + head[1].replace("title: Asset Explorer", "title: Asset Explorer, part 2") + "---\n"
              + f"The rest of the 24 assets in full: {', '.join(c['name'] for c in rest)}.\n\n"
              + "\n\n".join(cat(c) for c in rest) + "\n\n" + b)
-    open(os.path.join(CONTENT, "10-asset-map-part-2.md"), "w").write(re.sub(r"\n{3,}", "\n\n", part2))
+    open(os.path.join(CONTENT, "10-asset-map-part-2.md"), "w", encoding="utf-8", newline="").write(re.sub(r"\n{3,}", "\n\n", part2))
     return (a + "### The 24 Assets\n\n7 categories, 24 building blocks. Click any asset to explore it.\n\n" + embed("asset-map")
             + "\n\n### Explore Each Asset\n\nOne at a time: full criteria, effort, and connections.\n\n" + embed("asset-explorer") + "\n\n"
             + "\n\n".join(cat(c) for c in first) + "\n\nThe other categories continue in **Asset Explorer, part 2**.\n")

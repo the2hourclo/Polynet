@@ -244,6 +244,9 @@ async function ensureTheme(owner, communityId, theme) {
 
 // ---------------------------------------------------------- courses/lessons
 
+// COMMUNITY_RESOURCE_BODY_DEFAULT_MAX_CHARS in convex/communityResourceContent.ts.
+const LESSON_BODY_MAX_CHARS = 20_000;
+
 function readCourses(slug) {
   const root = COMMUNITY_CONTENT[slug];
   const siteOrigin = SITE_TEMPLATE.replace("{slug}", slug);
@@ -264,6 +267,12 @@ function readCourses(slug) {
           const body = parsed.body_md
             .replace(/\]\((?:\.\.\/)?media\//g, `](${siteOrigin}/media/`)
             .replace(/(<img[^>]*\ssrc=")(?:\.\.\/)?media\//g, `$1${siteOrigin}/media/`);
+          // The server silently cuts a body past this length; refuse instead.
+          if (body.trim().length > LESSON_BODY_MAX_CHARS) {
+            throw new Error(
+              `${join(dir, name)}: lesson body is ${body.trim().length} characters; Polynet stores at most ${LESSON_BODY_MAX_CHARS} and cuts the rest off. Split it into two lessons.`,
+            );
+          }
           return { file: name, title: parsed.title ?? basename(name, ".md"), lesson: parsed.lesson, body };
         });
       return {
