@@ -9,6 +9,8 @@ import {
 import { readCanonicalPublicAppOrigin } from "./publicAppUrl";
 import {
   normalizeCommunityLessonFields,
+  parseCommunityLessonElements,
+  redactCommunityLessonAnswers,
   projectCommunityLessonBody,
   type CommunityLessonFields,
 } from "../shared/communityLessonContract";
@@ -2222,6 +2224,19 @@ function normalizeBuilderResourceStatus(args: {
   return next;
 }
 
+// Members never get a quiz's answer key in the lesson text.
+function memberLessonBody(row: CommunityResourceLike): string {
+  const body = String(row.bodyMd ?? "");
+  return row.lesson ? redactCommunityLessonAnswers(body) : body;
+}
+
+// An agent staging a body hears about a broken button, checklist or quiz right
+// away; a body edited by hand just shows a bad block as plain code.
+function strictLessonBody<T extends string | null | undefined>(bodyMd: T): T {
+  parseCommunityLessonElements(bodyMd, { strict: true });
+  return bodyMd;
+}
+
 function hasOwnField(record: Record<string, unknown>, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, field);
 }
@@ -2322,7 +2337,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
           : null),
         title: normalizeName(record.title),
         body_md: hasOwnField(record, "body_md")
-          ? normalizeCommunityResourceBodyMd(record.body_md, 20_000)
+          ? strictLessonBody(normalizeCommunityResourceBodyMd(record.body_md, 20_000))
           : null,
         source_resource_id: normalizeOptionalModuleId(record.source_resource_id),
         ...(hasOwnField(record, "type") ? { type: normalizeResourceType(record.type) } : null),
@@ -2342,7 +2357,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
       };
       if (hasOwnField(record, "module_id")) next.module_id = normalizeOptionalModuleId(record.module_id);
       if (hasOwnField(record, "title")) next.title = normalizeName(record.title);
-      if (hasOwnField(record, "body_md")) next.body_md = normalizeCommunityResourceBodyMd(record.body_md, 20_000);
+      if (hasOwnField(record, "body_md")) next.body_md = strictLessonBody(normalizeCommunityResourceBodyMd(record.body_md, 20_000));
       if (hasOwnField(record, "source_resource_id")) {
         next.source_resource_id = normalizeOptionalModuleId(record.source_resource_id);
       }
@@ -4083,7 +4098,7 @@ async function buildCommunityResourceDirectoryReadPayload(args: {
   limit: unknown;
 }) {
   const row = await hydrateCommunityResourceBody(args.ctx, args.resource) ?? args.resource;
-  const body = String(row.bodyMd ?? "");
+  const body = memberLessonBody(row);
   const offset = boundedReadOffset(args.offset);
   const limit = boundedReadLimit(args.limit);
   const bodySlice = body ? body.slice(offset, offset + limit) : null;
@@ -4100,7 +4115,7 @@ async function buildCommunityResourceDirectoryReadPayload(args: {
       truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
       unavailable_reason: readContentUnavailableReason(row),
     },
-    lesson_body: row.lesson ? projectCommunityLessonBody(body) : null,
+    lesson_body: row.lesson ? projectCommunityLessonBody(row.bodyMd) : null,
   };
 }
 
@@ -4164,7 +4179,7 @@ async function buildBatchReadResourceResult(args: {
   }
 
   const row = await hydrateCommunityResourceBody(args.ctx, resolved.resource) ?? resolved.resource;
-  const body = String(row.bodyMd ?? "");
+  const body = args.builder ? String(row.bodyMd ?? "") : memberLessonBody(row);
   const contentLimit = Math.max(0, Math.floor(args.contentLimit));
   const bodySlice = body && contentLimit > 0 ? body.slice(0, contentLimit) : null;
   const source = args.builder && row.sourceResourceId
@@ -4424,7 +4439,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
     }
 
     const row = await hydrateCommunityResourceBody(ctx, resolved.resource) ?? resolved.resource;
-    const body = String(row.bodyMd ?? "");
+    const body = memberLessonBody(row);
     const offset = boundedReadOffset(args.offset);
     const limit = boundedReadLimit(args.limit);
     const bodySlice = body ? body.slice(offset, offset + limit) : null;
@@ -4441,7 +4456,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
         truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
         unavailable_reason: readContentUnavailableReason(row),
       },
-      lesson_body: row.lesson ? projectCommunityLessonBody(body) : null,
+      lesson_body: row.lesson ? projectCommunityLessonBody(row.bodyMd) : null,
     };
   },
 });
