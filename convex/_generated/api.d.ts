@@ -135,6 +135,7 @@ import type * as communitySites from "../communitySites.js";
 import type * as communitySkillAttachments from "../communitySkillAttachments.js";
 import type * as communitySourceUrlPolicy from "../communitySourceUrlPolicy.js";
 import type * as communityText from "../communityText.js";
+import type * as communityThemes from "../communityThemes.js";
 import type * as communityTypingPresenceCore from "../communityTypingPresenceCore.js";
 import type * as communityWeeklyDigestSchedule from "../communityWeeklyDigestSchedule.js";
 import type * as communityWeeklyDigestValidators from "../communityWeeklyDigestValidators.js";
@@ -390,6 +391,7 @@ declare const fullApi: ApiFromModules<{
   communitySkillAttachments: typeof communitySkillAttachments;
   communitySourceUrlPolicy: typeof communitySourceUrlPolicy;
   communityText: typeof communityText;
+  communityThemes: typeof communityThemes;
   communityTypingPresenceCore: typeof communityTypingPresenceCore;
   communityWeeklyDigestSchedule: typeof communityWeeklyDigestSchedule;
   communityWeeklyDigestValidators: typeof communityWeeklyDigestValidators;
