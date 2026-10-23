@@ -1,0 +1,17 @@
+/* Only what the Board view adds on top of Polynet's Workflows board styles. */
+.aieb-knowledge-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.aieb-board .workflow-milestone-canvas { min-height: 70vh; }
+.aieb-board .workflow-milestone-column.is-locked { opacity: 0.6; }
+.aieb-lesson-stub:disabled { cursor: not-allowed; opacity: 0.7; }
+.aieb-lesson-stub.is-gate { border-color: var(--border-strong); }
+.aieb-lesson-status {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px;
+  border-radius: 999px; color: var(--text-secondary); background: var(--hover-overlay);
+}
+.aieb-lesson-stub[data-status="done"] .aieb-lesson-status { color: var(--text-primary); background: var(--accent-soft, var(--hover-overlay)); }
+.aieb-board-reader { padding: 8px 0 32px; }
+.aieb-lesson-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.aieb-primary-button {
+  padding: 8px 14px; border: 0; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer;
+  color: var(--button-primary-text, var(--surface-panel)); background: var(--button-primary-bg, var(--text-primary));
+}
