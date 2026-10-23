@@ -2,6 +2,7 @@ import { founderProviderRequestUsageValidator } from "./founderPlanPricing";
 import { defineSchema, defineTable } from "convex/server";
 import { integrationReceiptIntentValidator } from "./communityIntegrationReceiptIntent";
 import { communityFormQuestionValidator } from "./communityFormValidators";
+import { communityLessonFieldsValidator } from "./communityLessonValidators";
 import { v } from "convex/values";
 import { communityFunnelContentV2Validator } from "./communityFunnelValidators";
 import { communityWeeklyDigestSnapshotValidator } from "./communityWeeklyDigestValidators";
@@ -2693,6 +2694,8 @@ export default defineSchema({
     sourceExternalModifiedAt: v.optional(v.number()),
     pinned: v.boolean(),
     sortOrder: v.optional(v.number()),
+    // Board, library and wizard presentation (shared/communityLessonContract.ts).
+    lesson: v.optional(communityLessonFieldsValidator),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

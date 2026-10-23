@@ -3418,3 +3418,215 @@ test.each(["draft","admin","private","foreign","revoked-source","superseded-cita
     }
     const s=await f.snapshot();expect(s.logs.filter(x=>x.injectedNodeIds.includes(f.node._id))).toHaveLength(1); // Only the earlier authorized control read.
   });
+
+test("lesson fields staged by the builder reach member list and read on every surface", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const ownerCtx = executionContext(asOwner);
+  const lessonBody = [
+    "Draw.io holds the visual outputs.",
+    "",
+    "### In Cowork",
+    "",
+    "```",
+    "https://mcp.draw.io/mcp",
+    "```",
+    "",
+    "### In Claude Code",
+    "",
+    "```bash",
+    "claude mcp add --transport http drawio https://mcp.draw.io/mcp",
+    "```",
+    "",
+    "## Slides",
+    "",
+    "![Slide 1: why](media/x/01.png)",
+    "",
+    "First note.",
+  ].join("\n");
+
+  const stage = await executePolynetCanonicalTool({
+    ctx: ownerCtx,
+    authSubject: fixture.ownerSubject,
+    userId: fixture.ownerId,
+    principalKind: "external_mcp",
+    evidenceSurface: "external_mcp",
+    toolName: "polynet_write",
+    input: {
+      path: "/communities/canonical-community/builder/resources/",
+      mode: "create",
+      content: {
+        summary: "Add the first checkpoint lesson.",
+        operations: [
+          { op: "create_module", module_key: "map", name: "Map the business", module_status: "live" },
+          {
+            op: "create_page",
+            module_key: "map",
+            title: "Set up Draw.io",
+            body_md: lessonBody,
+            lesson: {
+              kind: "build",
+              stage: "Map the business",
+              stage_order: 1,
+              order: 1,
+              minutes: 10,
+              video_url: "https://share.descript.com/embed/42pEyvI1VyH",
+              gate: "yes",
+              summary: "A map first.",
+            },
+          },
+        ],
+      },
+      idempotency_key: "lesson-stage-1",
+    },
+  });
+  expect(stage.ok).toBe(true);
+  const changesetId = String(stage.ok ? (stage.value.ref ?? "") : "");
+  await expect(
+    asOwner.mutation(api.communityResources.applyCommunityResourceBuilderChangeset, {
+      communityId: fixture.communityId,
+      changesetId: changesetId as any,
+    }),
+  ).resolves.toMatchObject({ ok: true, status: "applied" });
+
+  const page = await t.run(async (ctx) => {
+    const rows = await ctx.db
+      .query("communityResources")
+      .withIndex("by_community", (q) => q.eq("communityId", fixture.communityId))
+      .collect();
+    const row = rows.find((resource) => resource.title === "Set up Draw.io")!;
+    // Publishing stays a human decision in Studio; the changeset leaves a draft.
+    expect(row.status).toBe("draft");
+    await ctx.db.patch(row._id, { status: "published" });
+    return row;
+  });
+  expect(page.lesson).toEqual({
+    kind: "build",
+    stage: "Map the business",
+    stage_order: 1,
+    order: 1,
+    minutes: 10,
+    video_url: "https://share.descript.com/embed/42pEyvI1VyH",
+    gate: true,
+    summary: "A map first.",
+  });
+
+  const asMember = t.withIdentity({ subject: fixture.memberSubject });
+  const surfaces = [
+    { principalKind: "external_mcp" as const },
+    { principalKind: "community_app" as const, mountedCommunityId: fixture.communityId },
+  ];
+  for (const surface of surfaces) {
+    const run = (toolName: "polynet_list" | "polynet_read", path: string) =>
+      executePolynetCanonicalTool({
+        ctx: executionContext(asMember),
+        authSubject: fixture.memberSubject,
+        userId: fixture.memberId,
+        evidenceSurface: "external_mcp",
+        ...surface,
+        toolName,
+        input: { path },
+      });
+    const courses = await run("polynet_list", "/communities/canonical-community/resources/");
+    expect(courses.ok).toBe(true);
+    const course = (courses.ok ? (courses.value.entries as any[]) : []).find(
+      (entry) => entry.name === "Map the business",
+    );
+    expect(course).toBeTruthy();
+    const lessons = await run("polynet_list", course.path);
+    const entry = (lessons.ok ? (lessons.value.entries as any[]) : [])[0];
+    expect(entry).toMatchObject({
+      kind: "document",
+      name: "Set up Draw.io",
+      lesson: { kind: "build", stage: "Map the business", gate: true, order: 1 },
+    });
+    const read = await run("polynet_read", entry.path);
+    expect(read).toMatchObject({
+      ok: true,
+      value: {
+        body: lessonBody,
+        lesson: {
+          kind: "build",
+          video_url: "https://share.descript.com/embed/42pEyvI1VyH",
+          gate: true,
+          intro_md: "Draw.io holds the visual outputs.",
+          variants: [
+            { key: "cowork", label: "Cowork" },
+            { key: "claude_code", label: "Claude Code" },
+          ],
+          slides: [{ image: "media/x/01.png", alt: "Slide 1: why", note_md: "First note." }],
+          commands: [
+            { variant: "cowork", language: null, text: "https://mcp.draw.io/mcp" },
+            {
+              variant: "claude_code",
+              language: "bash",
+              text: "claude mcp add --transport http drawio https://mcp.draw.io/mcp",
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  // The canonical write drops null fields, so an empty object clears them.
+  const clear = await executePolynetCanonicalTool({
+    ctx: ownerCtx,
+    authSubject: fixture.ownerSubject,
+    userId: fixture.ownerId,
+    principalKind: "external_mcp",
+    evidenceSurface: "external_mcp",
+    toolName: "polynet_write",
+    input: {
+      path: "/communities/canonical-community/builder/resources/",
+      mode: "create",
+      content: {
+        summary: "Clear the lesson fields.",
+        operations: [
+          {
+            op: "edit_page",
+            resource_id: String(page._id),
+            expected_updated_at: (await t.run(async (ctx) => (await ctx.db.get(page._id))!.updatedAt)),
+            lesson: {},
+          },
+        ],
+      },
+      idempotency_key: "lesson-clear-1",
+    },
+  });
+  expect(clear.ok).toBe(true);
+  await asOwner.mutation(api.communityResources.applyCommunityResourceBuilderChangeset, {
+    communityId: fixture.communityId,
+    changesetId: String(clear.ok ? clear.value.ref : "") as any,
+  });
+  expect((await t.run(async (ctx) => await ctx.db.get(page._id)))!.lesson).toBeUndefined();
+});
+
+test("invalid lesson fields are refused before a changeset is staged", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const staged = await executePolynetCanonicalTool({
+    ctx: executionContext(asOwner),
+    authSubject: fixture.ownerSubject,
+    userId: fixture.ownerId,
+    principalKind: "external_mcp",
+    evidenceSurface: "external_mcp",
+    toolName: "polynet_write",
+    input: {
+      path: "/communities/canonical-community/builder/resources/",
+      mode: "create",
+      content: {
+        summary: "Bad lesson.",
+        operations: [
+          { op: "create_module", module_key: "m", name: "M" },
+          { op: "create_page", module_key: "m", title: "T", lesson: { video_url: "javascript:alert(1)" } },
+        ],
+      },
+      idempotency_key: "lesson-bad-1",
+    },
+  });
+  expect(staged.ok).toBe(false);
+  const changesets = await t.run(async (ctx) => await ctx.db.query("communityResourceBuilderChangesets").collect());
+  expect(changesets).toHaveLength(0);
+});

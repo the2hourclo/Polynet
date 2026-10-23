@@ -5,6 +5,10 @@ import {
   parseCommunityResourceDirectoryUri,
 } from "./communityResourceDirectory.ts";
 import { parseCommunityResourceEvidenceRef } from "./communityEvidenceContract.ts";
+import type {
+  CommunityLessonFields,
+  CommunityLessonProjection,
+} from "./communityLessonContract.ts";
 import {
   isRetiredAiFeedSemanticPath,
   parsePolynetSemanticRepositoryPath,
@@ -140,6 +144,7 @@ export type CommunityResourceSemanticDirectorySource =
         ref: string;
         directoryPath: string;
         directoryUri: string;
+        lesson?: CommunityLessonFields | null;
       }>;
       nextCursor: string | null;
     };
@@ -154,6 +159,8 @@ export type CommunityResourceSemanticReadSource = {
   offset: number;
   totalChars: number;
   truncated: boolean;
+  lesson?: CommunityLessonFields | null;
+  lessonBody?: CommunityLessonProjection | null;
 };
 
 const semanticError = (
@@ -1169,6 +1176,7 @@ export function listCommunitySemanticResources(args: {
             kind: "document" as const,
             name: normalizeInlineText(entry.title, 180) ?? "Resource",
             ref,
+            ...(entry.lesson ? { lesson: entry.lesson } : null),
           };
         });
   const nextCursor = normalizeText(args.source.nextCursor, 2_048);
@@ -1238,6 +1246,9 @@ export function readCommunitySemanticResourceDocument(args: {
       ref,
       total_chars: totalChars,
       next_offset: truncated ? offset + body.length : null,
+      ...(args.source.lesson
+        ? { lesson: { ...args.source.lesson, ...(args.source.lessonBody ?? null) } }
+        : null),
     },
   };
 }

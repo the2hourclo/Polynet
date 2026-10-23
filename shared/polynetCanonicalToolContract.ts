@@ -94,6 +94,12 @@ const READ_OUTPUT_SCHEMA: PlatformOperationJsonSchema = {
       type: ["string", "null"],
       maxLength: 180,
     },
+    lesson: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Resource pages only: board placement (stage, stage_order, order), kind, minutes, video_url, gate and summary, plus intro_md, platform variants, slides and commands derived from the body.",
+    },
   },
 };
 
@@ -216,6 +222,22 @@ const RESOURCE_CHANGESET_OPERATION_SCHEMA: PlatformOperationJsonSchema = {
     type: { type: "string", minLength: 1, maxLength: 64 },
     url: { type: ["string", "null"], maxLength: 2_048 },
     pinned: { type: "boolean" },
+    lesson: {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "create_page / edit_page: board, library and wizard presentation. Send {} to clear. Platform versions (### In <Platform>), slides (## Slides) and fenced commands stay in body_md.",
+      properties: {
+        kind: { type: "string", enum: ["lesson", "build", "checkpoint", "prompt", "skill", "video", "doc"] },
+        stage: { type: "string", maxLength: 80 },
+        stage_order: { type: "integer", minimum: 0, maximum: 999 },
+        order: { type: "integer", minimum: 0, maximum: 9_999 },
+        minutes: { type: "integer", minimum: 0, maximum: 600 },
+        video_url: { type: "string", maxLength: 2_048 },
+        gate: { type: "boolean" },
+        summary: { type: "string", maxLength: 280 },
+      },
+    },
   },
 };
 
