@@ -48,11 +48,26 @@
   box-shadow: var(--pn-shadow-button);
 }
 
+/* Course catalog: card size, cover shape and fit */
+[data-community-theme] .resource-course-grid {
+  grid-template-columns: var(--pn-course-columns);
+}
+[data-community-theme] .resource-course-card-cover {
+  position: relative;
+  aspect-ratio: var(--pn-course-cover-ratio);
+  height: var(--pn-course-cover-height);
+}
+[data-community-theme] .resource-course-card-cover-image {
+  object-fit: var(--pn-course-cover-fit);
+}
+
 /* Images drawn on white sit on a light plate in dark themes, so they don't glare. */
 [data-community-theme] :is(.resource-course-card-cover-image, .resource-viewer-prose img) {
   background: var(--pn-media-plate);
   padding: var(--pn-media-plate-pad);
   box-sizing: border-box;
+}
+[data-community-theme] .resource-viewer-prose img {
   object-fit: contain;
 }
 
