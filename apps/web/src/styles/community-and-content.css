@@ -9637,6 +9637,10 @@ button.chat-reply-quote:hover {
 .resource-course-card-main {
   position: relative;
   appearance: none;
+  /* A column, so the cover stays on top and the footer at the bottom
+     whatever the text length (a button centres its content by default). */
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-height: 100%;
   overflow: hidden;
@@ -9655,6 +9659,7 @@ button.chat-reply-quote:hover {
 }
 
 .resource-course-card-cover {
+  flex: none;
   height: clamp(118px, 17vw, 158px);
   display: grid;
   place-items: center;
@@ -9679,6 +9684,7 @@ button.chat-reply-quote:hover {
 }
 
 .resource-course-card-body {
+  flex: 1;
   min-height: 132px;
   display: flex;
   flex-direction: column;

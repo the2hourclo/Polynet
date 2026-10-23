@@ -48,7 +48,7 @@
   box-shadow: var(--pn-shadow-button);
 }
 
-/* Course catalog: card size, cover shape and fit */
+/* Course catalog: card size and cover shape */
 [data-community-theme] .resource-course-grid {
   grid-template-columns: var(--pn-course-columns);
 }
@@ -56,9 +56,6 @@
   position: relative;
   aspect-ratio: var(--pn-course-cover-ratio);
   height: var(--pn-course-cover-height);
-}
-[data-community-theme] .resource-course-card-cover-image {
-  object-fit: var(--pn-course-cover-fit);
 }
 /* Cards line up row by row: two-line titles, three-line descriptions. */
 [data-community-theme] .resource-course-card-heading > strong {

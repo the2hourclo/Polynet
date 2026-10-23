@@ -39,10 +39,10 @@ export type CommunityThemeV1 = {
   shadow: "none" | "soft" | "hard";
   density: "compact" | "comfortable" | "roomy";
   media_plate: "none" | "light";
-  // Course catalog: cover shape and fit, and how big each card is (Skool-style
-  // big covers are "16:9" with "large" cards).
+  // Course catalog: cover shape and how big each card is (Skool-style big
+  // covers are "16:9" with "medium" or "large" cards). Which part of each
+  // image shows is the course's own cover framing (focus and zoom).
   course_cover_ratio: "auto" | "16:9" | "3:2" | "4:3" | "1:1" | "21:9";
-  course_cover_fit: "cover" | "contain";
   course_card_size: "default" | "small" | "medium" | "large";
 };
 
@@ -115,7 +115,6 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   density: "comfortable",
   media_plate: "none",
   course_cover_ratio: "auto",
-  course_cover_fit: "cover",
   course_card_size: "default",
 };
 
@@ -142,7 +141,6 @@ const ENUMS = {
   density: ["compact", "comfortable", "roomy"],
   media_plate: ["none", "light"],
   course_cover_ratio: ["auto", "16:9", "3:2", "4:3", "1:1", "21:9"],
-  course_cover_fit: ["cover", "contain"],
   course_card_size: ["default", "small", "medium", "large"],
 } as const;
 
@@ -444,7 +442,6 @@ export function communityThemeVariables(
     "--pn-course-columns": courseColumns(theme),
     "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
     "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",
-    "--pn-course-cover-fit": theme.course_cover_fit,
     // <polynet-account> on community sites.
     "--polynet-accent": c.accent,
     "--polynet-on-accent": c.on_accent,

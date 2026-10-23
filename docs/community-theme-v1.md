@@ -55,7 +55,6 @@ look; both follow the member's own Light/Dark choice.
 | `density` | `compact`, `comfortable`, `roomy` |
 | `media_plate` | `none`, `light` (frames white-background images in dark schemes) |
 | `course_cover_ratio` | `auto` (Polynet's fixed height), `16:9`, `3:2`, `4:3`, `1:1`, `21:9` |
-| `course_cover_fit` | `cover` (fill and crop), `contain` (show the whole image) |
 | `course_card_size` | `default` (two columns), `small`, `medium`, `large` (cards at least 220, 300 or 420px wide, as many columns as fit) |
 
 ## Validation
