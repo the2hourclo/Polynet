@@ -2,16 +2,28 @@ import { useCallback, useEffect, useState } from "react";
 import type { CommunityLessonProgressStatus } from "../../../../shared/communityLessonContract";
 import {
   fetchCloudOwnResourceProgress,
+  setCloudOwnLessonResponse,
   setCloudOwnResourceProgress,
+  type CommunityLessonResponse,
   type CommunityResourceProgressState,
+  type SetCommunityLessonResponseResult,
 } from "../../../../shared/cloudCommunityResourceProgressGateway";
 
 export type WebCommunityLessonProgress = {
   /** Status by lesson ref; a lesson with no entry is not started. */
   statusByRef: Readonly<Record<string, CommunityLessonProgressStatus>>;
+  /** Saved answers to lesson elements, by lesson ref, then element id. */
+  responsesByRef: Readonly<Record<string, Readonly<Record<string, CommunityLessonResponse>>>>;
   loaded: boolean;
   error: string | null;
   setStatus: (resourceId: string, ref: string, status: CommunityLessonProgressStatus) => void;
+  answer: (resourceId: string, ref: string, element: string, value: true | string[] | null) => Promise<SetCommunityLessonResponseResult>;
+};
+
+type LoadedProgress = {
+  communityId: string;
+  statusByRef: Record<string, CommunityLessonProgressStatus>;
+  responsesByRef: Record<string, Record<string, CommunityLessonResponse>>;
 };
 
 /**
@@ -24,7 +36,7 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
   session: SessionT | null;
 }): WebCommunityLessonProgress {
   const { communityId, session } = params;
-  const [state, setState] = useState<{ communityId: string; statusByRef: Record<string, CommunityLessonProgressStatus> } | null>(null);
+  const [state, setState] = useState<LoadedProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -33,7 +45,14 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
     fetchCloudOwnResourceProgress({ session, communityId })
       .then((progress: CommunityResourceProgressState) => {
         if (cancelled) return;
-        setState({ communityId, statusByRef: Object.fromEntries(progress.lessons.map((lesson) => [lesson.ref, lesson.status])) });
+        setState({
+          communityId,
+          statusByRef: Object.fromEntries(progress.lessons.map((lesson) => [lesson.ref, lesson.status])),
+          responsesByRef: Object.fromEntries(progress.lessons.map((lesson) => [
+            lesson.ref,
+            Object.fromEntries((lesson.responses ?? []).map((response) => [response.element, response])),
+          ])),
+        });
         setError(null);
       })
       .catch((caught) => {
@@ -48,10 +67,11 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
     if (!communityId || !session) return;
     let previous: CommunityLessonProgressStatus | undefined;
     setState((current) => {
-      const statusByRef = { ...(current?.communityId === communityId ? current.statusByRef : {}) };
+      const own = current?.communityId === communityId ? current : null;
+      const statusByRef = { ...(own?.statusByRef ?? {}) };
       previous = statusByRef[ref];
       statusByRef[ref] = status;
-      return { communityId, statusByRef };
+      return { communityId, statusByRef, responsesByRef: own?.responsesByRef ?? {} };
     });
     setCloudOwnResourceProgress({ session, communityId, resourceId, status })
       .then((result) => {
@@ -61,12 +81,38 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
           if (!current || current.communityId !== communityId) return current;
           const statusByRef = { ...current.statusByRef };
           if (previous) statusByRef[ref] = previous; else delete statusByRef[ref];
-          return { communityId, statusByRef };
+          return { ...current, statusByRef };
         });
       })
       .catch(() => { load(); });
   }, [communityId, session, load]);
 
+  // Answers wait for the server: a quiz's result is only known once it's graded.
+  const answer = useCallback(async (resourceId: string, ref: string, element: string, value: true | string[] | null) => {
+    if (!communityId || !session) {
+      return { ok: false as const, code: "signed_out", message: "Sign in to save your answers." };
+    }
+    const result = await setCloudOwnLessonResponse({ session, communityId, resourceId, element, value });
+    if (result.ok) {
+      setState((current) => {
+        if (!current || current.communityId !== communityId) return current;
+        const lessonResponses = { ...(current.responsesByRef[ref] ?? {}) };
+        if (result.response) lessonResponses[element] = result.response; else delete lessonResponses[element];
+        const statusByRef = { ...current.statusByRef };
+        if (!statusByRef[ref] || statusByRef[ref] === "not_started") statusByRef[ref] = "in_progress";
+        return { ...current, statusByRef, responsesByRef: { ...current.responsesByRef, [ref]: lessonResponses } };
+      });
+    }
+    return result;
+  }, [communityId, session]);
+
   const current = state && state.communityId === communityId ? state : null;
-  return { statusByRef: current?.statusByRef ?? {}, loaded: Boolean(current), error, setStatus };
+  return {
+    statusByRef: current?.statusByRef ?? {},
+    responsesByRef: current?.responsesByRef ?? {},
+    loaded: Boolean(current),
+    error,
+    setStatus,
+    answer,
+  };
 }

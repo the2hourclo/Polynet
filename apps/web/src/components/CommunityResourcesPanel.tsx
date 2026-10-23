@@ -18,6 +18,7 @@ import type {
 import {
   WebCommunityResourceViewerContent,
   type WebCommunityResourceInlineEditorField,
+  type WebLessonActivity,
 } from "./WebCommunityResourceViewerContent";
 import { WebDeleteResourceModal } from "./WebDeleteResourceModal";
 import { ResourceCourseCatalog, type ResourceCourseProgress } from "./ResourceCourseCatalog";
@@ -29,6 +30,8 @@ type CommunityResourcesPanelProps = {
   actions: CommunityResourcesActions;
   // The viewing member's progress per course (module id), when known.
   courseProgress?: Readonly<Record<string, ResourceCourseProgress>>;
+  // The member's answers to lesson buttons, checklists, quizzes and forms.
+  lessonActivity?: WebLessonActivity | null;
 };
 
 const MODULE_DRAG_MIME = "application/x-polynet-community-resource-module";
@@ -990,6 +993,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   resource={selectedResource}
                   editor={selectedResourceInlineEditor}
                   communityEmbeds={communityEmbeds}
+                  lessonActivity={props.lessonActivity ?? null}
                 />
               ) : (
                 <div className="community-panel-state-shell">

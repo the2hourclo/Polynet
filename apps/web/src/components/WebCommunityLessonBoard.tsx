@@ -7,7 +7,7 @@ import {
   type CommunityLessonProgressStatus,
 } from "../../../../shared/communityLessonContract";
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
-import { WebCommunityResourceViewerContent } from "./WebCommunityResourceViewerContent";
+import { WebCommunityResourceViewerContent, type WebLessonActivity } from "./WebCommunityResourceViewerContent";
 import { WebPlatformTabList } from "./WebPlatformChoiceControls";
 import type { CommunityResource } from "./communityResourcesContracts";
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
@@ -45,6 +45,7 @@ export function WebCommunityLessonBoard(props: {
   progress: WebCommunityLessonProgress;
   signedIn: boolean;
   onRequireSignIn: () => void;
+  lessonActivity?: WebLessonActivity | null;
 }) {
   const { progress } = props;
   const lessons = useMemo(() => communityBoardLessons(props.resources), [props.resources]);
@@ -84,6 +85,7 @@ export function WebCommunityLessonBoard(props: {
       <WebCommunityLessonStep
         key={opened.ref}
         lesson={opened}
+        lessonActivity={props.lessonActivity ?? null}
         step={stageLessons.findIndex((lesson) => lesson.ref === opened.ref) + 1}
         steps={stageLessons.length}
         stageDone={stageLessons.filter((lesson) => statusOf(lesson.ref) === "done").length}
@@ -168,6 +170,7 @@ function WebCommunityLessonStep(props: {
   onToggleDone: () => void;
   onPrev: (() => void) | null;
   onNext: (() => void) | null;
+  lessonActivity?: WebLessonActivity | null;
 }) {
   const { resource } = props.lesson;
   const fields = resource.lesson;
@@ -208,7 +211,7 @@ function WebCommunityLessonStep(props: {
       <article className="lesson-board-step-card">
         <span className="lesson-board-kind-badge">{kind}</span>
         <div className="knowledge-resource-reader">
-          <WebCommunityResourceViewerContent resource={{ ...resource, body_md: body }} />
+          <WebCommunityResourceViewerContent resource={{ ...resource, body_md: body }} lessonActivity={props.lessonActivity ?? null} />
         </div>
         <div className="lesson-board-step-nav">
           {props.onPrev ? <button type="button" className="lesson-board-text-button" onClick={props.onPrev}>← Back</button> : <span />}

@@ -6,6 +6,8 @@ import { CommunityMemoryGraph } from "./CommunityMemoryGraph";
 import { WebCommunityLessonBoard, communityBoardLessons } from "./WebCommunityLessonBoard";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { computeCommunityCourseProgress } from "../../../../shared/communityCourseProgress";
+import type { WebLessonActivity } from "./WebCommunityResourceViewerContent";
+import type { AuthSession } from "../auth";
 import type { WebCommunityChatPanelProps } from "./WebCommunityChatPanel";
 import type { WebCommunitySettingsSection } from "./WebCommunitySettingsSection";
 import { useWebCommunityPolynetController } from "../controllers/useWebCommunityPolynetController";
@@ -45,6 +47,14 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
         : undefined,
     [progress.loaded, progress.statusByRef, resources.state.resources],
   );
+  const lessonActivity = useMemo<WebLessonActivity>(() => ({
+    progress,
+    signedIn: Boolean(context.session),
+    onRequireSignIn: context.requireSignIn,
+    forms: context.session && context.communityId
+      ? { communityId: context.communityId, session: context.session as AuthSession, ensureSession: context.ensureSession }
+      : null,
+  }), [progress, context.session, context.communityId, context.ensureSession, context.requireSignIn]);
   const tabs: { id: KnowledgeView; label: string }[] = [
     { id: "resources", label: "Resources" },
     ...(hasBoard ? [{ id: "board" as const, label: "Board" }] : []),
@@ -74,7 +84,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
         />
       </div>
       <div hidden={activeView !== "resources"} role="tabpanel" id={platformTabPanelId("community-knowledge", "resources")} aria-labelledby={platformTabId("community-knowledge", "resources")}>
-        <CommunityResourcesPanel {...resources} courseProgress={courseProgress} />
+        <CommunityResourcesPanel {...resources} courseProgress={courseProgress} lessonActivity={lessonActivity} />
       </div>
       {boardOpen ? (
         <div className="lesson-board-panel" role="tabpanel" id={platformTabPanelId("community-knowledge", "board")} aria-labelledby={platformTabId("community-knowledge", "board")}>
@@ -83,6 +93,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
             progress={progress}
             signedIn={Boolean(context.session)}
             onRequireSignIn={context.requireSignIn}
+            lessonActivity={lessonActivity}
           />
         </div>
       ) : null}

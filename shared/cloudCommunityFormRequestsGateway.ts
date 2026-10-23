@@ -53,3 +53,9 @@ export async function saveMemberForm(session: unknown, communityId: string, requ
   return client.mutation(api.communityFormRequests.saveMyAnswers, { communityId: communityId as Id<"communities">, requestId: request.id as Id<"communityFormRequests">,
     authSubject, answers, expectedRevision: request.revision, submit });
 }
+/** The member's pending request for one form (by its key), if a Workflow has assigned it. Lessons use it to show the form in place. */
+export async function findMyPendingFormByKey(session: unknown, communityId: string, formKey: string): Promise<MemberFormSummary | null> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  const rows = await client.query(api.communityFormRequests.listMyRequests, { communityId: communityId as Id<"communities">, authSubject }) as Array<MemberFormSummary & { form_key?: string }>;
+  return (Array.isArray(rows) ? rows : []).find(row => row.form_key === formKey) ?? null;
+}

@@ -10,6 +10,11 @@ import {
 import { normalizeExternalUrl, parseEmbedUrl, StableMediaEmbedFrame } from "../../../../shared/linkEmbedUi";
 import { renderMarkdown } from "../../../../shared/markdownUi";
 import type { CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
+import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
+import { parseCommunityLessonElements, publicCommunityLessonElement } from "../../../../shared/communityLessonContract";
+import { markCommunityLessonElementBlocks } from "../../../../shared/communityLessonElementMarkdown";
+import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
+import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
 import type { CommunityResource } from "./communityResourcesContracts";
 
@@ -17,6 +22,16 @@ type WebCommunityResourceViewerContentProps = {
   resource: CommunityResource;
   editor?: WebCommunityResourceInlineEditor | null;
   communityEmbeds?: CommunityEmbedContext | null;
+  lessonActivity?: WebLessonActivity | null;
+};
+
+/** What a lesson's buttons, checklists, quizzes and forms need from the page. */
+export type WebLessonActivity = {
+  progress: WebCommunityLessonProgress;
+  signedIn: boolean;
+  onRequireSignIn: () => void;
+  forms: WebLessonFormAccess | null;
+  onAskAgent?: ((text: string) => void) | null;
 };
 
 export type WebCommunityResourceInlineEditorField = "title" | "body" | "pin";
@@ -121,17 +136,47 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const isTitleEditing = isEditing && activeField === "title";
   const isBodyEditing = isEditing && activeField === "body";
   const isPinned = editor?.isEditing ? editor.pinnedInput : resource.pinned;
-  const renderedBodyMarkdown = useMemo(
+  // Follow-along elements work only in lessons (pages with lesson fields),
+  // the same rule the server uses when it saves an answer.
+  const lessonActivity = props.lessonActivity && resource.lesson ? props.lessonActivity : null;
+  const lessonElements = useMemo(
     () =>
-      hasBody
-        ? renderMarkdown(trimmedBody, {
-            embedStandaloneMedia: true,
-            headingLevelOffset: 1,
-            communityEmbeds: props.communityEmbeds ?? null,
-          })
-        : null,
-    [hasBody, trimmedBody, props.communityEmbeds],
+      !lessonActivity
+        ? []
+        : resource.lesson_elements ?? parseCommunityLessonElements(trimmedBody).map(publicCommunityLessonElement),
+    [lessonActivity, resource.lesson_elements, trimmedBody],
   );
+  const lessonRef = buildCommunityResourceEvidenceRef(resource.id);
+  const lessonResponses = lessonActivity?.progress.responsesByRef[lessonRef];
+  const renderedBodyMarkdown = useMemo(() => {
+    if (!hasBody) return null;
+    const byId = new Map(lessonElements.map((element) => [element.id, element]));
+    const body = byId.size ? markCommunityLessonElementBlocks(trimmedBody, new Set(byId.keys())) : trimmedBody;
+    return renderMarkdown(body, {
+      embedStandaloneMedia: true,
+      headingLevelOffset: 1,
+      communityEmbeds: props.communityEmbeds ?? null,
+      renderLessonElement: lessonActivity
+        ? (id) => {
+            const element = byId.get(id);
+            if (!element) return null;
+            return (
+              <WebLessonElement
+                key={id}
+                element={element}
+                response={lessonResponses?.[id] ?? null}
+                signedIn={lessonActivity.signedIn}
+                onRequireSignIn={lessonActivity.onRequireSignIn}
+                onAnswer={(value) => lessonActivity.progress.answer(resource.id, lessonRef, id, value)}
+                onMarkDone={() => lessonActivity.progress.setStatus(resource.id, lessonRef, "done")}
+                onAskAgent={lessonActivity.onAskAgent ?? null}
+                forms={lessonActivity.forms}
+              />
+            );
+          }
+        : null,
+    });
+  }, [hasBody, trimmedBody, props.communityEmbeds, lessonActivity, lessonElements, lessonResponses, lessonRef, resource.id]);
 
   const syncBodyTextareaHeight = () => {
     const textarea = bodyTextareaRef.current;
