@@ -20,12 +20,14 @@ import {
   type WebCommunityResourceInlineEditorField,
 } from "./WebCommunityResourceViewerContent";
 import { WebDeleteResourceModal } from "./WebDeleteResourceModal";
-import { ResourceCourseCatalog } from "./ResourceCourseCatalog";
+import { ResourceCourseCatalog, type ResourceCourseProgress } from "./ResourceCourseCatalog";
 
 type CommunityResourcesPanelProps = {
   capabilities: CommunityResourcesCapabilities;
   state: CommunityResourcesState;
   actions: CommunityResourcesActions;
+  // The viewing member's progress per course (module id), when known.
+  courseProgress?: Readonly<Record<string, ResourceCourseProgress>>;
 };
 
 const MODULE_DRAG_MIME = "application/x-polynet-community-resource-module";
@@ -313,7 +315,7 @@ function ResourceRailItem(props: {
 
 
 export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
-  const { capabilities, state, actions } = props;
+  const { capabilities, state, actions, courseProgress } = props;
   const selectedModuleId = state.selectedModuleId;
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [pendingDeleteResourceId, setPendingDeleteResourceId] = useState<string | null>(null);
@@ -397,8 +399,9 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
       .map((section) => ({
         module: section.module,
         lessonCount: state.resourceRead.hasData ? section.lessonResources.length : null,
+        progress: courseProgress?.[section.module.id] ?? null,
       })),
-    [moduleSections, state.resourceRead.hasData],
+    [moduleSections, state.resourceRead.hasData, courseProgress],
   );
   const allLessonResources = useMemo(
     () => moduleSections.flatMap((section) => section.lessonResources),
