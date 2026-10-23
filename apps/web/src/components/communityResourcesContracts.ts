@@ -1,3 +1,4 @@
+import type { CommunityLessonFields } from "../../../../shared/communityLessonContract";
 import type {
   CommunitySourceIntakePhase,
   CommunitySourceIntakeResult,
@@ -34,6 +35,8 @@ export type CommunityResource = {
   source_external_modified_at?: string | null;
   pinned: boolean;
   sort_order: number | null;
+  // Board fields (stage, order, gate...) when the page is a lesson.
+  lesson?: CommunityLessonFields | null;
   created_at: string;
 };
 

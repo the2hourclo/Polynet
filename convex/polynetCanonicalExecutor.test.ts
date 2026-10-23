@@ -3748,3 +3748,44 @@ test("members set their own lesson progress, gates lock later stages, and progre
     },
   })).resolves.toMatchObject({ ok: false, code: "invalid_tool_args" });
 });
+
+test("the web app reads lesson fields with resources and sets the member's own progress, gates included", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const ids = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: fixture.communityId, createdByUserId: fixture.ownerId, status: "live",
+      name: "Checkpoints", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    const page = async (title: string, sortOrder: number, lesson: Record<string, unknown>) =>
+      await ctx.db.insert("communityResources", {
+        communityId: fixture.communityId, moduleId, createdByUserId: fixture.ownerId, type: "post",
+        role: "page", status: "published", title, bodyMd: `${title} body`, bodyChars: title.length + 5,
+        pinned: false, sortOrder, lesson: lesson as any, createdAt: now, updatedAt: now,
+      });
+    return {
+      gate: String(await page("Lock your first target", 1, { stage: "Map the business", stage_order: 1, order: 1, gate: true })),
+      skill: String(await page("What is a skill", 2, { stage: "Your first skill", stage_order: 2, order: 1 })),
+    };
+  });
+  const asMember = t.withIdentity({ subject: fixture.memberSubject });
+  const args = { authSubject: fixture.memberSubject, communityId: fixture.communityId };
+
+  const listed = await asMember.query(api.communityResources.listCommunityResources, args);
+  expect(listed.find((row: any) => row.id === ids.skill)?.lesson).toMatchObject({ stage: "Your first skill", order: 1 });
+
+  const locked = await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...args, resourceId: ids.skill, status: "in_progress" });
+  expect(locked).toMatchObject({ ok: false, code: "lesson_locked" });
+
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...args, resourceId: ids.gate, status: "done" }))
+    .toMatchObject({ ok: true, status: "done" });
+  const state = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, args);
+  expect(state.stages.map((stage: any) => [stage.name, stage.locked, stage.done_count])).toEqual([
+    ["Map the business", false, 1],
+    ["Your first skill", false, 0],
+  ]);
+  expect(state.lessons.find((lesson: any) => lesson.ref === `resource:${ids.gate}`)).toMatchObject({ status: "done" });
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...args, resourceId: ids.skill, status: "in_progress" }))
+    .toMatchObject({ ok: true });
+});

@@ -1070,6 +1070,7 @@ export async function mapCommunityResourceRow(
       typeof row.sourceExternalModifiedAt === "number" ? toIsoString(row.sourceExternalModifiedAt) : null,
     pinned: Boolean(row.pinned),
     sort_order: Number.isFinite(row.sortOrder) ? row.sortOrder : null,
+    lesson: row.lesson ?? null,
     created_by: (await resolvePublicUserId(ctx, row.createdByUserId, userIdCache)) ?? String(row.createdByUserId),
     created_at: toIsoString(row.createdAt),
     updated_at: toIsoString(row.updatedAt),

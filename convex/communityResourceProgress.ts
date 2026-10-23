@@ -1,10 +1,11 @@
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import {
   communityResourceIsLiveModulePage,
   communityResourceModuleIsLive,
   normalizeIdValue,
   requireCommunityChatAccess,
+  resolveUserIdForAuthenticatedRequest,
   type CommunityResourceLike,
   type CommunityResourceModuleLike,
 } from "./communityCore";
@@ -75,12 +76,7 @@ function toIso(value: number | undefined) {
   return typeof value === "number" ? new Date(value).toISOString() : null;
 }
 
-export const readOwnResourceProgressInternal = internalQuery({
-  args: {
-    userId: v.id("users"),
-    communityId: v.id("communities"),
-  },
-  handler: async (ctx, args) => {
+async function readOwnResourceProgress(ctx: any, args: { userId: any; communityId: any }) {
     await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
     const { pages, truncated } = await listMemberVisibleLessonPages(ctx, args.communityId);
     const rows = await readOwnProgressRows(ctx, args.communityId, args.userId);
@@ -136,17 +132,12 @@ export const readOwnResourceProgressInternal = internalQuery({
       }),
       truncated,
     };
-  },
-});
+}
 
-export const setOwnResourceProgressInternal = internalMutation({
-  args: {
-    userId: v.id("users"),
-    communityId: v.id("communities"),
-    resourceId: v.string(),
-    status: v.union(v.literal("not_started"), v.literal("in_progress"), v.literal("done")),
-  },
-  handler: async (ctx, args) => {
+async function setOwnResourceProgress(
+  ctx: any,
+  args: { userId: any; communityId: any; resourceId: string; status: CommunityLessonProgressStatus },
+) {
     await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
     const resourceId = ctx.db.normalizeId("communityResources", args.resourceId);
     const { pages } = await listMemberVisibleLessonPages(ctx, args.communityId);
@@ -157,7 +148,7 @@ export const setOwnResourceProgressInternal = internalMutation({
     const ref = buildCommunityResourceEvidenceRef(normalizeIdValue(resourceId));
     const existing = (await ctx.db
       .query("communityResourceProgress")
-      .withIndex("by_community_user_resource", (q) =>
+      .withIndex("by_community_user_resource", (q: any) =>
         q.eq("communityId", args.communityId).eq("userId", args.userId).eq("resourceId", resourceId),
       )
       .unique()) as ProgressRow | null;
@@ -194,5 +185,33 @@ export const setOwnResourceProgressInternal = internalMutation({
       });
     }
     return { ok: true as const, ref, status: args.status };
+}
+
+const progressStatus = v.union(v.literal("not_started"), v.literal("in_progress"), v.literal("done"));
+
+export const readOwnResourceProgressInternal = internalQuery({
+  args: { userId: v.id("users"), communityId: v.id("communities") },
+  handler: (ctx, args) => readOwnResourceProgress(ctx, args),
+});
+
+export const setOwnResourceProgressInternal = internalMutation({
+  args: { userId: v.id("users"), communityId: v.id("communities"), resourceId: v.string(), status: progressStatus },
+  handler: (ctx, args) => setOwnResourceProgress(ctx, args),
+});
+
+// The same reads and writes for the signed-in member in the web app.
+export const getOwnResourceProgress = query({
+  args: { authSubject: v.optional(v.string()), communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null });
+    return await readOwnResourceProgress(ctx, { userId, communityId: args.communityId });
+  },
+});
+
+export const setOwnResourceProgressStatus = mutation({
+  args: { authSubject: v.optional(v.string()), communityId: v.id("communities"), resourceId: v.string(), status: progressStatus },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null });
+    return await setOwnResourceProgress(ctx, { userId, communityId: args.communityId, resourceId: args.resourceId, status: args.status });
   },
 });
