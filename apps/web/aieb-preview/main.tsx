@@ -11,12 +11,13 @@ import "../src/index.css";
 import "../src/components/WebCommunityKnowledgePanel.css";
 import "../src/components/WebCommunityWorkflowsSection.css";
 import "./preview.css";
+import "./clo-theme.css";
 
 import { CommunityNav } from "../../../shared/CommunityNav";
 import { CommunityAvatar } from "../../../shared/CommunityAvatar";
 import { CommunityVisualIdentityRegistryProvider } from "../../../shared/CommunityVisualIdentityRegistry";
 import { buildPlatformSwitcherStyle } from "../../../shared/platformSwitcherUi";
-import { computeCommunityLessonStages, type CommunityLessonFields } from "../../../shared/communityLessonContract";
+import { computeCommunityLessonStages, projectCommunityLessonBody, type CommunityLessonFields } from "../../../shared/communityLessonContract";
 import type { CommunityTab } from "../../../shared/appShellNavigation";
 import { CommunityResourcesPanel } from "../src/components/CommunityResourcesPanel";
 import { WebCommunityResourceViewerContent } from "../src/components/WebCommunityResourceViewerContent";
@@ -92,9 +93,67 @@ function Library({ selectedModuleId, onSelectModule }: { selectedModuleId: strin
 
 const STATUS_LABEL: Record<Status, string> = { not_started: "To do", in_progress: "In progress", done: "Done" };
 
-function Board({ progress, setStatus, openRef, setOpenRef }: {
+const PLATFORM_KEY = "aieb-platform";
+const KIND_LABEL: Record<string, string> = { build: "Build", lesson: "Watch", checkpoint: "Checkpoint" };
+
+// One lesson as a step of its stage, the way the CLO checkpoint pages show it:
+// the member picks their platform once, sees "Step n of N", and the body is the
+// lesson contract's projection (intro + the chosen platform's section + slides)
+// rendered by Polynet's own resource reader.
+function LessonStep(props: {
+  resource: CommunityResource; lesson: Lesson; step: number; steps: number; stageDone: number; done: boolean;
+  platform: string; onPlatform: (key: string) => void; onBack: () => void; onToggleDone: () => void;
+  onPrev: (() => void) | null; onNext: (() => void) | null;
+}) {
+  const { resource, lesson } = props;
+  const projection = useMemo(() => projectCommunityLessonBody(resource.body_md), [resource.body_md]);
+  const variant = projection.variants.find((v) => v.key === props.platform) ?? projection.variants[0] ?? null;
+  const slides = projection.slides.map((slide) => `![${slide.alt}](${slide.image})\n\n${slide.note_md}`).join("\n\n");
+  const body = [projection.intro_md, variant?.body_md, slides ? `## Slides\n\n${slides}` : ""].filter(Boolean).join("\n\n");
+  const kind = lesson.lesson?.gate ? "Checkpoint" : KIND_LABEL[lesson.lesson?.kind ?? ""] ?? "Step";
+  const tabs = projection.variants.map((v) => ({ id: v.key, label: v.label }));
+  return (
+    <div className="community-panel community-utility-panel resources-panel aieb-step-page">
+      <div className="aieb-step-top">
+        <button className="resources-back-btn" type="button" onClick={props.onBack}>
+          <ArrowLeft aria-hidden="true" /><span>Back to board</span>
+        </button>
+        <span className="aieb-stage-badge">{lesson.lesson?.stage}</span>
+      </div>
+      {tabs.length > 1 && variant ? (
+        <div className="aieb-platform-row">
+          <span>I build in:</span>
+          <WebPlatformTabList
+            tabs={tabs} activeTab={variant.key} onSelectTab={props.onPlatform} ariaLabel="I build in" idPrefix="aieb-platform"
+            style={buildPlatformSwitcherStyle(tabs.length, tabs.findIndex((t) => t.id === variant.key))}
+          />
+        </div>
+      ) : null}
+      <div className="aieb-step-progress">
+        <strong>Step <em>{props.step}</em> of {props.steps}</strong>
+        <div className="aieb-step-bar" aria-hidden="true"><span style={{ width: `${(props.stageDone / props.steps) * 100}%` }} /></div>
+      </div>
+      <article className="aieb-step-card">
+        <span className="aieb-kind-badge">{kind}</span>
+        <div className="knowledge-resource-reader">
+          <WebCommunityResourceViewerContent resource={{ ...resource, body_md: body }} />
+        </div>
+        <div className="aieb-step-nav">
+          {props.onPrev ? <button type="button" className="aieb-text-button" onClick={props.onPrev}>← Back</button> : <span />}
+          <div className="aieb-step-nav-right">
+            <button type="button" className="aieb-text-button" onClick={props.onToggleDone}>{props.done ? "Mark as not done" : "Mark as done"}</button>
+            {props.onNext ? <button type="button" className="aieb-primary-button" onClick={props.onNext}>Next →</button> : null}
+          </div>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function Board({ progress, setStatus, openRef, setOpenRef, platform, onPlatform }: {
   progress: Record<string, Status>; setStatus: (ref: string, status: Status) => void;
   openRef: string | null; setOpenRef: (ref: string | null) => void;
+  platform: string; onPlatform: (key: string) => void;
 }) {
   const boardLessons = lessons.filter((l) => l.lesson?.stage);
   const doneRefs = new Set(Object.entries(progress).filter(([, s]) => s === "done").map(([ref]) => ref));
@@ -104,32 +163,25 @@ function Board({ progress, setStatus, openRef, setOpenRef }: {
 
   if (openRef) {
     const resource = resourceById.get(openRef)!;
+    const lesson = boardLessons.find((l) => l.ref === openRef)!;
+    const stageLessons = boardLessons.filter((l) => l.lesson?.stage === lesson.lesson?.stage).sort((a, b) => (a.lesson?.order ?? 0) - (b.lesson?.order ?? 0));
     const ordered = stages.flatMap((s) => boardLessons.filter((l) => l.lesson?.stage === s.name).sort((a, b) => (a.lesson?.order ?? 0) - (b.lesson?.order ?? 0)));
-    const next = ordered[ordered.findIndex((l) => l.ref === openRef) + 1];
+    const at = ordered.findIndex((l) => l.ref === openRef);
+    const prev = ordered[at - 1];
+    const next = ordered[at + 1];
+    const step = stageLessons.findIndex((l) => l.ref === openRef) + 1;
     const done = statusOf(openRef) === "done";
+    const go = (ref: string) => { setOpenRef(ref); if (statusOf(ref) === "not_started") setStatus(ref, "in_progress"); };
     return (
-      <div className="community-panel community-utility-panel resources-panel">
-        <div className="feed-header-row">
-          <div className="feed-header-copy">
-            <button className="resources-back-btn" type="button" onClick={() => setOpenRef(null)}>
-              <ArrowLeft aria-hidden="true" /><span>Board</span>
-            </button>
-          </div>
-        </div>
-        <div className="knowledge-resource-reader aieb-board-reader">
-          <WebCommunityResourceViewerContent resource={resource} />
-          <div className="aieb-lesson-actions">
-            <button type="button" className={done ? "workflow-secondary-button" : "aieb-primary-button"} onClick={() => setStatus(openRef, done ? "in_progress" : "done")}>
-              {done ? "Mark as not done" : "Mark as done"}
-            </button>
-            {next && !lockedRefs.has(next.ref) ? (
-              <button type="button" className="workflow-secondary-button" onClick={() => { setOpenRef(next.ref); if (statusOf(next.ref) === "not_started") setStatus(next.ref, "in_progress"); }}>
-                Next: {next.title}
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      <LessonStep
+        key={openRef} resource={resource} lesson={lesson} step={step} steps={stageLessons.length}
+        stageDone={stageLessons.filter((l) => statusOf(l.ref) === "done").length}
+        done={done} platform={platform} onPlatform={onPlatform}
+        onBack={() => setOpenRef(null)}
+        onToggleDone={() => setStatus(openRef, done ? "in_progress" : "done")}
+        onPrev={prev ? () => go(prev.ref) : null}
+        onNext={next && !lockedRefs.has(next.ref) ? () => { if (!done) setStatus(openRef, "done"); go(next.ref); } : null}
+      />
     );
   }
 
@@ -189,6 +241,8 @@ function Knowledge() {
   const [view, setView] = useState<"library" | "board">("library");
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [openRef, setOpenRef] = useState<string | null>(null);
+  const [platform, setPlatform] = useState<string>(() => { try { return localStorage.getItem(PLATFORM_KEY) || "cowork"; } catch { return "cowork"; } });
+  const choosePlatform = (key: string) => { setPlatform(key); try { localStorage.setItem(PLATFORM_KEY, key); } catch { /* storage can be blocked */ } };
   const [progress, setProgress] = useState<Record<string, Status>>(loadProgress);
   const setStatus = (ref: string, status: Status) => setProgress((current) => {
     const next = { ...current, [ref]: status };
@@ -211,7 +265,7 @@ function Knowledge() {
           </div>
           <div role="tabpanel" className="aieb-knowledge-panel" id={platformTabPanelId("community-knowledge", view)} aria-labelledby={platformTabId("community-knowledge", view)}>
             {view === "board"
-              ? <Board progress={progress} setStatus={setStatus} openRef={openRef} setOpenRef={setOpenRef} />
+              ? <Board progress={progress} setStatus={setStatus} openRef={openRef} setOpenRef={setOpenRef} platform={platform} onPlatform={choosePlatform} />
               : <Library selectedModuleId={selectedModuleId} onSelectModule={setSelectedModuleId} />}
           </div>
         </section>
