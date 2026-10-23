@@ -21,6 +21,7 @@ import { buildPlatformSwitcherStyle } from "../../../shared/platformSwitcherUi";
 import { computeCommunityLessonStages, projectCommunityLessonBody, type CommunityLessonFields } from "../../../shared/communityLessonContract";
 import type { CommunityTab } from "../../../shared/appShellNavigation";
 import { CommunityResourcesPanel } from "../src/components/CommunityResourcesPanel";
+import type { ResourceCourseProgress } from "../src/components/ResourceCourseCatalog";
 import { WebCommunityResourceViewerContent } from "../src/components/WebCommunityResourceViewerContent";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "../src/components/WebPlatformChoiceControls";
 import type { CommunityResource, CommunityResourceModule } from "../src/components/communityResourcesContracts";
@@ -87,10 +88,36 @@ function Placeholder({ tab }: { tab: CommunityTab }) {
   );
 }
 
-function Library({ selectedModuleId, onSelectModule }: { selectedModuleId: string | null; onSelectModule: (id: string | null) => void }) {
+// Per course: lessons done out of all its lessons, and locked while every one
+// of its Board lessons sits behind an unfinished gate, as the Board shows it.
+function courseProgressFrom(progress: Record<string, Status>): Record<string, ResourceCourseProgress> {
+  const doneRefs = new Set(Object.entries(progress).filter(([, s]) => s === "done").map(([ref]) => ref));
+  const boardLessons = lessons.filter((l) => l.lesson?.stage);
+  const { stages, lockedRefs } = computeCommunityLessonStages({ lessons: boardLessons, doneRefs });
+  const blockerOf = new Map(stages.map((s) => [s.name, s.blocked_by]));
+  const result: Record<string, ResourceCourseProgress> = {};
+  for (const module of modules) {
+    const own = lessons.filter((l) => l.module_id === module.id);
+    if (own.length === 0) continue;
+    const staged = own.filter((l) => l.lesson?.stage);
+    const locked = staged.length > 0 && staged.every((l) => lockedRefs.has(l.ref));
+    const blocker = locked ? blockerOf.get(staged[0].lesson!.stage!) : null;
+    const blockerTitle = blocker ? lessons.find((l) => l.ref === blocker)?.title : null;
+    result[module.id] = {
+      done: own.filter((l) => doneRefs.has(l.ref)).length,
+      total: own.length,
+      lockedReason: locked ? `Finish "${blockerTitle ?? "an earlier step"}" first` : null,
+    };
+  }
+  return result;
+}
+
+function Library({ selectedModuleId, onSelectModule, progress }: { selectedModuleId: string | null; onSelectModule: (id: string | null) => void; progress: Record<string, Status> }) {
+  const courseProgress = useMemo(() => courseProgressFrom(progress), [progress]);
   const ready = { status: "ready" as const, error: null, hasData: true };
   return (
     <CommunityResourcesPanel
+      courseProgress={courseProgress}
       capabilities={{ hasActiveCommunity: true, activeCommunityId: COMMUNITY.id, activeCommunityName: COMMUNITY.name, canOperateResources: false }}
       state={{ resourceRead: ready, moduleRead: ready, isLoadingResources: false, isLoadingResourceModules: false, modules, resources, selectedModuleId }}
       actions={{
@@ -283,7 +310,7 @@ function Knowledge() {
           <div role="tabpanel" className="aieb-knowledge-panel" id={platformTabPanelId("community-knowledge", view)} aria-labelledby={platformTabId("community-knowledge", view)}>
             {view === "board"
               ? <Board progress={progress} setStatus={setStatus} openRef={openRef} setOpenRef={setOpenRef} platform={platform} onPlatform={choosePlatform} />
-              : <Library selectedModuleId={selectedModuleId} onSelectModule={setSelectedModuleId} />}
+              : <Library selectedModuleId={selectedModuleId} onSelectModule={setSelectedModuleId} progress={progress} />}
           </div>
         </section>
       </div>
