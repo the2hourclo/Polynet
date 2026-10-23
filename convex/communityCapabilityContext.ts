@@ -948,6 +948,7 @@ export const resolveCommunitySemanticRepositoryInternal = internalQuery({
                       ref: entry.ref,
                       directoryPath: entry.directory_path,
                       directoryUri: entry.directory_uri,
+                      lesson: entry.lesson ?? null,
                     })),
                     nextCursor: directory.next_cursor,
                   },
@@ -1168,6 +1169,8 @@ export const readCommunitySemanticRepositoryInternal = internalAction({
           offset: payload.content?.offset,
           totalChars: payload.content?.total_chars,
           truncated: payload.content?.truncated,
+          lesson: payload.resource?.lesson ?? null,
+          lessonBody: payload.lesson_body ?? null,
         },
       });
     } catch {

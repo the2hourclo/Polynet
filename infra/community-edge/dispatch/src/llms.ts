@@ -212,6 +212,27 @@ own rather than avatar_url (which is the member's).
 - resources(path?) -> courses (kind "directory") and lessons (kind
   "document"). Pass a course's path to list its lessons.
 - readText(entry) -> the text of a lesson, a memory or a post (markdown).
+- lessons() -> every lesson in every course, in order: [{ title, ref, path,
+  course, course_path, lesson }]. lesson is null for a plain page, or the
+  board fields: kind ("lesson", "build", "checkpoint", "prompt", "skill",
+  "video", "doc"), stage (board column; none means library only),
+  stage_order, order, minutes, video_url, gate (later stages stay locked
+  until it is done) and summary. Show the same lessons as a board (group by
+  stage), a library (group by course) or a wizard (one at a time).
+- lesson(entry) -> { title, ref, path, body, lesson }. Here lesson also has
+  intro_md, variants [{ key, label, body_md }] from "### In <Platform>"
+  sections (for example cowork, claude_code, codex), slides [{ image, alt,
+  note_md }] from a "## Slides" section, and commands [{ variant, language,
+  text }] from fenced code blocks.
+- progress() -> the member's own { journey, stages, lessons }. stages:
+  [{ name, order, lesson_count, done_count, locked, blocked_by }]. lessons:
+  [{ ref, title, status, locked, started_at, completed_at }], status
+  "not_started", "in_progress" or "done". journey is null or the member's
+  place in the community workflow: { current_milestone_key,
+  current_milestone_name, entered_at, completed_at, milestones [{ key, name,
+  position }] }.
+- setProgress(entry, status) -> sets your status on a lesson. Rejects with
+  code "lesson_locked" while a gate in an earlier stage is unfinished.
 - members() -> [{ name, role, ref, path }], role "owner", "admin",
   "moderator" or "member".
 - knowledge(query?) -> what the community knows: top memories, or a search.

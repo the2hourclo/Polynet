@@ -8,6 +8,7 @@ import {
   communityResourceModuleIsMemberLive,
 } from "../shared/communityResourceVisibility";
 import type { CommunityVisualIdentity } from "../shared/communityVisualIdentity";
+import type { CommunityLessonFields } from "../shared/communityLessonContract";
 import {
   communityIsActive,
   type CommunityLifecycleStatus,
@@ -244,6 +245,7 @@ export type CommunityResourceLike = {
   sourceExternalModifiedAt?: number;
   pinned: boolean;
   sortOrder?: number;
+  lesson?: CommunityLessonFields;
   createdAt: number;
   updatedAt: number;
 };
@@ -1068,6 +1070,7 @@ export async function mapCommunityResourceRow(
       typeof row.sourceExternalModifiedAt === "number" ? toIsoString(row.sourceExternalModifiedAt) : null,
     pinned: Boolean(row.pinned),
     sort_order: Number.isFinite(row.sortOrder) ? row.sortOrder : null,
+    lesson: row.lesson ?? null,
     created_by: (await resolvePublicUserId(ctx, row.createdByUserId, userIdCache)) ?? String(row.createdByUserId),
     created_at: toIsoString(row.createdAt),
     updated_at: toIsoString(row.updatedAt),
