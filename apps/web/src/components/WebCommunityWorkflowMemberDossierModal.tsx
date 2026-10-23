@@ -56,6 +56,7 @@ function ActivityTime({ value }: { value: string }) {
 
 export function WebCommunityWorkflowMemberDossierModal(props: {
   formResponses?: ReactNode;
+  courseProgress?: ReactNode;
   isOpen: boolean;
   dossier: CloudCommunityMemberSuccessDossier | null;
   isLoading: boolean;
@@ -221,10 +222,10 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
         </div>
 
         {dossier && !props.isLoading && !props.error && !confirmation ? <div className="workflow-member-dossier-tabs">
-          <WebPlatformTabList tabs={[{ id: "progress", label: "Progress" }, { id: "responses", label: "Responses" }, { id: "details", label: "Details" }]}
+          <WebPlatformTabList tabs={[{ id: "progress", label: "Progress" }, { id: "courses", label: "Courses" }, { id: "responses", label: "Responses" }, { id: "details", label: "Details" }]}
             activeTab={view} onSelectTab={setView} ariaLabel="Member workflow" idPrefix="member-workflow"
             className="platform-switcher platform-switcher-compact"
-            style={buildPlatformSwitcherStyle(3, ["progress", "responses", "details"].indexOf(view))} />
+            style={buildPlatformSwitcherStyle(4, ["progress", "courses", "responses", "details"].indexOf(view))} />
         </div> : null}
         <div className="modal-body workflow-member-dossier-body">
           {confirmation ? <section className="workflow-member-dossier-section" role="alertdialog" aria-labelledby="force-move-title" aria-describedby="force-move-warning">
@@ -352,6 +353,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                 </> : null}
               </section> : null}
               </div>
+              <div hidden={view !== "courses"}>{view === "courses" ? props.courseProgress ?? <p>Course progress unavailable.</p> : null}</div>
               <div hidden={view !== "responses"}>{props.formResponses ?? <p>Form responses unavailable.</p>}</div>
               <div hidden={view !== "details"}>
               <WorkflowMemberServiceChannel key={dossier.membership_id} value={dossier.service_channel}

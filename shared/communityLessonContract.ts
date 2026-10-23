@@ -46,11 +46,48 @@ export type CommunityLessonCommand = {
   text: string;
 };
 
+export const COMMUNITY_LESSON_ELEMENT_TYPES = ["button", "checklist", "quiz", "form"] as const;
+
+// What a button does. confirm records the click as the member's answer; the
+// others call something Polynet already does: mark the lesson done, ask the
+// community agent the button's text, or open a Polynet Form.
+export const COMMUNITY_LESSON_BUTTON_ACTIONS = ["confirm", "mark_done", "ask_agent", "open_form"] as const;
+
+export type CommunityLessonButtonAction = (typeof COMMUNITY_LESSON_BUTTON_ACTIONS)[number];
+
+export type CommunityLessonElementType = (typeof COMMUNITY_LESSON_ELEMENT_TYPES)[number];
+
+export type CommunityLessonChoice = { id: string; label: string };
+
+// What a member sees. Quiz answers and explanations never leave the server
+// until the member has answered.
+export type CommunityLessonElement = {
+  id: string;
+  type: CommunityLessonElementType;
+  required: boolean;
+  prompt: string;
+  // button: the button text. checklist: the items. quiz: the options.
+  label?: string;
+  choices?: CommunityLessonChoice[];
+  multiple?: boolean;
+  action?: CommunityLessonButtonAction;
+  // open_form buttons and form blocks: the Polynet Form, by its key.
+  form_key?: string;
+};
+
+export type CommunityLessonElementWithAnswers = CommunityLessonElement & {
+  correct?: string[];
+  explanation_md?: string;
+};
+
+export type CommunityLessonResponseValue = boolean | string[];
+
 export type CommunityLessonProjection = {
   intro_md: string;
   variants: CommunityLessonVariant[];
   slides: CommunityLessonSlide[];
   commands: CommunityLessonCommand[];
+  elements: CommunityLessonElement[];
 };
 
 const STAGE_MAX_CHARS = 80;
@@ -60,6 +97,11 @@ const MAX_VARIANTS = 8;
 const MAX_SLIDES = 60;
 const MAX_COMMANDS = 60;
 const COMMAND_MAX_CHARS = 4_000;
+const MAX_ELEMENTS = 40;
+const MAX_CHOICES = 20;
+const CHOICE_MAX_CHARS = 300;
+const PROMPT_MAX_CHARS = 1_000;
+const ELEMENT_ID = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 
 function lessonError(field: string): Error {
   return new Error(`community_lesson_${field}_invalid`);
@@ -199,22 +241,233 @@ function variantKey(label: string): string {
     .replace(/^_+|_+$/g, "") || "default";
 }
 
-const FENCE = /^(`{3,}|~{3,})\s*([A-Za-z0-9_+-]*)\s*$/;
+const FENCE = /^(`{3,}|~{3,})\s*([A-Za-z0-9_+-]*)(?:[ \t]+(.*?))?\s*$/;
 
-function extractCommands(markdown: string, variant: string | null, into: CommunityLessonCommand[]) {
+type FencedBlock = { language: string | null; info: string; body: string };
+
+function fencedBlocks(markdown: string): FencedBlock[] {
+  const blocks: FencedBlock[] = [];
   const lines = markdown.split("\n");
-  for (let i = 0; i < lines.length && into.length < MAX_COMMANDS; i += 1) {
+  for (let i = 0; i < lines.length; i += 1) {
     const open = FENCE.exec(lines[i]);
     if (!open) continue;
     const body: string[] = [];
     let j = i + 1;
     while (j < lines.length && !lines[j].startsWith(open[1])) body.push(lines[j++]);
-    const text = body.join("\n").trim();
-    if (text) {
-      into.push({ variant, language: open[2] || null, text: text.slice(0, COMMAND_MAX_CHARS) });
-    }
+    blocks.push({ language: open[2] || null, info: open[3] ?? "", body: body.join("\n") });
     i = j;
   }
+  return blocks;
+}
+
+function isElementBlock(block: FencedBlock): boolean {
+  return (COMMUNITY_LESSON_ELEMENT_TYPES as readonly string[]).includes(block.language ?? "");
+}
+
+function extractCommands(markdown: string, variant: string | null, into: CommunityLessonCommand[]) {
+  for (const block of fencedBlocks(markdown)) {
+    if (into.length >= MAX_COMMANDS) break;
+    if (isElementBlock(block)) continue;
+    const text = block.body.trim();
+    if (text) into.push({ variant, language: block.language, text: text.slice(0, COMMAND_MAX_CHARS) });
+  }
+}
+
+function elementError(id: string, problem: string): Error {
+  return new Error(`community_lesson_element_invalid:${id || "unnamed"}:${problem}`);
+}
+
+function choiceId(label: string, explicit: string | undefined): string {
+  if (explicit) return explicit;
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "choice";
+}
+
+function parseChoices(id: string, lines: string[], withAnswers: boolean) {
+  const choices: CommunityLessonChoice[] = [];
+  const correct: string[] = [];
+  for (const line of lines) {
+    const item = withAnswers
+      ? /^[-*]\s+\[( |x|X)\]\s+(.+?)(?:\s+\{#([a-z0-9][a-z0-9_-]{0,39})\})?\s*$/.exec(line)
+      : /^[-*]\s+(?:\[[ xX]\]\s+)?(.+?)(?:\s+\{#([a-z0-9][a-z0-9_-]{0,39})\})?\s*$/.exec(line);
+    if (!item) continue;
+    const label = (withAnswers ? item[2] : item[1]).trim();
+    if (label.length > CHOICE_MAX_CHARS) throw elementError(id, "choice_too_long");
+    const choice = { id: choiceId(label, withAnswers ? item[3] : item[2]), label };
+    if (choices.some((existing) => existing.id === choice.id)) throw elementError(id, "duplicate_choice");
+    choices.push(choice);
+    if (withAnswers && item[1].toLowerCase() === "x") correct.push(choice.id);
+  }
+  if (choices.length > MAX_CHOICES) throw elementError(id, "too_many_choices");
+  return { choices, correct };
+}
+
+function parseElement(block: FencedBlock): CommunityLessonElementWithAnswers {
+  const [rawId = "", ...flags] = block.info.trim().split(/\s+/).filter(Boolean);
+  const id = rawId.toLowerCase();
+  if (!ELEMENT_ID.test(id)) throw elementError(rawId, "id");
+  const type = block.language as CommunityLessonElementType;
+  let required = false;
+  let action: CommunityLessonButtonAction | undefined;
+  let formKey: string | undefined;
+  for (const flag of flags) {
+    const formFlag = /^form=([A-Za-z0-9_.:-]{1,80})$/.exec(flag);
+    const actionFlag = /^action=([a-z_]+)(?::([A-Za-z0-9_.:-]{1,80}))?$/.exec(flag);
+    if (flag === "required" && type !== "form") required = true;
+    else if (formFlag && type === "form") formKey = formFlag[1];
+    else if (actionFlag && type === "button" &&
+        (COMMUNITY_LESSON_BUTTON_ACTIONS as readonly string[]).includes(actionFlag[1]) &&
+        Boolean(actionFlag[2]) === (actionFlag[1] === "open_form")) {
+      action = actionFlag[1] as CommunityLessonButtonAction;
+      formKey = actionFlag[2];
+    } else throw elementError(id, "flag");
+  }
+  const lines = block.body.split("\n").map((line) => line.trim());
+  const isChoice = (line: string) => /^[-*]\s+/.test(line);
+  const prompt = lines.filter((line) => line && !isChoice(line) && !line.startsWith(">")).join(" ");
+  if (prompt.length > PROMPT_MAX_CHARS) throw elementError(id, "prompt_too_long");
+  if (type === "button") {
+    if (!prompt) throw elementError(id, "label");
+    if (prompt.length > CHOICE_MAX_CHARS) throw elementError(id, "label");
+    return { id, type, required, prompt: "", label: prompt, action: action ?? "confirm",
+      ...(formKey ? { form_key: formKey } : null) };
+  }
+  if (type === "form") {
+    // The form itself lives in Polynet Forms; a Workflow stage assigns it and
+    // the member submits it there. The lesson only says where to show it.
+    if (!formKey) throw elementError(id, "form");
+    return { id, type, required: false, prompt, form_key: formKey };
+  }
+  const choiceLines = lines.filter(isChoice);
+  if (type === "checklist") {
+    const { choices } = parseChoices(id, choiceLines, false);
+    if (!choices.length) throw elementError(id, "items");
+    return { id, type, required, prompt, choices };
+  }
+  const { choices, correct } = parseChoices(id, choiceLines, true);
+  if (!prompt) throw elementError(id, "prompt");
+  if (choices.length < 2) throw elementError(id, "options");
+  if (!correct.length) throw elementError(id, "answer");
+  const explanation = lines.filter((line) => line.startsWith(">")).map((line) => line.replace(/^>\s?/, "")).join("\n").trim();
+  return {
+    id, type, required, prompt, choices, multiple: correct.length > 1, correct,
+    ...(explanation ? { explanation_md: explanation } : null),
+  };
+}
+
+/**
+ * Follow-along elements are fenced blocks named button, checklist, quiz or
+ * form, with an id and flags on the opening line:
+ *
+ *   ```quiz pick-tool required
+ *   Which app runs on your own computer?
+ *   - [ ] Claude in the browser
+ *   - [x] Claude Code
+ *   > Claude Code runs locally, so it can read your files.
+ *   ```
+ *
+ * A checklist is a list of items; a button is one line of text and may take
+ * action=mark_done, action=ask_agent or action=open_form:<form key>. A form
+ * block (form=<form key>) shows a Polynet Form inside the lesson: its answers
+ * go through Forms, not here. A choice can pin its id with a trailing {#id};
+ * otherwise the id comes from its text. "required" works on everything but forms.
+ * strict throws on the first bad block (used when an agent stages a body);
+ * otherwise a bad block stays plain code.
+ */
+export function parseCommunityLessonElements(
+  bodyMd: string | null | undefined,
+  options: { strict?: boolean } = {},
+): CommunityLessonElementWithAnswers[] {
+  const elements: CommunityLessonElementWithAnswers[] = [];
+  const text = String(bodyMd ?? "").replace(/\r\n?/g, "\n");
+  for (const block of fencedBlocks(text)) {
+    if (!isElementBlock(block)) continue;
+    let element: CommunityLessonElementWithAnswers;
+    try {
+      element = parseElement(block);
+    } catch (error) {
+      if (options.strict) throw error;
+      continue;
+    }
+    if (elements.some((existing) => existing.id === element.id)) {
+      if (options.strict) throw elementError(element.id, "duplicate_id");
+      continue;
+    }
+    if (elements.length >= MAX_ELEMENTS) {
+      if (options.strict) throw elementError(element.id, "too_many_elements");
+      break;
+    }
+    elements.push(element);
+  }
+  return elements;
+}
+
+/**
+ * The body as members get it: quiz blocks keep their options but lose the
+ * [x] marks and the "> explanation" lines, which come back only through an
+ * answer. Owners edit the original through the builder surfaces.
+ */
+export function redactCommunityLessonAnswers(bodyMd: string): string {
+  const lines = String(bodyMd ?? "").split("\n");
+  const out: string[] = [];
+  let quizFence: string | null = null;
+  let otherFence: string | null = null;
+  for (const line of lines) {
+    if (quizFence) {
+      if (line.startsWith(quizFence)) {
+        quizFence = null;
+        out.push(line);
+      } else if (!/^\s*>/.test(line)) {
+        out.push(line.replace(/^(\s*[-*]\s+)\[[xX]\]/, "$1[ ]"));
+      }
+      continue;
+    }
+    if (otherFence) {
+      if (line.startsWith(otherFence)) otherFence = null;
+      out.push(line);
+      continue;
+    }
+    const open = FENCE.exec(line);
+    if (open) {
+      if (open[2] === "quiz") quizFence = open[1];
+      else otherFence = open[1];
+    }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
+export function publicCommunityLessonElement(element: CommunityLessonElementWithAnswers): CommunityLessonElement {
+  const { correct: _correct, explanation_md: _explanation, ...visible } = element;
+  return visible;
+}
+
+/**
+ * Checks a member's response against its element. A button takes true, a
+ * checklist the ids of the ticked items, a quiz the chosen option ids (one
+ * unless several answers are right). Quizzes are graded here, never in the page.
+ */
+export function gradeCommunityLessonResponse(
+  element: CommunityLessonElementWithAnswers,
+  value: unknown,
+): { value: CommunityLessonResponseValue; correct: boolean | null; complete: boolean } {
+  if (element.type === "form") throw new Error("community_lesson_response_invalid");
+  if (element.type === "button") {
+    if (value !== true) throw new Error("community_lesson_response_invalid");
+    return { value: true, correct: null, complete: true };
+  }
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    throw new Error("community_lesson_response_invalid");
+  }
+  const ids = [...new Set(value as string[])];
+  const known = new Set((element.choices ?? []).map((choice) => choice.id));
+  if (ids.some((id) => !known.has(id))) throw new Error("community_lesson_response_invalid");
+  if (element.type === "checklist") {
+    return { value: ids, correct: null, complete: ids.length === known.size };
+  }
+  if (!ids.length || (!element.multiple && ids.length > 1)) throw new Error("community_lesson_response_invalid");
+  const correctIds = new Set(element.correct ?? []);
+  const correct = ids.length === correctIds.size && ids.every((id) => correctIds.has(id));
+  return { value: ids, correct, complete: correct };
 }
 
 function parseSlides(markdown: string): CommunityLessonSlide[] {
@@ -237,11 +490,13 @@ function parseSlides(markdown: string): CommunityLessonSlide[] {
  * Derives the structured parts of a lesson body:
  * - "### In <Platform>" headings split it into platform variants;
  * - a "## Slides" section of image lines, each followed by its note, is a deck;
- * - fenced code blocks are commands, tagged with the variant they sit in.
+ * - fenced code blocks are commands, tagged with the variant they sit in;
+ * - button, checklist and quiz blocks are follow-along elements, not commands.
  * Text before the first variant heading is the shared intro.
  */
 export function projectCommunityLessonBody(bodyMd: string | null | undefined): CommunityLessonProjection {
-  const text = String(bodyMd ?? "").replace(/\r\n?/g, "\n");
+  const original = String(bodyMd ?? "").replace(/\r\n?/g, "\n");
+  const text = redactCommunityLessonAnswers(original);
   const [main, ...slideParts] = text.split(/^## Slides[ \t]*$/m);
   const slideSection = slideParts.join("\n").split(/^## (?!#)/m)[0] ?? "";
   const headings = [...main.matchAll(/^### In (.+?)\s*$/gm)];
@@ -266,6 +521,7 @@ export function projectCommunityLessonBody(bodyMd: string | null | undefined): C
     variants,
     slides: slideParts.length ? parseSlides(slideSection) : [],
     commands,
+    elements: parseCommunityLessonElements(original).map(publicCommunityLessonElement),
   };
 }
 

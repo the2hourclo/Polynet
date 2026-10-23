@@ -2,9 +2,12 @@ import { useMemo, useRef } from "react";
 import type { AuthSession } from "../auth";
 import type { CommunityFormDraft } from "../../../../shared/communityForms";
 import { listCloudCommunityForms, saveCloudCommunityForm, publishCloudCommunityForm, listCloudCommunityFormResponses } from "../../../../shared/cloudCommunityFormsGateway";
+import { fetchCloudMemberProgressReport, type CommunityMemberProgressReport } from "../../../../shared/cloudCommunityResourceProgressGateway";
 
 export type CommunityFormsGateway = {
   responses?: (membershipId: string) => ReturnType<typeof listCloudCommunityFormResponses>;
+  // The member's course progress and lesson answers, beside their form answers.
+  courseProgress?: (membershipId: string) => Promise<CommunityMemberProgressReport>;
   scopeKey: string;
   load: () => Promise<CommunityFormDraft[]>;
   save: (form: CommunityFormDraft) => Promise<CommunityFormDraft>;
@@ -29,6 +32,7 @@ export function useWebCommunityFormsGateway(params: {
     };
     return { scopeKey: `${communityId}:${session.user.id}`, load: () => run(s => listCloudCommunityForms(s, communityId)),
       responses: (membershipId: string) => run(s => listCloudCommunityFormResponses(s, communityId, membershipId)),
+      courseProgress: (membershipId: string) => run(s => fetchCloudMemberProgressReport({ session: s, communityId, membershipId })),
       save: (form: CommunityFormDraft) => run(s => saveCloudCommunityForm(s, communityId, form)),
       publish: (form: CommunityFormDraft) => run(s => publishCloudCommunityForm(s, communityId, form)) };
   }, [params.activeCommunityId, params.canManageMembers, params.session, params.ensureSession]);

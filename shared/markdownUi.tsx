@@ -7,6 +7,7 @@ import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
 import { parseEmbedUrl, StableMediaEmbedFrame, type ParsedEmbed } from "./linkEmbedUi";
 import { COMMUNITY_EMBED_LANGUAGE, parseCommunityEmbedBlock } from "./communityEmbed";
+import { LESSON_ELEMENT_LANGUAGE_PREFIX } from "./communityLessonElementMarkdown";
 import { CommunityEmbedFrame, CommunityEmbedPlaceholder, type CommunityEmbedContext } from "./communityEmbedUi";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
@@ -81,6 +82,9 @@ export type MarkdownRenderOptions = {
   // Lessons: `polynet-embed` blocks show widgets from this community's site.
   // Without it they show their fallback image, so other surfaces stay inert.
   communityEmbeds?: CommunityEmbedContext | null;
+  // Lessons: follow-along blocks (marked by markCommunityLessonElementBlocks)
+  // render through this; null keeps the block as plain code.
+  renderLessonElement?: ((id: string) => ReactNode | null) | null;
   headingLevelOffset?: number;
   onCopyCode?: (text: string) => Promise<void> | void;
 };
@@ -635,6 +639,10 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
       }
       const match = className.match(/language-([\w-]+)/);
       const language = match?.[1];
+      if (language?.startsWith(LESSON_ELEMENT_LANGUAGE_PREFIX) && options?.renderLessonElement) {
+        const element = options.renderLessonElement(language.slice(LESSON_ELEMENT_LANGUAGE_PREFIX.length));
+        if (element) return <>{element}</>;
+      }
       if (language === COMMUNITY_EMBED_LANGUAGE) {
         return renderCommunityEmbed(raw, options?.communityEmbeds ?? null);
       }

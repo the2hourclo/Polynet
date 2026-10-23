@@ -12858,3 +12858,128 @@ button.chat-reply-quote:hover {
   max-width: 100%;
   border-radius: 8px;
 }
+
+/* Follow-along elements in lessons: buttons, checklists, quizzes, forms */
+.lesson-element {
+  margin: 16px 0;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+  border: var(--pn-border-width, 1px) solid var(--border-default);
+  border-radius: var(--pn-radius-card, 12px);
+  background: var(--surface-card);
+}
+.lesson-element-head,
+.lesson-element-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.lesson-element-prompt {
+  margin: 0;
+  flex: 1 1 240px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.lesson-element-required,
+.lesson-element-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.lesson-element-required {
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+}
+.lesson-element-choices {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.lesson-element-choices label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: calc(var(--pn-radius, 8px) * 0.75);
+  cursor: pointer;
+}
+.lesson-element-choices input {
+  margin-top: 3px;
+  accent-color: var(--accent-brand);
+}
+.lesson-element-choices label.is-answer {
+  border-color: var(--accent-brand);
+}
+.lesson-element-button,
+.lesson-element-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: var(--pn-radius-button, 8px);
+  cursor: pointer;
+}
+.lesson-element-button {
+  border: 0;
+  background: var(--pn-button, var(--bg-button));
+  color: var(--pn-on-button, var(--bg-button-text));
+}
+.lesson-element-button.is-done,
+.lesson-element-secondary {
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+}
+.lesson-element-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.lesson-element-result {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: calc(var(--pn-radius, 8px) * 0.75);
+  border: 1px solid var(--border-default);
+}
+.lesson-element-result.is-correct strong { color: var(--accent-brand); }
+.lesson-element-result .lesson-element-secondary { justify-self: start; }
+.lesson-element-explanation > :first-child { margin-top: 0; }
+.lesson-element-explanation > :last-child { margin-bottom: 0; }
+.lesson-element-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--accent-error);
+}
+
+/* Owner's member view: course progress */
+.member-course-progress ul {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.member-course-progress li {
+  display: grid;
+  gap: 6px;
+}
+.member-course-progress-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.member-course-progress-row span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
