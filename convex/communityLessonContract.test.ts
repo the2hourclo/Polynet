@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  computeCommunityLessonStages,
   normalizeCommunityLessonFields,
   parseCommunityLessonMarkdown,
   projectCommunityLessonBody,
@@ -135,5 +136,36 @@ describe("lesson body projection", () => {
       slides: [],
       commands: [],
     });
+  });
+});
+
+describe("lesson stages and gates", () => {
+  const lessons = [
+    { ref: "resource:a1", lesson: { stage: "Map", stage_order: 1 } },
+    { ref: "resource:a2", lesson: { stage: "Map", stage_order: 1, gate: true } },
+    { ref: "resource:b1", lesson: { stage: "Skill", stage_order: 2, gate: true } },
+    { ref: "resource:c1", lesson: { stage: "System", stage_order: 3 } },
+    { ref: "resource:lib", lesson: { kind: "doc" as const } },
+    { ref: "resource:plain", lesson: null },
+  ];
+
+  test("an unfinished gate locks every later stage", () => {
+    const { stages, lockedRefs } = computeCommunityLessonStages({ lessons, doneRefs: new Set(["resource:a1"]) });
+    expect(stages).toEqual([
+      { name: "Map", order: 1, lesson_count: 2, done_count: 1, locked: false, blocked_by: null },
+      { name: "Skill", order: 2, lesson_count: 1, done_count: 0, locked: true, blocked_by: "resource:a2" },
+      { name: "System", order: 3, lesson_count: 1, done_count: 0, locked: true, blocked_by: "resource:a2" },
+    ]);
+    expect([...lockedRefs].sort()).toEqual(["resource:b1", "resource:c1"]);
+  });
+
+  test("finishing a gate opens the next stage only", () => {
+    const { stages, lockedRefs } = computeCommunityLessonStages({ lessons, doneRefs: new Set(["resource:a2"]) });
+    expect(stages.map((stage) => [stage.name, stage.locked, stage.blocked_by])).toEqual([
+      ["Map", false, null],
+      ["Skill", false, null],
+      ["System", true, "resource:b1"],
+    ]);
+    expect(lockedRefs.has("resource:lib")).toBe(false);
   });
 });

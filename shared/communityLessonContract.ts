@@ -268,3 +268,56 @@ export function projectCommunityLessonBody(bodyMd: string | null | undefined): C
     commands,
   };
 }
+
+export type CommunityLessonProgressStatus = "not_started" | "in_progress" | "done";
+
+export type CommunityLessonStage = {
+  name: string;
+  order: number;
+  lesson_count: number;
+  done_count: number;
+  locked: boolean;
+  // The first unfinished gate in an earlier stage that keeps this one locked.
+  blocked_by: string | null;
+};
+
+/**
+ * Board columns and locks for one member. A stage opens once every gate in the
+ * stages before it is done. Lessons without a stage are library-only and never
+ * locked. Computed on read so a changed rule never leaves a stale lock behind.
+ */
+export function computeCommunityLessonStages(args: {
+  lessons: Array<{ ref: string; lesson?: CommunityLessonFields | null }>;
+  doneRefs: ReadonlySet<string>;
+}): { stages: CommunityLessonStage[]; lockedRefs: Set<string> } {
+  const byStage = new Map<string, { order: number; refs: string[]; gates: string[] }>();
+  for (const entry of args.lessons) {
+    const stage = entry.lesson?.stage;
+    if (!stage) continue;
+    const group = byStage.get(stage) ?? { order: entry.lesson?.stage_order ?? Number.MAX_SAFE_INTEGER, refs: [], gates: [] };
+    group.order = Math.min(group.order, entry.lesson?.stage_order ?? Number.MAX_SAFE_INTEGER);
+    group.refs.push(entry.ref);
+    if (entry.lesson?.gate) group.gates.push(entry.ref);
+    byStage.set(stage, group);
+  }
+  const ordered = [...byStage.entries()].sort(
+    ([leftName, left], [rightName, right]) => left.order - right.order || leftName.localeCompare(rightName),
+  );
+  const lockedRefs = new Set<string>();
+  let blockedBy: string | null = null;
+  const stages = ordered.map(([name, group]) => {
+    const locked = blockedBy !== null;
+    if (locked) group.refs.forEach((ref) => lockedRefs.add(ref));
+    const stage: CommunityLessonStage = {
+      name,
+      order: group.order === Number.MAX_SAFE_INTEGER ? 0 : group.order,
+      lesson_count: group.refs.length,
+      done_count: group.refs.filter((ref) => args.doneRefs.has(ref)).length,
+      locked,
+      blocked_by: blockedBy,
+    };
+    blockedBy = blockedBy ?? group.gates.find((ref) => !args.doneRefs.has(ref)) ?? null;
+    return stage;
+  });
+  return { stages, lockedRefs };
+}
