@@ -73,11 +73,20 @@ def asset_md(x):
             f"**Effort:** {x['effort']}\n\n**Connects to:** {x['deps']}")
 
 def assetmap(t):
+    # Polynet keeps a page body to 20,000 characters: the 24 assets written out
+    # don't fit beside the explorer, so the last categories get a second lesson.
     a, b = cut(t, "### The 24 Assets", "**Next:**")
     by = {x["num"]: x for x in d["ASSETS"]}
-    cats = "\n\n".join(f"### {c['name']}\n\n" + "\n\n".join(asset_md(by[n]) for n in c["assets"]) for c in d["CATEGORIES"])
+    cat = lambda c: f"### {c['name']}\n\n" + "\n\n".join(asset_md(by[n]) for n in c["assets"])
+    first, rest = d["CATEGORIES"][:4], d["CATEGORIES"][4:]
+    head = a.split("---", 2)
+    part2 = ("---" + head[1].replace("title: Asset Explorer", "title: Asset Explorer, part 2") + "---\n"
+             + f"The rest of the 24 assets in full: {', '.join(c['name'] for c in rest)}.\n\n"
+             + "\n\n".join(cat(c) for c in rest) + "\n\n" + b)
+    open(os.path.join(CONTENT, "10-asset-map-part-2.md"), "w").write(re.sub(r"\n{3,}", "\n\n", part2))
     return (a + "### The 24 Assets\n\n7 categories, 24 building blocks. Click any asset to explore it.\n\n" + embed("asset-map")
-            + "\n\n### Explore Each Asset\n\nOne at a time: full criteria, effort, and connections.\n\n" + embed("asset-explorer") + "\n\n" + cats + "\n\n" + b)
+            + "\n\n### Explore Each Asset\n\nOne at a time: full criteria, effort, and connections.\n\n" + embed("asset-explorer") + "\n\n"
+            + "\n\n".join(cat(c) for c in first) + "\n\nThe other categories continue in **Asset Explorer, part 2**.\n")
 
 def score(t):
     a, b = cut(t, "### Example Scorecard", "**How this connects to your Roadmap:**")
