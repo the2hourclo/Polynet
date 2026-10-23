@@ -60,6 +60,19 @@
 [data-community-theme] .resource-course-card-cover-image {
   object-fit: var(--pn-course-cover-fit);
 }
+/* Cards line up row by row: two-line titles, three-line descriptions. */
+[data-community-theme] .resource-course-card-heading > strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: calc(16px * var(--pn-type-scale));
+}
+[data-community-theme] .resource-course-card-description {
+  -webkit-line-clamp: 3;
+  min-height: calc(3 * 1.5em);
+  font-size: calc(13px * var(--pn-type-scale));
+}
 
 /* Images drawn on white sit on a light plate in dark themes, so they don't glare. */
 [data-community-theme] :is(.resource-course-card-cover-image, .resource-viewer-prose img) {
