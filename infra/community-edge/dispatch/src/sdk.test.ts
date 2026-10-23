@@ -338,4 +338,12 @@ test("lessons, lesson, progress and setProgress read one set of resources for an
     target: "/communities/run-club/capabilities/community.resource.progress.set.json",
     operation: "community.resource.progress.set", version: 1, input: { ref: "resource:r1", status: "done" },
   });
+  await polynet.answer(all[0], "pick-tool", ["claude-code"]);
+  const answerCall = calls.filter((call) => call.body?.tool === "polynet_call").at(-1)!.body.input;
+  expect(answerCall).toMatchObject({
+    target: "/communities/run-club/capabilities/community.resource.response.set.json",
+    operation: "community.resource.response.set", input: { ref: "resource:r1", element: "pick-tool", value: ["claude-code"] },
+  });
+  await polynet.answer("resource:r1", "pick-tool");
+  expect(calls.filter((call) => call.body?.tool === "polynet_call").at(-1)!.body.input.input.value).toBeNull();
 });

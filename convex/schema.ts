@@ -2724,6 +2724,14 @@ export default defineSchema({
     status: v.union(v.literal("in_progress"), v.literal("done")),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
+    // Answers to the lesson's follow-along elements, one per element id.
+    responses: v.optional(v.array(v.object({
+      element: v.string(),
+      value: v.union(v.boolean(), v.array(v.string())),
+      correct: v.optional(v.boolean()),
+      complete: v.boolean(),
+      at: v.number(),
+    }))),
     updatedAt: v.number(),
   })
     .index("by_community_user", ["communityId", "userId"])

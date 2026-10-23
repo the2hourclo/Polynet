@@ -240,17 +240,20 @@ async function lessons() {
 
 // One lesson, whole: { title, ref, path, body, lesson } where lesson adds
 // intro_md, variants [{ key, label, body_md }] (the "### In <Platform>"
-// sections), slides [{ image, alt, note_md }] and commands [{ variant, language, text }].
+// sections), slides [{ image, alt, note_md }], commands [{ variant, language, text }]
+// and elements [{ id, type, required, prompt, label, choices, multiple }]: the
+// lesson's buttons, checklists and quizzes, without the answers.
 async function lesson(entry) {
   const value = await read(entry.path || entry);
   return { title: entry.name || entry.title || null, ref: value.ref, path: value.path, body: value.body, lesson: value.lesson || null };
 }
 
-// The member's own progress: { journey, stages, lessons }. journey is their
+// The member's own progress: { journey, courses, stages, lessons }. journey is their
 // place in the community workflow ({ current_milestone_key,
 // current_milestone_name, milestones [{ key, name, position }] }) or null;
 // stages are board columns with locked and blocked_by; lessons carry status
-// ("not_started", "in_progress", "done") and locked.
+// ("not_started", "in_progress", "done"), locked and their answers
+// (responses); courses give done_count, lesson_count and percent per course.
 async function progress() {
   const value = await read(root() + "members/me/progress.json");
   return JSON.parse(value.body);
@@ -259,6 +262,40 @@ async function progress() {
 // Set your status on a lesson (entry or "resource:<id>"). A locked lesson
 // rejects with code "lesson_locked".
 const setProgress = function (entry, status) { return call("community.resource.progress.set", { ref: entry.ref || entry, status: status }); };
+
+// Answer a follow-along element in a lesson: a button (value true), a
+// checklist (the ids of the ticked items) or a quiz (the chosen option ids).
+// null clears it. Quizzes are graded on the server: the result has
+// response { correct, complete, explanation_md, answer } and
+// required_remaining, the required elements still open.
+const answer = function (entry, element, value) {
+  return call("community.resource.response.set", { ref: entry.ref || entry, element: element, value: value === undefined ? null : value });
+};
+
+// Owners and admins: course completion for every member.
+// { courses [{ ref, name, lesson_count }], members [{ name, membership_id,
+// path, last_activity_at, lessons_done, courses [{ ref, lesson_count,
+// done_count, percent, completed_at }], quizzes { answered, correct } }] }.
+async function courseReport() {
+  const path = root() + "builder/progress/";
+  let courses = [];
+  let members = [];
+  let cursor = null;
+  for (let page = 0; page < 20; page += 1) {
+    const value = await list(path, cursor ? { cursor: cursor } : {});
+    if (!page) courses = value.courses || [];
+    members = members.concat(value.entries || []);
+    if (!value.truncated || !value.next_cursor) break;
+    cursor = value.next_cursor;
+  }
+  return { courses: courses, members: members };
+}
+
+// Owners and admins: one member's lessons, answers and stages (a member from courseReport()).
+async function memberProgress(member) {
+  const value = await read(member.path || member);
+  return JSON.parse(value.body);
+}
 
 // A document's text: a lesson, a memory, or a post (posts from feed/thread already have .text).
 async function readText(entry) {
@@ -481,6 +518,7 @@ const polynet = {
   channels: channels, feed: feed, thread: thread, post: post, edit: edit, remove: remove, react: react, fileUrl: fileUrl, watch: watch,
   events: events, resources: resources, readText: readText, knowledge: knowledge, members: members,
   lessons: lessons, lesson: lesson, progress: progress, setProgress: setProgress,
+  answer: answer, courseReport: courseReport, memberProgress: memberProgress,
   agentHistory: agentHistory, askAgent: askAgent, markdown: markdown,
   door: { list: list, read: read, search: search, write: write, call: call },
 };

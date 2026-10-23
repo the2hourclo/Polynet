@@ -213,6 +213,36 @@ const COMMUNITY_LESSON_READ_SCHEMA: PlatformOperationJsonSchema = {
         },
       },
     },
+    elements: {
+      type: "array",
+      maxItems: 40,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "type", "required", "prompt"],
+        properties: {
+          id: { type: "string", maxLength: 40 },
+          type: { type: "string", enum: ["button", "checklist", "quiz"] },
+          required: { type: "boolean" },
+          prompt: { type: "string", maxLength: 1_000 },
+          label: { type: "string", maxLength: 300 },
+          multiple: { type: "boolean" },
+          choices: {
+            type: "array",
+            maxItems: 20,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["id", "label"],
+              properties: {
+                id: { type: "string", maxLength: 40 },
+                label: { type: "string", maxLength: 300 },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 };
 

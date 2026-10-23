@@ -82,6 +82,8 @@ const REACT_OPERATION = "community.interaction.react";
 const RESOURCE_PROGRESS_OPERATION = "community.resource.progress.set";
 const SELF_FORMS_DIRECTORY = "/members/me/forms/";
 const SELF_PROGRESS_PATH = "/members/me/progress.json";
+const LESSON_RESPONSE_OPERATION = "community.resource.response.set";
+const BUILDER_PROGRESS_DIRECTORY = "/builder/progress/";
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
@@ -668,7 +670,7 @@ function capabilityDocument(args: {
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isReactCapability = args.operation === REACT_OPERATION &&
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
-  const isProgressCapability = args.operation === RESOURCE_PROGRESS_OPERATION &&
+  const isProgressCapability = (args.operation === RESOURCE_PROGRESS_OPERATION || args.operation === LESSON_RESPONSE_OPERATION) &&
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isWorkflowApprovalCapability = args.operation === APPROVE_MILESTONE_OPERATION &&
     args.evidenceSurface === "external_mcp" &&
@@ -687,12 +689,21 @@ function capabilityDocument(args: {
     authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability ? "builder" : "member",
     idempotency_required: true,
   };
-  if (isProgressCapability) {
+  if (isProgressCapability && args.operation === LESSON_RESPONSE_OPERATION) {
+    operationDefinition.input = { required: ["ref", "element", "value"],
+      ref: "resource:<id> of a lesson page",
+      element: "the id of a button, checklist or quiz from the lesson's elements",
+      value: "button: true. checklist: the ids of the ticked items. quiz: the chosen option ids (one unless the quiz is multiple). null clears the answer.",
+      result: "the stored answer (a quiz is graded here, and shows its explanation once answered and its answer once right) and required_remaining, the required elements still open",
+      refusals: { lesson_locked: "a gate in an earlier stage is not done yet", element_unavailable: "no element with that id", invalid_response: "the value does not fit the element" },
+      effects: ["set_own_lesson_answer"], forbidden_effects: ["answer_for_someone_else", "read_quiz_answers_before_answering"] };
+  } else if (isProgressCapability) {
     operationDefinition.input = { required: ["ref", "status"],
       ref: "resource:<id> of a lesson page from a resources listing",
       status: "not_started, in_progress or done",
       result: `the new status; read ${SELF_PROGRESS_PATH} for stages, locks and the workflow journey`,
-      refusals: { lesson_locked: "a gate in an earlier stage is not done yet" },
+      refusals: { lesson_locked: "a gate in an earlier stage is not done yet",
+        lesson_elements_incomplete: "a required button, checklist or quiz in the lesson is not finished" },
       effects: ["set_own_lesson_progress"], forbidden_effects: ["set_progress_for_someone_else", "advance_workflow_milestone"] };
   } else if (isReactCapability) {
     operationDefinition.input = { required: ["ref", "emoji", "on"],
@@ -800,6 +811,25 @@ async function executeCanonicalList(args: {
     );
   }
   const absolutePath = mountedPath(target.communitySlug, target.localPath);
+
+  if (target.localPath.startsWith(BUILDER_PROGRESS_DIRECTORY)) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent" || target.localPath !== BUILDER_PROGRESS_DIRECTORY) {
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    }
+    try {
+      const page = await args.ctx.runQuery((internal as any).communityResourceProgress.listCommunityProgressReportInternal,
+        { userId: args.userId, communityId: target.communityId,
+          ...(typeof args.input.cursor === "string" ? { cursor: args.input.cursor } : {}) });
+      return { ok: true, value: { ...virtualDirectory({ path: absolutePath, searchable: false, writable: false,
+        entries: page.members.map((member: { membership_id: string }) => ({
+          ...member, path: mountedPath(target.communitySlug, `${BUILDER_PROGRESS_DIRECTORY}${member.membership_id}.json`),
+          kind: "document", type: "member_progress_report" })) }),
+        courses: page.courses, next_cursor: page.next_cursor, truncated: page.next_cursor !== null || page.truncated,
+        guidance: "Private member progress. Do not post it in shared channels." } };
+    } catch {
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    }
+  }
 
   if (target.localPath.startsWith(WORKFLOW_MEMBERS_DIRECTORY)) {
     if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent" || target.localPath !== WORKFLOW_MEMBERS_DIRECTORY) {
@@ -1094,7 +1124,7 @@ async function executeCanonicalList(args: {
       ...(args.evidenceSurface === "community_funnel_builder"
         ? []
         : MEMBER_CAPABILITIES),
-      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION].filter(operation => capabilityDocument({ target, operation,
+      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION].filter(operation => capabilityDocument({ target, operation,
         evidenceSurface: args.evidenceSurface, principalKind: args.principalKind })),
     ];
     return {
@@ -1149,6 +1179,7 @@ async function executeCanonicalList(args: {
         entries: [
           { path: mountedPath(target.communitySlug, POLYNET_JOIN_REQUESTS_DIRECTORY_PATH), kind: "directory", type: "builder", name: "Pending admission requests" },
           { path: mountedPath(target.communitySlug, WORKFLOW_MEMBERS_DIRECTORY), kind: "directory", type: "builder", name: "Member workflow context and form responses" },
+          { path: mountedPath(target.communitySlug, BUILDER_PROGRESS_DIRECTORY), kind: "directory", type: "builder", name: "Member course progress" },
           {
             path: mountedPath(
               target.communitySlug,
@@ -1360,6 +1391,19 @@ async function executeCanonicalRead(args: {
         ? canonicalError("form_payload_too_large", "Assigned form exceeds the 24000-character adapter budget.")
         : canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
+  }
+
+  if (target.localPath.startsWith(BUILDER_PROGRESS_DIRECTORY)) {
+    const match = /^\/builder\/progress\/([A-Za-z0-9]+)\.json$/.exec(target.localPath);
+    if (!match || !target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    try {
+      const payload = await args.ctx.runQuery(
+        (internal as any).communityResourceProgress.readMemberProgressReportInternal,
+        { userId: args.userId, communityId: target.communityId, membershipId: match[1] });
+      return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+        writable: false, searchable: false } };
+    } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
   }
 
   if (target.localPath === SELF_PROGRESS_PATH) {
@@ -2260,6 +2304,24 @@ async function executeCanonicalCall(args: {
         { userId: args.userId, communityId: target.communityId, resourceId: ref, status });
       if (value.ok === false) return canonicalError(value.code, value.message);
       return { ok: true, value };
+    } catch { return canonicalError("resource_unavailable", "That lesson is not available."); }
+  }
+  if (operation === LESSON_RESPONSE_OPERATION) {
+    const ref = parseCommunityResourceEvidenceRef(rawInput.ref);
+    const element = typeof rawInput.element === "string" ? rawInput.element : "";
+    const value = rawInput.value;
+    const validValue = value === null || typeof value === "boolean" ||
+      (Array.isArray(value) && value.length <= 20 && value.every(item => typeof item === "string" && item.length <= 40));
+    if (target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json` || !ref ||
+        !/^[a-z0-9][a-z0-9_-]{0,39}$/.test(element) || !validValue ||
+        Object.keys(rawInput).some(key => !["ref", "element", "value"].includes(key)))
+      return canonicalError("invalid_tool_args", "A resource ref, an element id and a value (true, a list of ids, or null) are required.");
+    try {
+      const result = await args.ctx.runMutation(
+        (internal as any).communityResourceProgress.setOwnLessonResponseInternal,
+        { userId: args.userId, communityId: target.communityId, resourceId: ref, element, value });
+      if (result.ok === false) return canonicalError(result.code, result.message);
+      return { ok: true, value: result };
     } catch { return canonicalError("resource_unavailable", "That lesson is not available."); }
   }
   if (operation === REACT_OPERATION) {
