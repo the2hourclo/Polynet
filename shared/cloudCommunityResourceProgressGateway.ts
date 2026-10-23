@@ -84,3 +84,35 @@ export async function setCloudOwnLessonResponse<SessionT>(params: {
     value: params.value,
   })) as SetCommunityLessonResponseResult;
 }
+
+export type CommunityMemberCourseSummary = {
+  ref: string;
+  name: string | null;
+  lesson_count: number;
+  done_count: number;
+  percent: number;
+  completed_at: string | null;
+};
+
+export type CommunityMemberProgressReport = {
+  membership_id: string;
+  name: string | null;
+  courses: CommunityMemberCourseSummary[];
+  stages: CommunityLessonStage[];
+  lessons: CommunityResourceProgressLesson[];
+  truncated: boolean;
+};
+
+/** One member's course progress, answers included. Owners and admins only. */
+export async function fetchCloudMemberProgressReport<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+  membershipId: string;
+}): Promise<CommunityMemberProgressReport> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return (await client.query(api.communityResourceProgress.getMemberProgressReport, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+    membershipId: params.membershipId,
+  })) as CommunityMemberProgressReport;
+}

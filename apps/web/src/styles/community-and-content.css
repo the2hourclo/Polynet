@@ -12959,3 +12959,27 @@ button.chat-reply-quote:hover {
   font-size: 13px;
   color: var(--accent-error);
 }
+
+/* Owner's member view: course progress */
+.member-course-progress ul {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.member-course-progress li {
+  display: grid;
+  gap: 6px;
+}
+.member-course-progress-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.member-course-progress-row span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

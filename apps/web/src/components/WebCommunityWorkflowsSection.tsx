@@ -22,6 +22,7 @@ import { WebCommunityWorkflowMilestoneModal } from "./WebCommunityWorkflowMilest
 import "./WebCommunityWorkflowsSection.css";
 import { WebCommunityForms } from "./WebCommunityForms";
 import { WebCommunityFormResponses } from "./WebCommunityFormResponses";
+import { WebCommunityMemberCourseProgress } from "./WebCommunityMemberCourseProgress";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
 
 export type WebCommunityWorkflowsSectionProps = {
@@ -348,6 +349,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
       />
       <WebCommunityWorkflowMemberDossierModal
         formResponses={props.forms?.responses && props.memberDossier ? <WebCommunityFormResponses key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.forms} membershipId={props.memberDossier.membership_id} evidenceKey={JSON.stringify(props.memberDossier.submitted_form_evidence)} /> : null}
+        courseProgress={props.forms?.courseProgress && props.memberDossier ? <WebCommunityMemberCourseProgress key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} load={props.forms.courseProgress} membershipId={props.memberDossier.membership_id} /> : null}
         isOpen={Boolean(props.selectedMembershipId)}
         dossier={props.memberDossier}
         isLoading={props.isMemberDossierLoading}
