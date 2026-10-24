@@ -17,7 +17,14 @@ a strong default you may break when you know why.
 
 ## 1. Start from the community, then commit
 
-Before touching a token, know:
+First read the founder's saved brand, if Polynet has one: their colours,
+fonts, words, phrases and dos and don'ts. It is the founder's world, so
+build from it, not around it. When the founder tells you a preference
+("I always use this navy", "never orange"), save it there so the next
+design starts from it too. Never replace their colours with ones you like
+better; adjust a shade only when contrast requires it, and say so.
+
+Then, before touching a token, know:
 
 - **Who it's for** and what they come to do (learn, ship, train, talk).
 - **Its world**: the nouns, places, rituals, time of day, tools, the
