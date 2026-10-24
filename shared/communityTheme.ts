@@ -399,7 +399,7 @@ function courseColumns(theme: CommunityThemeV1): string {
 // Every text size inside a community is one of these roles, so one text-size
 // setting moves all of them together. Sizes are Polynet's defaults at 100%.
 export const COMMUNITY_TYPE_ROLES = {
-  display: 32, title: 24, heading: 20, subheading: 17, reading: 16, body: 15, small: 13, label: 12, meta: 11,
+  display: 32, title: 24, heading: 22, subheading: 18, reading: 16, body: 15, ui: 14, small: 13, label: 12, meta: 11, micro: 10,
 } as const;
 
 function typeRoles(scale: number): Record<string, string> {
@@ -446,6 +446,8 @@ export function communityThemeVariables(
     "--pn-type-scale": String(theme.type_scale),
     ...typeRoles(theme.type_scale),
     "--pn-numerals": theme.numerals === "tabular" ? "tabular-nums" : "normal",
+    // Polynet's own corners scale with the theme's radius (16px is Polynet's default).
+    "--pn-radius-scale": String(Math.round((theme.radius / DEFAULT_COMMUNITY_THEME.radius) * 1000) / 1000),
     "--pn-radius-card": cardRadius(theme),
     "--pn-radius-card-top": cardTopRadius(theme),
     "--pn-radius-button": buttonRadius(theme),
