@@ -159,13 +159,22 @@ export function communityClientAnswerFormat(propertyType: CommunityClientPropert
   return propertyType === "number" || propertyType === "date" || propertyType === "url" ? propertyType : null;
 }
 
+// Digits with optional thousands commas and decimals: "12", "1,200", "-3.5".
+const NUMBER_ANSWER = /^[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$|^[+-]?\.\d+$/;
+
+/** A typed answer as a number, date or link property's value. The member's check
+ * and the write both use it, so an answer that passes always fills. Throws when it doesn't fit. */
+function typedAnswerValue(property: CommunityClientPropertyDefinition, answer: string): CommunityClientPropertyValue | null {
+  const text = answer.trim();
+  if (property.type !== "number") return normalizeCommunityClientPropertyValue(property, text);
+  return normalizeCommunityClientPropertyValue(property, NUMBER_ANSWER.test(text) ? Number(text.replace(/,/g, "")) : NaN);
+}
+
 /** What to tell the member when a short answer can't fill its property, or null when it can. */
 export function communityClientAnswerFormatIssue(format: CommunityClientAnswerFormat, answer: string): string | null {
-  const text = answer.trim();
-  if (!text) return null;
+  if (!answer.trim()) return null;
   try {
-    normalizeCommunityClientPropertyValue({ key: "answer", type: format, options: [] } as unknown as CommunityClientPropertyDefinition,
-      format === "number" ? (Number.isFinite(Number(text.replace(/,/g, ""))) ? Number(text.replace(/,/g, "")) : NaN) : text);
+    typedAnswerValue({ key: "answer", type: format, options: [] } as unknown as CommunityClientPropertyDefinition, answer);
     return null;
   } catch {
     return format === "number" ? "Enter a number, like 12."
@@ -198,10 +207,7 @@ export function communityClientValueFromAnswer(
   if (property.type === "multi_select") {
     return normalizeCommunityClientPropertyValue(property, (Array.isArray(answer) ? answer : [answer]).map(option));
   }
-  if (property.type === "number") {
-    const number = Number(String(text).replace(/,/g, "").trim());
-    return normalizeCommunityClientPropertyValue(property, Number.isFinite(number) && String(text).trim() ? number : NaN);
-  }
+  if (property.type === "number" || property.type === "date" || property.type === "url") return typedAnswerValue(property, String(text));
   return normalizeCommunityClientPropertyValue(property, property.type === "text" ? String(text).slice(0, COMMUNITY_CLIENT_TEXT_MAX) : text);
 }
 

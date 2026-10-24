@@ -16,6 +16,7 @@
 .member-form-dialog button:disabled { opacity:.45; cursor:default; }
 .member-form-dialog input:not([type=radio]):not([type=checkbox]), .member-form-dialog textarea { width:100%; padding:12px 0; color:var(--text-primary); background:transparent; border:0; border-bottom:1px solid var(--border-strong); font:inherit; }
 .member-form-format { color:var(--text-secondary); margin:0 0 8px; }
+.member-form-issue { color:var(--accent-error); margin:8px 0 0; }
 .member-form-choices { display:grid; gap:10px; min-width:0; margin:0; padding:0; border:0; }
 .member-form-choices label { display:flex; gap:12px; padding:12px; border:1px solid var(--border-default); border-radius:6px; }
 .member-form-dialog footer { display:flex; gap:12px; align-items:center; margin-top:24px; flex-wrap:wrap; }
