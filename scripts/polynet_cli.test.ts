@@ -12,6 +12,7 @@ import { checkCourses, checkTheme, packChangesets, readCourses, resolveCourses, 
 import { readProject, siteFiles } from "../packages/polynet-cli/project.mjs";
 // @ts-expect-error plain ES module without types
 import { buildContract, CONTRACTS } from "../packages/polynet-cli/tools/build-contracts.mjs";
+import { buildDesignGuide, DESIGN_GUIDE_TARGET } from "../packages/polynet-cli/tools/build-design-guide.mjs";
 
 function site() {
   const root = mkdtempSync(join(tmpdir(), "polynet-site-"));
@@ -160,6 +161,11 @@ test("a community design folder gets the skills but not the site guides", async 
   expect(await installSkills(dir)).toEqual([".agents/skills/ (6 skills)", ".claude/skills/ (6 skills)"]);
   expect(existsSync(join(dir, "AGENTS.md"))).toBe(false);
   expect(existsSync(join(dir, ".agents/skills/polynet-ui-design/SKILL.md"))).toBe(true);
+});
+
+test("the MCP's design guide matches the polynet-ui-design skill", async () => {
+  expect(readFileSync(join(__dirname, "..", DESIGN_GUIDE_TARGET), "utf8"), "run node packages/polynet-cli/tools/build-design-guide.mjs")
+    .toBe(await buildDesignGuide());
 });
 
 test("the CLI's copies of Polynet's lesson, embed, theme and layout contracts match shared/", async () => {

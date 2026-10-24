@@ -4145,3 +4145,28 @@ test("the layout is its own design record over the MCP: publishing it never rese
   const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
   expect(JSON.stringify(builder)).toContain("/builder/layout.json");
 });
+
+test("the design guide is a read-only builder document for managers over the MCP", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const path = `/communities/${community}/builder/design-guide.md`;
+
+  const guide = await owner("polynet_read", { path });
+  expect(guide).toMatchObject({ truncated: false, writable: false });
+  expect(guide.body).toContain("# UI design for Polynet communities");
+  expect(guide.body).toContain("# Applying the craft inside the Polynet app");
+  expect(guide.body).not.toMatch(/^---\nname:/);
+  expect(JSON.stringify(await owner("polynet_list", { path: `/communities/${community}/builder/` }))).toContain("/builder/design-guide.md");
+  await expect(member("polynet_read", { path })).rejects.toThrow("semantic_not_found");
+});
