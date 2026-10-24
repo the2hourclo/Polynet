@@ -21,7 +21,15 @@ function hasName(tag, inner) {
   return Boolean(text.trim() || attr(tag, "aria-label")?.trim() || attr(tag, "aria-labelledby")?.trim() || attr(tag, "title")?.trim());
 }
 
-function checkPage(path, html, problem) {
+// Lesson widgets (pages under /embeds/, or named by a lesson's polynet-embed
+// block) run in a sandboxed frame inside Polynet, not as site pages: they load
+// /__polynet/embed.js instead of the shell, and Polynet's page around them
+// carries the account menu.
+export function isEmbedPage(path, embeds) {
+  return path.startsWith("/embeds/") || Boolean(embeds?.has(path));
+}
+
+function checkPage(path, html, problem, embed = false) {
   const source = html.replace(/<!--[\s\S]*?-->/g, "");
   // A fragment (a verification file, a partial) isn't a page; index.html always is.
   if (path !== "/index.html" && !/<(html|head|body|title)\b/i.test(source)) return;
@@ -38,8 +46,12 @@ function checkPage(path, html, problem) {
       problem("error", path, "The viewport blocks zooming. Remove user-scalable=no and maximum-scale.");
     }
   }
-  const loadsShell = [...source.matchAll(/<script\b[^>]*>/gi)].some((m) => /^\/__polynet\/ui\.js(\?.*)?$/.test(attr(m[0], "src") ?? ""));
-  if (!loadsShell) problem("error", path, 'The page doesn\'t load the Polynet shell. Add <script type="module" src="/__polynet/ui.js"></script>.');
+  const scripts = [...source.matchAll(/<script\b[^>]*>/gi)].map((m) => attr(m[0], "src") ?? "");
+  if (embed) {
+    if (!scripts.some((src) => /^\/__polynet\/embed\.js(\?.*)?$/.test(src))) {
+      problem("warning", path, 'The widget doesn\'t load /__polynet/embed.js, so it can\'t resize to fit or keep a member\'s answers. Add <script src="/__polynet/embed.js"></script>.');
+    }
+  } else if (!scripts.some((src) => /^\/__polynet\/ui\.js(\?.*)?$/.test(src))) problem("error", path, 'The page doesn\'t load the Polynet shell. Add <script type="module" src="/__polynet/ui.js"></script>.');
   for (const m of source.matchAll(/<img\b[^>]*>/gi)) {
     if (attr(m[0], "alt") === null) problem("error", path, `An image has no alt text: ${m[0].slice(0, 80)}. Describe it, or use alt="" if it's decorative.`);
   }
@@ -60,7 +72,8 @@ function checkPage(path, html, problem) {
 }
 
 // files: [{ path: "/index.html", text }] (other files may be passed; they're ignored).
-export function checkSite(files) {
+// options.embeds: extra paths that are lesson widgets (see isEmbedPage).
+export function checkSite(files, options = {}) {
   const errors = [];
   const warnings = [];
   const problem = (level, path, message) => (level === "error" ? errors : warnings).push({ path, message });
@@ -69,8 +82,10 @@ export function checkSite(files) {
   const scripts = checked.filter((file) => /\.m?js$/i.test(file.path));
   const pages = checked.filter((file) => /\.html?$/i.test(file.path));
 
-  for (const page of pages) checkPage(page.path, page.text, problem);
-  if (![...pages, ...scripts].some((file) => /polynet-account/.test(file.text))) {
+  for (const page of pages) checkPage(page.path, page.text, problem, isEmbedPage(page.path, options.embeds));
+  const sitePages = pages.filter((page) => !isEmbedPage(page.path, options.embeds));
+  const siteScripts = scripts.filter((file) => !isEmbedPage(file.path, options.embeds));
+  if ((sitePages.length || !pages.length) && ![...sitePages, ...siteScripts].some((file) => /polynet-account/.test(file.text))) {
     problem("error", "/", "The site never shows <polynet-account>. Put it in the header of every page.");
   }
 

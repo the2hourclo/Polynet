@@ -625,6 +625,13 @@ function mountSearchResults(args: {
   };
 }
 
+// builder/resources/ pages through resources with a cursor the directory
+// returned ("builder-resources:<offset>"); anything else starts at the top.
+function builderResourcesCursorOffset(cursor: unknown): number | undefined {
+  const match = /^builder-resources:(\d{1,6})$/.exec(String(cursor ?? ""));
+  return match ? Number(match[1]) : undefined;
+}
+
 function canonicalJsonDocument(args: {
   target: ResolvedCommunityTarget;
   localPath: string;
@@ -1216,6 +1223,7 @@ async function executeCanonicalList(args: {
           communityId: target.communityId,
           limit:
             typeof args.input.limit === "number" ? args.input.limit : undefined,
+          offset: builderResourcesCursorOffset(args.input.cursor),
         },
       )) as Record<string, unknown>;
       const resources = Array.isArray(directory.resources)
@@ -1252,6 +1260,11 @@ async function executeCanonicalList(args: {
             path: absolutePath,
             entries,
             writable: true,
+            truncated: directory.truncated === true,
+            nextCursor:
+              typeof directory.next_offset === "number"
+                ? `builder-resources:${directory.next_offset}`
+                : null,
           }),
           health: directory.health ?? null,
           total_resources: directory.total_resources ?? resources.length,
@@ -1683,7 +1696,6 @@ async function executeCanonicalRead(args: {
         {
           userId: args.userId,
           communityId: target.communityId,
-          slot: args.funnelDraftSlot ?? "custom_1",
           ref: builderResourceMatch[1],
         },
       )) as Record<string, unknown>;
