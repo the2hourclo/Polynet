@@ -2400,8 +2400,8 @@ async function executeCanonicalCall(args: {
     };
     const base = { communityId: target.communityId, userId: args.userId };
     const mutate = (name: string, mutationArgs: Record<string, unknown>) =>
-      () => args.ctx.runMutation((internal as any).communityClients[name], { ...base, ...mutationArgs });
-    let run: () => Promise<Record<string, unknown>>;
+      (receipt: Record<string, unknown>) => args.ctx.runMutation((internal as any).communityClients[name], { ...base, ...mutationArgs, receipt });
+    let run: (receipt: Record<string, unknown>) => Promise<{ deduped?: boolean; result: Record<string, unknown> }>;
     if (operation === CLIENT_EVENT_RECORD_OPERATION) {
       const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
       if (!member || typeof rawInput.type !== "string" ||
@@ -2434,16 +2434,19 @@ async function executeCanonicalCall(args: {
     }
     // A retry with the same key returns the first answer instead of writing again,
     // so a lost reply never records a second event or overwrites a newer edit.
+    // The change completes its receipt in the same transaction.
     const receiptArgs = { ...args, input: { operation, input: rawInput }, target, toolName: "polynet_call" as const,
       idempotencyKey: `community-client:${idempotencyKey}` };
     const reservation = await reserveMutatingOperation(receiptArgs);
     if (!reservation.ok) return reservation.result;
     if (reservation.status === "completed") return { ok: true, value: reservation.completedValue };
     try {
-      const responseValue = { ...(await run()), deduped: false,
-        receipt: canonicalReceipt({ toolName: "polynet_call", principalKind: args.principalKind, target, idempotencyKey, deduped: false }) };
-      return { ok: true, value: await completeMutatingOperation({ ...receiptArgs, requestFingerprint: reservation.requestFingerprint,
-        attemptToken: reservation.attemptToken, value: responseValue }) };
+      const completed = await run({
+        attempt: { communityId: target.communityId, userId: args.userId, principalKind: args.principalKind, toolName: "polynet_call",
+          idempotencyKey: receiptArgs.idempotencyKey, requestFingerprint: reservation.requestFingerprint, attemptToken: reservation.attemptToken },
+        value: { deduped: false, receipt: canonicalReceipt({ toolName: "polynet_call", principalKind: args.principalKind, target, idempotencyKey, deduped: false }) },
+      });
+      return { ok: true, value: completed.deduped === true ? replayedOperationValue(completed.result) : completed.result };
     } catch (error) {
       const refused = clientError(error);
       await failMutatingOperation({ ...receiptArgs, requestFingerprint: reservation.requestFingerprint, attemptToken: reservation.attemptToken,

@@ -4015,6 +4015,12 @@ test("owners and their external agent read clients and set their own client prop
   await expect(retry("community.client.property.define", defineScore)).resolves.toMatchObject({ ok: true, value: { property: { key: "score" } } });
   await expect(retry("community.client.property.define", defineScore)).resolves.toMatchObject({ ok: true, value: { property: { key: "score" }, deduped: true } });
   expect((await t.run(async (ctx) => await ctx.db.query("communityClientEvents").collect())).filter((event: any) => event.type === "contacted")).toHaveLength(1);
+  // The change and its receipt commit together: a receipt that can't complete undoes the change.
+  await expect(t.mutation((internal as any).communityClients.recordClientEventInternal, { communityId: fixture.communityId, userId: fixture.ownerId,
+    membershipId: String(membership._id), type: "contacted", body: "Second try", via: "agent", receipt: { value: {}, attempt: { communityId: fixture.communityId,
+      userId: fixture.ownerId, principalKind: "external_mcp", toolName: "polynet_call", idempotencyKey: "community-client:never-reserved",
+      requestFingerprint: "none", attemptToken: "none" } } })).rejects.toThrow("polynet_operation_receipt_reservation_missing");
+  expect((await t.run(async (ctx) => await ctx.db.query("communityClientEvents").collect())).filter((event: any) => event.type === "contacted")).toHaveLength(1);
   const timeline = await owner.run("polynet_read", { path: row.path });
   expect(timeline, JSON.stringify(timeline)).toMatchObject({ ok: true });
   const events = JSON.parse(String((timeline as any).value.body)).entries.map((entry: any) => [entry.type, entry.actor ?? null]);

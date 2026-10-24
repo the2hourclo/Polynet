@@ -10,6 +10,7 @@ import { getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurre
 import { readMemberFactsForLens } from "./memberOntologyCore";
 import { courseSummaries, listMemberVisibleLessonPages, readProgressRows } from "./communityResourceProgress";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
+import { canonicalReceiptAttemptValidator, completeCanonicalOperationReceipt } from "./polynetCanonicalReceipts";
 import {
   COMMUNITY_CLIENT_PROPERTY_LIMIT,
   COMMUNITY_CLIENT_STUCK_DEFAULT_DAYS,
@@ -470,13 +471,23 @@ async function listClients(ctx: any, args: any) {
 }
 
 export const listClientPropertiesInternal = internalQuery({ args: managerArgs, handler: listProperties });
-export const createClientPropertyInternal = internalMutation({ args: createPropertyArgs, handler: createProperty });
-export const updateClientPropertyInternal = internalMutation({ args: updatePropertyArgs, handler: updateProperty });
-export const archiveClientPropertyInternal = internalMutation({ args: archivePropertyArgs, handler: archiveProperty });
-export const setClientPropertyValueInternal = internalMutation({ args: setValueArgs, handler: setValue });
-export const recordClientEventInternal = internalMutation({ args: recordEventArgs, handler: recordEvent });
+// An agent's change can carry its reserved MCP receipt, completed in the same
+// transaction: the change and its retry answer commit together or not at all,
+// so a retry can never write twice.
+const receiptArgs = { receipt: v.optional(v.object({ attempt: canonicalReceiptAttemptValidator, value: v.any() })) };
+function withReceipt<A extends Record<string, unknown>>(handler: (ctx: any, args: A) => Promise<any>) {
+  return async (ctx: any, { receipt, ...args }: A & { receipt?: { attempt: any; value: Record<string, unknown> } }) => {
+    const result = await handler(ctx, args as unknown as A);
+    return receipt ? completeCanonicalOperationReceipt(ctx, { ...receipt.attempt, result: { ...result, ...receipt.value } }) : result;
+  };
+}
+export const createClientPropertyInternal = internalMutation({ args: { ...createPropertyArgs, ...receiptArgs }, handler: withReceipt(createProperty) });
+export const updateClientPropertyInternal = internalMutation({ args: { ...updatePropertyArgs, ...receiptArgs }, handler: withReceipt(updateProperty) });
+export const archiveClientPropertyInternal = internalMutation({ args: { ...archivePropertyArgs, ...receiptArgs }, handler: withReceipt(archiveProperty) });
+export const setClientPropertyValueInternal = internalMutation({ args: { ...setValueArgs, ...receiptArgs }, handler: withReceipt(setValue) });
+export const recordClientEventInternal = internalMutation({ args: { ...recordEventArgs, ...receiptArgs }, handler: withReceipt(recordEvent) });
 export const readClientTimelineInternal = internalQuery({ args: readTimelineArgs, handler: readTimeline });
-export const setClientSettingsInternal = internalMutation({ args: setSettingsArgs, handler: setSettings });
+export const setClientSettingsInternal = internalMutation({ args: { ...setSettingsArgs, ...receiptArgs }, handler: withReceipt(setSettings) });
 export const listClientsInternal = internalQuery({ args: listClientsArgs, handler: listClients });
 
 // The same reads and writes for the signed-in owner or admin in the web app.
