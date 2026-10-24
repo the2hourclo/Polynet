@@ -23,6 +23,7 @@ const modules = import.meta.glob([
   "./communityEvidenceAudit.ts",
   "./communityMemberWorkflows.ts",
   "./communityResourceProgress.ts",
+  "./communityAdmin.ts",
   "./_generated/**/*.*s",
 ]);
 
@@ -1085,6 +1086,19 @@ test("a stage only members who left ever reached can be deleted; a current membe
   await expect(remove()).rejects.toThrow("community_member_workflow_milestone_has_members");
   await t.run(ctx => ctx.db.delete(live));
   await remove();
+  expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").collect())).toHaveLength(0);
+});
+
+test("leaving a community removes the member's stage position with their membership", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const configured = await configureAutomations(t, f.communityId, []);
+  await t.run(async (ctx) => {
+    const workflow = (await ctx.db.query("communityMemberWorkflows").first())!;
+    await ctx.db.insert("communityMemberWorkflowMemberMilestones", { workflowId: workflow._id, membershipId: f.membershipId,
+      currentMilestoneKey: configured.secondKey, milestoneEnteredAt: 1, transitionSeq: 1, createdAt: 1, updatedAt: 1 });
+  });
+  await t.withIdentity({ subject: MEMBER_SUBJECT }).mutation(api.communityAdmin.leaveCommunity, { communityId: f.communityId });
+  expect(await t.run(ctx => ctx.db.get(f.membershipId))).toBeNull();
   expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").collect())).toHaveLength(0);
 });
 

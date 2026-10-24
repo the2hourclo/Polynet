@@ -59,6 +59,8 @@ import { intakeCommunityAgentWorkflowAction } from "./communityAgentConciergeCor
 import { resolveNotificationRecipientSource } from "./communityNotificationAccess";
 import { bindMemberServiceChannel } from "./communityMemberServiceChannelCore";
 
+const MAX_DEPARTED_POSITIONS_PER_DELETE = 4_000;
+
 const managerIdentityArgs = {
   userId: v.optional(v.id("users")),
   authSubject: v.optional(v.string()),
@@ -562,23 +564,23 @@ export const deleteBuilderWorkflowMilestone = mutation({
     if (milestoneIndex < 0) {
       throw new Error("community_member_workflow_milestone_invalid");
     }
-    // A member who left keeps a position row, but their membership is gone and
-    // a rejoin starts a new one, so those rows go with the stage instead of
-    // blocking it. Anyone still a member holds it.
+    // Leaving now removes a member's position, but members who left before
+    // that kept one, with their membership gone (a rejoin starts a new one).
+    // Those rows go with the stage instead of blocking it; anyone still a
+    // member holds it. The bound stays well inside one transaction's limits.
     const positions = await ctx.db
       .query("communityMemberWorkflowMemberMilestones")
       .withIndex("by_workflow_milestone", (q: any) =>
         q.eq("workflowId", workflow._id).eq("currentMilestoneKey", milestoneKey),
       )
-      .take(257);
-    const departed = [];
-    for (const position of positions) {
-      if (positions.length > 256 || await ctx.db.get(position.membershipId)) {
-        throw new Error("community_member_workflow_milestone_has_members");
-      }
-      departed.push(position._id);
+      .take(MAX_DEPARTED_POSITIONS_PER_DELETE + 1);
+    if (positions.length > MAX_DEPARTED_POSITIONS_PER_DELETE) {
+      throw new Error("community_member_workflow_milestone_has_members");
     }
-    for (const id of departed) await ctx.db.delete(id);
+    for (const position of positions) {
+      if (await ctx.db.get(position.membershipId)) throw new Error("community_member_workflow_milestone_has_members");
+      await ctx.db.delete(position._id);
+    }
     if (milestoneIndex === 0) {
       const activeMemberCount = readCommunityActiveMemberCount(community);
       if (activeMemberCount === null) {
