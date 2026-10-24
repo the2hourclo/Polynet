@@ -35,3 +35,11 @@ describe("CLI community templates", () => {
     if (!result.ok) throw new Error(JSON.stringify(result.problems, null, 2));
   });
 });
+
+describe("template apply rules", () => {
+  // A founder who picks a layout template keeps their own colours and fonts.
+  test.each(templateNames)("%s keeps a community's existing theme", (name) => {
+    const manifest = readJson(name, "template.json") as { apply?: { theme?: string } };
+    expect(manifest.apply?.theme).toBe("keep_existing");
+  });
+});
