@@ -11,9 +11,11 @@
 .community-look-preview { border:1px solid var(--border-default); border-radius:12px; overflow:hidden; background:var(--surface-workspace); color:var(--text-primary); align-self:start; }
 .community-look-sample { display:flex; flex-direction:column; gap:12px; padding:24px; }
 .community-look-sample small { color:var(--text-secondary); }
-.community-look-sample h2 { margin:0; }
+.community-look-sample { font-size:calc(16px * var(--pn-type-scale, 1)); }
+.community-look-sample small { font-size:calc(12px * var(--pn-type-scale, 1)); }
+.community-look-sample h2 { margin:0; font-size:calc(24px * var(--pn-type-scale, 1)); }
 .community-look-sample p { margin:0; color:var(--text-secondary); }
 .community-look-card { display:flex; flex-direction:column; gap:4px; padding:12px; border:1px solid var(--border-default); border-radius:12px; background:var(--surface-elevated, var(--surface-workspace)); }
-.community-look-card span { color:var(--text-secondary); font-size:13px; }
+.community-look-card span { color:var(--text-secondary); font-size:calc(13px * var(--pn-type-scale, 1)); }
 .community-look-problems { margin:0 0 12px; padding-left:20px; }
 .community-look-status { color:var(--text-secondary); font-size:13px; margin-right:auto; }

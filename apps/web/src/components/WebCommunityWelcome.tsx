@@ -23,7 +23,9 @@ export function WebCommunityWelcome(props: Props) {
   const [retry, setRetry] = useState(0);
   const [runner, setRunner] = useState(0);
   const total = useRef(props.requestIds.length);
-  const finished = useRef(false);
+  // The forms list can briefly read empty while its subscription settles, so
+  // every change to "nothing left" reloads access, not just the first.
+  const wasEmpty = useRef(false);
   useEffect(() => {
     let alive = true; setError(false);
     const stop = subscribeMemberForms(props.session, props.communityId, props.ensureSession,
@@ -33,7 +35,9 @@ export function WebCommunityWelcome(props: Props) {
   }, [props.session, props.communityId, props.ensureSession, props.requestIds, retry]);
   const next = rows?.[0];
   useEffect(() => {
-    if (rows && rows.length === 0 && !finished.current) { finished.current = true; props.onFinished(); }
+    const empty = rows?.length === 0;
+    if (empty && !wasEmpty.current) props.onFinished();
+    wasEmpty.current = empty;
   }, [rows, props.onFinished]);
   const step = total.current - (rows?.length ?? total.current) + 1;
   return <section className="community-welcome" aria-label={`Welcome to ${props.communityName}`}>
