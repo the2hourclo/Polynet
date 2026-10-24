@@ -28,7 +28,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "course_cover_ratio" | "course_card_size" | "course_cover_plate" | "media_plate";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "course_cover_ratio" | "course_card_size" | "course_cover_plate" | "course_cover_fit" | "media_plate";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -37,6 +37,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   course_cover_ratio: ["Cover shape", [["auto", "Polynet default"], ["16:9", "Wide 16:9"], ["3:2", "Photo 3:2"], ["4:3", "Classic 4:3"], ["1:1", "Square"], ["21:9", "Banner 21:9"]]],
   course_card_size: ["Card size", [["default", "Two columns"], ["small", "Small"], ["medium", "Medium"], ["large", "Large"]]],
   course_cover_plate: ["Cover background (light scheme)", [["none", "Plain"], ["tint", "Soft accent tint"]]],
+  course_cover_fit: ["Cover pictures", [["crop", "Fill the box"], ["whole", "Show whole picture"]]],
   media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
 };
 
@@ -161,6 +162,7 @@ export function WebCommunityLookSettings(props: Props) {
           <legend>Courses</legend>
           {choice("course_cover_ratio")}
           {choice("course_card_size")}
+          {choice("course_cover_fit")}
           {choice("course_cover_plate")}
           {choice("media_plate")}
         </fieldset>

@@ -47,6 +47,9 @@ export type CommunityThemeV1 = {
   // "tint" prints course covers onto a soft wash of the accent (light schemes),
   // so pale drawings and dark screenshots share one colour.
   course_cover_plate: "none" | "tint";
+  // "whole" shows each cover in full inside the cover box (wide banners with
+  // words on them), instead of cropping it to fill the box.
+  course_cover_fit: "crop" | "whole";
 };
 
 export type CommunityThemeProblem = {
@@ -120,6 +123,7 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   course_cover_ratio: "auto",
   course_card_size: "default",
   course_cover_plate: "none",
+  course_cover_fit: "crop",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -147,6 +151,7 @@ const ENUMS = {
   course_cover_ratio: ["auto", "16:9", "3:2", "4:3", "1:1", "21:9"],
   course_card_size: ["default", "small", "medium", "large"],
   course_cover_plate: ["none", "tint"],
+  course_cover_fit: ["crop", "whole"],
 } as const;
 
 const RANGES = {
@@ -577,6 +582,12 @@ export function compileCommunityThemeCss(theme: CommunityThemeV1, scope: string)
         block(scope, communityThemeVariables(theme, "dark"), "dark"),
         block(`:root[data-theme="light"] ${scope}`, communityThemeVariables(theme, "light"), "light"),
       ];
+  // A cover's framing is written inline (StableFramedMedia), so showing it
+  // whole has to outrank that framing. The bands around it are the cover's
+  // own background, not the media plate.
+  if (theme.course_cover_fit === "whole") {
+    parts.push(`${scope} .resource-course-card-cover-image {\n  inset: 0 !important;\n  width: 100% !important;\n  height: 100% !important;\n  object-fit: contain !important;\n  padding: 0 !important;\n  background: none !important;\n}`);
+  }
   return `/* Community theme v${theme.version}; compiled, do not edit. */\n${parts.join("\n\n")}\n`;
 }
 
