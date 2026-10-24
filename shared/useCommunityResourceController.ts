@@ -659,7 +659,10 @@ export function useCommunityResourceController<
     return true;
   }, [loadCommunityResources, resetResourceEditor]);
 
-  const handleCreateBlankPageDraft = useCallback(async (moduleId: string): Promise<ResourceT | null> => {
+  const handleCreateBlankPageDraft = useCallback(async (
+    moduleId: string,
+    lesson?: { order: number },
+  ): Promise<ResourceT | null> => {
     const current = argsRef.current;
     const session = await resolveUsableSession(current.session, current.ensureSession);
     if (!session || !current.activeCommunityId) return null;
@@ -676,6 +679,7 @@ export function useCommunityResourceController<
         url: null,
         pinned: false,
         module_id: moduleId,
+        ...(lesson ? { lesson } : {}),
       };
       if (current.includeFileKeyOnSave) {
         payload.file_key = null;
