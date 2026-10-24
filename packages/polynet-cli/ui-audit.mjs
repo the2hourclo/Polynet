@@ -29,9 +29,17 @@ export function auditPage(options) {
     const s = getComputedStyle(el);
     return s.visibility !== "hidden" && s.display !== "none" && Number(s.opacity) > 0.05;
   };
-  const add = (list, check, message, els = []) => {
-    const where = [...new Set(els.map(describe))].slice(0, 6);
+  // items are elements, or [element, measured value] pairs; the report shows both.
+  const add = (list, check, message, items = []) => {
+    const where = [...new Set(items.map((item) => Array.isArray(item) ? `${describe(item[0])} (${item[1]})` : describe(item)))].slice(0, 6);
     list.push(where.length ? { check, message, where } : { check, message });
+  };
+  const px = (n) => `${Math.round(n)}px`;
+  // Off-screen helpers (a file input behind its button, screen-reader text) aren't design.
+  const visuallyHidden = (el) => {
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    return r.width <= 2 || r.height <= 2 || /rect\(0/.test(s.clip) || s.clipPath === "inset(50%)" || Number(s.opacity) <= 0.05;
   };
 
   // Colour helpers -----------------------------------------------------------
@@ -71,7 +79,8 @@ export function auditPage(options) {
   const page = document.scrollingElement || document.documentElement;
   if (page.scrollWidth > vw + 1) {
     const culprits = all.filter((el) => el.getBoundingClientRect().right > vw + 1)
-      .filter((el) => ![...el.children].some((child) => visible(child) && child.getBoundingClientRect().right > vw + 1));
+      .filter((el) => ![...el.children].some((child) => visible(child) && child.getBoundingClientRect().right > vw + 1))
+      .map((el) => [el, `right edge at ${px(el.getBoundingClientRect().right)}`]);
     add(errors, "overflow", `The page is ${page.scrollWidth}px wide at a ${vw}px viewport: something sticks out sideways.`, culprits);
   }
 
@@ -95,7 +104,8 @@ export function auditPage(options) {
     if (!fg || !bg || fg.a < 0.5) continue;
     const size = parseFloat(s.fontSize);
     const large = size >= 24 || (size >= 18.66 && Number(s.fontWeight) >= 700);
-    if (ratio(fg, bg) < (large ? 3 : 4.5)) lowContrast.push(el);
+    const r = ratio(fg, bg);
+    if (r < (large ? 3 : 4.5)) lowContrast.push([el, `${r.toFixed(1)}:1, ${key(fg)} on ${key(bg)}, ${px(size)}`]);
   }
   if (lowContrast.length) add(errors, "contrast", "Text below WCAG AA contrast (4.5:1, or 3:1 for large text).", lowContrast);
 
@@ -121,14 +131,15 @@ export function auditPage(options) {
     const offPalette = new Map();
     for (const el of all) {
       const s = getComputedStyle(el);
-      for (const prop of ["color", "backgroundColor", "borderTopColor"]) {
+      const isSvg = el instanceof SVGElement && el.tagName.toLowerCase() !== "svg";
+      for (const prop of isSvg ? ["fill", "stroke"] : ["color", "backgroundColor", "borderTopColor"]) {
         if (prop === "borderTopColor" && (parseFloat(s.borderTopWidth) === 0 || s.borderTopStyle === "none")) continue;
         if (prop === "color" && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
         const c = parse(s[prop]);
         if (!c || c.a < 0.5 || nearMix(c)) continue;
         const k = key(c);
         if (!offPalette.has(k)) offPalette.set(k, []);
-        offPalette.get(k).push(el);
+        offPalette.get(k).push([el, prop.replace(/([A-Z])/g, " $1").toLowerCase()]);
       }
     }
     for (const [k, els] of [...offPalette].sort((a, b) => b[1].length - a[1].length)) {
@@ -151,30 +162,36 @@ export function auditPage(options) {
   const borders = distinct((el) => { const s = getComputedStyle(el); return parseFloat(s.borderTopWidth) > 0 && s.borderTopStyle !== "none" ? s.borderTopColor : null; });
   const shadows = distinct((el) => { const s = getComputedStyle(el).boxShadow; return s && s !== "none" ? s : null; });
   const stats = { font_sizes: sizes.size, font_weights: weights.size, radii: radii.size, border_colours: borders.size, shadows: shadows.size };
-  const limits = { font_sizes: 7, font_weights: 4, radii: 4, border_colours: 3, shadows: 3 };
-  for (const [name, limit] of Object.entries(limits)) {
-    if (stats[name] > limit) add(warnings, "drift", `${stats[name]} different ${name.replace("_", " ")} on one screen (aim for ${limit} or fewer).`);
-  }
+  const values = { font_sizes: [...sizes].sort((a, b) => a - b).map(px), font_weights: [...weights].sort(), radii: [...radii].sort((a, b) => a - b).map(px), border_colours: [...borders], shadows: [...shadows] };
+  const limits = { font_sizes: 7, font_weights: 4, radii: 5, border_colours: 4, shadows: 3 };
+  const over = Object.entries(limits).filter(([name, limit]) => stats[name] > limit)
+    .map(([name, limit]) => `${stats[name]} ${name.replace("_", " ")} (aim for ${limit}): ${values[name].join(", ")}`);
+  if (over.length) add(warnings, "drift", `Too many near-identical values on one screen. ${over.join("; ")}.`);
 
   // 6. Tap targets.
-  const controls = all.filter((el) => el.matches("a[href], button, [role=button], input:not([type=hidden]), select, textarea, summary"));
+  const controls = all.filter((el) => el.matches("a[href], button, [role=button], input:not([type=hidden]), select, textarea, summary") && !visuallyHidden(el));
+  const sized = (el) => { const r = el.getBoundingClientRect(); return [el, `${px(r.width)} × ${px(r.height)}`]; };
   const tiny = controls.filter((el) => { const r = el.getBoundingClientRect(); return r.width < 24 || r.height < 24; })
     .filter((el) => !(el.matches("a") && getComputedStyle(el).display === "inline"));
-  if (tiny.length) add(errors, "tap-target", "Controls smaller than 24px are hard to hit.", tiny);
+  if (tiny.length) add(errors, "tap-target", "Controls smaller than 24px are hard to hit.", tiny.map(sized));
   if (vw <= 480) {
     const small = controls.filter((el) => { const r = el.getBoundingClientRect(); return r.height < 40 && r.height >= 24; })
       .filter((el) => !(el.matches("a") && getComputedStyle(el).display === "inline"));
-    if (small.length) add(warnings, "tap-target", "Controls under 40px tall on a phone.", small);
+    if (small.length) add(warnings, "tap-target", "Controls under 40px tall on a phone.", small.map(sized));
   }
-  const heights = new Set(all.filter((el) => el.matches("button, [role=button], input[type=text], input[type=search], select"))
-    .map((el) => Math.round(el.getBoundingClientRect().height)));
+  // Icon-only buttons size to their icon; buttons with words and text fields should match.
+  const heights = new Set(all.filter((el) => (el.matches("button, [role=button]") && (el.innerText || "").trim().length > 1) ||
+      el.matches("input[type=text], input[type=search], input[type=email], input[type=url], select"))
+    .filter((el) => !visuallyHidden(el)).map((el) => Math.round(el.getBoundingClientRect().height)));
   stats.control_heights = heights.size;
-  if (heights.size > 3) add(warnings, "control-family", `Buttons and inputs come in ${heights.size} different heights; controls should look like one family.`);
+  if (heights.size > 3) add(warnings, "control-family", `Buttons and inputs come in ${heights.size} heights (${[...heights].sort((a, b) => a - b).map(px).join(", ")}); controls should look like one family.`);
 
   // 7. Emoji in the interface itself (members' own posts are theirs).
   const emoji = /\p{Extended_Pictographic}/u;
   const chrome = all.filter((el) => el.matches("button, [role=button], [role=tab], nav a, h1, h2, h3, label, [class*=chip], [class*=badge], [class*=pill]"))
-    .filter((el) => emoji.test(el.innerText || ""));
+    .filter((el) => emoji.test(el.innerText || ""))
+    // A button that is just one emoji is a reaction, and reactions are emoji by nature.
+    .filter((el) => !(el.matches("button, [role=button]") && /^\p{Extended_Pictographic}\uFE0F?$/u.test((el.innerText || "").trim())));
   if (chrome.length) add(warnings, "emoji-chrome", "Emoji used as interface labels or icons.", chrome);
 
   // 8. Broken images.
@@ -210,9 +227,9 @@ export function auditPage(options) {
     const shadow = /(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px/.exec(s.boxShadow);
     const hardShadow = s.boxShadow !== "none" && !/inset/.test(s.boxShadow) && shadow &&
       Math.max(Math.abs(Number(shadow[1])), Math.abs(Number(shadow[2]))) >= 2 && Number(shadow[3]) <= 2;
-    if (parseFloat(s.borderTopWidth) > 1 || hardShadow) heavy.push(card);
+    if (parseFloat(s.borderTopWidth) > 1 || hardShadow) heavy.push([card, `border ${s.borderTopWidth}, shadow ${s.boxShadow}`]);
     const levels = new Set(textEls(card).map((el) => { const t = getComputedStyle(el); return `${t.fontSize}|${t.fontWeight}|${t.color}`; }));
-    if (levels.size > 3) tooManyLevels.push(card);
+    if (levels.size > 3) tooManyLevels.push([card, `${levels.size} text styles`]);
     if (card.querySelector("h1, h2, h3, h4, h5, h6, ul, ol, blockquote, pre, table") && card.querySelectorAll("h1, h2, h3, h4, h5, h6").length > 1) blocksInPreview.push(card);
     if (displayFonts.length && textEls(card).some((el) => displayFonts.some((f) => getComputedStyle(el).fontFamily.toLowerCase().includes(f)))) displayOnItems.push(card);
   }
@@ -240,7 +257,13 @@ export function auditPage(options) {
     }
     // 13. A grid of cards that collapsed into one column on a wide screen.
     const singleColumn = all.filter((el) => getComputedStyle(el).display === "grid" && el.getBoundingClientRect().width > 700)
-      .filter((el) => { const kids = [...el.children].filter(visible); return kids.length >= 2 && new Set(kids.map((k) => Math.round(k.getBoundingClientRect().left))).size === 1 && kids[0].getBoundingClientRect().width > 600; });
+      .filter((el) => {
+        const kids = [...el.children].filter(visible);
+        if (kids.length < 2 || new Set(kids.map((k) => `${k.tagName}.${k.className}`)).size !== 1) return false;
+        const card = getComputedStyle(kids[0]);
+        const cardLike = parseFloat(card.borderTopWidth) > 0 || (parse(card.backgroundColor)?.a ?? 0) > 0.5;
+        return cardLike && new Set(kids.map((k) => Math.round(k.getBoundingClientRect().left))).size === 1 && kids[0].getBoundingClientRect().width > 600;
+      });
     if (singleColumn.length) add(warnings, "single-column-grid", "Cards sit one per row on a wide screen; a page view should use the width.", singleColumn);
   }
 
@@ -262,6 +285,11 @@ export function auditPage(options) {
     }
   }
   if (overlaps.length) add(errors, "overlap", "Elements overlap each other.", overlaps);
+
+  // 16. An error message showing where content should be.
+  const failing = /^(error|failed( to load)?\.?|something went wrong\.?|couldn't load.*|could not load.*)$/i;
+  const errorText = all.filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && failing.test(n.textContent.trim())));
+  if (errorText.length) add(errors, "error-state", "An error message is showing in place of content.", errorText);
 
   return { errors, warnings, stats };
 }

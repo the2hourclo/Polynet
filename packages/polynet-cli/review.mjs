@@ -19,20 +19,24 @@ export const REVIEW_VIEWPORTS = [
   { name: "laptop", width: 1280, height: 800 },
   { name: "desktop", width: 1440, height: 900 },
 ];
-// Every community page a design reaches. The owner pages (settings,
-// analytics) take the community's theme too, so they're reviewed with it.
+// Every community page a design reaches. Without a layout.json the community
+// has Polynet's classic tabs (members and about are layout pages). The owner
+// pages (settings, analytics) take the community's theme too, so they're
+// reviewed with it.
 const OWNER_SCREENS = ["settings", "analytics"];
-export const REVIEW_SCREENS = ["chat", "resources", "events", "members", "agent", "about", ...OWNER_SCREENS];
+export const REVIEW_SCREENS = ["chat", "resources", "events", "agent", ...OWNER_SCREENS];
 const SCOPE = "[data-community-theme], .community-theme-scope";
 
 async function loadPlaywright(root) {
   for (const base of [join(resolve(root), "package.json"), join(process.cwd(), "package.json")]) {
     try {
       const path = createRequire(base).resolve("playwright");
-      return await import(pathToFileURL(path).href);
+      // Playwright is CommonJS: imported by file URL, its exports sit on `default`.
+      const mod = await import(pathToFileURL(path).href);
+      return mod.chromium ? mod : mod.default;
     } catch {}
   }
-  try { return await import("playwright"); } catch {}
+  try { const mod = await import("playwright"); return mod.chromium ? mod : mod.default; } catch {}
   throw new Error("polynet review needs Playwright: run `npm i -D playwright && npx playwright install chromium` in this folder.");
 }
 
@@ -168,8 +172,26 @@ export function formatReview(report) {
     "A pass here is necessary, not sufficient: a fresh reviewer still judges the screenshots (references/reviewer.md).",
     "",
   ];
+  // The same finding on many screens is one fix: list it once, with where it shows.
+  const grouped = new Map();
   for (const r of report.results) {
-    lines.push(`## ${r.screen} at ${r.width}px`, "", r.screenshot ? `Screenshot: ${r.screenshot}` : "No screenshot.", "");
+    for (const [level, list] of [["Error", r.errors], ["Warning", r.warnings]]) {
+      for (const f of list) {
+        const id = `${level}|${f.check}|${f.message}|${(f.where ?? []).join(";")}`;
+        if (!grouped.has(id)) grouped.set(id, { level, finding: f, screens: [] });
+        grouped.get(id).screens.push(`${r.screen} ${r.width}`);
+      }
+    }
+  }
+  if (grouped.size) {
+    lines.push(`## Summary: ${grouped.size} distinct findings`, "");
+    for (const { level, finding, screens } of [...grouped.values()].sort((a, b) => (a.level === b.level ? b.screens.length - a.screens.length : a.level === "Error" ? -1 : 1))) {
+      lines.push(`- **${level} · ${finding.check}** (${screens.length}×: ${screens.join(", ")}): ${finding.message}${finding.where?.length ? `\n  ${finding.where.map((w) => `\`${w}\``).join(", ")}` : ""}`);
+    }
+    lines.push("", "## By screen", "");
+  }
+  for (const r of report.results) {
+    lines.push(`### ${r.screen} at ${r.width}px`, "", r.screenshot ? `Screenshot: ${r.screenshot}` : "No screenshot.", "");
     if (!r.errors.length && !r.warnings.length) lines.push("No findings.", "");
     for (const [label, list] of [["Error", r.errors], ["Warning", r.warnings]]) {
       for (const f of list) lines.push(`- **${label} · ${f.check}**: ${f.message}${f.where?.length ? `\n  ${f.where.map((w) => `\`${w}\``).join(", ")}` : ""}`);

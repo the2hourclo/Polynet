@@ -45,6 +45,10 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | 18 | Changes went out edit by edit without looking at the result. | Nothing is done until every page at phone and desktop passes review. | `polynet review` gate on `publish` |
 | 19 | Edits worked but didn't look clean or premium. | Clean in one shot: the system first, then the cleanliness pass, before anyone sees it. | `drift`, `control-family`, reviewer |
 | 20 | Owner pages (Settings, Analytics) kept Polynet's colours inside a themed community. | Every page inside the community takes its theme, owner pages included. | `off-palette` on the `settings` and `analytics` screens |
+| 21 | 2-Hour Club: the admin's name was set in the accent green on near-black, 4.0:1. The accent passed as a fill but not as text. | An accent used for text needs 4.5:1 on its background, not just 3:1. Pick an accent shade that passes as text, or keep it for fills. | `contrast` |
+| 22 | 2-Hour Club: the memory graph drew cyan dots that aren't the community's colours, and showed the word "Error" under it. | Charts and graphs draw in the theme's colours; a failed widget shows a designed empty state, never a bare error. | `off-palette` (SVG fill and stroke), `error-state` |
+| 23 | 2-Hour Club: courses without covers showed a grey book icon next to courses with real covers. | A catalog has one cover language: every course gets a cover, or none do. | reviewer |
+| 24 | 2-Hour Club: the community name was typed over a banner logo that already says it. | Say the name once: the logo or the text, not both. | reviewer |
 
 ## What each automatic check means
 
@@ -69,4 +73,5 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | `filler-copy` | lorem, "untitled", test data | real content |
 | `emoji-chrome` | emoji as interface icons or labels | real icons, or none |
 | `clipped-text` | text cut off with no ellipsis or clamp | clamp it on purpose, or give it room |
+| `error-state` | an error message shows where content should be | fix the cause, or design the empty state |
 | `broken-image`, `console-error`, `load` | the page itself is broken | fix before judging the design |

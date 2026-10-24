@@ -42,6 +42,8 @@ switcher; give the header row room to wrap"):
 9. **Reference:** next to the best product in this category, does it look as
    calm and resolved? Where does it fall short?
 10. **Generic AI tells:** any from the skill's list?
+11. **Said twice, shown empty:** the name repeated over a logo that says it,
+    placeholder covers or blank avatars beside real ones?
 
 End with one line: **PASS** (nothing a picky founder would point out) or
 **REVISE** with the fixes in order of how much they'd improve the first

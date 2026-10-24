@@ -67,7 +67,7 @@ test("the audit catches the mistakes in the ledger", async () => {
 test("a squeezed main column, overlapping boxes and a one-column grid are caught on desktop", async () => {
   const html = page(`<div style="display:flex"><main style="width:260px">Feed</main><aside style="width:900px">Drawer</aside></div>
     <div style="display:flex"><span style="width:200px">Title that collides</span><span style="width:200px;margin-left:-60px">Switcher</span></div>
-    <div style="display:grid;grid-template-columns:1fr;width:1200px">${[1, 2].map(() => `<div style="width:1200px;height:80px">Member</div>`).join("")}</div>`)
+    <div style="display:grid;grid-template-columns:1fr;width:1200px">${[1, 2].map(() => `<div class="card" style="width:1200px;height:80px">Member</div>`).join("")}</div>`)
     .replace("<main>", "<div>").replace("</main></div></body>", "</div></div></body>");
   const result = await audit(html, { main: "main" }, 1440);
   expect(checks(result.errors)).toEqual(expect.arrayContaining(["overlap", "squeezed-main"]));
@@ -84,7 +84,7 @@ test("the palette is the theme (with Polynet's colours for unset ones) plus the 
 
 test("screens follow the layout's visible tabs, then the owner pages", () => {
   expect(reviewScreens({ navigation: { tabs: [{ tab: "chat" }, { tab: "resources" }, { tab: "agent", hidden: true }] } })).toEqual(["chat", "resources", "settings", "analytics"]);
-  expect(reviewScreens(null)).toContain("members");
+  expect(reviewScreens(null)).toEqual(["chat", "resources", "events", "agent", "settings", "analytics"]);
   expect(reviewScreens(null, ["about"])).toEqual(["about"]);
   expect(screenUrl("http://localhost:5174/", "skool-style-demo", "chat")).toBe("http://localhost:5174/c/skool-style-demo/chat?design=draft");
 });
@@ -113,3 +113,20 @@ test("review screenshots every screen at each width, writes the report, and publ
     server.close();
   }
 }, 60_000);
+
+test("tuned on the 2-Hour Club run: real findings carry numbers, Polynet's own non-issues stay quiet", async () => {
+  const html = page(`
+    <input type="file" style="position:absolute;width:1px;height:1px;opacity:0">
+    <button style="height:40px">👍</button>
+    <div style="display:grid;width:1200px">${[1, 2, 3].map(() => `<div style="width:1200px;height:60px">A chat message</div>`).join("")}</div>
+    <p class="meta">Error</p>
+    <svg width="40" height="40"><circle cx="20" cy="20" r="10" fill="#22B8F0"></circle></svg>
+    <span style="color:#2B863A;background:#151513;font-size:13px">Rashid</span>
+  `);
+  const result = await audit(html, {}, 1440);
+  expect(checks(result.errors)).toEqual(["contrast", "error-state"]);
+  const contrast = result.errors.find((f) => f.check === "contrast") as any;
+  expect(contrast.where[0]).toMatch(/Rashid.*\(4\.\d:1, 43,134,58 on 21,21,19, 13px\)/);
+  expect(checks(result.warnings)).toEqual(["off-palette"]);
+  expect((result.warnings[0] as any).where[0]).toContain("(fill)");
+});
