@@ -532,23 +532,14 @@ export async function uploadCloudCommunityResourceImage<SessionT>(
 ): Promise<string> {
   const storageId = await uploadCloudCommunityResourceSourceFile(params);
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
-  let payload: unknown;
-  try {
-    payload = await client.mutation("communityResources:resolveCommunityResourceImageUrl" as any, {
-      authSubject,
-      communityId: params.communityId,
-      storageId,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const code = Object.keys(RESOURCE_IMAGE_ERRORS).find((key) => message.includes(key));
-    throw new Error(code ? RESOURCE_IMAGE_ERRORS[code] : "That image didn't upload. Try again.");
-  }
-  const url =
-    payload && typeof payload === "object" && !Array.isArray(payload)
-      ? String((payload as Record<string, unknown>).url ?? "").trim()
-      : "";
-  if (!url) throw new Error("That image didn't upload. Try again.");
+  const payload = await client.mutation("communityResources:resolveCommunityResourceImageUrl" as any, {
+    authSubject,
+    communityId: params.communityId,
+    storageId,
+  });
+  const row = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  const url = String(row.url ?? "").trim();
+  if (!url) throw new Error(RESOURCE_IMAGE_ERRORS[String(row.problem ?? "")] ?? "That image didn't upload. Try again.");
   return url;
 }
 
