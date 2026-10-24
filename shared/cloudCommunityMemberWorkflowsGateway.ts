@@ -70,6 +70,8 @@ type WorkflowMilestoneMutationResult = {
   workflow_id: string;
   revision: number;
   milestone?: CommunityMemberWorkflowMilestone;
+  /** Delete only: it cleared a batch of departed members' positions; call again. */
+  pending_cleanup?: true;
 };
 
 export function createCloudCommunityMemberWorkflowLiveClient<SessionT>(
@@ -338,13 +340,18 @@ export async function deleteCloudCommunityMemberWorkflowMilestone<SessionT>(
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(
     params.session,
   );
-  return (await client.mutation(
-    api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
-    {
-      authSubject,
-      communityId: params.communityId as Id<"communities">,
-      expectedRevision: params.expectedRevision,
-      milestoneKey: params.milestoneKey,
-    },
-  )) as WorkflowMilestoneMutationResult;
+  // A stage with many departed members' positions clears them in batches first.
+  for (let batch = 0; batch < 200; batch += 1) {
+    const result = (await client.mutation(
+      api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
+      {
+        authSubject,
+        communityId: params.communityId as Id<"communities">,
+        expectedRevision: params.expectedRevision,
+        milestoneKey: params.milestoneKey,
+      },
+    )) as WorkflowMilestoneMutationResult;
+    if (!result.pending_cleanup) return result;
+  }
+  throw new Error("community_member_workflow_milestone_cleanup_incomplete");
 }

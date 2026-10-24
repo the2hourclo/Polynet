@@ -1089,6 +1089,28 @@ test("a stage only members who left ever reached can be deleted; a current membe
   expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").collect())).toHaveLength(0);
 });
 
+test("a stage with more departed positions than one call clears asks to be called again, then deletes", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  const configured = await configureAutomations(t, f.communityId, []);
+  await t.run(async (ctx) => {
+    const workflow = (await ctx.db.query("communityMemberWorkflows").first())!;
+    const { _id, _creationTime, ...member } = (await ctx.db.get(f.membershipId))!;
+    const departed = await ctx.db.insert("communityMemberships", member);
+    await ctx.db.delete(departed);
+    for (let i = 0; i < 1_001; i += 1) {
+      await ctx.db.insert("communityMemberWorkflowMemberMilestones", { workflowId: workflow._id, membershipId: departed,
+        currentMilestoneKey: configured.secondKey, milestoneEnteredAt: 1, transitionSeq: 1, createdAt: 1, updatedAt: 1 });
+    }
+  });
+  const remove = () => owner.mutation(api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
+    { communityId: f.communityId, expectedRevision: 3, milestoneKey: configured.secondKey });
+  expect(await remove()).toMatchObject({ revision: 3, pending_cleanup: true });
+  expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").collect())).toHaveLength(1);
+  expect(await remove()).toMatchObject({ revision: 4 });
+  expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").collect())).toHaveLength(0);
+});
+
 test("leaving a community removes the member's stage position with their membership", async () => {
   const t = convexTest(schema, modules), f = await fixture(t);
   const configured = await configureAutomations(t, f.communityId, []);

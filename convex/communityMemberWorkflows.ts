@@ -59,7 +59,9 @@ import { intakeCommunityAgentWorkflowAction } from "./communityAgentConciergeCor
 import { resolveNotificationRecipientSource } from "./communityNotificationAccess";
 import { bindMemberServiceChannel } from "./communityMemberServiceChannelCore";
 
-const MAX_DEPARTED_POSITIONS_PER_DELETE = 4_000;
+// Departed members' positions cleared per call; past this the call clears a
+// batch and asks the caller to call again (the gateway does), so any number clears.
+const DEPARTED_POSITIONS_PER_CALL = 1_000;
 
 const managerIdentityArgs = {
   userId: v.optional(v.id("users")),
@@ -564,23 +566,6 @@ export const deleteBuilderWorkflowMilestone = mutation({
     if (milestoneIndex < 0) {
       throw new Error("community_member_workflow_milestone_invalid");
     }
-    // Leaving now removes a member's position, but members who left before
-    // that kept one, with their membership gone (a rejoin starts a new one).
-    // Those rows go with the stage instead of blocking it; anyone still a
-    // member holds it. The bound stays well inside one transaction's limits.
-    const positions = await ctx.db
-      .query("communityMemberWorkflowMemberMilestones")
-      .withIndex("by_workflow_milestone", (q: any) =>
-        q.eq("workflowId", workflow._id).eq("currentMilestoneKey", milestoneKey),
-      )
-      .take(MAX_DEPARTED_POSITIONS_PER_DELETE + 1);
-    if (positions.length > MAX_DEPARTED_POSITIONS_PER_DELETE) {
-      throw new Error("community_member_workflow_milestone_has_members");
-    }
-    for (const position of positions) {
-      if (await ctx.db.get(position.membershipId)) throw new Error("community_member_workflow_milestone_has_members");
-      await ctx.db.delete(position._id);
-    }
     if (milestoneIndex === 0) {
       const activeMemberCount = readCommunityActiveMemberCount(community);
       if (activeMemberCount === null) {
@@ -589,6 +574,24 @@ export const deleteBuilderWorkflowMilestone = mutation({
       if (activeMemberCount > 1) {
         throw new Error("community_member_workflow_milestone_has_members");
       }
+    }
+    // Leaving now removes a member's position, but members who left before
+    // that kept one, with their membership gone (a rejoin starts a new one).
+    // Those rows go with the stage instead of blocking it; anyone still a
+    // member holds it.
+    const positions = await ctx.db
+      .query("communityMemberWorkflowMemberMilestones")
+      .withIndex("by_workflow_milestone", (q: any) =>
+        q.eq("workflowId", workflow._id).eq("currentMilestoneKey", milestoneKey),
+      )
+      .take(DEPARTED_POSITIONS_PER_CALL + 1);
+    for (const position of positions.slice(0, DEPARTED_POSITIONS_PER_CALL)) {
+      if (await ctx.db.get(position.membershipId)) throw new Error("community_member_workflow_milestone_has_members");
+      await ctx.db.delete(position._id);
+    }
+    // More to clear: keep this batch, leave the stage, and say to call again.
+    if (positions.length > DEPARTED_POSITIONS_PER_CALL) {
+      return { workflow_id: String(workflow._id), revision: expectedRevision, pending_cleanup: true as const };
     }
     const revision = expectedRevision + 1;
     await ctx.db.patch(workflow._id, {
