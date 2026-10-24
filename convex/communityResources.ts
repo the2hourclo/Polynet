@@ -5037,6 +5037,9 @@ async function listCommunityResourceBuilderDirectoryCore(args: {
   userId: any;
   communityId: any;
   limit?: number;
+  // Resources to skip, for paging through a large directory. Modules are
+  // always listed in full.
+  offset?: number;
 }) {
   await requireCommunityManager({
     ctx: args.ctx,
@@ -5050,6 +5053,7 @@ async function listCommunityResourceBuilderDirectoryCore(args: {
       Math.floor(args.limit ?? COMMUNITY_RESOURCE_BUILDER_LIST_DEFAULT_LIMIT),
     ),
   );
+  const offset = Math.max(0, Math.floor(Number(args.offset) || 0));
   const [modules, resources] = await Promise.all([
     args.ctx.db
       .query("communityResourceModules" as any)
@@ -5068,7 +5072,9 @@ async function listCommunityResourceBuilderDirectoryCore(args: {
     kind: "community_resource_builder_directory",
     limit,
     total_resources: resources.length,
-    truncated: resources.length > limit,
+    offset,
+    truncated: resources.length > offset + limit,
+    next_offset: resources.length > offset + limit ? offset + limit : null,
     health: buildCommunityResourceBuilderHealthReportFromRows({
       modules,
       resources,
@@ -5084,7 +5090,7 @@ async function listCommunityResourceBuilderDirectoryCore(args: {
       resources
         .slice()
         .sort(compareCommunityResources)
-        .slice(0, limit)
+        .slice(offset, offset + limit)
         .map((row) => mapCompactCommunityResourceBuilderListRow(row, moduleNameMap)),
     ),
   };
@@ -5117,6 +5123,7 @@ export const listCommunityResourceBuilderDirectoryInternal = internalQuery({
     userId: v.id("users"),
     communityId: v.id("communities"),
     limit: v.optional(v.number()),
+    offset: v.optional(v.number()),
   },
   handler: async (ctx, args) =>
     await listCommunityResourceBuilderDirectoryCore({
@@ -5124,6 +5131,7 @@ export const listCommunityResourceBuilderDirectoryInternal = internalQuery({
       userId: args.userId,
       communityId: args.communityId,
       limit: args.limit,
+      offset: args.offset,
     }),
 });
 

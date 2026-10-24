@@ -30,4 +30,65 @@ npx @polynet/cli deploy
 - Agent guides, `polynet.json`, dotfiles and `node_modules` are never uploaded.
 - `polynet logout` forgets your sign-in (kept in `~/.polynet/auth.json`).
 
+## Courses and lessons
+
+Put courses next to the site and push them:
+
+```text
+polynet.json           { "community": "<slug>" }  (optional: "site", "courses", "theme", "site_origin")
+index.html, embeds/, media/        the site: lesson widgets and images live here
+courses/01-start-here/course.json  { "title", "description", "status": "draft" | "live" }
+courses/01-start-here/01-welcome.md   front matter (title, stage, order, minutes, gate, video, summary) + Markdown
+theme.json             the community theme
+```
+
+```bash
+npx @polynet/cli check            # site, courses and theme, with Polynet's own validators
+npx @polynet/cli push --dry-run   # what would change; sends nothing
+npx @polynet/cli push             # stage the changes for the owner to apply
+```
+
+- `check` uses the same lesson, widget (`polynet-embed`) and theme rules as
+  the server, and refuses what Polynet would cut off silently: lessons over
+  20,000 characters, titles over 120. It checks every widget and image a
+  lesson names is in the site folder.
+- `push` goes through the Polynet MCP, like any agent. It stages a builder
+  changeset; the owner presses **Apply** on the card on the community's Agent
+  page. New lessons arrive as drafts, so nothing reaches members until it's
+  published. Courses match by name and lessons by title; push never deletes.
+- A community has one changeset waiting at a time, of up to 25 changes, so a
+  big first push takes rounds: run `push` again after each Apply, or
+  `push --wait` to keep going until everything is applied.
+- The `courses/` folder and `theme.json` are never uploaded with the site.
+- `--json` prints one JSON result, and errors exit 1, for CI and agents.
+  `POLYNET_TOKEN` is used as the access token instead of a browser sign-in.
+
 Limits: static files only, up to 50 MB and 2,000 files.
+
+## The community's look
+
+Edit a community's theme like a website: files in a folder, a live preview,
+then publish. Members see nothing until you publish.
+
+```sh
+npx @polynet/cli init my-community --template stopwatch --community the-2-hour-club
+npx @polynet/cli dev my-community       # saves theme.json to the draft on every edit, opens the preview
+npx @polynet/cli publish my-community   # makes it the theme members see
+```
+
+- `polynet init` without `--template` lists the templates. A template is a
+  design with no content: `template.json` and `theme.json` in `templates/<name>/`.
+- A layout template with `"apply": { "theme": "keep_existing" }` keeps your own
+  colours and fonts: `init --community` writes the community's published theme
+  into `theme.json` and takes only the template's layout. Its theme is used only
+  when the community has none. Theme and layout never reset each other.
+- `polynet pull` copies the community's current draft into `theme.json`.
+- `polynet dev` checks each save against the design contract first; a broken
+  theme shows its problems and never reaches the draft. The preview is the
+  real app at `/c/<slug>?design=draft`, which only the owner and admins can see.
+- A save or publish refuses if someone else changed the draft since your last
+  save or pull. Run `polynet pull` and redo your change on top.
+
+Agents can do the same through the MCP: read `/communities/<slug>/builder/theme.json`,
+then call `community.theme.save_draft` and `community.theme.publish`. What a
+theme may change is listed in `docs/community-design-contract.md`.

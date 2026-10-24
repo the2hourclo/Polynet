@@ -2987,6 +2987,8 @@ export default function App() {
     setSettingsPage,
     hasLeftPanel,
     isGlobalSettings,
+    // Managers see the community's draft theme with ?design=draft (polynet dev).
+    themeDraftSession: canViewActiveCommunitySettings ? session ?? null : null,
   });
 
   if (shouldHoldRouteForAccess) {

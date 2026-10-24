@@ -6,6 +6,12 @@ import { expect, test } from "vitest";
 // @ts-expect-error plain ES module without types
 import { buildManifest, collectFiles, hashFile, installGuide, mimeType, pkce, readCheckedFiles, uploadBuckets } from "../packages/polynet-cli/lib.mjs";
 import { checkSite } from "../packages/polynet-cli/checks.mjs";
+// @ts-expect-error plain ES module without types
+import { checkCourses, checkTheme, packChangesets, readCourses, resolveCourses, resolveLessonBody } from "../packages/polynet-cli/content.mjs";
+// @ts-expect-error plain ES module without types
+import { readProject, siteFiles } from "../packages/polynet-cli/project.mjs";
+// @ts-expect-error plain ES module without types
+import { buildContract, CONTRACTS } from "../packages/polynet-cli/tools/build-contracts.mjs";
 
 function site() {
   const root = mkdtempSync(join(tmpdir(), "polynet-site-"));
@@ -66,14 +72,16 @@ test("sign-in uses PKCE", () => {
   expect(pkce().state).not.toBe(first.state);
 });
 
-test("the published package is exactly the command, its library and checks, README, and the agent guide (no site template)", () => {
+test("the published package is exactly the command, its library and checks, README, and the agent guide, and the design templates (no site template)", () => {
   const packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: join(__dirname, "../packages/polynet-cli"), encoding: "utf8" }))[0];
   expect(packed.name).toBe("@polynet/cli");
   expect(packed.files.map((file: { path: string }) => file.path).sort()).toEqual([
-    "README.md", "bin/polynet.mjs", "checks.mjs",
+    "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
+    "contracts/embed.mjs", "contracts/lesson.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md",
     ...["accessibility", "build-site", "deploy-verify", "design", "sdk"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
-    "lib.mjs", "package.json",
+    "lib.mjs", "mcp.mjs", "package.json", "project.mjs",
+    "templates/stopwatch/template.json", "templates/stopwatch/theme.json",
   ]);
 });
 
@@ -142,4 +150,117 @@ test("skills install into both agent folders without overwriting the founder's g
   writeFileSync(join(dir, ".claude/skills/polynet-sdk/old.md"), "stale");
   await installGuide(dir);
   expect(existsSync(join(dir, ".claude/skills/polynet-sdk/old.md"))).toBe(false);
+});
+
+test("the CLI's copies of Polynet's lesson, embed and theme contracts match shared/", async () => {
+  for (const [file, source] of Object.entries(CONTRACTS as Record<string, string>)) {
+    expect(readFileSync(join(__dirname, "../packages/polynet-cli/contracts", file), "utf8"), `${file}: run node packages/polynet-cli/tools/build-contracts.mjs`)
+      .toBe(await buildContract(source));
+  }
+});
+
+function project() {
+  const root = mkdtempSync(join(tmpdir(), "polynet-project-"));
+  const put = (path: string, text: string) => {
+    mkdirSync(join(root, path, ".."), { recursive: true });
+    writeFileSync(join(root, path), text);
+  };
+  put("polynet.json", '{"community":"run-club"}');
+  put("index.html", GOOD);
+  put("embeds/pace.html", '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pace</title><script src="/__polynet/embed.js"></script></head><body></body></html>');
+  put("media/route.png", "png");
+  put("theme.json", JSON.stringify({ version: 1, font_heading: "Barlow Condensed", radius: 3 }));
+  put("courses/01-start/course.json", '{"title":"Start here","description":"Your first week.","status":"live"}');
+  put("courses/01-start/01-welcome.md", "---\ntitle: Welcome\nstage: Week 1\norder: 1\nminutes: 4\n---\nHello ![Route](../media/route.png)\n\n```polynet-embed\nsrc: embeds/pace.html\nheight: 700\n```\n");
+  put("courses/01-start/02-plan.md", "---\ntitle: Plan\n---\nPlan it.");
+  return root;
+}
+
+test("a project folder: courses and the theme are never served with the site", async () => {
+  const p = await readProject(project());
+  expect(p).toMatchObject({ community: "run-club", siteOrigin: "https://run-club.polynet.page" });
+  expect((await siteFiles(p)).map((file: any) => file.path)).toEqual(["/embeds/pace.html", "/index.html", "/media/route.png"]);
+});
+
+test("courses are read with Polynet's own lesson parser, and lesson images point at the site", async () => {
+  const p = await readProject(project());
+  const read = await readCourses(p.courses);
+  expect(read.problems).toEqual([]);
+  const [course] = resolveCourses(read.courses, p.siteOrigin);
+  expect(course).toMatchObject({ key: "01-start", name: "Start here", status: "live" });
+  expect(course.lessons[0]).toMatchObject({ title: "Welcome", lesson: { stage: "Week 1", order: 1, minutes: 4 } });
+  expect(course.lessons[0].body_md).toContain("![Route](https://run-club.polynet.page/media/route.png)");
+  expect(course.lessons[0].body_md).toContain("src: embeds/pace.html");
+  expect(resolveLessonBody('![a](https://x.test/a.png) <img src="./media/b.png">', "https://s")).toBe('![a](https://x.test/a.png) <img src="https://s/media/b.png">');
+  const files = new Set((await siteFiles(p)).map((file: any) => file.path));
+  expect(checkCourses([course], files)).toEqual([]);
+});
+
+test("course checks catch what Polynet would refuse or silently cut", async () => {
+  const lesson = (title: string, source_md: string) => ({ path: `c/${title}.md`, title, lesson: null, source_md, body_md: source_md });
+  const course = { key: "c", folder: "c", name: "Course", description: "", status: "draft", lessons: [
+    lesson("Long", "x".repeat(20_001)),
+    lesson("Widget", "```polynet-embed\nsrc: embeds/missing.html\nfallback: media/missing.png\n```"),
+    lesson("Bad widget", "```polynet-embed\nsrc: https://evil.test/x.html\n```"),
+    lesson("Image", "![a](media/nope.png)"),
+    lesson("long", "dup"),
+  ] };
+  const found = checkCourses([course, { ...course, folder: "d", lessons: [] }], new Set(["/index.html"]));
+  const text = found.map((p: any) => `${p.level} ${p.path} ${p.message}`).join("\n");
+  expect(text).toContain("error c/Long.md The lesson is 20,001 characters; Polynet keeps 20,000");
+  expect(text).toContain("The widget embeds/missing.html isn't in the site folder");
+  expect(text).toContain("warning c/Widget.md:1 The fallback image media/missing.png");
+  expect(text).toContain("src must be an .html file on your community site");
+  expect(text).toContain("The image media/nope.png isn't in the site folder");
+  expect(text).toContain('Two lessons in this course are called "long"');
+  expect(text).toContain('Two courses are called "Course"');
+  expect(checkTheme({ version: 1, font_heading: "Comic Sans" })[0].path).toBe("theme.json → font_heading");
+});
+
+test("bad front matter is reported per file instead of stopping the read", async () => {
+  const root = project();
+  writeFileSync(join(root, "courses/01-start/03-bad.md"), "---\ntitle: Bad\nvideo: http://insecure.test/v\n---\nx");
+  const read = await readCourses(join(root, "courses"));
+  expect(read.problems).toEqual([{ level: "error", path: "01-start/03-bad.md", message: "The \"video_url\" front matter value isn't valid." }]);
+  expect(read.courses[0].lessons).toHaveLength(2);
+});
+
+test("lesson widgets are checked as widgets: embed.js, not the site shell", () => {
+  const widget = '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>W</title></head><body></body></html>';
+  const result = checkSite([{ path: "/index.html", text: GOOD }, { path: "/embeds/w.html", text: widget }, { path: "/quiz.html", text: widget }], { embeds: new Set(["/quiz.html"]) });
+  expect(result.errors).toEqual([]);
+  expect(result.warnings.map((p: any) => p.path)).toEqual(["/embeds/w.html", "/quiz.html"]);
+  expect(result.warnings[0].message).toContain("/__polynet/embed.js");
+});
+
+test("changesets hold at most 25 changes, and a new course's lessons stay with it", () => {
+  const page = (i: number) => ({ op: "create_page", module_key: "big", title: `L${i}`, body_md: "x" });
+  const edit = (i: number) => ({ op: "edit_page", resource_id: `r${i}`, expected_updated_at: 1, body_md: "y" });
+  const packed = packChangesets("run-club", [
+    { course: "Edits", created: false, operations: Array.from({ length: 10 }, (_, i) => edit(i)) },
+    { course: "Big", created: true, operations: [{ op: "create_module", module_key: "big", name: "Big" }, ...Array.from({ length: 30 }, (_, i) => page(i))] },
+  ]);
+  expect(packed.map((c: any) => c.operations.length)).toEqual([10, 25]);
+  expect(packed[1].operations[0].op).toBe("create_module");
+  expect(packed[1].summary).toBe("polynet push: Big");
+  expect(packed[0].idempotency_key).toMatch(/^polynet-cli:[a-f0-9]{48}$/);
+  // The same changes always get the same key, so pushing twice before Apply stages once.
+  expect(packChangesets("run-club", [{ course: "Edits", created: false, operations: Array.from({ length: 10 }, (_, i) => edit(i)) }])[0].idempotency_key)
+    .toBe(packed[0].idempotency_key);
+});
+
+test("polynet check runs headless: --json and a failing exit code for CI", () => {
+  const root = project();
+  const cli = join(__dirname, "../packages/polynet-cli/bin/polynet.mjs");
+  const ok = JSON.parse(execFileSync(process.execPath, [cli, "check", root, "--json"], { encoding: "utf8" }));
+  expect(ok).toMatchObject({ ok: true, courses: 1, lessons: 2, site_files: 3 });
+  writeFileSync(join(root, "courses/01-start/02-plan.md"), "---\ntitle: Plan\n---\n![x](media/gone.png)");
+  let failed: any = null;
+  try {
+    execFileSync(process.execPath, [cli, "check", root, "--json"], { encoding: "utf8" });
+  } catch (error) {
+    failed = error;
+  }
+  expect(failed?.status).toBe(1);
+  expect(JSON.parse(failed.stdout).problems[0].message).toContain("media/gone.png");
 });

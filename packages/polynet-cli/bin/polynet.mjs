@@ -2,8 +2,16 @@
 // polynet create [dir] --community <slug>     a site folder set up for your AI agent
 // polynet check [dir]                          the checks a site passes before going live
 // polynet deploy [dir] [--community <slug>]   check, then put a site live at <slug>.polynet.page
+// polynet push [dir] [--dry-run] [--wait]     stage courses and lessons for the owner to apply
+// polynet init [dir] --template <name>        start a community design from a template
+// polynet pull [dir]                           copy the community's draft theme into theme.json
+// polynet dev [dir]                            save theme.json to the draft on every edit; open the preview
+// polynet publish [dir]                        make the draft theme live for members
 // polynet skills [dir]                         add or update Polynet's skills for AI agents
 // polynet login | logout                       sign in with Polynet (browser), or forget it
+//
+// --json prints one JSON result for CI and agents. POLYNET_TOKEN, when set, is
+// used as the access token instead of a browser sign-in.
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
@@ -14,9 +22,14 @@ import {
   readCheckedFiles, uploadBuckets,
 } from "../lib.mjs";
 import { checkSite, formatProblems } from "../checks.mjs";
+import { checkCourses, checkTheme, describeOperation, lessonEmbeds, planContentPush, readCourses, resolveCourses, stageChangeset } from "../content.mjs";
+import { draftPreviewUrl, initFromTemplate, listTemplates, publishFolderDraft, pullDesign, saveFolderDraft, watchDesign } from "../design.mjs";
+import { createMcpClient, PolynetToolError } from "../mcp.mjs";
+import { readProject, siteFiles } from "../project.mjs";
 
 const API_URL = (process.env.POLYNET_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
 const AUTH_FILE = join(homedir(), ".polynet", "auth.json");
+const APP_URL = (process.env.POLYNET_APP_URL || "https://www.polynet.ai").replace(/\/+$/, "");
 
 function fail(message) {
   console.error(`✗ ${message}`);
@@ -146,6 +159,7 @@ async function login() {
 }
 
 async function accessToken() {
+  if (process.env.POLYNET_TOKEN) return process.env.POLYNET_TOKEN;
   const entry = (await readJson(AUTH_FILE))?.[API_URL];
   if (entry?.access_token && entry.expires_at > Date.now() + 30_000) return entry.access_token;
   if (entry?.refresh_token) {
@@ -221,12 +235,60 @@ async function runChecks(files) {
   return true;
 }
 
+// Everything the project folder holds, checked the way Polynet will: the site,
+// the courses (with the server's own lesson and embed validators) and the theme.
+async function checkProject(project) {
+  const problems = [];
+  const files = await siteFiles(project);
+  let courses = [];
+  if (project.courses) {
+    const read = await readCourses(project.courses);
+    problems.push(...read.problems);
+    courses = resolveCourses(read.courses, project.siteOrigin || "https://example.polynet.page");
+    problems.push(...checkCourses(courses, files.length ? new Set(files.map((file) => file.path)) : null));
+  }
+  if (files.some((file) => file.path === "/index.html")) {
+    const result = checkSite(await readCheckedFiles(files), { embeds: lessonEmbeds(courses) });
+    for (const [level, list] of [["error", result.errors], ["warning", result.warnings]]) {
+      for (const item of list) problems.push({ level, path: item.path, message: item.message });
+    }
+  }
+  let theme = null;
+  if (project.theme) {
+    const where = project.theme.slice(project.root.length + 1) || "theme.json";
+    try {
+      theme = JSON.parse(await readFile(project.theme, "utf8"));
+      problems.push(...checkTheme(theme, where));
+    } catch (error) {
+      problems.push({ level: "error", path: where, message: `Not valid JSON (${error.message}).` });
+    }
+  }
+  return { problems: problems.sort((a, b) => (a.level === b.level ? 0 : a.level === "error" ? -1 : 1)), files, courses, theme };
+}
+
+function printProblems(problems) {
+  for (const problem of problems) console.log(`${problem.level === "error" ? "✗" : "!"} ${problem.path}: ${problem.message}`);
+}
+
+const JSON_OUTPUT = process.argv.includes("--json");
+const say = (...lines) => { if (!JSON_OUTPUT) console.log(lines.join("\n")); };
+
 async function check(args) {
-  const dir = siteDir(args);
-  if (!(await isDirectory(dir))) fail(`${dir} isn't a folder.`);
-  const files = await collectFiles(dir);
-  if (!(await runChecks(files))) process.exit(1);
-  console.log(`✓ Checked ${files.length} files.`);
+  const project = await readProject(siteDir(args));
+  if (!(await isDirectory(project.root))) fail(`${project.root} isn't a folder.`);
+  const { problems, files, courses } = await checkProject(project);
+  const errors = problems.filter((problem) => problem.level === "error").length;
+  if (JSON_OUTPUT) {
+    console.log(JSON.stringify({ ok: errors === 0, problems, site_files: files.length, courses: courses.length,
+      lessons: courses.reduce((n, course) => n + course.lessons.length, 0) }, null, 2));
+  } else {
+    printProblems(problems);
+    const lessons = courses.reduce((n, course) => n + course.lessons.length, 0);
+    console.log(errors
+      ? `\n${errors} problem${errors === 1 ? "" : "s"} to fix first.`
+      : `✓ Checked ${files.length} site files${courses.length ? `, ${courses.length} courses and ${lessons} lessons` : ""}${project.theme ? " and the theme" : ""}.`);
+  }
+  if (errors) process.exit(1);
 }
 
 async function skills(args) {
@@ -244,7 +306,7 @@ async function deploy(args) {
   const community = (flag >= 0 ? args[flag + 1] : config.community)?.trim().toLowerCase();
   if (!community) fail("Which community is this site for? Run: polynet deploy --community <slug>");
 
-  const files = await collectFiles(dir);
+  const files = await siteFiles(await readProject(dir, { community }));
   if (!files.some((file) => file.path === "/index.html")) fail(`${dir} has no index.html yet. Ask your AI agent to design the site first.`);
   if (!(await runChecks(files))) process.exit(1);
   const site = await buildManifest(files);
@@ -262,11 +324,193 @@ async function deploy(args) {
   console.log(`✓ Live: ${published.url}`);
 }
 
+// polynet push [folder] [--dry-run] [--wait]: courses and lessons become Polynet
+// resources through the builder's reviewed changesets, staged with the Polynet
+// MCP. The owner applies each one in Polynet; new pages arrive as drafts. A
+// community has one changeset waiting at a time, so a big push takes several
+// rounds: --wait stays until each is applied (or rejected) and stages the next.
+async function push(args) {
+  const flag = args.indexOf("--community");
+  const project = await readProject(siteDir(args), { community: flag >= 0 ? args[flag + 1] : undefined });
+  if (!project.community) fail("Which community? Add \"community\" to polynet.json or pass --community <slug>.");
+  if (!project.courses) fail(`No courses folder in ${project.root}. Put courses in courses/ (or set "courses" in polynet.json).`);
+  const { problems, courses } = await checkProject(project);
+  const errors = problems.filter((problem) => problem.level === "error");
+  if (errors.length) {
+    if (JSON_OUTPUT) console.log(JSON.stringify({ ok: false, problems }, null, 2));
+    else printProblems(errors);
+    fail(`${errors.length} problem${errors.length === 1 ? "" : "s"} to fix before pushing. Run polynet check for details.`);
+  }
+  const dryRun = args.includes("--dry-run");
+  const wait = args.includes("--wait");
+  const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
+  const staged = [];
+  for (let round = 0; round < 100; round += 1) {
+    const plan = await planContentPush({ community: project.community, courses, call: mcp.call });
+    if (round === 0) {
+      for (const item of plan.unverified) say(`! ${item}: too long for Polynet to send back, so only its length was compared.`);
+      for (const page of plan.untracked) say(`! ${page.course} has "${page.title}", which isn't in the folder. Push never deletes; remove it in Polynet if it should go.`);
+    }
+    if (!plan.changesets.length) {
+      if (JSON_OUTPUT) console.log(JSON.stringify({ ok: true, status: "up_to_date", staged, untracked: plan.untracked }, null, 2));
+      else say(staged.length ? "✓ Everything is applied." : "✓ Polynet already has these courses and lessons.");
+      return;
+    }
+    const next = plan.changesets[0];
+    const total = plan.changesets.reduce((n, changeset) => n + changeset.operations.length, 0);
+    if (dryRun) {
+      if (JSON_OUTPUT) console.log(JSON.stringify({ ok: true, status: "dry_run", changesets: plan.changesets, untracked: plan.untracked }, null, 2));
+      else {
+        for (const changeset of plan.changesets) {
+          say(`\n${changeset.summary} (${changeset.operations.length} change${changeset.operations.length === 1 ? "" : "s"})`);
+          for (const operation of changeset.operations) say(`  ${describeOperation(operation)}`);
+        }
+        say(`\n${total} change${total === 1 ? "" : "s"} in ${plan.changesets.length} round${plan.changesets.length === 1 ? "" : "s"}. Nothing was sent (--dry-run).`);
+      }
+      return;
+    }
+    let result;
+    try {
+      result = await stageChangeset({ community: project.community, changeset: next, call: mcp.call });
+    } catch (error) {
+      if (!(error instanceof PolynetToolError) || !/already_pending/.test(error.message)) throw error;
+      result = { result: { status: "other_pending" } };
+    }
+    const status = result?.result?.status ?? "staged";
+    if (status === "rejected" || status === "expired" || status === "failed") {
+      fail(`The changeset "${next.summary}" was ${status} in Polynet. Change the files (or wait a day) and push again.`);
+    }
+    if (status !== "other_pending" && !staged.includes(result?.ref)) {
+      staged.push(result?.ref);
+      say(`✓ Staged ${next.operations.length} change${next.operations.length === 1 ? "" : "s"}: ${next.summary}`,
+        "  Apply it in Polynet: open the community's Agent page and press Apply on the card.");
+      if (plan.changesets.length > 1 || total > next.operations.length) say(`  ${total - next.operations.length} more change${total - next.operations.length === 1 ? "" : "s"} follow once it's applied.`);
+    } else if (status === "other_pending" && round === 0) {
+      say("! Another changeset is waiting in Polynet. Apply or reject it first.");
+    }
+    if (!wait) {
+      if (JSON_OUTPUT) console.log(JSON.stringify({ ok: true, status, staged, remaining: total - next.operations.length }, null, 2));
+      else if (total > next.operations.length || status === "other_pending") say("  Run polynet push again after applying, or use --wait.");
+      return;
+    }
+    await new Promise((done) => setTimeout(done, 10_000));
+  }
+  fail("Stopped waiting. Run polynet push again to continue.");
+}
+
+// ---------------------------------------------------------------- design
+// A community's look, edited like a website: init or pull, dev, publish.
+
+function flagValue(args, name) {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+function designDir(args) {
+  const dirArg = args.find((arg, index) => !arg.startsWith("--") && !["--community", "--template"].includes(args[index - 1]));
+  return resolve(dirArg ?? ".");
+}
+
+async function designProject(args) {
+  const project = await readProject(designDir(args), { community: flagValue(args, "--community") });
+  if (!project.community) fail("Which community? Add \"community\" to polynet.json or pass --community <slug>.");
+  const themeFile = project.theme ?? resolve(project.root, project.config.theme ?? "theme.json");
+  return { project, themeFile };
+}
+
+async function init(args) {
+  const template = flagValue(args, "--template");
+  if (!template) {
+    const templates = await listTemplates();
+    if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, templates }, null, 2));
+    say("Templates:", ...templates.map((entry) => `  ${entry.name.padEnd(14)} ${entry.description ?? ""}`), "", "Start one: polynet init [folder] --template <name>");
+    return;
+  }
+  const root = designDir(args);
+  const community = flagValue(args, "--community");
+  // Only a template that keeps the founder's theme needs to ask Polynet for it.
+  const keepsTheme = (await listTemplates()).find((entry) => entry.name === template)?.apply?.theme === "keep_existing";
+  const call = community && keepsTheme
+    ? createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() }).call
+    : undefined;
+  const chosen = await initFromTemplate({ root, template, community, call });
+  if (community) await writeFile(join(root, "polynet.json"), `${JSON.stringify({ community }, null, 2)}\n`);
+  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, template: chosen }, null, 2));
+  const kept = { kept: "  Kept this folder's theme.json.", community: `  Kept ${community}'s own theme in theme.json.` }[chosen.theme];
+  say(`✓ Started from ${chosen.label ?? template} in ${root}.`, ...(kept ? [kept] : []), "  Edit theme.json (or ask your agent to), then run polynet dev to see it on your community.");
+}
+
+async function pull(args) {
+  const { project, themeFile } = await designProject(args);
+  const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
+  const theme = await pullDesign({ root: project.root, themeFile, community: project.community, call: mcp.call });
+  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, draft_revision: theme.draft_revision, has_unpublished_changes: theme.has_unpublished_changes }, null, 2));
+  say(`✓ Wrote ${project.community}'s draft theme to ${themeFile}.`,
+    theme.has_unpublished_changes ? "  The draft has changes members don't see yet." : "  The draft matches what members see.");
+}
+
+async function saveDraftOnce({ project, themeFile, call }) {
+  const result = await saveFolderDraft({ root: project.root, themeFile, community: project.community, call,
+    check: (theme) => checkTheme(theme, themeFile.slice(project.root.length + 1) || "theme.json") });
+  if (!result.ok) {
+    printProblems(result.problems);
+    say("  Not saved. Fix the theme and save the file again.");
+    return null;
+  }
+  return result.saved;
+}
+
+function openInBrowser(url) {
+  const opener = process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
+  try {
+    spawn(opener[0], opener[1], { stdio: "ignore", detached: true }).unref();
+  } catch {
+    // No browser here; the link is printed.
+  }
+}
+
+async function dev(args) {
+  const { project, themeFile } = await designProject(args);
+  const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
+  const call = mcp.call;
+  const save = async () => {
+    try {
+      const saved = await saveDraftOnce({ project, themeFile, call });
+      if (saved) say(`✓ ${new Date().toLocaleTimeString()} Draft saved (revision ${saved.draft_revision}). The preview updates in a moment.`);
+    } catch (error) {
+      say(`✗ ${error instanceof Error ? error.message : error}`);
+      if (/theme_revision_conflict/.test(String(error))) say("  Someone else changed the draft. Run polynet pull to start from theirs.");
+    }
+  };
+  await save();
+  const url = draftPreviewUrl(APP_URL, project.community);
+  say(`  Preview (only managers see the draft): ${url}`, `  Watching ${themeFile}. Press Ctrl+C to stop; run polynet publish when it's ready.`);
+  if (!args.includes("--no-open")) openInBrowser(url);
+  const stop = watchDesign({ themeFile, onChange: save });
+  await new Promise((done) => process.on("SIGINT", () => { stop(); done(); }));
+}
+
+async function publish(args) {
+  const { project, themeFile } = await designProject(args);
+  const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
+  // Publish exactly what the folder has: save it first, so the draft can't be a stale one.
+  const saved = await saveDraftOnce({ project, themeFile, call: mcp.call });
+  if (!saved) fail("Nothing was published.");
+  const published = await publishFolderDraft({ root: project.root, community: project.community, call: mcp.call });
+  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, published }, null, 2));
+  say(`✓ ${project.community} now has this theme for everyone. Polynet keeps the earlier one until you change it again.`);
+}
+
 const [command, ...rest] = process.argv.slice(2);
 try {
   if (command === "deploy") await deploy(rest);
   else if (command === "create") await create(rest);
   else if (command === "check") await check(rest);
+  else if (command === "push") await push(rest);
+  else if (command === "init") await init(rest);
+  else if (command === "pull") await pull(rest);
+  else if (command === "dev") await dev(rest);
+  else if (command === "publish") await publish(rest);
   else if (command === "skills") await skills(rest);
   else if (command === "login") await login();
   else if (command === "logout") { await saveAuth(null); console.log("✓ Signed out."); }
@@ -277,15 +521,34 @@ try {
       "      Set up a folder for your AI agent to design and build the site in:",
       "      AGENTS.md, CLAUDE.md and Polynet's skills. No template.",
       "  polynet check [folder]",
-      "      Check the site: the Polynet shell and accessibility. Errors block deploys.",
+      "      Check the site (Polynet shell, accessibility), the courses (lesson front",
+      "      matter, embeds, images, Polynet's limits) and theme.json. Errors block.",
       "  polynet deploy [folder] [--community <slug>]",
       "      Check, then put the folder (default: this one) live at https://<slug>.polynet.page.",
       "      You must be the community's owner or an admin. The community is saved in",
       "      polynet.json; dotfiles, node_modules, AGENTS.md and CLAUDE.md aren't uploaded.",
+      "  polynet push [folder] [--dry-run] [--wait]",
+      "      Stage the courses folder (course.json + lesson .md files) as resources.",
+      "      The owner applies it in Polynet (the Apply card on the Agent page); new",
+      "      pages arrive as drafts. --dry-run shows the changes and sends nothing;",
+      "      --wait stays until each round is applied and stages the next.",
+      "  polynet init [folder] --template <name> [--community <slug>]",
+      "      Start a community design from a template (theme.json, no content).",
+      "      Without --template, lists the templates.",
+      "  polynet pull [folder]",
+      "      Copy the community's draft theme into theme.json.",
+      "  polynet dev [folder] [--no-open]",
+      "      Save theme.json to the community's draft on every edit and open the",
+      "      draft preview in the real app. Members keep the published look.",
+      "  polynet publish [folder]",
+      "      Save theme.json, then make it the theme members see.",
       "  polynet skills [folder]",
       "      Add or update Polynet's skills for AI agents (.agents/skills, .claude/skills).",
       "  polynet login     Sign in with Polynet in the browser.",
       "  polynet logout    Forget the sign-in (kept in ~/.polynet/auth.json).",
+      "",
+      "  --json prints one JSON result (for CI and agents). POLYNET_TOKEN sets the",
+      "  access token instead of a browser sign-in.",
       "",
       "Guide: https://polynet.page/llms.txt",
     ].join("\n"));
