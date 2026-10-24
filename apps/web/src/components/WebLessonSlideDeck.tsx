@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import type { CommunityLessonSlide } from "../../../../shared/communityLessonContract";
 import { renderMarkdown } from "../../../../shared/markdownUi";
@@ -13,7 +13,6 @@ const MAX_DOTS = 20;
 // Notes render like the rest of the lesson, so a checklist or quiz in one works.
 export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; renderNote?: (markdown: string) => ReactNode }) {
   const { slides } = props;
-  const renderNote = props.renderNote ?? ((markdown: string) => renderMarkdown(markdown));
   const [index, setIndex] = useState(0);
   const [ratio, setRatio] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -23,6 +22,11 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; rend
   const last = slides.length - 1;
   const current = slides[Math.min(index, last)];
   const go = (next: number) => setIndex(Math.max(0, Math.min(last, next)));
+  // Rendered once per slide, so a checklist or quiz in the note keeps its place
+  // (and focus) while the deck itself re-renders.
+  const noteMd = current?.note_md ?? "";
+  const { renderNote } = props;
+  const note = useMemo(() => (noteMd ? (renderNote ? renderNote(noteMd) : renderMarkdown(noteMd)) : null), [noteMd, renderNote]);
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement === deckRef.current);
@@ -136,7 +140,7 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; rend
           </button>
         </div>
       </div>
-      {current.note_md ? <div ref={noteRef} className="lesson-slide-deck-note">{renderNote(current.note_md)}</div> : null}
+      {note ? <div ref={noteRef} className="lesson-slide-deck-note">{note}</div> : null}
     </section>
   );
 }

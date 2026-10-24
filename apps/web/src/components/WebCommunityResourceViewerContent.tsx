@@ -1,4 +1,6 @@
 import {
+  createContext,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -16,6 +18,7 @@ import {
   parseCommunityLessonElements,
   publicCommunityLessonElement,
   splitCommunityLessonSlides,
+  type CommunityLessonElement,
 } from "../../../../shared/communityLessonContract";
 import { markCommunityLessonElementBlocks } from "../../../../shared/communityLessonElementMarkdown";
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
@@ -23,6 +26,38 @@ import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
 import { WebLessonSlideDeck } from "./WebLessonSlideDeck";
 import type { CommunityResource } from "./communityResourcesContracts";
+
+// A lesson's buttons, checklists, quizzes and forms read their answers and
+// handlers from here, so answering one updates it in place. Rendering the body
+// again would replace the control the member is using and drop their focus
+// (and, between a key's press and release, the answer itself).
+type LessonElementScope = {
+  byId: ReadonlyMap<string, CommunityLessonElement>;
+  activity: WebLessonActivity;
+  responses: WebCommunityLessonProgress["responsesByRef"][string] | undefined;
+  resourceId: string;
+  lessonRef: string;
+};
+const LessonElementScopeContext = createContext<LessonElementScope | null>(null);
+
+function LessonElementSlot(props: { id: string }) {
+  const scope = useContext(LessonElementScopeContext);
+  const element = scope?.byId.get(props.id);
+  if (!scope || !element) return null;
+  const { activity, resourceId, lessonRef } = scope;
+  return (
+    <WebLessonElement
+      element={element}
+      response={scope.responses?.[props.id] ?? null}
+      signedIn={activity.signedIn}
+      onRequireSignIn={activity.onRequireSignIn}
+      onAnswer={(value) => activity.progress.answer(resourceId, lessonRef, props.id, value)}
+      onMarkDone={() => activity.progress.setStatus(resourceId, lessonRef, "done")}
+      onAskAgent={activity.onAskAgent ?? null}
+      forms={activity.forms}
+    />
+  );
+}
 
 type WebCommunityResourceViewerContentProps = {
   resource: CommunityResource;
@@ -163,32 +198,22 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   useEffect(() => {
     if (startLesson && lessonStatus === "not_started") startLesson(resource.id, lessonRef, "in_progress");
   }, [startLesson, lessonStatus, resource.id, lessonRef]);
+  const lessonScope = useMemo<LessonElementScope | null>(
+    () => lessonActivity ? { byId: new Map(lessonElements.map((element) => [element.id, element])), activity: lessonActivity,
+      responses: lessonResponses, resourceId: resource.id, lessonRef } : null,
+    [lessonActivity, lessonElements, lessonResponses, resource.id, lessonRef],
+  );
+  // The body renders again only when its text or its set of elements changes.
+  const hasLessonActivity = Boolean(lessonActivity);
+  const lessonElementIds = lessonElements.map((element) => element.id).join(" ");
   const renderedBodyMarkdown = useMemo(() => {
     if (!hasBody) return null;
-    const byId = new Map(lessonElements.map((element) => [element.id, element]));
-    const render = (markdown: string) => renderMarkdown(byId.size ? markCommunityLessonElementBlocks(markdown, new Set(byId.keys())) : markdown, {
+    const ids = new Set(lessonElementIds ? lessonElementIds.split(" ") : []);
+    const render = (markdown: string) => renderMarkdown(ids.size ? markCommunityLessonElementBlocks(markdown, ids) : markdown, {
       embedStandaloneMedia: true,
       headingLevelOffset: 1,
       communityEmbeds: props.communityEmbeds ?? null,
-      renderLessonElement: lessonActivity
-        ? (id) => {
-            const element = byId.get(id);
-            if (!element) return null;
-            return (
-              <WebLessonElement
-                key={id}
-                element={element}
-                response={lessonResponses?.[id] ?? null}
-                signedIn={lessonActivity.signedIn}
-                onRequireSignIn={lessonActivity.onRequireSignIn}
-                onAnswer={(value) => lessonActivity.progress.answer(resource.id, lessonRef, id, value)}
-                onMarkDone={() => lessonActivity.progress.setStatus(resource.id, lessonRef, "done")}
-                onAskAgent={lessonActivity.onAskAgent ?? null}
-                forms={lessonActivity.forms}
-              />
-            );
-          }
-        : null,
+      renderLessonElement: hasLessonActivity ? (id) => ids.has(id) ? <LessonElementSlot key={id} id={id} /> : null : null,
     });
     // A "## Slides" section reads as a deck, one slide at a time, in place.
     const deck = splitCommunityLessonSlides(trimmedBody);
@@ -200,7 +225,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         {deck.after ? render(deck.after) : null}
       </>
     );
-  }, [hasBody, trimmedBody, props.communityEmbeds, lessonActivity, lessonElements, lessonResponses, lessonRef, resource.id]);
+  }, [hasBody, trimmedBody, props.communityEmbeds, hasLessonActivity, lessonElementIds, resource.id]);
 
   const syncBodyTextareaHeight = () => {
     const textarea = bodyTextareaRef.current;
@@ -363,7 +388,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     }
 
     if (hasBody) {
-      const prose = renderedBodyMarkdown;
+      const prose = <LessonElementScopeContext.Provider value={lessonScope}>{renderedBodyMarkdown}</LessonElementScopeContext.Provider>;
       if (canEdit) {
         return (
           <div
