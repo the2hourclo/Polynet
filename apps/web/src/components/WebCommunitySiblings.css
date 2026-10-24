@@ -1,4 +1,4 @@
-.community-siblings { display:flex; flex-direction:column; gap:2px; margin:12px 8px 8px; padding-top:12px; border-top:1px solid var(--border-default); }
+.community-siblings { flex:none; display:flex; flex-direction:column; gap:2px; margin:0 8px 8px; padding-top:10px; border-top:1px solid var(--border-default); }
 .community-siblings h2 { margin:0 8px 6px; font-size:12px; font-weight:600; color:var(--text-secondary); }
 .community-sibling { display:flex; align-items:center; gap:10px; padding:6px 8px; border:0; border-radius:8px; background:transparent; color:var(--text-primary); font:inherit; text-align:left; cursor:pointer; }
 .community-sibling:hover { background:var(--hover-overlay); }

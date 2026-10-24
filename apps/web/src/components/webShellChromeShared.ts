@@ -46,7 +46,6 @@ export type WebDesktopShellHeaderProps = {
 
 export type WebCommunityShellProps = {
   memberNextStep?: ReactNode;
-  communityNavFooter?: ReactNode;
   showMobileShell: boolean;
   showMobileGlobalShell: boolean;
   mobileOverlay: MobileOverlay;

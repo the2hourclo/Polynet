@@ -19,7 +19,6 @@ export function WebCommunityNavSurface({
   return (
     <CommunityNav
       memberNextStep={communityShell.memberNextStep}
-      footer={communityShell.communityNavFooter}
       activeCommunity={communityShell.activeCommunity}
       hideIdentitySettings={isMobileHome}
       communityTab={communityShell.communityTab}
