@@ -27,7 +27,7 @@
     "highlight.js": "^11.11.1",
     "katex": "0.18.2",
     "lucide-react": "^0.577.0",
-    "markdown-it": "14.3.2",
+    "markdown-it": "14.3.3",
     "pdfjs-dist": "6.3.289",
     "posthog-js": "^1.396.2",
     "prosemirror-markdown": "1.13.8",

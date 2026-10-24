@@ -8410,19 +8410,20 @@ export const resolveCommunityResourceImageUrl = mutation({
       userId,
     });
     const file = await ctx.db.system.get(args.storageId);
-    if (!file) throw new Error("community_resource_image_missing");
+    if (!file) return { url: null, problem: "community_resource_image_missing" };
     const contentType = String(file.contentType ?? "").toLowerCase();
-    if (!COMMUNITY_RESOURCE_IMAGE_TYPES.has(contentType)) {
+    // Refusals return instead of throwing, so the delete isn't rolled back.
+    const problem = !COMMUNITY_RESOURCE_IMAGE_TYPES.has(contentType)
+      ? "community_resource_image_type"
+      : file.size > COMMUNITY_RESOURCE_IMAGE_MAX_BYTES
+        ? "community_resource_image_too_large"
+        : null;
+    if (problem) {
       await ctx.storage.delete(args.storageId);
-      throw new Error("community_resource_image_type");
-    }
-    if (file.size > COMMUNITY_RESOURCE_IMAGE_MAX_BYTES) {
-      await ctx.storage.delete(args.storageId);
-      throw new Error("community_resource_image_too_large");
+      return { url: null, problem };
     }
     const url = await ctx.storage.getUrl(args.storageId);
-    if (!url) throw new Error("community_resource_image_missing");
-    return { url };
+    return url ? { url, problem: null } : { url: null, problem: "community_resource_image_missing" };
   },
 });
 
