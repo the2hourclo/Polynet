@@ -208,8 +208,8 @@ describe("client list", () => {
     const types = timeline.entries.map((entry: any) => entry.type);
     expect(types).toEqual(expect.arrayContaining(["joined", "lesson_started", "lesson_answered", "lesson_done", "subscription_started",
       "property_set", "contacted"]));
-    expect(timeline.entries.find((entry: any) => entry.type === "lesson_done").summary).toBe("Finished Install Claude Code");
-    expect(timeline.entries.find((entry: any) => entry.type === "contacted").summary).toBe("Owner contacted by email: Sent the setup checklist");
+    expect(timeline.entries.find((entry: any) => entry.type === "lesson_done")!.summary).toBe("Finished Install Claude Code");
+    expect(timeline.entries.find((entry: any) => entry.type === "contacted")!.summary).toBe("Owner contacted by email: Sent the setup checklist");
     const sorted = [...timeline.entries].sort((a: any, b: any) => b.at.localeCompare(a.at));
     expect(timeline.entries).toEqual(sorted);
 

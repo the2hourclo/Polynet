@@ -1,4 +1,5 @@
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
   communityMembershipRowIsActive,
@@ -301,6 +302,13 @@ async function setOwnResourceProgress(ctx: any, args: any) {
       status: args.status,
       completedAt: args.status === "done" ? nowMs : undefined,
       updatedAt: nowMs,
+    });
+  }
+  // A newly finished lesson can start the community's Workflow rules (lesson
+  // and course completed). Scheduled, so a workflow problem never blocks progress.
+  if (args.status === "done" && existing?.status !== "done") {
+    await ctx.scheduler.runAfter(0, (internal as any).communityMemberWorkflows.handleLessonCompletedInternal, {
+      communityId: args.communityId, userId: args.userId, resourceId,
     });
   }
   return { ok: true as const, ref, status: args.status };

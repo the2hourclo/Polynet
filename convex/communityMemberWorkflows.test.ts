@@ -21,6 +21,7 @@ const modules = import.meta.glob([
   "./communityIntelligenceDirectory.ts",
   "./communityEvidenceAudit.ts",
   "./communityMemberWorkflows.ts",
+  "./communityResourceProgress.ts",
   "./_generated/**/*.*s",
 ]);
 
@@ -953,4 +954,55 @@ test("prompt_agent admits one linked serve request and never moves the member", 
   expect(respondedDossier.markdown).toContain(
     "Agent prompt responded in New — Help the member choose one concrete next step.",
   );
+});
+
+test("finishing every lesson in a course requests the stage's checkpoint form once; one lesson alone does not", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  const question = { key: "q", title: "What did you build?", description: "", required: true, type: "short_text" as const, options: [] };
+  await owner.mutation(api.communityForms.saveBuilderForm, { communityId: f.communityId, key: "checkpoint", expectedRevision: 0, name: "Checkpoint", questions: [question] });
+  await owner.mutation(api.communityForms.publishBuilderForm, { communityId: f.communityId, key: "checkpoint", expectedRevision: 1 });
+  const { moduleId, first, second } = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: f.communityId, createdByUserId: f.ownerId, status: "live", name: "Your first skill", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    const page = (title: string, sortOrder: number) => ctx.db.insert("communityResources", {
+      communityId: f.communityId, moduleId, createdByUserId: f.ownerId, type: "post", role: "page", status: "published",
+      title, bodyMd: "Go.", bodyChars: 3, pinned: false, sortOrder, createdAt: now, updatedAt: now,
+    } as any);
+    return { moduleId, first: await page("What is a skill", 1), second: await page("Build one", 2) };
+  });
+  const configured = await configureAutomations(t, f.communityId, []);
+  await expect(owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [{ key: "", trigger: { type: "lesson_completed" as const }, action: { key: "", type: "prompt_agent" as const, prompt: "Hi" } }],
+  })).rejects.toThrow("lesson_trigger_action_invalid");
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [{ key: "", trigger: { type: "course_completed" as const, moduleId: String(moduleId) },
+      action: { key: "", type: "request_form" as const, formKey: "checkpoint" } }],
+  });
+  const finish = async (resourceId: any) => {
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      await ctx.db.insert("communityResourceProgress", {
+        communityId: f.communityId, userId: f.memberId, resourceId, status: "done", startedAt: now, completedAt: now, updatedAt: now,
+      });
+    });
+    return await t.mutation(internalApi.communityMemberWorkflows.handleLessonCompletedInternal,
+      { communityId: f.communityId, userId: f.memberId, resourceId });
+  };
+  expect(await finish(first)).toMatchObject({ status: "trigger_unconfigured" });
+  expect(await t.run(ctx => ctx.db.query("communityFormRequests").collect())).toHaveLength(0);
+  expect(await finish(second)).toMatchObject({ status: "handled" });
+  const requests = await t.run(ctx => ctx.db.query("communityFormRequests").collect());
+  expect(requests).toMatchObject([{ formKey: "checkpoint", status: "pending" }]);
+  const runs = await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect());
+  expect(runs).toMatchObject([{ triggerType: "course_completed", status: "finished" }]);
+  // A replay of the same completion runs nothing new.
+  await t.mutation(internalApi.communityMemberWorkflows.handleLessonCompletedInternal,
+    { communityId: f.communityId, userId: f.memberId, resourceId: second });
+  expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect())).toHaveLength(1);
+  expect(await t.run(ctx => ctx.db.query("communityFormRequests").collect())).toHaveLength(1);
 });
