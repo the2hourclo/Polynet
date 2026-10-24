@@ -218,5 +218,15 @@ describe("client list", () => {
     expect(thomas.last_contacted_at).not.toBeNull();
     expect(thomas.last_flagged_at).toBeNull();
     expect(thomas.courses).toMatchObject([{ name: "Get set up", lesson_count: 1, done_count: 1, percent: 100 }]);
+
+    // Plenty of later bookkeeping doesn't hide the contact.
+    await f.t.run(async (ctx) => {
+      const later = Date.now() + 1000;
+      for (let i = 0; i < 60; i++) await ctx.db.insert("communityClientEvents", { communityId, membershipId: f.activeMembership,
+        type: "property_set", actorUserId: f.ownerId, via: "workflow", propertyKey: "tier", value: "VIP", createdAt: later + i });
+    });
+    const after = (await f.asOwner.query(api.communityClients.listClientsForOwner, { communityId })).clients
+      .find((client: any) => client.name === "thomas");
+    expect(after.last_contacted_at).toBe(thomas.last_contacted_at);
   });
 });

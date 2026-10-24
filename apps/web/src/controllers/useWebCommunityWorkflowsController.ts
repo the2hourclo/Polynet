@@ -28,8 +28,8 @@ import type { CommunityMemberWorkflowAutomation } from "../../../../shared/commu
 import { listCloudCommunityResourceModuleRows, listCloudCommunityResourceRows } from "../../../../shared/cloudCommunityAdminGateway";
 import type { CommunityResource, CommunityResourceModule } from "../components/communityResourcesContracts";
 
-/** A lesson page the builder can make a welcome step: a page in a live course. */
-export type WelcomeLessonOption = { id: string; title: string; course: string };
+/** A lesson page in a live course, for welcome steps and lesson triggers. */
+export type WelcomeLessonOption = { id: string; title: string; course: string; courseId: string };
 
 type EnsureAuthSession = (
   session?: AuthSession | null,
@@ -51,6 +51,10 @@ function workflowErrorMessage(error: unknown): string {
   }
   if (message.includes("workflow_delay_invalid")) return "Choose a duration from 1 minute to 365 days.";
   if (message.includes("welcome_gate_requires_join_form")) return "Add a Member joins rule that requests a form to the first milestone, or a welcome lesson, then turn on the welcome flow.";
+  if (message.includes("client_property_not_found")) return "That client property no longer exists. Choose another one.";
+  if (message.includes("client_property_value_invalid")) return "That value doesn't fit the client property. Pick one of its options or enter the right kind of value.";
+  if (message.includes("client_property_required")) return "Choose the client property to set.";
+  if (message.includes("lesson_trigger_action_invalid")) return "When a lesson or course is done, a rule can request a form or set a client property.";
   if (message.includes("welcome_lesson_unavailable")) return "A chosen lesson is no longer published. Pick another lesson.";
   if (message.includes("welcome_lessons_too_many")) return "Choose up to 5 welcome lessons.";
   if (message.includes("welcome_media_url_invalid")) return "Enter a full video or image link, starting with https://.";
@@ -446,6 +450,20 @@ export function useWebCommunityWorkflowsController(params: {
     ],
   );
 
+  // Stable, so lists that load it on mount don't reload on every render.
+  const loadWelcomeLessonOptions = useCallback(async (): Promise<WelcomeLessonOption[]> => {
+    const usableSession = params.activeCommunityId ? await params.ensureSession(params.session, "community_workflows_welcome_lessons") : null;
+    if (!usableSession || !params.activeCommunityId) return [];
+    const [resources, modules] = await Promise.all([
+      listCloudCommunityResourceRows<AuthSession, CommunityResource>({ session: usableSession, communityId: params.activeCommunityId, limit: 1000 }),
+      listCloudCommunityResourceModuleRows<AuthSession, CommunityResourceModule>({ session: usableSession, communityId: params.activeCommunityId, limit: 200 }),
+    ]);
+    const live = new Map(modules.filter((module) => module.module_status === "live").map((module) => [module.id, module.name]));
+    return resources
+      .filter((resource) => resource.resource_role === "page" && resource.module_id && live.has(resource.module_id))
+      .map((resource) => ({ id: resource.id, title: resource.title, course: live.get(resource.module_id!) ?? "", courseId: resource.module_id! }));
+  }, [params.activeCommunityId, params.ensureSession, params.session]);
+
   return {
     forms,
     board,
@@ -606,18 +624,7 @@ export function useWebCommunityWorkflowsController(params: {
     setWelcomeGate: (enabled: boolean) =>
       mutateMilestone("community_workflows_welcome_gate", (session, communityId, revision) =>
         setCloudCommunityWelcomeGate({ session, communityId, expectedRevision: revision, enabled })),
-    loadWelcomeLessonOptions: async (): Promise<WelcomeLessonOption[]> => {
-      const usableSession = params.activeCommunityId ? await params.ensureSession(params.session, "community_workflows_welcome_lessons") : null;
-      if (!usableSession || !params.activeCommunityId) return [];
-      const [resources, modules] = await Promise.all([
-        listCloudCommunityResourceRows<AuthSession, CommunityResource>({ session: usableSession, communityId: params.activeCommunityId, limit: 1000 }),
-        listCloudCommunityResourceModuleRows<AuthSession, CommunityResourceModule>({ session: usableSession, communityId: params.activeCommunityId, limit: 200 }),
-      ]);
-      const live = new Map(modules.filter((module) => module.module_status === "live").map((module) => [module.id, module.name]));
-      return resources
-        .filter((resource) => resource.resource_role === "page" && resource.module_id && live.has(resource.module_id))
-        .map((resource) => ({ id: resource.id, title: resource.title, course: live.get(resource.module_id!) ?? "" }));
-    },
+    loadWelcomeLessonOptions,
     saveWelcomePage: (page: CloudCommunityWelcomePageDraft) =>
       mutateMilestone("community_workflows_welcome_page", (session, communityId, revision) =>
         saveCloudCommunityWelcomePage({ session, communityId, expectedRevision: revision, page })),

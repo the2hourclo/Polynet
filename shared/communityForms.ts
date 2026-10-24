@@ -7,6 +7,8 @@ export type CommunityFormQuestion = {
   options: string[];
   /** The client property a submitted answer fills, when the builder maps one. */
   clientPropertyKey?: string;
+  /** Given to the member only: the shape a short answer needs to fill its property. */
+  answerFormat?: "number" | "date" | "url";
 };
 export type CommunityFormContent = { name: string; questions: CommunityFormQuestion[] };
 export type CommunityFormDraft = CommunityFormContent & {

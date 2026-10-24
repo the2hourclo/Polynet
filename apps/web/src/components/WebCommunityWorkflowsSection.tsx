@@ -19,6 +19,7 @@ import { WebCommunityWorkflowMemberDossierModal } from "./WebCommunityWorkflowMe
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
 import { WebCommunityWorkflowMemberStub } from "./WebCommunityWorkflowMemberStub";
 import { WebCommunityWorkflowMilestoneModal } from "./WebCommunityWorkflowMilestoneModal";
+import type { WorkflowCatalog } from "./WebCommunityWorkflowAutomationEditor";
 import "./WebCommunityWorkflowsSection.css";
 import { WebCommunityForms } from "./WebCommunityForms";
 import { WebCommunityFormResponses } from "./WebCommunityFormResponses";
@@ -156,6 +157,14 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
     props.forms.load().then(rows => { if (alive) { setPublishedForms(rows.filter(r => r.publishedRevision !== null)); setFormsState("ready"); } }).catch(() => { if (alive) setFormsState("error"); });
     return () => { alive = false; };
   }, [props.forms, formsRetry]);
+  // Lessons, courses and client properties the rule editor offers; null while loading.
+  const [catalog, setCatalog] = useState<WorkflowCatalog>({ lessons: null, properties: null });
+  useEffect(() => {
+    let alive = true; setCatalog({ lessons: null, properties: null });
+    (props.onLoadWelcomeLessonOptions?.() ?? Promise.resolve([])).then(lessons => { if (alive) setCatalog(c => ({ ...c, lessons })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, lessons: [] })); });
+    (props.forms?.clientProperties?.() ?? Promise.resolve([])).then(properties => { if (alive) setCatalog(c => ({ ...c, properties })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, properties: [] })); });
+    return () => { alive = false; };
+  }, [props.forms, props.onLoadWelcomeLessonOptions]);
   const [editingMilestoneKey, setEditingMilestoneKey] = useState<string | null>(null);
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
   const milestones = props.board?.milestones ?? [BLANK_MILESTONE];
@@ -347,6 +356,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
       </section>
 
       <WebCommunityWorkflowMilestoneModal
+        catalog={catalog}
         formsStatus={formsState}
         onRetryForms={() => setFormsRetry(n => n + 1)}
         forms={publishedForms}

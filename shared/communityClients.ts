@@ -152,6 +152,38 @@ export function communityClientPropertyAcceptsQuestion(propertyType: CommunityCl
   return false;
 }
 
+/** The shape a short answer must have to fill a number, date or link property. */
+export type CommunityClientAnswerFormat = "number" | "date" | "url";
+
+export function communityClientAnswerFormat(propertyType: CommunityClientPropertyType): CommunityClientAnswerFormat | null {
+  return propertyType === "number" || propertyType === "date" || propertyType === "url" ? propertyType : null;
+}
+
+/** What to tell the member when a short answer can't fill its property, or null when it can. */
+export function communityClientAnswerFormatIssue(format: CommunityClientAnswerFormat, answer: string): string | null {
+  const text = answer.trim();
+  if (!text) return null;
+  try {
+    normalizeCommunityClientPropertyValue({ key: "answer", type: format, options: [] } as unknown as CommunityClientPropertyDefinition,
+      format === "number" ? (Number.isFinite(Number(text.replace(/,/g, ""))) ? Number(text.replace(/,/g, "")) : NaN) : text);
+    return null;
+  } catch {
+    return format === "number" ? "Enter a number, like 12."
+      : format === "date" ? "Enter a date like 2026-11-01."
+      : "Enter a full link, starting with https://.";
+  }
+}
+
+/** A choice question's options its select property can't hold: answering one of them would fill nothing. */
+export function communityClientUnmatchedOptions(
+  property: CommunityClientPropertyDefinition,
+  question: { type: string; options: string[] },
+): string[] {
+  if (property.type !== "select" && property.type !== "multi_select") return [];
+  const known = new Set(property.options.map((name) => name.trim().toLowerCase()));
+  return question.options.filter((option) => !known.has(option.trim().toLowerCase()));
+}
+
 /** A submitted answer as the value its mapped property expects; choices arrive as option indexes. */
 export function communityClientValueFromAnswer(
   property: CommunityClientPropertyDefinition,

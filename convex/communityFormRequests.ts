@@ -8,6 +8,8 @@ import { readSubmittedFormRecord, readSubmittedFormRecords } from "./communityFo
 import { processSubmittedWorkflowForm } from "./communityMemberWorkflows";
 import { writeMappedFormAnswers } from "./communityClients";
 import { formAnswersIssue, formQuestionAnswered } from "../shared/communityFormAnswers";
+import { communityClientAnswerFormat } from "../shared/communityClients";
+import type { CommunityFormQuestion } from "../shared/communityForms";
 import { internal } from "./_generated/api";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 const scope = { communityId: v.id("communities"), authSubject: v.optional(v.string()) };
@@ -68,12 +70,23 @@ export const cancelVisitPendingInternal = internalMutation({ args: {
   }
   await cancelMilestoneFormRequests(ctx, args);
 } });
+// Questions as the member answers them: a short answer that fills a number, date
+// or link property says so, so the member is asked for that shape up front.
+async function memberFormQuestions(ctx: QueryCtx, communityId: Id<"communities">, questions: CommunityFormQuestion[]): Promise<CommunityFormQuestion[]> {
+  return await Promise.all(questions.map(async (question) => {
+    if (!question.clientPropertyKey || question.type !== "short_text") return question;
+    const property = await ctx.db.query("communityClientProperties")
+      .withIndex("by_community_key", (q: any) => q.eq("communityId", communityId).eq("key", question.clientPropertyKey!)).unique();
+    const answerFormat = property && !property.archivedAt ? communityClientAnswerFormat(property.type) : null;
+    return answerFormat ? { ...question, answerFormat } : question;
+  }));
+}
 export const getMyRequest = query({ args: { ...scope, requestId: v.id("communityFormRequests") }, handler: async (ctx, args) => {
   const row = await ownRequest(ctx, args);
   if (row.status !== "pending" || !await requestIsCurrent(ctx, row)) throw new Error("form_request_expired");
   const version = await ctx.db.get(row.versionId);
   if (!version) throw new Error("form_version_missing");
-  return { id: row._id, name: version.name, questions: version.questions, answers: row.answers, revision: row.revision };
+  return { id: row._id, name: version.name, questions: await memberFormQuestions(ctx, row.communityId, version.questions), answers: row.answers, revision: row.revision };
 } });
 async function saveOwnAnswers(ctx: MutationCtx, args: { expectedRevision: number; answers: Record<string, string | string[]>; submit: boolean }, row: Doc<"communityFormRequests">) {
   // A lost submit response may safely retry, never overwrite completed answers.
@@ -86,7 +99,7 @@ async function saveOwnAnswers(ctx: MutationCtx, args: { expectedRevision: number
   if (row.revision !== args.expectedRevision) throw new Error("form_answer_conflict");
   const version = await ctx.db.get(row.versionId);
   if (!version) throw new Error("form_version_missing");
-  const issue = formAnswersIssue(version.questions, args.answers, args.submit);
+  const issue = formAnswersIssue(args.submit ? await memberFormQuestions(ctx, row.communityId, version.questions) : version.questions, args.answers, args.submit);
   if (issue) throw new Error(issue);
   const revision = row.revision + 1;
   await ctx.db.patch(row._id, { answers: args.answers, revision, updatedAt: Date.now(),

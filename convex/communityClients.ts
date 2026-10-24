@@ -161,9 +161,20 @@ export async function writeMappedFormAnswers(ctx: any, args: {
     const property = await ctx.db.query("communityClientProperties")
       .withIndex("by_community_key", (q: any) => q.eq("communityId", args.communityId).eq("key", question.clientPropertyKey))
       .unique();
-    if (!property || property.archivedAt || !communityClientPropertyAcceptsQuestion(property.type, question.type)) continue;
-    let value;
-    try { value = communityClientValueFromAnswer(property, question, args.answers[question.key]); } catch { continue; }
+    if (!property || property.archivedAt) continue;
+    const answer = args.answers[question.key];
+    let value = null;
+    let fits = communityClientPropertyAcceptsQuestion(property.type, question.type);
+    if (fits) { try { value = communityClientValueFromAnswer(property, question, answer); } catch { fits = false; } }
+    if (!fits) {
+      // Say so on the client's timeline, so the owner sees why the property stayed empty.
+      if (answer !== undefined && answer !== "" && !(Array.isArray(answer) && !answer.length)) {
+        await ctx.db.insert("communityClientEvents", { communityId: args.communityId, membershipId: args.membership._id,
+          type: "property_skipped", actorUserId: args.membership.userId, via: "form", propertyKey: property.key,
+          body: (question as { title?: string }).title ?? question.key, createdAt: Date.now() });
+      }
+      continue;
+    }
     if (value === null) continue;
     await writeValue(ctx, { communityId: args.communityId, membership: args.membership, property,
       actorUserId: args.membership.userId, via: "form", value });
@@ -244,6 +255,14 @@ async function recordEvent(ctx: any, args: any) {
   return { membership_id: String(membership._id), type: args.type, at: toIso(createdAt) };
 }
 
+// The latest event of one type, however many others came after it.
+async function readLatestOwnerEventAt(ctx: any, membershipId: any, type: "flagged" | "contacted"): Promise<number | undefined> {
+  const row = await ctx.db.query("communityClientEvents")
+    .withIndex("by_membership_type_createdAt", (q: any) => q.eq("membershipId", membershipId).eq("type", type))
+    .order("desc").first();
+  return row?.createdAt;
+}
+
 async function readOwnerEvents(ctx: any, membershipId: any, limit: number) {
   return await ctx.db.query("communityClientEvents")
     .withIndex("by_membership_createdAt", (q: any) => q.eq("membershipId", membershipId))
@@ -320,6 +339,7 @@ async function readTimeline(ctx: any, args: any) {
   for (const row of ownerEvents as any[]) {
     const who = row.via === "agent" ? "Agent" : row.via === "workflow" ? "Workflow" : row.via === "form" ? "Form" : "Owner";
     const summary = row.type === "property_set" ? `${who} set ${row.propertyKey} to ${row.value === null ? "empty" : JSON.stringify(row.value)}`
+      : row.type === "property_skipped" ? `Form answer to “${row.body}” didn’t fit ${row.propertyKey}, so it wasn’t saved`
       : row.type === "flagged" ? `${who} flagged${row.body ? `: ${row.body}` : ""}`
       : row.type === "contacted" ? `${who} contacted by ${row.channel ?? "other"}: ${row.body}`
       : `${who} ${row.type === "drafted" ? "drafted a message" : "added a note"}: ${row.body}`;
@@ -378,7 +398,7 @@ async function listClients(ctx: any, args: any) {
 
   const clients = await Promise.all(page.page.map(async (membership: any) => {
     const active = communityMembershipRowIsActive(membership);
-    const [profile, subscription, progressRows, forms, facts, values, milestoneState, ownerEvents, referral] = await Promise.all([
+    const [profile, subscription, progressRows, forms, facts, values, milestoneState, lastFlaggedAt, lastContactedAt, referral] = await Promise.all([
       resolveUserProfileDisplayProjection(ctx, membership.userId),
       readLatestSubscription(ctx, membership._id),
       readProgressRows(ctx, args.communityId, membership.userId),
@@ -388,7 +408,8 @@ async function listClients(ctx: any, args: any) {
       ctx.db.query("communityClientValues").withIndex("by_membership", (q: any) => q.eq("membershipId", membership._id))
         .take(COMMUNITY_CLIENT_PROPERTY_LIMIT * 4),
       workflow && active ? getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id }) : Promise.resolve(null),
-      readOwnerEvents(ctx, membership._id, 50),
+      readLatestOwnerEventAt(ctx, membership._id, "flagged"),
+      readLatestOwnerEventAt(ctx, membership._id, "contacted"),
       ctx.db.query("communityReferrals")
         .withIndex("by_community_user", (q: any) => q.eq("communityId", args.communityId).eq("userId", membership.userId)).first(),
     ]);
@@ -429,8 +450,8 @@ async function listClients(ctx: any, args: any) {
       last_active_at: toIso(lastActiveAtMs),
       last_progress_at: toIso(lastProgressAtMs),
       stuck: deriveCommunityClientStuck({ active, lastProgressAtMs, nowMs, days: stuckDays }),
-      last_flagged_at: toIso(ownerEvents.find((row: any) => row.type === "flagged")?.createdAt),
-      last_contacted_at: toIso(ownerEvents.find((row: any) => row.type === "contacted")?.createdAt),
+      last_flagged_at: toIso(lastFlaggedAt),
+      last_contacted_at: toIso(lastContactedAt),
       // The ref on the join link this member arrived by, first touch.
       referred_by: referral ? referral.ref : null,
       facts: facts.slice(0, FACTS_PER_CLIENT).map((fact: any) => ({ kind: fact.kind, body: fact.body, provenance: fact.provenance })),

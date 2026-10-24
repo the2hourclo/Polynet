@@ -4,6 +4,7 @@ import { X, ArrowRight } from "lucide-react";
 import type { AuthSession } from "../auth";
 import { getMemberForm, saveMemberForm, subscribeMemberForms, type MemberFormSummary, type MemberFormRequest } from "../../../../shared/cloudCommunityFormRequestsGateway";
 import { formAnswersIssue, formQuestionAnswered, type FormAnswers } from "../../../../shared/communityFormAnswers";
+import { communityClientAnswerFormatIssue } from "../../../../shared/communityClients";
 import "./WebCommunityNextStep.css";
 import { createMemberFormSave, type FormSaveIntent } from "./memberFormSave";
 
@@ -57,6 +58,7 @@ function MemberFormDialog(props: Props & { rows: MemberFormSummary[]; hasMore: b
       {props.hasMore ? <button className="member-form-list-row" onClick={props.onLoadMore}>Load more</button> : null}</>}
   </div></div>, document.body);
 }
+const FORMAT_HINTS = { number: "Answer with a number.", date: "Answer with a date, like 2026-11-01.", url: "Answer with a full link, starting with https://." } as const;
 export function MemberFormRunner(props: Props & { requestId: string; onClose: () => void }) {
   const [request, setRequest] = useState<MemberFormRequest | null>(null);
   const [answers, setAnswers] = useState<FormAnswers>({});
@@ -120,20 +122,23 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
   const fieldId = `member-form-${props.requestId}-${index}`;
   const field = q ? {
     "aria-labelledby": `${fieldId}-title`,
-    "aria-describedby": [q.description ? `${fieldId}-help` : "", `${fieldId}-count`, validation ? `${fieldId}-issue` : ""].filter(Boolean).join(" "),
+    "aria-describedby": [q.description ? `${fieldId}-help` : "", q.answerFormat ? `${fieldId}-format` : "", `${fieldId}-count`, validation ? `${fieldId}-issue` : ""].filter(Boolean).join(" "),
     "aria-invalid": validation ? true : undefined,
   } : {};
   return <div onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); void close(); } }}>
     <header><h2>{request?.name ?? "Your next step"}</h2><button disabled={busy} onClick={() => void close()} aria-label="Save and close form"><X size={20} /></button></header>
     {done ? <section ref={questionSection}><h2>Submitted</h2><p>You’re all set.</p><button onClick={props.onClose}>Done</button></section> : q ? <section ref={questionSection} onChange={() => setValidation(null)}>
       <small id={`${fieldId}-count`}>{index + 1} of {request!.questions.length}{q.required ? " · Required" : " · Optional"}</small><h2 id={`${fieldId}-title`}>{q.title}</h2>{q.description ? <p id={`${fieldId}-help`}>{q.description}</p> : null}
+      {q.answerFormat ? <p id={`${fieldId}-format`} className="member-form-format">{FORMAT_HINTS[q.answerFormat]}</p> : null}
       {q.type.endsWith("choice") ? <fieldset className="member-form-choices" {...field}>{q.options.map((option, i) => <label key={i}><input disabled={locked} name={q.key} type={q.type === "single_choice" ? "radio" : "checkbox"}
         checked={q.type === "single_choice" ? answers[q.key] === String(i) : ((answers[q.key] as string[]) ?? []).includes(String(i))}
         onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) ?? []), String(i)] : ((a[q.key] as string[]) ?? []).filter(v => v !== String(i)) }))} />{option}</label>)}</fieldset>
         : q.type === "long_text" ? <textarea {...field} aria-required={q.required} rows={5} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />
-        : <input {...field} aria-required={q.required} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
+        : <input {...field} aria-required={q.required} maxLength={10000} inputMode={q.answerFormat === "number" ? "decimal" : q.answerFormat === "url" ? "url" : undefined} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
       <footer><button disabled={busy || !!error || index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button disabled={busy || !!error} onClick={async () => {
         if (q.required && !formQuestionAnswered(q, answers)) { setValidation("Please answer this question."); return; }
+        const shape = q.answerFormat && typeof answers[q.key] === "string" ? communityClientAnswerFormatIssue(q.answerFormat, answers[q.key] as string) : null;
+        if (shape) { setValidation(shape); return; }
         await save(index === request!.questions.length - 1 ? "submit" : "continue");
       }}>{index === request!.questions.length - 1 ? "Submit" : "Continue"}</button><small role="status">{busy ? "Saving…" : saver.current?.dirty(answers) ? "Unsaved answers" : "Saved"}</small></footer>
       {validation ? <p role="alert" id={`${fieldId}-issue`}>{validation}</p> : null}

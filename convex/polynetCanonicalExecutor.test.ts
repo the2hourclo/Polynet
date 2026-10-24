@@ -4004,6 +4004,17 @@ test("owners and their external agent read clients and set their own client prop
   expect(row.dossier_path).toContain(`/builder/workflow-members/${membership._id}.md`);
   await expect(owner.callOp("community.client.event.record", { membership_ref: `membership:${membership._id}`, type: "flagged", body: "No lesson in 9 days" }))
     .resolves.toMatchObject({ ok: true, value: { type: "flagged" } });
+  // A retry with the same key answers from the first call: no second event, no rewrite, no name conflict.
+  const retry = (operation: string, input: Record<string, unknown>) => owner.run("polynet_call", {
+    operation, version: 1, target: `/communities/canonical-community/capabilities/${operation}.json`, input, idempotency_key: `retry-${operation}` });
+  const contacted = { membership_ref: `membership:${membership._id}`, type: "contacted", body: "Sent a check-in" };
+  await expect(retry("community.client.event.record", contacted)).resolves.toMatchObject({ ok: true, value: { type: "contacted", deduped: false } });
+  await expect(retry("community.client.event.record", contacted)).resolves.toMatchObject({ ok: true, value: { type: "contacted", deduped: true } });
+  await expect(retry("community.client.event.record", { ...contacted, body: "Something else" })).resolves.toMatchObject({ ok: false, code: "idempotency_key_conflict" });
+  const defineScore = { name: "Score", type: "number" };
+  await expect(retry("community.client.property.define", defineScore)).resolves.toMatchObject({ ok: true, value: { property: { key: "score" } } });
+  await expect(retry("community.client.property.define", defineScore)).resolves.toMatchObject({ ok: true, value: { property: { key: "score" }, deduped: true } });
+  expect((await t.run(async (ctx) => await ctx.db.query("communityClientEvents").collect())).filter((event: any) => event.type === "contacted")).toHaveLength(1);
   const timeline = await owner.run("polynet_read", { path: row.path });
   expect(timeline, JSON.stringify(timeline)).toMatchObject({ ok: true });
   const events = JSON.parse(String((timeline as any).value.body)).entries.map((entry: any) => [entry.type, entry.actor ?? null]);

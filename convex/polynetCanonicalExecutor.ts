@@ -2399,6 +2399,9 @@ async function executeCanonicalCall(args: {
       return code ? canonicalError(code, "The client property change was refused.") : canonicalError("client_unavailable", "Client records are not available.");
     };
     const base = { communityId: target.communityId, userId: args.userId };
+    const mutate = (name: string, mutationArgs: Record<string, unknown>) =>
+      () => args.ctx.runMutation((internal as any).communityClients[name], { ...base, ...mutationArgs });
+    let run: () => Promise<Record<string, unknown>>;
     if (operation === CLIENT_EVENT_RECORD_OPERATION) {
       const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
       if (!member || typeof rawInput.type !== "string" ||
@@ -2406,46 +2409,47 @@ async function executeCanonicalCall(args: {
           (rawInput.channel !== undefined && typeof rawInput.channel !== "string") ||
           Object.keys(rawInput).some(key => !["membership_ref", "type", "body", "channel"].includes(key)))
         return canonicalError("invalid_tool_args", "A membership_ref and a type (flagged, note, drafted or contacted) are required.");
-      try {
-        return { ok: true, value: await args.ctx.runMutation((internal as any).communityClients.recordClientEventInternal,
-          { ...base, membershipId: member[1], type: rawInput.type, via: "agent",
-            ...(rawInput.body !== undefined ? { body: rawInput.body } : {}), ...(rawInput.channel !== undefined ? { channel: rawInput.channel } : {}) }) };
-      } catch (error) { return clientError(error); }
-    }
-    if (operation === CLIENT_SETTINGS_SET_OPERATION) {
+      run = mutate("recordClientEventInternal", { membershipId: member[1], type: rawInput.type, via: "agent",
+        ...(rawInput.body !== undefined ? { body: rawInput.body } : {}), ...(rawInput.channel !== undefined ? { channel: rawInput.channel } : {}) });
+    } else if (operation === CLIENT_SETTINGS_SET_OPERATION) {
       if (typeof rawInput.stuck_days !== "number" || Object.keys(rawInput).some(key => key !== "stuck_days"))
         return canonicalError("invalid_tool_args", "stuck_days (a number of days) is required.");
-      try {
-        return { ok: true, value: await args.ctx.runMutation((internal as any).communityClients.setClientSettingsInternal,
-          { ...base, stuckDays: rawInput.stuck_days }) };
-      } catch (error) { return clientError(error); }
-    }
-    if (operation === CLIENT_VALUE_SET_OPERATION) {
+      run = mutate("setClientSettingsInternal", { stuckDays: rawInput.stuck_days });
+    } else if (operation === CLIENT_VALUE_SET_OPERATION) {
       const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
       if (!member || typeof rawInput.key !== "string" || !("value" in rawInput) ||
           Object.keys(rawInput).some(key => !["membership_ref", "key", "value"].includes(key)))
         return canonicalError("invalid_tool_args", "A membership_ref, a property key and a value (or null) are required.");
-      try {
-        return { ok: true, value: await args.ctx.runMutation((internal as any).communityClients.setClientPropertyValueInternal,
-          { ...base, membershipId: member[1], key: rawInput.key, value: rawInput.value, via: "agent" }) };
-      } catch (error) { return clientError(error); }
+      run = mutate("setClientPropertyValueInternal", { membershipId: member[1], key: rawInput.key, value: rawInput.value, via: "agent" });
+    } else {
+      if (Object.keys(rawInput).some(key => !["key", "name", "type", "options", "position", "archive"].includes(key)))
+        return canonicalError("invalid_tool_args", "Only key, name, type, options, position and archive are accepted.");
+      run = typeof rawInput.key !== "string"
+        ? mutate("createClientPropertyInternal", { name: rawInput.name, type: rawInput.type, ...(rawInput.options !== undefined ? { options: rawInput.options } : {}) })
+        : rawInput.archive === true
+          ? mutate("archiveClientPropertyInternal", { key: rawInput.key })
+          : mutate("updateClientPropertyInternal", { key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
+            ...(rawInput.options !== undefined ? { options: rawInput.options } : {}),
+            ...(rawInput.position !== undefined ? { position: rawInput.position } : {}) });
     }
-    if (Object.keys(rawInput).some(key => !["key", "name", "type", "options", "position", "archive"].includes(key)))
-      return canonicalError("invalid_tool_args", "Only key, name, type, options, position and archive are accepted.");
+    // A retry with the same key returns the first answer instead of writing again,
+    // so a lost reply never records a second event or overwrites a newer edit.
+    const receiptArgs = { ...args, input: { operation, input: rawInput }, target, toolName: "polynet_call" as const,
+      idempotencyKey: `community-client:${idempotencyKey}` };
+    const reservation = await reserveMutatingOperation(receiptArgs);
+    if (!reservation.ok) return reservation.result;
+    if (reservation.status === "completed") return { ok: true, value: reservation.completedValue };
     try {
-      if (typeof rawInput.key !== "string") {
-        return { ok: true, value: await args.ctx.runMutation((internal as any).communityClients.createClientPropertyInternal,
-          { ...base, name: rawInput.name, type: rawInput.type, ...(rawInput.options !== undefined ? { options: rawInput.options } : {}) }) };
-      }
-      if (rawInput.archive === true) {
-        return { ok: true, value: await args.ctx.runMutation((internal as any).communityClients.archiveClientPropertyInternal,
-          { ...base, key: rawInput.key }) };
-      }
-      return { ok: true, value: await args.ctx.runMutation((internal as any).communityClients.updateClientPropertyInternal,
-        { ...base, key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
-          ...(rawInput.options !== undefined ? { options: rawInput.options } : {}),
-          ...(rawInput.position !== undefined ? { position: rawInput.position } : {}) }) };
-    } catch (error) { return clientError(error); }
+      const responseValue = { ...(await run()), deduped: false,
+        receipt: canonicalReceipt({ toolName: "polynet_call", principalKind: args.principalKind, target, idempotencyKey, deduped: false }) };
+      return { ok: true, value: await completeMutatingOperation({ ...receiptArgs, requestFingerprint: reservation.requestFingerprint,
+        attemptToken: reservation.attemptToken, value: responseValue }) };
+    } catch (error) {
+      const refused = clientError(error);
+      await failMutatingOperation({ ...receiptArgs, requestFingerprint: reservation.requestFingerprint, attemptToken: reservation.attemptToken,
+        errorCode: refused.ok ? "client_unavailable" : refused.code, errorMessage: refused.ok ? "" : refused.message });
+      return refused;
+    }
   }
   if (operation === RESOURCE_PROGRESS_OPERATION) {
     const ref = parseCommunityResourceEvidenceRef(rawInput.ref);

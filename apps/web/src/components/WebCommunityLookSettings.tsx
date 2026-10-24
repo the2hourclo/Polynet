@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   compileCommunityThemeCss,
   communityThemeFontStylesheetUrl,
@@ -45,6 +45,7 @@ export function WebCommunityLookSettings(props: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<CommunityThemeProblem[] | string | null>(null);
   const [reload, setReload] = useState(0);
+  const uid = useId();
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
   const run = async <T,>(operation: (session: unknown) => Promise<T>) => {
@@ -99,10 +100,18 @@ export function WebCommunityLookSettings(props: Props) {
   const save = () => act(() => run((session) => saveCloudCommunityThemeDraft({ session, communityId: props.communityId, expectedDraftRevision: state.draftRevision, theme })));
   const publish = () => act(async () => {
     const saved = dirty ? await run((session) => saveCloudCommunityThemeDraft({ session, communityId: props.communityId, expectedDraftRevision: state.draftRevision, theme })) : state;
+    // Keep the saved draft even if publishing then fails, so a retry publishes
+    // this revision instead of saving again against the old one.
+    if (dirty && alive.current) { setState(saved); setTheme(saved.draft); }
     return run((session) => publishCloudCommunityThemeDraft({ session, communityId: props.communityId, expectedDraftRevision: saved.draftRevision }));
   }, true);
   const discard = () => act(() => run((session) => discardCloudCommunityThemeDraft({ session, communityId: props.communityId, expectedDraftRevision: state.draftRevision })));
   const problems = check && !check.ok ? check.problems : Array.isArray(error) ? error : [];
+  // Each control names the problems about it, so they're read out on focus.
+  const problemFor = (path: string) => {
+    const ids = problems.map((problem, i) => (problem.path === path ? `${uid}-problem-${i}` : "")).filter(Boolean).join(" ");
+    return ids ? { "aria-invalid": true, "aria-describedby": ids } : {};
+  };
 
   return <div className="settings-section community-look">
     <div className="settings-section-title">Look</div>
@@ -110,26 +119,26 @@ export function WebCommunityLookSettings(props: Props) {
     <div className="community-look-grid">
       <div className="community-look-controls">
         <label className="create-community-field"><span>Body font</span>
-          <select value={theme.font_body} disabled={busy} onChange={(e) => set({ font_body: e.target.value })}>{TEXT_FONTS.map((name) => <option key={name}>{name}</option>)}</select></label>
+          <select value={theme.font_body} disabled={busy} {...problemFor("font_body")} onChange={(e) => set({ font_body: e.target.value })}>{TEXT_FONTS.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="create-community-field"><span>Heading font</span>
-          <select value={theme.font_heading} disabled={busy} onChange={(e) => set({ font_heading: e.target.value })}>{HEADING_FONTS.map((name) => <option key={name}>{name}</option>)}</select></label>
+          <select value={theme.font_heading} disabled={busy} {...problemFor("font_heading")} onChange={(e) => set({ font_heading: e.target.value })}>{HEADING_FONTS.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="create-community-field"><span>Heading weight · {theme.heading_weight}</span>
-          <input type="range" min={300} max={900} step={50} value={theme.heading_weight} disabled={busy} onChange={(e) => set({ heading_weight: Number(e.target.value) })} /></label>
+          <input type="range" min={300} max={900} step={50} value={theme.heading_weight} disabled={busy} {...problemFor("heading_weight")} onChange={(e) => set({ heading_weight: Number(e.target.value) })} /></label>
         <label className="create-community-field"><span>Text size · {Math.round(theme.type_scale * 100)}%</span>
-          <input type="range" min={0.9} max={1.2} step={0.05} value={theme.type_scale} disabled={busy} onChange={(e) => set({ type_scale: Number(e.target.value) })} /></label>
+          <input type="range" min={0.9} max={1.2} step={0.05} value={theme.type_scale} disabled={busy} {...problemFor("type_scale")} onChange={(e) => set({ type_scale: Number(e.target.value) })} /></label>
         <label className="create-community-field"><span>Spacing</span>
-          <select value={theme.density} disabled={busy} onChange={(e) => set({ density: e.target.value as CommunityThemeV1["density"] })}>
+          <select value={theme.density} disabled={busy} {...problemFor("density")} onChange={(e) => set({ density: e.target.value as CommunityThemeV1["density"] })}>
             <option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="roomy">Roomy</option></select></label>
         <label className="create-community-field"><span>Corner radius · {theme.radius}px</span>
-          <input type="range" min={0} max={24} step={1} value={theme.radius} disabled={busy} onChange={(e) => set({ radius: Number(e.target.value) })} /></label>
+          <input type="range" min={0} max={24} step={1} value={theme.radius} disabled={busy} {...problemFor("radius")} onChange={(e) => set({ radius: Number(e.target.value) })} /></label>
         <label className="create-community-field"><span>Buttons</span>
-          <select value={theme.button_shape} disabled={busy} onChange={(e) => set({ button_shape: e.target.value as CommunityThemeV1["button_shape"] })}>
+          <select value={theme.button_shape} disabled={busy} {...problemFor("button_shape")} onChange={(e) => set({ button_shape: e.target.value as CommunityThemeV1["button_shape"] })}>
             <option value="rounded">Rounded</option><option value="pill">Pill</option><option value="square">Square</option><option value="sketch">Sketch</option></select></label>
         <div className="community-look-scheme" role="group" aria-label="Colour scheme">
-          {(["light", "dark"] as const).filter((key) => theme.schemes[key]).map((key) => <button key={key} type="button" className={key === scheme ? "is-active" : ""} onClick={() => setScheme(key)}>{key === "light" ? "Light" : "Dark"}</button>)}
+          {(["light", "dark"] as const).filter((key) => theme.schemes[key]).map((key) => <button key={key} type="button" className={key === scheme ? "is-active" : ""} aria-pressed={key === scheme} onClick={() => setScheme(key)}>{key === "light" ? "Light" : "Dark"}</button>)}
         </div>
         {colors ? <div className="community-look-colors">{COLOR_FIELDS.map(([key, label]) => <label key={key}>
-          <input type="color" value={colors[key]} disabled={busy} onChange={(e) => setColor(key, e.target.value)} /><span>{label}</span></label>)}</div> : null}
+          <input type="color" value={colors[key]} disabled={busy} {...problemFor(`schemes.${scheme}.${key}`)} onChange={(e) => setColor(key, e.target.value)} /><span>{label}</span></label>)}</div> : null}
       </div>
       <div className="community-look-preview" data-community-theme={PREVIEW_SCOPE}>
         <style>{previewCss}</style>
@@ -143,8 +152,8 @@ export function WebCommunityLookSettings(props: Props) {
         </div>
       </div>
     </div>
-    {problems.length ? <ul className="auth-error community-look-problems">{problems.map((problem, i) => <li key={i}>{problem.message}{problem.suggestion ? ` Try ${problem.suggestion}.` : ""}</li>)}</ul> : null}
-    {typeof error === "string" ? <div className="auth-error">{error}</div> : null}
+    <div role="status">{problems.length ? <ul className="auth-error community-look-problems">{problems.map((problem, i) => <li key={i} id={`${uid}-problem-${i}`}>{problem.message}{problem.suggestion ? ` Try ${problem.suggestion}.` : ""}</li>)}</ul> : null}</div>
+    {typeof error === "string" ? <div className="auth-error" role="alert">{error}</div> : null}
     <div className="auth-actions">
       <span className="community-look-status" role="status">{busy ? "Working…" : dirty ? "Unsaved changes" : state.hasUnpublishedChanges ? "Draft saved · not published" : state.published ? "Published" : "Polynet default"}</span>
       <button className="secondary" type="button" disabled={busy || (!dirty && !state.hasUnpublishedChanges)} onClick={() => { if (dirty) setTheme(state.draft); else void discard(); }}>{dirty ? "Undo changes" : "Discard draft"}</button>

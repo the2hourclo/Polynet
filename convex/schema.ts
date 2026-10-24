@@ -2803,6 +2803,8 @@ export default defineSchema({
     membershipId: v.id("communityMemberships"),
     type: v.union(
       v.literal("property_set"),
+      // A form answer that couldn't fill its property (the property changed after publishing).
+      v.literal("property_skipped"),
       v.literal("flagged"),
       v.literal("note"),
       v.literal("drafted"),
@@ -2815,7 +2817,8 @@ export default defineSchema({
     body: v.optional(v.string()),
     channel: v.optional(v.union(v.literal("email"), v.literal("message"), v.literal("call"), v.literal("other"))),
     createdAt: v.number(),
-  }).index("by_membership_createdAt", ["membershipId", "createdAt"]),
+  }).index("by_membership_createdAt", ["membershipId", "createdAt"])
+    .index("by_membership_type_createdAt", ["membershipId", "type", "createdAt"]),
 
   // Who sent a member to a community: the `ref` on the join link they arrived
   // by, kept first-touch. Affiliates and payouts build on this later.

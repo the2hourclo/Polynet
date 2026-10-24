@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { requireCommunityManager, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 import { communityFormQuestionValidator } from "./communityFormValidators";
 import { COMMUNITY_FORM_MAX_FORMS, communityFormIssue } from "../shared/communityForms";
-import { communityClientPropertyAcceptsQuestion } from "../shared/communityClients";
+import { communityClientPropertyAcceptsQuestion, communityClientUnmatchedOptions } from "../shared/communityClients";
 
 const scope = { communityId: v.id("communities"), authSubject: v.optional(v.string()) };
 async function manager(ctx: any, args: any) {
@@ -13,6 +13,19 @@ async function manager(ctx: any, args: any) {
 }
 const project = (row: any) => ({ key: row.key, name: row.name, questions: row.questions,
   revision: row.revision, publishedRevision: row.publishedRevision ?? null });
+
+// A mapped question must point at a live property that can hold every answer it allows:
+// the right type, and for choices, options the property has.
+async function requireFillableMappings(ctx: any, communityId: any, questions: Array<{ type: string; options: string[]; clientPropertyKey?: string }>) {
+  for (const question of questions) {
+    if (!question.clientPropertyKey) continue;
+    const property = await ctx.db.query("communityClientProperties")
+      .withIndex("by_community_key", (q: any) => q.eq("communityId", communityId).eq("key", question.clientPropertyKey!)).unique();
+    if (!property || property.archivedAt) throw new Error("client_property_not_found");
+    if (!communityClientPropertyAcceptsQuestion(property.type, question.type)) throw new Error("form_property_type_mismatch");
+    if (communityClientUnmatchedOptions(property, question).length) throw new Error("form_property_options_mismatch");
+  }
+}
 
 export const listBuilderForms = query({ args: scope, handler: async (ctx, args) => {
   await manager(ctx, args);
@@ -26,14 +39,7 @@ export const saveBuilderForm = mutation({
     await manager(ctx, args);
     if (!args.key || args.key.length > 80) throw new Error("form_key_invalid");
     const issue = communityFormIssue(args); if (issue) throw new Error(issue);
-    // A mapped question must point at a live property that can hold its answer.
-    for (const question of args.questions) {
-      if (!question.clientPropertyKey) continue;
-      const property = await ctx.db.query("communityClientProperties")
-        .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", question.clientPropertyKey!)).unique();
-      if (!property || property.archivedAt) throw new Error("client_property_not_found");
-      if (!communityClientPropertyAcceptsQuestion(property.type, question.type)) throw new Error("form_property_type_mismatch");
-    }
+    await requireFillableMappings(ctx, args.communityId, args.questions);
     const row = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", args.key)).unique();
     const unchanged = row && row.name === args.name && JSON.stringify(row.questions) === JSON.stringify(args.questions);
     // Exact retry is a no-op, including a create whose response was lost.
@@ -56,6 +62,8 @@ export const publishBuilderForm = mutation({
     const row = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", args.key)).unique();
     if (!row || row.revision !== args.expectedRevision) throw new Error("form_revision_conflict");
     const issue = communityFormIssue(row, true); if (issue) throw new Error(issue);
+    // Properties may have changed since the form was saved; publish only mappings that still fill.
+    await requireFillableMappings(ctx, row.communityId, row.questions);
     const prior = await ctx.db.query("communityFormVersions").withIndex("by_form_revision", q => q.eq("formId", row._id).eq("revision", row.revision)).unique();
     if (!prior) await ctx.db.insert("communityFormVersions", { communityId: row.communityId, formId: row._id,
       revision: row.revision, name: row.name, questions: row.questions, publishedBy: userId, publishedAt: Date.now() });

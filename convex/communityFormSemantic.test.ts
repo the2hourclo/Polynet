@@ -362,7 +362,7 @@ test("the welcome flow can only be turned on when the first stage requests a for
     .rejects.toThrow("welcome_gate_requires_join_form");
 });
 
-test("a submitted form fills the client properties its questions map to, and skips an answer that no longer fits", async () => {
+test("a submitted form fills the client properties its questions map to, asks for the right shape, and logs an answer that no longer fits", async () => {
   const f = await fixture("form");
   const owner = f.t.withIdentity({ subject: "join-owner" });
   const member = f.t.withIdentity({ subject: "join-member" });
@@ -372,6 +372,10 @@ test("a submitted form fills the client properties its questions map to, and ski
   await expect(owner.mutation(api.communityForms.saveBuilderForm, { communityId: f.communityId, key: "check", expectedRevision: 0, name: "Check",
     questions: [{ key: "s", title: "Stage", description: "", required: false, type: "long_text", options: [], clientPropertyKey: "stage" }] }))
     .rejects.toThrow("form_property_type_mismatch");
+  // A choice the property doesn't have would never fill it, so the mapping is refused.
+  await expect(owner.mutation(api.communityForms.saveBuilderForm, { communityId: f.communityId, key: "check", expectedRevision: 0, name: "Check",
+    questions: [{ key: "s", title: "Stage", description: "", required: false, type: "single_choice", options: ["Beginner", "Experienced"], clientPropertyKey: "stage" }] }))
+    .rejects.toThrow("form_property_options_mismatch");
   await f.t.run(ctx => ctx.db.patch(f.versionId, { questions: [
     { key: "sells", title: "What does your business sell?", description: "", type: "long_text", required: true, options: [], clientPropertyKey: "business" },
     { key: "hours", title: "How many hours a week?", description: "", type: "short_text", required: false, options: [], clientPropertyKey: "hours_per_week" },
@@ -380,11 +384,20 @@ test("a submitted form fills the client properties its questions map to, and ski
   ] }));
   await f.t.mutation(joinHandler, f.job);
   const row = (await f.t.run(ctx => ctx.db.query("communityFormRequests").first()))!;
+  // The member is told the hours answer must be a number, and can't submit text there.
+  const served = await member.query(api.communityFormRequests.getMyRequest, { communityId: f.communityId, requestId: row._id });
+  expect(served.questions.find((q: any) => q.key === "hours")).toMatchObject({ answerFormat: "number" });
+  await expect(member.mutation(api.communityFormRequests.saveMyAnswers, { communityId: f.communityId, requestId: row._id, expectedRevision: row.revision,
+    answers: { sells: "AI employee builds", hours: "about 5", stage: "0", free: "hi" }, submit: true })).rejects.toThrow("Enter a number");
+  // The owner renames a Stage option after publishing: that answer can't fill it any more.
+  const stage = (await f.t.run(ctx => ctx.db.query("communityClientProperties").collect())).find(row => row.key === "stage")!;
+  await f.t.run(ctx => ctx.db.patch(stage._id, { options: ["Idea", "Scaling"] }));
   await member.mutation(api.communityFormRequests.saveMyAnswers, { communityId: f.communityId, requestId: row._id, expectedRevision: row.revision,
-    answers: { sells: "AI employee builds", hours: "about 5", stage: "0", free: "hi" }, submit: true });
+    answers: { sells: "AI employee builds", hours: "5", stage: "0", free: "hi" }, submit: true });
   const values = await f.t.run(ctx => ctx.db.query("communityClientValues").collect());
-  // "about 5" is not a number, so that one answer is skipped; the submission still goes through.
   expect(values.map(row => [row.propertyKey, row.value, row.updatedVia]).sort()).toEqual([
-    ["business", "AI employee builds", "form"], ["stage", "Selling", "form"]]);
+    ["business", "AI employee builds", "form"], ["hours_per_week", 5, "form"]]);
   expect(await f.t.run(ctx => ctx.db.get(row._id))).toMatchObject({ status: "submitted" });
+  const timeline = await owner.query(api.communityClients.getClientTimeline, { communityId: f.communityId, membershipId: String(f.membershipId) });
+  expect(timeline.entries.map((entry: any) => entry.summary)).toContain("Form answer to “Where are you?” didn’t fit stage, so it wasn’t saved");
 });

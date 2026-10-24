@@ -11,6 +11,12 @@ const clientPropertyFits = (propertyType: string, questionType: string) =>
 const contentKey = (form: CommunityFormDraft) => JSON.stringify({ name: form.name, questions: form.questions });
 const errorText = (error: unknown, operation: "save" | "publish") => String(error).includes("form_revision_conflict")
   ? "This form changed in another session. Your edits are still here. Reload the saved form to continue."
+  : String(error).includes("form_property_options_mismatch")
+  ? "A choice question fills a property that doesn't have all its choices. Add them to the property, or change the question's choices."
+  : String(error).includes("form_property_type_mismatch")
+  ? "A question fills a property that can't hold its kind of answer. Pick another property under Fills."
+  : String(error).includes("client_property_not_found")
+  ? "A question fills a client property that no longer exists. Pick another property under Fills."
   : operation === "publish" ? "Could not confirm publication. Your draft is saved. Retry publishing to confirm it safely."
   : "Could not save. Your edits are still here. Try again.";
 
@@ -42,7 +48,7 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
 
 export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { initial: CommunityFormDraft; gateway: CommunityFormsGateway; onBack: () => void; leaveGuard?: LeaveGuard }) {
   const [draft, setDraft] = useState(initial);
-  const [clientProperties, setClientProperties] = useState<Array<{ key: string; name: string; type: string }>>([]);
+  const [clientProperties, setClientProperties] = useState<Array<{ key: string; name: string; type: string; options: string[] }>>([]);
   useEffect(() => {
     let active = true;
     gateway.clientProperties?.().then(rows => { if (active) setClientProperties(rows); }).catch(() => {});
@@ -164,6 +170,12 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { 
             <option value="">Nothing</option>
             {clientProperties.filter(p => clientPropertyFits(p.type, q.type) || p.key === q.clientPropertyKey).map(p => <option key={p.key} value={p.key}>{p.name}</option>)}
           </select></label> : null}
+          {(() => {
+            const property = clientProperties.find(p => p.key === q.clientPropertyKey);
+            const missing = property && (property.type === "select" || property.type === "multi_select")
+              ? q.options.filter(option => !property.options.some(name => name.trim().toLowerCase() === option.trim().toLowerCase())) : [];
+            return missing.length ? <small className="community-form-hint" role="status">{property!.name} doesn't have {missing.map(option => `“${option}”`).join(", ")}. Add {missing.length > 1 ? "them" : "it"} to the property or change the choices, so every answer fills it.</small> : null;
+          })()}
           <button className="workflow-secondary-button" aria-label="Delete question" disabled={publishing || draft.questions.length === 1} onClick={() => { setDraft({ ...draft, questions: draft.questions.filter(item => item.key !== q.key) }); setIndex(Math.max(0, index - 1)); }}><Trash2 size={15} /></button>
         </div> : <p className="community-form-hint">Preview only · Answers are not submitted</p>}
         {finished ? <div className="community-form-question"><h2>Preview complete</h2><p>No answers were submitted.</p><button className="workflow-secondary-button" onClick={() => { setFinished(false); setIndex(0); }}>Start again</button></div> : <div className="community-form-question" key={`${q.key}-${preview}`}>
