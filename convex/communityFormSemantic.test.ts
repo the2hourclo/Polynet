@@ -292,9 +292,11 @@ test("welcome lessons hold the member after the forms, and only they open while 
   const { welcomeLesson, otherLesson } = await f.t.run(async ctx => {
     const moduleId = await ctx.db.insert("communityResourceModules", { communityId: f.communityId, createdByUserId: f.ownerId, status: "live",
       name: "Start here", sortOrder: 0, createdAt: f.now, updatedAt: f.now });
-    const page = (title: string) => ctx.db.insert("communityResources", { communityId: f.communityId, moduleId, createdByUserId: f.ownerId,
-      type: "post", role: "page", title, bodyMd: `# ${title}\n\nRead this.`, pinned: false, createdAt: f.now, updatedAt: f.now });
-    return { welcomeLesson: await page("Install Claude Code"), otherLesson: await page("Week 2") };
+    const page = (title: string, lesson: object) => ctx.db.insert("communityResources", { communityId: f.communityId, moduleId, createdByUserId: f.ownerId,
+      type: "post", role: "page", title, bodyMd: `# ${title}\n\nRead this.`, pinned: false, lesson, createdAt: f.now, updatedAt: f.now } as any);
+    // The welcome lesson sits in a later board stage, behind the other lesson's gate.
+    return { welcomeLesson: await page("Install Claude Code", { stage: "Week 2", stage_order: 2 }),
+      otherLesson: await page("Week 1 check-in", { stage: "Week 1", stage_order: 1, gate: true }) };
   });
   await owner.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, { communityId: f.communityId, expectedRevision: 1, enabled: true });
   await owner.mutation(api.communityMemberWorkflows.saveBuilderWelcomePage, { communityId: f.communityId, expectedRevision: 2,
@@ -315,11 +317,48 @@ test("welcome lessons hold the member after the forms, and only they open while 
   await member.mutation(api.communityFormRequests.saveMyAnswers, { communityId: f.communityId, requestId: row._id, expectedRevision: row.revision, answers: {}, submit: true });
   // Form done: the member is still held by the lesson, and may work on it but not on other lessons.
   expect(await gate()).toEqual({ required: true, requestIds: [], lessonIds: [String(welcomeLesson)] });
+  // While held, their progress shows only the welcome lesson, unlocked despite the earlier stage's gate.
+  const progress = await member.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: f.communityId });
+  expect(progress).toMatchObject({ journey: null, courses: [], stages: [] });
+  expect(progress.lessons.map((lesson: any) => [lesson.title, lesson.locked])).toEqual([["Install Claude Code", false]]);
   await expect(member.mutation(api.communityResourceProgress.setOwnResourceProgressStatus,
     { communityId: f.communityId, resourceId: String(otherLesson), status: "done" })).rejects.toThrow("community_welcome_required");
   await expect(member.mutation(api.communityResourceProgress.setOwnResourceProgressStatus,
     { communityId: f.communityId, resourceId: String(welcomeLesson), status: "done" })).resolves.toMatchObject({ ok: true });
   expect(await gate()).toEqual({ required: false, requestIds: [], lessonIds: [] });
+  // Released: the full progress comes back, and the gate still locks the rest of week 2.
+  const released = await member.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: f.communityId });
+  expect(released.lessons.map((lesson: any) => lesson.title).sort()).toEqual(["Install Claude Code", "Week 1 check-in"]);
+  expect(released.courses).toHaveLength(1);
+});
+
+test("a lesson-done rule after the join form still runs, and the stage waits for that lesson", async () => {
+  vi.useFakeTimers();
+  const f = await fixture("form");
+  const owner = f.t.withIdentity({ subject: "join-owner" });
+  const member = f.t.withIdentity({ subject: "join-member" });
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Stage", type: "select", options: ["Joined", "Building"] });
+  const lesson = await f.t.run(async ctx => {
+    const moduleId = await ctx.db.insert("communityResourceModules", { communityId: f.communityId, createdByUserId: f.ownerId, status: "live",
+      name: "Start here", sortOrder: 0, createdAt: f.now, updatedAt: f.now });
+    return ctx.db.insert("communityResources", { communityId: f.communityId, moduleId, createdByUserId: f.ownerId,
+      type: "post", role: "page", title: "Watch this first", bodyMd: "Hello.", pinned: false, createdAt: f.now, updatedAt: f.now });
+  });
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, { communityId: f.communityId, milestoneKey: "new", expectedRevision: 1, name: "New",
+    automations: [
+      { key: "intake", trigger: { type: "member_joined" as const }, action: { key: "intake", type: "request_form" as const, formKey: "intake" } },
+      { key: "", trigger: { type: "lesson_completed" as const, resourceId: String(lesson) }, action: { key: "", type: "set_client_property" as const, propertyKey: "stage", value: "Building" } },
+    ] });
+  await f.t.mutation(joinHandler, { ...f.job, workflowRevision: 2 });
+  const row = (await f.t.run(ctx => ctx.db.query("communityFormRequests").first()))!;
+  await member.mutation(api.communityFormRequests.saveMyAnswers, { communityId: f.communityId, requestId: row._id, expectedRevision: row.revision, answers: {}, submit: true });
+  await f.t.finishAllScheduledFunctions(vi.runAllTimers);
+  // The form alone no longer finishes the stage: finishing the lesson is still to do.
+  expect(await f.t.run(ctx => ctx.db.query("communityMemberWorkflowTransitions").collect())).toHaveLength(0);
+  await member.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { communityId: f.communityId, resourceId: String(lesson), status: "done" });
+  await f.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await f.t.run(ctx => ctx.db.query("communityClientValues").collect())).toMatchObject([{ propertyKey: "stage", value: "Building", updatedVia: "workflow" }]);
+  expect(await f.t.run(ctx => ctx.db.query("communityMemberWorkflowTransitions").collect())).toMatchObject([{ completedWorkflow: true }]);
 });
 
 test("a welcome page with only a lesson can be turned on, and holds members who join after it", async () => {

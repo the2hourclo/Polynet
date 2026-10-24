@@ -1304,6 +1304,8 @@ async function executeWorkflowAutomation(args: {
       await args.ctx.db.patch(workflowRunId, { status: "finished", actionResult: {
         actionKey: args.automation.action.key, status: "complete", resultCode: "client_property_set",
       }, finishedAt: nowMs, updatedAt: nowMs });
+      // A lesson- or course-triggered write is the stage's work, so it can complete the stage.
+      await args.ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.reconcileCompletedWorkflowActionsInternal, { workflowRunId });
       return { status: "client_property_set" as const, workflow_run_id: String(workflowRunId), key: result.key, replayed: false };
     }
     if (args.automation.action.type === "prompt_agent") {

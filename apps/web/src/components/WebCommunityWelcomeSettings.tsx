@@ -237,7 +237,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
               </select>
             )}
             <small id={`${id}-add-lesson-help`}>
-              {draft.lessonIds.length >= LESSONS_MAX ? `That’s the most: ${LESSONS_MAX} lessons.` : `Up to ${LESSONS_MAX}, from published courses. Good for a welcome video or a setup step.`}
+              {draft.lessonIds.length >= LESSONS_MAX ? `That’s the most: ${LESSONS_MAX} lessons.` : `Up to ${LESSONS_MAX}, from published courses. Good for a welcome video or a setup step. They open even while an earlier board stage is locked.`}
             </small>
           </div>
         </section>

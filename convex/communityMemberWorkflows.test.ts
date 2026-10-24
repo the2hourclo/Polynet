@@ -1047,14 +1047,16 @@ test("a stage rule writes a client property when a lesson is done; an archived p
   expect(await t.run(ctx => ctx.db.query("communityClientValues").collect())).toMatchObject([{ propertyKey: "phase", value: "Building", updatedVia: "workflow" }]);
   const timeline = await owner.query(api.communityClients.getClientTimeline, { communityId: f.communityId, membershipId: String(f.membershipId) });
   expect(timeline.entries.some((entry: any) => entry.summary === 'Workflow set phase to "Building"')).toBe(true);
-  // The rule never holds the stage open as unfinished member work.
+  // Finishing the lesson is member work, so this rule counts toward completing the stage.
   const progress = await t.run(async (ctx) => {
     const { readWorkflowActionProgress } = await import("./communityWorkflowCompletionCore");
     const workflow = (await ctx.db.query("communityMemberWorkflows").first())!;
+    const run = (await ctx.db.query("communityMemberWorkflowRuns").first())!;
     return readWorkflowActionProgress(ctx as any, { workflow, membership: (await ctx.db.get(f.membershipId))!,
-      milestone: workflow.milestones[0] as any, milestoneEnteredAt: 0, transitionSeq: 0 });
+      milestone: workflow.milestones[0] as any, milestoneEnteredAt: run.milestoneEnteredAt ?? 0, transitionSeq: run.transitionSeq ?? 0 });
   });
-  expect(progress.actions).toHaveLength(0);
+  expect(progress).toMatchObject({ all_actions_complete: true,
+    actions: [{ action_type: "set_client_property", label: "Lesson done, then set Phase", status: "complete" }] });
   await owner.mutation(api.communityClients.archiveClientProperty, { communityId: f.communityId, key: "phase" });
   expect(await finish(second)).toMatchObject({ status: "handled" });
   const runs = await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect());

@@ -1300,11 +1300,11 @@ export async function welcomeLessonIsLive(ctx: any, communityId: any, resourceId
   return communityResourceIsLiveModulePage(row, liveModuleIds);
 }
 
-/** Whether a lesson is one of the community's welcome steps, so a held member may work on it. */
-export async function communityWelcomeLessonAllowed(ctx: any, communityId: any, rawResourceId: string): Promise<boolean> {
+/** The community's welcome lesson ids while the welcome flow is on, else none. A held member may work on these. */
+export async function communityWelcomeLessonIds(ctx: any, communityId: any): Promise<Set<string>> {
   const workflow = await ctx.db.query("communityMemberWorkflows")
     .withIndex("by_community", (q: any) => q.eq("communityId", communityId)).first();
-  return Boolean(workflow?.welcomeGate && workflow.welcomeLessonIds?.some((id: any) => String(id) === String(rawResourceId)));
+  return new Set(workflow?.welcomeGate ? (workflow.welcomeLessonIds ?? []).map((id: any) => String(id)) : []);
 }
 
 /** How long a new member waits on the join rule before the welcome hold lapses. */

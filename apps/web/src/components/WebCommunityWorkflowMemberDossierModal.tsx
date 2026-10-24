@@ -278,7 +278,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                   {dossier.workflow.action_progress.actions.length ? <ul className="workflow-member-action-progress">
                     {dossier.workflow.action_progress.actions.map(action => <li key={action.automation_key}>
                       <div><strong>{action.label}</strong>
-                        <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : "Channel ready"
+                        <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : action.action_type === "set_client_property" ? "Done" : "Channel ready"
                           : action.status === "pending" ? action.action_type === "request_form" ? "Awaiting submission" : "Queued"
                           : action.status === "waiting" ? `Waiting for ${action.waiting_for ?? "previous action"}`
                           : action.status === "unavailable" ? "Completion unavailable" : readableLabel(action.status)}</span></div>
