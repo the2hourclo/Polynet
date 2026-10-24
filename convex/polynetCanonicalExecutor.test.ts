@@ -20,6 +20,7 @@ import { renderCommunityMemberSelfContext } from "../shared/communityMemberSelfC
 import { recordTrustedCommunitySourceTraceCore } from "./communityIntelligenceDirectory";
 import { settleCommunityIntelligenceFromDigestItemsCore } from "./communityCompilerCandidates";
 import { planContentPush, resolveCourses, stageChangeset } from "../packages/polynet-cli/content.mjs";
+import { publishTheme, readTheme, saveThemeDraft } from "../packages/polynet-cli/design.mjs";
 
 const selfContextPath = "/communities/canonical-community/members/me/context.md";
 test.each(["deployment", "member", "community", "config", "expired", "disabled"])("pilot %s denial precedes remote initiation", async mode => {
@@ -647,6 +648,7 @@ const modules = import.meta.glob([
   "./communityResourceEvidence.ts",
   "./communityResources.ts",
   "./communityResourceProgress.ts",
+  "./communityThemes.ts",
   "./polynetCanonicalReceipts.ts",
   "./_generated/**/*.*s",
 ]);
@@ -4050,4 +4052,53 @@ test("builder/resources/ pages through every resource with the cursor it returns
   expect(second).toMatchObject({ truncated: false, next_cursor: null });
   const titles = [...first.entries, ...second.entries].filter((row: any) => row.resource_role === "page").map((row: any) => row.title);
   expect(new Set(titles).size).toBe(60);
+});
+
+test("a founder's agent drafts and publishes the community theme through the MCP, and members never see a draft", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const published = async () => await t.query(api.communityThemes.getPublishedCommunityTheme, { communityId: fixture.communityId });
+
+  const start = await readTheme({ community, call: owner });
+  expect(start).toMatchObject({ contract: 1, draft_revision: 0, published: null, has_unpublished_changes: false });
+  const stopwatch = { version: 1, schemes: { dark: { background: "#0B0B0B", surface: "#151515", text: "#F2F2EF", muted: "#9C9C96",
+    border: "#2B2B2B", accent: "#3FD15A", on_accent: "#0B0B0B", button: "#3FD15A", on_button: "#0B0B0B" } }, heading_case: "upper" };
+
+  const saved = await saveThemeDraft({ community, theme: stopwatch, expectedRevision: 0, call: owner });
+  expect(saved).toMatchObject({ draft_revision: 1, published: null, has_unpublished_changes: true });
+  expect(saved.draft.heading_case).toBe("upper");
+  expect(await published()).toBeNull();
+
+  // Saving the same theme again is not a new revision.
+  expect(await saveThemeDraft({ community, theme: stopwatch, expectedRevision: 1, call: owner })).toMatchObject({ draft_revision: 1 });
+  // A stale folder can't overwrite a newer draft.
+  await expect(saveThemeDraft({ community, theme: { ...stopwatch, heading_case: "none" }, expectedRevision: 0, call: owner }))
+    .rejects.toThrow("theme_revision_conflict");
+  // A theme that breaks the contract comes back with the problems to fix.
+  const unreadable = { version: 1, schemes: { light: { ...stopwatch.schemes.dark, background: "#FFFFFF", surface: "#FFFFFF", text: "#EEEEEE" } } };
+  const refusal = await saveThemeDraft({ community, theme: unreadable, expectedRevision: 1, call: owner }).catch((error: any) => error);
+  expect(refusal.message).toContain("theme_invalid");
+  expect(JSON.stringify(refusal.value)).toContain("schemes.light.text");
+
+  expect(await publishTheme({ community, expectedRevision: 1, call: owner })).toMatchObject({ has_unpublished_changes: false });
+  expect((await published())?.heading_case).toBe("upper");
+
+  // Members can't read the builder theme or call the theme operations.
+  await expect(readTheme({ community, call: member })).rejects.toThrow("semantic_not_found");
+  await expect(publishTheme({ community, expectedRevision: 1, call: member })).rejects.toThrow();
+  const listing = await member("polynet_list", { path: `/communities/${community}/capabilities/` });
+  expect(JSON.stringify(listing)).not.toContain("community.theme");
+  const ownerListing = await owner("polynet_list", { path: `/communities/${community}/capabilities/` });
+  expect(JSON.stringify(ownerListing)).toContain("community.theme.save_draft");
 });
