@@ -44,6 +44,9 @@ export type CommunityThemeV1 = {
   // image shows is the course's own cover framing (focus and zoom).
   course_cover_ratio: "auto" | "16:9" | "3:2" | "4:3" | "1:1" | "21:9";
   course_card_size: "default" | "small" | "medium" | "large";
+  // "tint" prints course covers onto a soft wash of the accent (light schemes),
+  // so pale drawings and dark screenshots share one colour.
+  course_cover_plate: "none" | "tint";
 };
 
 export type CommunityThemeProblem = {
@@ -116,6 +119,7 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   media_plate: "none",
   course_cover_ratio: "auto",
   course_card_size: "default",
+  course_cover_plate: "none",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -142,6 +146,7 @@ const ENUMS = {
   media_plate: ["none", "light"],
   course_cover_ratio: ["auto", "16:9", "3:2", "4:3", "1:1", "21:9"],
   course_card_size: ["default", "small", "medium", "large"],
+  course_cover_plate: ["none", "tint"],
 } as const;
 
 const RANGES = {
@@ -425,6 +430,7 @@ export function communityThemeVariables(
   const shadow = shadows(theme, scheme);
   const upper = theme.heading_case === "upper";
   const plate = theme.media_plate === "light" && scheme === "dark";
+  const coverTint = theme.course_cover_plate === "tint" && scheme === "light";
 
   const pn: Record<string, string> = {
     "--pn-background": c.background,
@@ -457,6 +463,8 @@ export function communityThemeVariables(
     "--pn-space": String(DENSITY[theme.density]),
     "--pn-media-plate": plate ? "#F4F4F0" : "transparent",
     "--pn-media-plate-pad": plate ? "8px" : "0px",
+    "--pn-cover-plate": coverTint ? `color-mix(in srgb, ${c.accent} 9%, ${c.surface})` : "var(--bg-card-alt)",
+    "--pn-cover-blend": coverTint ? "multiply" : "normal",
     "--pn-course-columns": courseColumns(theme),
     "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
     "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",

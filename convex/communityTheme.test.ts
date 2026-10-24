@@ -157,6 +157,19 @@ describe("community theme compilation", () => {
     expect(normalizeCommunityTheme({ course_cover_ratio: "2:1" }).ok).toBe(false);
   });
 
+  test("a cover tint prints covers onto a wash of the accent, in light schemes only", () => {
+    const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
+    expect(defaults["--pn-cover-blend"]).toBe("normal");
+    const tinted = normalizeCommunityTheme({ ...CLO_THEME, course_cover_plate: "tint" });
+    if (!tinted.ok) throw new Error("invalid");
+    expect(communityThemeVariables(tinted.theme, "light")["--pn-cover-plate"]).toBe("color-mix(in srgb, #2B863A 9%, #FFFFFF)");
+    expect(communityThemeVariables(tinted.theme, "light")["--pn-cover-blend"]).toBe("multiply");
+    const dark = normalizeCommunityTheme({ ...STOPWATCH_THEME, course_cover_plate: "tint" });
+    if (!dark.ok) throw new Error("invalid");
+    expect(communityThemeVariables(dark.theme, "dark")["--pn-cover-blend"]).toBe("normal");
+    expect(normalizeCommunityTheme({ course_cover_plate: "photo" }).ok).toBe(false);
+  });
+
   test("text roles all follow the one text-size setting", () => {
     const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
     expect(defaults["--pn-type-body"]).toBe("15px");
