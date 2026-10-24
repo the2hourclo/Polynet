@@ -8999,7 +8999,7 @@ button.chat-reply-quote:hover {
 .knowledge-resource-item-status.is-done {
   border-color: var(--accent-brand);
   background: var(--accent-brand);
-  color: var(--bg-card);
+  color: var(--pn-on-accent, var(--bg-card));
 }
 
 .knowledge-resource-item-status > svg {

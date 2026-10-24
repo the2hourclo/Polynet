@@ -10,6 +10,15 @@
 .community-knowledge-page[data-reading] .community-knowledge-header > * { pointer-events: auto; transform: translateY(36px); }
 .community-knowledge-page[data-reading] .community-knowledge-header h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .community-knowledge-page[data-reading] .resources-panel { padding-top: 28px; }
+/* Owners have Preview mode on the back link's row, so the switcher keeps its own row. */
+.community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .community-knowledge-header { height: auto; padding: 20px 64px 0 24px; }
+.community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .community-knowledge-header > * { transform: none; }
+.community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .resources-panel { padding-top: 12px; }
+/* The panel's single column never grows past the page: the owner's header row
+   and long lesson content wrap inside it instead of widening it. */
+.community-knowledge-page .resources-panel { grid-template-columns: minmax(0, 1fr); }
+.community-knowledge-page .resources-panel > * { min-width: 0; }
+.community-knowledge-page .feed-header-row { flex-wrap: wrap; min-width: 0; }
 @media (max-width: 640px) {
   .community-knowledge-header { flex-wrap: wrap; gap: 12px; padding: 20px 16px 0; }
   .community-knowledge-header .platform-switcher { flex: 1 1 100%; min-width: 0; }
@@ -18,5 +27,12 @@
   .community-knowledge-page[data-reading] .community-knowledge-header { height: auto; padding: 16px 16px 0; }
   .community-knowledge-page[data-reading] .community-knowledge-header > * { transform: none; }
   .community-knowledge-page[data-reading] .resources-panel { padding-top: 12px; }
+  .community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .community-knowledge-header { padding: 16px 16px 0; }
+  /* Preview mode starts at the left edge and shrinks to fit, so it never runs off the screen. */
+  .community-knowledge-page .resources-header-actions.has-preview-mode { justify-content: flex-start; }
+  .community-knowledge-page .resources-header-view-actions { margin-left: 0; min-width: 0; max-width: 100%; }
+  .community-knowledge-page .resources-preview-mode-control { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+  .community-knowledge-page .resources-preview-mode-switcher { width: 132px; min-width: 0; }
+  .community-knowledge-page .resource-course-catalog { padding-inline: 0; }
   .community-knowledge-graph { margin: 12px 12px 16px; }
 }
