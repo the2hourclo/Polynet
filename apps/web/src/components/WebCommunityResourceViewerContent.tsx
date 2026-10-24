@@ -16,6 +16,7 @@ import { markCommunityLessonElementBlocks } from "../../../../shared/communityLe
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
+import { lessonHasSections, WebLessonSections } from "./WebLessonSections";
 import type { CommunityResource } from "./communityResourcesContracts";
 
 type WebCommunityResourceViewerContentProps = {
@@ -152,7 +153,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     if (!hasBody) return null;
     const byId = new Map(lessonElements.map((element) => [element.id, element]));
     const body = byId.size ? markCommunityLessonElementBlocks(trimmedBody, new Set(byId.keys())) : trimmedBody;
-    return renderMarkdown(body, {
+    const renderText = (text: string) => renderMarkdown(text, {
       embedStandaloneMedia: true,
       headingLevelOffset: 1,
       communityEmbeds: props.communityEmbeds ?? null,
@@ -176,7 +177,12 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
           }
         : null,
     });
-  }, [hasBody, trimmedBody, props.communityEmbeds, lessonActivity, lessonElements, lessonResponses, lessonRef, resource.id]);
+    // A long lesson reads as one page in its sections, with a section list and resume.
+    if (resource.lesson && !isEditing && lessonHasSections(body)) {
+      return <WebLessonSections resourceId={resource.id} bodyMd={body} renderSection={renderText} />;
+    }
+    return renderText(body);
+  }, [hasBody, trimmedBody, props.communityEmbeds, lessonActivity, lessonElements, lessonResponses, lessonRef, resource.id, resource.lesson, isEditing]);
 
   const syncBodyTextareaHeight = () => {
     const textarea = bodyTextareaRef.current;

@@ -49,3 +49,12 @@ the draft has moved since. `polynet pull`, `dev` and `publish` use these.
 
 The next step adds rendered checks: every published community's theme
 screenshotted on fixture lessons at phone and desktop width, in Polynet's CI.
+
+## Long lessons
+
+A lesson body is one page in sections (`shared/communityLessonSections.ts`).
+Each `## ` heading starts a section; a section holds up to 20,000 characters
+and a page up to 240,000. A body over these limits is refused whole with a
+message naming the section, never cut off. Members read the whole lesson on
+one page with a section list and resume; agents get the section list with
+each read and read a section by `offset` and `limit`.

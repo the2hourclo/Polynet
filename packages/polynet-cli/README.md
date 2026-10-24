@@ -49,9 +49,14 @@ npx @polynet/cli push             # stage the changes for the owner to apply
 ```
 
 - `check` uses the same lesson, widget (`polynet-embed`) and theme rules as
-  the server, and refuses what Polynet would cut off silently: lessons over
-  20,000 characters, titles over 120. It checks every widget and image a
-  lesson names is in the site folder.
+  the server, and refuses what Polynet would refuse: titles over 120
+  characters, and lesson sections over 20,000. It checks every widget and
+  image a lesson names is in the site folder.
+- A long lesson stays one lesson. Each `## ` heading starts a section, and a
+  section can hold up to 20,000 characters (a lesson up to 240,000). Members
+  read it as one page with a section list and pick up where they left off;
+  agents read it a section at a time. If a section is too long, add a `## `
+  heading inside it.
 - `push` goes through the Polynet MCP, like any agent. It stages a builder
   changeset; the owner presses **Apply** on the card on the community's Agent
   page. New lessons arrive as drafts, so nothing reaches members until it's

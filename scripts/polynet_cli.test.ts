@@ -12,6 +12,7 @@ import { checkCourses, checkTheme, packChangesets, readCourses, resolveCourses, 
 import { readProject, siteFiles } from "../packages/polynet-cli/project.mjs";
 // @ts-expect-error plain ES module without types
 import { buildContract, CONTRACTS } from "../packages/polynet-cli/tools/build-contracts.mjs";
+import { checkCommunityResourceBody } from "../shared/communityLessonSections";
 
 function site() {
   const root = mkdtempSync(join(tmpdir(), "polynet-site-"));
@@ -77,7 +78,7 @@ test("the published package is exactly the command, its library and checks, READ
   expect(packed.name).toBe("@polynet/cli");
   expect(packed.files.map((file: { path: string }) => file.path).sort()).toEqual([
     "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
-    "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/theme.mjs", "design.mjs",
+    "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/sections.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md",
     ...["accessibility", "build-site", "deploy-verify", "design", "sdk"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
     "lib.mjs", "mcp.mjs", "package.json", "project.mjs",
@@ -208,7 +209,7 @@ test("course checks catch what Polynet would refuse or silently cut", async () =
   ] };
   const found = checkCourses([course, { ...course, folder: "d", lessons: [] }], new Set(["/index.html"]));
   const text = found.map((p: any) => `${p.level} ${p.path} ${p.message}`).join("\n");
-  expect(text).toContain("error c/Long.md The lesson is 20,001 characters; Polynet keeps 20,000");
+  expect(text).toContain("error c/Long.md The text before the first ## heading is 20,001 characters; a section can hold up to 20,000. Add a ## heading inside it");
   expect(text).toContain("The widget embeds/missing.html isn't in the site folder");
   expect(text).toContain("warning c/Widget.md:1 The fallback image media/missing.png");
   expect(text).toContain("src must be an .html file on your community site");
@@ -264,4 +265,17 @@ test("polynet check runs headless: --json and a failing exit code for CI", () =>
   }
   expect(failed?.status).toBe(1);
   expect(JSON.parse(failed.stdout).problems[0].message).toContain("media/gone.png");
+});
+
+test("a long lesson in sections passes check and packs into changesets that fit the server's budget", () => {
+  const section = (n: number) => `## Part ${n}\n\n${"x".repeat(19_000)}\n`;
+  const long = Array.from({ length: 6 }, (_, i) => section(i + 1)).join("\n");
+  expect(long.length).toBeGreaterThan(100_000);
+  expect(checkCommunityResourceBody(long)).toEqual([]);
+  const page = (title: string) => ({ op: "create_page", title, body_md: long });
+  const changesets = packChangesets("c", [{ course: "Big", created: false, operations: [page("a"), page("b"), page("c")] }]);
+  expect(changesets.map((changeset: any) => changeset.operations.length)).toEqual([2, 1]);
+  for (const changeset of changesets as any[]) {
+    expect(changeset.operations.reduce((n: number, op: any) => n + op.body_md.length, 0)).toBeLessThanOrEqual(250_000);
+  }
 });

@@ -159,6 +159,8 @@ export type CommunityResourceSemanticReadSource = {
   offset: number;
   totalChars: number;
   truncated: boolean;
+  // A long page's sections (shared/communityLessonSections.ts), to read one at a time by offset.
+  sections?: Array<{ index: number; heading: string | null; offset: number; chars: number }> | null;
   lesson?: CommunityLessonFields | null;
   lessonBody?: CommunityLessonProjection | null;
 };
@@ -1250,6 +1252,7 @@ export function readCommunitySemanticResourceDocument(args: {
       ref,
       total_chars: totalChars,
       next_offset: truncated ? offset + body.length : null,
+      ...(args.source.sections?.length ? { sections: args.source.sections } : null),
       ...(args.source.lesson
         ? { lesson: { ...args.source.lesson, ...(args.source.lessonBody ?? null) } }
         : null),

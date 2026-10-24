@@ -17,6 +17,7 @@ export const CONTRACTS = {
   "embed.mjs": "shared/communityEmbed.ts",
   "theme.mjs": "shared/communityTheme.ts",
   "layout.mjs": "shared/communityLayout.ts",
+  "sections.mjs": "shared/communityLessonSections.ts",
 };
 
 export async function buildContract(source) {
