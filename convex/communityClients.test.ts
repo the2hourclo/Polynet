@@ -175,4 +175,48 @@ describe("client list", () => {
     await expect(f.asOutsider.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Tier", type: "text" }))
       .rejects.toThrow();
   });
+
+  test("a client's timeline joins every record, and the action log shows who contacted them", async () => {
+    const f = await fixture();
+    const communityId = f.communityId;
+    await f.t.run(async (ctx) => {
+      const now = Date.now();
+      const membership = (await ctx.db.get(f.activeMembership))!;
+      const moduleId = await ctx.db.insert("communityResourceModules", {
+        communityId, createdByUserId: f.ownerId, status: "live", name: "Get set up", sortOrder: 1, createdAt: now, updatedAt: now,
+      });
+      const resourceId = await ctx.db.insert("communityResources", {
+        communityId, moduleId, createdByUserId: f.ownerId, type: "post", role: "page", status: "published",
+        title: "Install Claude Code", bodyMd: "Go.", bodyChars: 3, pinned: false, sortOrder: 1, createdAt: now, updatedAt: now,
+      } as any);
+      await ctx.db.insert("communityResourceProgress", {
+        communityId, userId: membership.userId, resourceId, status: "done", startedAt: now - 3000, completedAt: now - 1000,
+        responses: [{ element: "installed", value: true, complete: true, at: now - 2000 }], updatedAt: now - 1000,
+      });
+    });
+    await f.asOwner.mutation(api.communityClients.createClientProperty, { communityId, name: "Tier", type: "select", options: ["VIP"] });
+    await f.asOwner.mutation(api.communityClients.setClientPropertyValue, {
+      communityId, membershipId: String(f.activeMembership), key: "tier", value: "VIP" });
+    await f.asOwner.mutation(api.communityClients.recordClientEvent, {
+      communityId, membershipId: String(f.activeMembership), type: "contacted", channel: "email", body: "Sent the setup checklist" });
+    await expect(f.asOwner.mutation(api.communityClients.recordClientEvent, {
+      communityId, membershipId: String(f.activeMembership), type: "note" })).rejects.toThrow("client_event_body_invalid");
+    await expect(f.asOwner.mutation(api.communityClients.recordClientEvent, {
+      communityId, membershipId: String(f.activeMembership), type: "note", body: "x", channel: "email" })).rejects.toThrow("client_event_channel_invalid");
+
+    const timeline = await f.asOwner.query(api.communityClients.getClientTimeline, { communityId, membershipId: String(f.activeMembership) });
+    const types = timeline.entries.map((entry: any) => entry.type);
+    expect(types).toEqual(expect.arrayContaining(["joined", "lesson_started", "lesson_answered", "lesson_done", "subscription_started",
+      "property_set", "contacted"]));
+    expect(timeline.entries.find((entry: any) => entry.type === "lesson_done").summary).toBe("Finished Install Claude Code");
+    expect(timeline.entries.find((entry: any) => entry.type === "contacted").summary).toBe("Owner contacted by email: Sent the setup checklist");
+    const sorted = [...timeline.entries].sort((a: any, b: any) => b.at.localeCompare(a.at));
+    expect(timeline.entries).toEqual(sorted);
+
+    const list = await f.asOwner.query(api.communityClients.listClientsForOwner, { communityId });
+    const thomas = list.clients.find((client: any) => client.name === "thomas");
+    expect(thomas.last_contacted_at).not.toBeNull();
+    expect(thomas.last_flagged_at).toBeNull();
+    expect(thomas.courses).toMatchObject([{ name: "Get set up", lesson_count: 1, done_count: 1, percent: 100 }]);
+  });
 });

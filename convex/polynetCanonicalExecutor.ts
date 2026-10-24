@@ -89,7 +89,8 @@ const BUILDER_CLIENTS_DIRECTORY = "/builder/clients/";
 const CLIENT_PROPERTY_DEFINE_OPERATION = "community.client.property.define";
 const CLIENT_VALUE_SET_OPERATION = "community.client.value.set";
 const CLIENT_SETTINGS_SET_OPERATION = "community.client.settings.set";
-const CLIENT_OPERATIONS = [CLIENT_PROPERTY_DEFINE_OPERATION, CLIENT_VALUE_SET_OPERATION, CLIENT_SETTINGS_SET_OPERATION];
+const CLIENT_EVENT_RECORD_OPERATION = "community.client.event.record";
+const CLIENT_OPERATIONS = [CLIENT_PROPERTY_DEFINE_OPERATION, CLIENT_VALUE_SET_OPERATION, CLIENT_SETTINGS_SET_OPERATION, CLIENT_EVENT_RECORD_OPERATION];
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
@@ -740,6 +741,17 @@ function capabilityDocument(args: {
         client_property_not_found: "no property with that key" },
       effects: ["define_owner_client_property"], forbidden_effects: ["edit_member_facts", "change_membership", "change_billing"],
     };
+  } else if (isClientCapability && args.operation === CLIENT_EVENT_RECORD_OPERATION) {
+    operationDefinition.input = {
+      required: ["membership_ref", "type"],
+      membership_ref: `membership:<id> from ${BUILDER_CLIENTS_DIRECTORY}`,
+      type: "flagged, note, drafted or contacted",
+      body: "what you noticed, the note, the draft, or what was sent (required except for flagged; up to 2000 characters)",
+      channel: "contacted only: email, message, call or other",
+      result: "the logged entry; it shows on the client's timeline and as last_flagged_at / last_contacted_at in the list",
+      guidance: "Record contact only after it really happened. Check last_contacted_at first so nobody contacts the same person twice.",
+      effects: ["log_client_action"], forbidden_effects: ["send_email", "message_member", "change_membership"],
+    };
   } else if (isClientCapability && args.operation === CLIENT_SETTINGS_SET_OPERATION) {
     operationDefinition.input = {
       required: ["stuck_days"],
@@ -889,6 +901,7 @@ async function executeCanonicalList(args: {
       return { ok: true, value: { ...virtualDirectory({ path: absolutePath, searchable: false, writable: false,
         entries: page.clients.map((client: { membership_id: string }) => ({
           ...client, ref: `membership:${client.membership_id}`,
+          path: mountedPath(target.communitySlug, `${BUILDER_CLIENTS_DIRECTORY}${client.membership_id}.json`),
           dossier_path: mountedPath(target.communitySlug, `${WORKFLOW_MEMBERS_DIRECTORY}${client.membership_id}.md`),
           kind: "document", type: "community_client" })) }),
         properties: page.properties, stuck_days: page.stuck_days, next_cursor: page.next_cursor,
@@ -1460,6 +1473,18 @@ async function executeCanonicalRead(args: {
         ? canonicalError("form_payload_too_large", "Assigned form exceeds the 24000-character adapter budget.")
         : canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
+  }
+
+  if (target.localPath.startsWith(BUILDER_CLIENTS_DIRECTORY)) {
+    const match = /^\/builder\/clients\/([A-Za-z0-9]+)\.json$/.exec(target.localPath);
+    if (!match || !target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    try {
+      const payload = await args.ctx.runQuery((internal as any).communityClients.readClientTimelineInternal,
+        { userId: args.userId, communityId: target.communityId, membershipId: match[1] });
+      return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+        writable: false, searchable: false } };
+    } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
   }
 
   if (target.localPath.startsWith(BUILDER_PROGRESS_DIRECTORY)) {
@@ -2370,10 +2395,23 @@ async function executeCanonicalCall(args: {
       return canonicalError("operation_not_found", "Operation is not discoverable or authorized for this community.");
     }
     const clientError = (error: unknown) => {
-      const code = /^(client_property_[a-z_]+|client_stuck_days_invalid|community_client_not_found)/.exec(String((error as Error)?.message ?? ""))?.[1];
+      const code = /^(client_property_[a-z_]+|client_event_[a-z_]+|client_stuck_days_invalid|community_client_not_found)/.exec(String((error as Error)?.message ?? ""))?.[1];
       return code ? canonicalError(code, "The client property change was refused.") : canonicalError("client_unavailable", "Client records are not available.");
     };
     const base = { communityId: target.communityId, userId: args.userId };
+    if (operation === CLIENT_EVENT_RECORD_OPERATION) {
+      const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
+      if (!member || typeof rawInput.type !== "string" ||
+          (rawInput.body !== undefined && typeof rawInput.body !== "string") ||
+          (rawInput.channel !== undefined && typeof rawInput.channel !== "string") ||
+          Object.keys(rawInput).some(key => !["membership_ref", "type", "body", "channel"].includes(key)))
+        return canonicalError("invalid_tool_args", "A membership_ref and a type (flagged, note, drafted or contacted) are required.");
+      try {
+        return { ok: true, value: await args.ctx.runMutation((internal as any).communityClients.recordClientEventInternal,
+          { ...base, membershipId: member[1], type: rawInput.type, via: "agent",
+            ...(rawInput.body !== undefined ? { body: rawInput.body } : {}), ...(rawInput.channel !== undefined ? { channel: rawInput.channel } : {}) }) };
+      } catch (error) { return clientError(error); }
+    }
     if (operation === CLIENT_SETTINGS_SET_OPERATION) {
       if (typeof rawInput.stuck_days !== "number" || Object.keys(rawInput).some(key => key !== "stuck_days"))
         return canonicalError("invalid_tool_args", "stuck_days (a number of days) is required.");

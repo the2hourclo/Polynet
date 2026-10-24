@@ -144,10 +144,15 @@ async function setValue(ctx: any, args: any) {
   const existing = await ctx.db.query("communityClientValues")
     .withIndex("by_membership_property", (q: any) => q.eq("membershipId", membership._id).eq("propertyKey", property.key))
     .unique();
+  const via = args.via ?? "web";
+  await ctx.db.insert("communityClientEvents", {
+    communityId: args.communityId, membershipId: membership._id, type: "property_set", actorUserId: args.userId, via,
+    propertyKey: property.key, value, createdAt: Date.now(),
+  });
   if (value === null) {
     if (existing) await ctx.db.delete(existing._id);
   } else {
-    const row = { value, updatedByUserId: args.userId, updatedVia: args.via ?? "web", updatedAt: Date.now() };
+    const row = { value, updatedByUserId: args.userId, updatedVia: via, updatedAt: Date.now() };
     if (existing) await ctx.db.patch(existing._id, row);
     else await ctx.db.insert("communityClientValues", {
       communityId: args.communityId, membershipId: membership._id, propertyKey: property.key, ...row,
@@ -175,6 +180,126 @@ async function readLatestSubscription(ctx: any, membershipId: any) {
     .withIndex("by_membership", (q: any) => q.eq("membershipId", membershipId))
     .take(20);
   return rows.sort((a: any, b: any) => b.updatedAt - a.updatedAt)[0] ?? null;
+}
+
+const CLIENT_EVENT_TYPES = ["flagged", "note", "drafted", "contacted"] as const;
+const CLIENT_CONTACT_CHANNELS = ["email", "message", "call", "other"] as const;
+const CLIENT_EVENT_BODY_MAX = 2000;
+const TIMELINE_LIMIT = 100;
+
+const recordEventArgs = {
+  ...managerArgs, membershipId: v.string(), type: v.string(), body: v.optional(v.string()), channel: v.optional(v.string()),
+  via: v.optional(v.union(v.literal("web"), v.literal("agent"))),
+};
+
+// The action log: what the owner or their agent did about a client, so two
+// people (or an agent and its owner) never contact the same person twice.
+async function recordEvent(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  const membership = await requireMembershipInCommunity(ctx, args.communityId, args.membershipId);
+  if (!(CLIENT_EVENT_TYPES as readonly string[]).includes(args.type)) throw new CommunityClientError("client_event_type_invalid");
+  const body = typeof args.body === "string" ? args.body.trim() : "";
+  if (body.length > CLIENT_EVENT_BODY_MAX || (args.type !== "flagged" && !body)) throw new CommunityClientError("client_event_body_invalid");
+  if (args.channel !== undefined && (args.type !== "contacted" || !(CLIENT_CONTACT_CHANNELS as readonly string[]).includes(args.channel))) {
+    throw new CommunityClientError("client_event_channel_invalid");
+  }
+  const createdAt = Date.now();
+  await ctx.db.insert("communityClientEvents", {
+    communityId: args.communityId, membershipId: membership._id, type: args.type, actorUserId: args.userId,
+    via: args.via ?? "web", ...(body ? { body } : {}), ...(args.channel ? { channel: args.channel } : {}), createdAt,
+  });
+  return { membership_id: String(membership._id), type: args.type, at: toIso(createdAt) };
+}
+
+async function readOwnerEvents(ctx: any, membershipId: any, limit: number) {
+  return await ctx.db.query("communityClientEvents")
+    .withIndex("by_membership_createdAt", (q: any) => q.eq("membershipId", membershipId))
+    .order("desc").take(limit);
+}
+
+type TimelineEntry = { at: number; type: string; summary: string; ref?: string; actor?: string };
+
+const readTimelineArgs = { ...managerArgs, membershipId: v.string() };
+
+// One client's history, newest first, read from the records that own each
+// part: membership, Workflow transitions and runs, lesson progress and
+// answers (buttons, checklists, quizzes), forms, subscriptions, and the
+// owner's own action log. Nothing here is a second copy.
+async function readTimeline(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  const membership = await requireMembershipInCommunity(ctx, args.communityId, args.membershipId);
+  const entries: TimelineEntry[] = [];
+  const joinedAt = membership.activatedAt ?? membership.createdAt;
+  entries.push({ at: joinedAt, type: "joined", summary: `Joined (${membership.accessSource ?? "member"})` });
+  if (!communityMembershipRowIsActive(membership)) {
+    entries.push({ at: membership.revokedAt ?? membership.updatedAt, type: "left", summary: "Left the community" });
+  }
+  const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+  const [transitions, runs, progressRows, forms, subscriptions, ownerEvents, resources] = await Promise.all([
+    workflow ? ctx.db.query("communityMemberWorkflowTransitions")
+      .withIndex("by_workflow_membership_seq", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+      .order("desc").take(TIMELINE_LIMIT) : Promise.resolve([]),
+    workflow ? ctx.db.query("communityMemberWorkflowRuns")
+      .withIndex("by_workflow_membership_createdAt", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+      .order("desc").take(TIMELINE_LIMIT) : Promise.resolve([]),
+    readProgressRows(ctx, args.communityId, membership.userId),
+    ctx.db.query("communityFormRequests")
+      .withIndex("by_member_status", (q: any) => q.eq("membershipId", membership._id).eq("status", "submitted"))
+      .order("desc").take(TIMELINE_LIMIT),
+    ctx.db.query("communitySubscriptions").withIndex("by_membership", (q: any) => q.eq("membershipId", membership._id)).take(20),
+    readOwnerEvents(ctx, membership._id, TIMELINE_LIMIT),
+    listMemberVisibleLessonPages(ctx, args.communityId),
+  ]);
+  for (const row of transitions as any[]) {
+    entries.push({ at: row.occurredAt, type: row.completedWorkflow ? "workflow_completed" : "stage_moved",
+      summary: row.completedWorkflow ? `Finished the workflow from ${row.fromMilestoneName}`
+        : `Moved from ${row.fromMilestoneName} to ${row.toMilestoneName ?? "the next stage"}${row.forcedByUserId ? " (moved by the owner)" : ""}` });
+  }
+  for (const row of runs as any[]) {
+    if (row.status === "running") continue;
+    const action = row.actionSnapshot?.type ?? "action";
+    entries.push({ at: row.finishedAt ?? row.updatedAt, type: row.status === "failed" ? "workflow_action_failed" : "workflow_action",
+      summary: `${action.replace(/_/g, " ")} in ${row.milestoneName}: ${row.status === "failed" ? `failed (${row.errorCode ?? "unknown"})` : "done"}` });
+  }
+  const titleById = new Map(resources.pages.map((page: any) => [normalizeIdValue(page._id), page.title ?? "Lesson"]));
+  for (const row of progressRows as any[]) {
+    const title = titleById.get(normalizeIdValue(row.resourceId)) ?? "A lesson";
+    const ref = `resource:${normalizeIdValue(row.resourceId)}`;
+    entries.push({ at: row.startedAt, type: "lesson_started", summary: `Started ${title}`, ref });
+    if (row.status === "done" && row.completedAt) entries.push({ at: row.completedAt, type: "lesson_done", summary: `Finished ${title}`, ref });
+    for (const response of row.responses ?? []) {
+      entries.push({ at: response.at, type: "lesson_answered", ref,
+        summary: `${title}: answered ${response.element}${response.correct === true ? " (right)" : response.correct === false ? " (wrong)" : ""}` });
+    }
+  }
+  for (const row of forms as any[]) {
+    if (!row.submittedAt) continue;
+    const version = await ctx.db.get(row.versionId);
+    entries.push({ at: row.submittedAt, type: "form_submitted", summary: `Submitted ${version?.name ?? "a form"}` });
+  }
+  for (const row of subscriptions as any[]) {
+    entries.push({ at: row.createdAt, type: "subscription_started", summary: "Started paying" });
+    if (row.updatedAt > row.createdAt && row.status !== "active") {
+      entries.push({ at: row.endedAt ?? row.updatedAt, type: "subscription_changed",
+        summary: `Subscription ${row.status.replace(/_/g, " ")}${row.cancelAtPeriodEnd ? " (cancels at period end)" : ""}` });
+    }
+  }
+  for (const row of ownerEvents as any[]) {
+    const who = row.via === "agent" ? "Agent" : "Owner";
+    const summary = row.type === "property_set" ? `${who} set ${row.propertyKey} to ${row.value === null ? "empty" : JSON.stringify(row.value)}`
+      : row.type === "flagged" ? `${who} flagged${row.body ? `: ${row.body}` : ""}`
+      : row.type === "contacted" ? `${who} contacted by ${row.channel ?? "other"}: ${row.body}`
+      : `${who} ${row.type === "drafted" ? "drafted a message" : "added a note"}: ${row.body}`;
+    entries.push({ at: row.createdAt, type: row.type, summary, actor: row.via });
+  }
+  entries.sort((a, b) => b.at - a.at);
+  return {
+    kind: "community_client_timeline",
+    membership_id: String(membership._id),
+    read_at: new Date().toISOString(),
+    entries: entries.slice(0, TIMELINE_LIMIT).map(({ at, ...entry }) => ({ at: toIso(at), ...entry })),
+    truncated: entries.length > TIMELINE_LIMIT,
+  };
 }
 
 function clampStuckDays(days: number) {
@@ -220,7 +345,7 @@ async function listClients(ctx: any, args: any) {
 
   const clients = await Promise.all(page.page.map(async (membership: any) => {
     const active = communityMembershipRowIsActive(membership);
-    const [profile, subscription, progressRows, forms, facts, values, milestoneState] = await Promise.all([
+    const [profile, subscription, progressRows, forms, facts, values, milestoneState, ownerEvents] = await Promise.all([
       resolveUserProfileDisplayProjection(ctx, membership.userId),
       readLatestSubscription(ctx, membership._id),
       readProgressRows(ctx, args.communityId, membership.userId),
@@ -230,6 +355,7 @@ async function listClients(ctx: any, args: any) {
       ctx.db.query("communityClientValues").withIndex("by_membership", (q: any) => q.eq("membershipId", membership._id))
         .take(COMMUNITY_CLIENT_PROPERTY_LIMIT * 4),
       workflow && active ? getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id }) : Promise.resolve(null),
+      readOwnerEvents(ctx, membership._id, 50),
     ]);
     const stage = workflow && active && workflow.milestones.length
       ? (() => { try { return resolveCurrentMilestone({ workflow, membership, state: milestoneState }); } catch { return null; } })()
@@ -268,6 +394,8 @@ async function listClients(ctx: any, args: any) {
       last_active_at: toIso(lastActiveAtMs),
       last_progress_at: toIso(lastProgressAtMs),
       stuck: deriveCommunityClientStuck({ active, lastProgressAtMs, nowMs, days: stuckDays }),
+      last_flagged_at: toIso(ownerEvents.find((row: any) => row.type === "flagged")?.createdAt),
+      last_contacted_at: toIso(ownerEvents.find((row: any) => row.type === "contacted")?.createdAt),
       facts: facts.slice(0, FACTS_PER_CLIENT).map((fact: any) => ({ kind: fact.kind, body: fact.body, provenance: fact.provenance })),
       properties: Object.fromEntries(definitions.map((property: any) => [property.key, currentValue(property, valueByKey.get(property.key) ?? null)])),
     };
@@ -288,6 +416,8 @@ export const createClientPropertyInternal = internalMutation({ args: createPrope
 export const updateClientPropertyInternal = internalMutation({ args: updatePropertyArgs, handler: updateProperty });
 export const archiveClientPropertyInternal = internalMutation({ args: archivePropertyArgs, handler: archiveProperty });
 export const setClientPropertyValueInternal = internalMutation({ args: setValueArgs, handler: setValue });
+export const recordClientEventInternal = internalMutation({ args: recordEventArgs, handler: recordEvent });
+export const readClientTimelineInternal = internalQuery({ args: readTimelineArgs, handler: readTimeline });
 export const setClientSettingsInternal = internalMutation({ args: setSettingsArgs, handler: setSettings });
 export const listClientsInternal = internalQuery({ args: listClientsArgs, handler: listClients });
 
@@ -317,6 +447,12 @@ export const archiveClientProperty = mutation({
 });
 export const setClientPropertyValue = mutation({
   args: signedIn(setValueArgs), handler: async (ctx, args) => setValue(ctx, { ...(await signedInArgs(ctx, args)), via: "web" }),
+});
+export const recordClientEvent = mutation({
+  args: signedIn(recordEventArgs), handler: async (ctx, args) => recordEvent(ctx, { ...(await signedInArgs(ctx, args)), via: "web" }),
+});
+export const getClientTimeline = query({
+  args: signedIn(readTimelineArgs), handler: async (ctx, args) => readTimeline(ctx, await signedInArgs(ctx, args)),
 });
 export const setClientSettings = mutation({
   args: signedIn(setSettingsArgs), handler: async (ctx, args) => setSettings(ctx, await signedInArgs(ctx, args)),

@@ -4002,6 +4002,12 @@ test("owners and their external agent read clients and set their own client prop
   expect(row).toMatchObject({ name: "canonical-member", status: "active", ref: `membership:${membership._id}`,
     properties: { tier: "VIP" } });
   expect(row.dossier_path).toContain(`/builder/workflow-members/${membership._id}.md`);
+  await expect(owner.callOp("community.client.event.record", { membership_ref: `membership:${membership._id}`, type: "flagged", body: "No lesson in 9 days" }))
+    .resolves.toMatchObject({ ok: true, value: { type: "flagged" } });
+  const timeline = await owner.run("polynet_read", { path: row.path });
+  expect(timeline, JSON.stringify(timeline)).toMatchObject({ ok: true });
+  const events = JSON.parse(String((timeline as any).value.body)).entries.map((entry: any) => [entry.type, entry.actor ?? null]);
+  expect(events).toEqual(expect.arrayContaining([["flagged", "agent"], ["property_set", "agent"], ["joined", null]]));
   const stored = await t.run(async (ctx) => await ctx.db.query("communityClientValues").collect());
   expect(stored).toMatchObject([{ propertyKey: "tier", value: "VIP", updatedVia: "agent" }]);
 
@@ -4014,4 +4020,6 @@ test("owners and their external agent read clients and set their own client prop
   const communityAgent = as("community_agent", fixture.ownerSubject, fixture.ownerId);
   await expect(communityAgent.run("polynet_list", { path: "/communities/canonical-community/builder/clients/" }))
     .resolves.toMatchObject({ ok: false });
+  await expect(member.run("polynet_read", { path: row.path })).resolves.toMatchObject({ ok: false });
+  await expect(communityAgent.run("polynet_read", { path: row.path })).resolves.toMatchObject({ ok: false });
 });

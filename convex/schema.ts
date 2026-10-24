@@ -2767,6 +2767,28 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_community", ["communityId"]),
 
+  // What the owner or their agent did about a client: property changes, flags,
+  // notes, drafts and contact. Everything else on a client's timeline is read
+  // from the record that owns it.
+  communityClientEvents: defineTable({
+    communityId: v.id("communities"),
+    membershipId: v.id("communityMemberships"),
+    type: v.union(
+      v.literal("property_set"),
+      v.literal("flagged"),
+      v.literal("note"),
+      v.literal("drafted"),
+      v.literal("contacted"),
+    ),
+    actorUserId: v.id("users"),
+    via: v.union(v.literal("web"), v.literal("agent")),
+    propertyKey: v.optional(v.string()),
+    value: v.optional(v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null())),
+    body: v.optional(v.string()),
+    channel: v.optional(v.union(v.literal("email"), v.literal("message"), v.literal("call"), v.literal("other"))),
+    createdAt: v.number(),
+  }).index("by_membership_createdAt", ["membershipId", "createdAt"]),
+
   communityClientValues: defineTable({
     communityId: v.id("communities"),
     membershipId: v.id("communityMemberships"),
