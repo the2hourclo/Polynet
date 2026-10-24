@@ -272,7 +272,10 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     beginEdit("body");
   };
 
+  // Only keys pressed on the body itself start editing. Enter or Space on a
+  // checklist, quiz, button or form inside it (or a dialog one opens) is theirs.
   const handleBodyTriggerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     beginEdit("body");
