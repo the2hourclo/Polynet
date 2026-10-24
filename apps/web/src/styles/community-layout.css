@@ -1,0 +1,718 @@
+/* The community layout record (shared/communityLayout.ts) on desktop: the tab
+   bar across the top, the centred column, the chat page as post cards, the
+   aside blocks, the About page and the Members page. Colours come only from
+   Polynet's own variables, which a community theme sets, so every layout takes
+   the community's look. Shape tokens are applied in community-theme-hooks.css.
+   Without a "top" layout none of these classes render. */
+
+/* Frame: tab bar above, page below. */
+@media (min-width: 641px) {
+  .product-shell-surface--community-top {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+}
+
+.community-top-nav {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-card, var(--bg-card));
+}
+
+.community-top-nav-identity,
+.community-top-nav-tabs,
+.community-top-nav-chips {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.community-layout-centered .community-top-nav-identity,
+.community-layout-centered .community-top-nav-tabs,
+.community-layout-centered .community-top-nav-chips,
+.community-layout-centered .community-top-body {
+  max-width: 1120px;
+}
+
+.community-top-nav-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+}
+
+.community-top-nav-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--accent-brand);
+  color: var(--text-on-accent, #fff);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.community-top-nav-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.community-top-nav-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-top-nav-invite {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 7px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.community-top-nav-invite:hover {
+  background: var(--surface-card-hover, var(--bg-card-hover));
+}
+
+.community-top-nav-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.community-top-nav-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 12px 12px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.community-top-nav-tab:hover {
+  color: var(--text-primary);
+}
+
+.community-top-nav-tab.is-active {
+  color: var(--text-primary);
+}
+
+.community-top-nav-tab.is-active::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--text-primary);
+}
+
+.community-top-nav-tab.is-locked {
+  opacity: 0.6;
+}
+
+.community-top-nav-divider {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: var(--border-default);
+}
+
+.community-top-nav-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-top: 1px solid var(--border-muted, var(--border-default));
+}
+
+.community-category-chip {
+  position: relative;
+  padding: 6px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--surface-card, var(--bg-card));
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.community-category-chip:hover {
+  color: var(--text-primary);
+}
+
+.community-category-chip.is-selected {
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--bg-workspace);
+}
+
+.community-category-chip.has-unread::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-brand);
+}
+
+/* Page under the tabs, with the aside beside it. */
+.community-top-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: var(--bg-workspace);
+}
+
+.community-top-body.has-aside {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  padding: 0 24px;
+}
+
+.community-top-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.community-top-main > * {
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 960px) {
+  .community-top-body.has-aside {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
+  }
+
+  .community-top-body.has-aside > .community-aside {
+    display: none;
+  }
+}
+
+/* Chat page as posts */
+.community-interaction-projection.is-posts-presentation {
+  background: transparent;
+}
+
+.community-posts-scroll {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.community-posts-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 0 40px;
+}
+
+.community-top-body:not(.has-aside) .community-posts-feed {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.community-posts-composer {
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-card, var(--bg-card));
+}
+
+.community-posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.community-post-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-card, var(--bg-card));
+  color: var(--text-primary);
+}
+
+.community-post-card:hover,
+.community-post-card.selected {
+  border-color: var(--border-strong, var(--border-default));
+}
+
+.community-post-card.is-pending {
+  opacity: 0.7;
+}
+
+.community-post-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.community-post-card-avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+
+.community-post-card-byline {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.community-post-card-author {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.community-post-card-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.community-post-card-category {
+  font-weight: 600;
+}
+
+.community-post-card-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-brand) 14%, transparent);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.community-post-card-open {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.community-post-card-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.community-post-card-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.community-post-card-attachments {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.community-post-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.community-post-card-replies {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.community-post-card-replies:hover {
+  background: var(--surface-card-hover, var(--bg-card-hover));
+}
+
+.community-post-card-last-reply {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.community-post-card-last-reply-avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 9px;
+}
+
+.community-posts-load-more {
+  align-self: center;
+  padding: 8px 18px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--surface-card, var(--bg-card));
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Aside blocks */
+.community-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 24px 0 40px;
+  overflow-y: auto;
+}
+
+.community-aside-card {
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-card, var(--bg-card));
+  color: var(--text-primary);
+}
+
+.community-card-block-banner img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.community-card-block-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.community-card-block-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.community-card-block-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--accent-brand);
+  color: var(--text-on-accent, #fff);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.community-card-block-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.community-card-block-name {
+  margin: 0;
+  font-size: 16px;
+}
+
+.community-card-block-description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.community-card-block-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.community-card-block-stat strong {
+  color: var(--text-primary);
+}
+
+.community-card-block-invite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.community-aside-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 6px;
+}
+
+.community-aside-card-header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.community-aside-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.community-aside-link:hover {
+  color: var(--text-primary);
+}
+
+.community-aside-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 16px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.community-upcoming-events .community-interaction-loading {
+  margin: 8px 16px 16px;
+}
+
+.community-upcoming-events-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 4px 8px 10px;
+  list-style: none;
+}
+
+.community-upcoming-event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.community-upcoming-event:hover {
+  background: var(--surface-card-hover, var(--bg-card-hover));
+}
+
+.community-upcoming-event-date {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  padding: 4px 0;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.community-upcoming-event-date strong {
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.community-upcoming-event-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.community-upcoming-event-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-upcoming-event-time {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* About page */
+.community-about-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: start;
+  height: 100%;
+  padding: 24px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: var(--bg-workspace);
+  color: var(--text-primary);
+}
+
+.community-about-main {
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-card, var(--bg-card));
+}
+
+.community-about-banner img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.community-about-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+}
+
+.community-about-title {
+  margin: 0;
+  font-size: 26px;
+}
+
+.community-about-one-liner {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+.community-about-text {
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.community-about-public-link {
+  align-self: flex-start;
+  color: var(--text-link, var(--accent-brand));
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.community-about-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 960px) {
+  .community-about-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Members page: the member list, full width. */
+.community-interaction-projection.is-members-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.community-interaction-projection.is-members-page > .community-interaction-main {
+  display: none;
+}
+
+.community-interaction-projection.is-members-page .channel-roster-panel {
+  display: flex;
+  border-left: 0;
+}
+
+/* The posts page uses the aside instead of the channel's member column. */
+.community-interaction-projection.is-posts-presentation.has-channel-context {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.community-interaction-projection.is-posts-presentation.has-channel-context > .channel-roster-panel {
+  display: none;
+}

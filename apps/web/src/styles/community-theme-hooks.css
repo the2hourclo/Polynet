@@ -37,7 +37,11 @@
   .resource-course-card,
   .resource-course-create-card,
   .workflow-milestone-column,
-  .workflow-member-stub
+  .workflow-member-stub,
+  .community-post-card,
+  .community-posts-composer,
+  .community-aside-card,
+  .community-about-main
 ) {
   border-width: var(--pn-border-width);
   border-radius: var(--pn-radius-card);

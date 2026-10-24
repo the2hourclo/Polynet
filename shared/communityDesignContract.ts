@@ -49,9 +49,18 @@ export const COMMUNITY_DESIGN_SURFACES = {
     ],
   },
   cards: {
-    label: "Course cards, workflow columns and member cards",
+    label: "Course cards, workflow columns, member cards, post cards and sidebar cards",
     tokens: ["radius", "corner_style", "border_width", "shadow"],
-    classes: ["resource-course-card", "resource-course-create-card", "workflow-milestone-column", "workflow-member-stub"],
+    classes: [
+      "resource-course-card",
+      "resource-course-create-card",
+      "workflow-milestone-column",
+      "workflow-member-stub",
+      "community-post-card",
+      "community-posts-composer",
+      "community-aside-card",
+      "community-about-main",
+    ],
   },
   buttons: {
     label: "Primary buttons",
