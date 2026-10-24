@@ -61,6 +61,9 @@ function workflowErrorMessage(error: unknown): string {
   if (message.includes("welcome_media_url_invalid")) return "Enter a full video or image link, starting with https://.";
   if (message.includes("welcome_title_too_long")) return "Keep the welcome headline to 120 characters.";
   if (message.includes("welcome_message_too_long")) return "Keep the welcome message to 4,000 characters.";
+  if (message.includes("milestone_cleanup_incomplete")) {
+    return "This milestone is still clearing out members who left. Delete it again to finish.";
+  }
   if (message.includes("milestone_has_members")) {
     return "Move members out of this milestone before deleting it.";
   }
