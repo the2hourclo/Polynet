@@ -430,6 +430,7 @@ export function communityThemeVariables(
     "--pn-heading-tracking": upper ? "0.04em" : "normal",
     "--pn-type-scale": String(theme.type_scale),
     "--pn-numerals": theme.numerals === "tabular" ? "tabular-nums" : "normal",
+    "--pn-radius": `${theme.radius}px`,
     "--pn-radius-card": cardRadius(theme),
     "--pn-radius-card-top": cardTopRadius(theme),
     "--pn-radius-button": buttonRadius(theme),
