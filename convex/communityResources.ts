@@ -10108,6 +10108,7 @@ export const saveCommunityResource = mutation({
       communityId: community._id,
       moduleId,
     });
+    const lessonFields = hasOwnField(payload, "lesson") ? normalizeCommunityLessonFields(payload.lesson) : null;
 
     const id = await ctx.db.insert("communityResources" as any, {
       communityId: community._id,
@@ -10139,6 +10140,8 @@ export const saveCommunityResource = mutation({
           }
         : {}),
       pinned,
+      // "Add lesson" makes a lesson, so its buttons, checklists and quizzes work.
+      ...(role === "page" && lessonFields ? { lesson: lessonFields } : {}),
       sortOrder: nextSortOrder,
       createdAt: nowMs,
       updatedAt: nowMs,

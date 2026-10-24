@@ -74,6 +74,8 @@ export type LessonEditorProps = {
   autoFocus?: boolean;
   focusAt?: { x: number; y: number } | null;
   onFocus?: () => void;
+  /** Buttons, checklists, quizzes and forms work only in lessons; other pages don't offer them. */
+  followAlong?: boolean;
 };
 
 const isVideoUrl = (url: string) => Boolean(parseEmbedUrl(url));
@@ -166,10 +168,13 @@ const SLASH_ITEMS: SlashItem[] = [
     run: insertLessonBlock(COMMUNITY_EMBED_LANGUAGE) },
 ];
 
-function filterSlashItems(query: string): SlashItem[] {
+const FOLLOW_ALONG_KEYS = new Set(["button", "checklist", "quiz", "form"]);
+
+function filterSlashItems(query: string, followAlong: boolean): SlashItem[] {
   const q = query.trim().toLowerCase();
-  if (!q) return SLASH_ITEMS;
-  return SLASH_ITEMS.filter((item) => `${item.title} ${item.keywords}`.toLowerCase().includes(q));
+  const offered = followAlong ? SLASH_ITEMS : SLASH_ITEMS.filter((item) => !FOLLOW_ALONG_KEYS.has(item.key));
+  if (!q) return offered;
+  return offered.filter((item) => `${item.title} ${item.keywords}`.toLowerCase().includes(q));
 }
 
 type SlashState = { items: SlashItem[]; index: number; rect: DOMRect | null };
@@ -177,6 +182,7 @@ type SlashBridge = {
   props: SuggestionProps<SlashItem, SlashItem> | null;
   index: number;
   set: (state: SlashState | null) => void;
+  followAlong: boolean;
 };
 
 const slashKey = new PluginKey("lessonSlash");
@@ -194,7 +200,7 @@ function slashExtension(bridge: SlashBridge) {
             const $from = state.doc.resolve(range.from);
             return $from.parent.type.name === "paragraph" || $from.parent.type.name === "heading";
           },
-          items: ({ query }) => filterSlashItems(query),
+          items: ({ query }) => filterSlashItems(query, bridge.followAlong),
           command: ({ editor, range, props }) => props.run(editor, range),
           render: () => ({
             onStart: (props) => {
@@ -583,8 +589,9 @@ export default function LessonEditor(props: LessonEditorProps) {
   const [slash, setSlash] = useState<SlashState | null>(null);
   const [hover, setHover] = useState<HoverBlock | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const bridge = useRef<SlashBridge>({ props: null, index: 0, set: () => undefined });
+  const bridge = useRef<SlashBridge>({ props: null, index: 0, set: () => undefined, followAlong: true });
   bridge.current.set = setSlash;
+  bridge.current.followAlong = props.followAlong ?? true;
   const editorRef = useRef<Editor | null>(null);
   const openLinkRef = useRef<(() => void) | null>(null);
 
