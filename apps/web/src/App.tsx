@@ -90,6 +90,7 @@ import {
   getInitials,
 } from "../../../shared/chatUi";
 import {
+  isCommunityChatBackedTab,
   type AppPage,
   type AppView,
   type CommunitySettingsPane,
@@ -600,7 +601,7 @@ export default function App() {
     isCommunityChatActive:
       activePage === "community" &&
       activeView === "home" &&
-      communityTab === "chat",
+      isCommunityChatBackedTab(communityTab),
     session,
   });
   const {
@@ -1228,7 +1229,7 @@ export default function App() {
   });
   const shouldHydrateCommunityContextPanel =
     activePage === "community" &&
-    communityTab === "chat";
+    isCommunityChatBackedTab(communityTab);
 
   useCommunitySettingsAccessLifecycle<AuthSession>({
     activePage,
@@ -1837,7 +1838,7 @@ export default function App() {
     && shellPublicRoute.kind === "app"
     && activePage === "community"
     && activeView === "home"
-    && communityTab === "chat"
+    && isCommunityChatBackedTab(communityTab)
     && mobileRootPage === "community"
     && !mobileCommunityDetailOpen
   );
@@ -2009,7 +2010,7 @@ export default function App() {
       userId: session?.user.id,
       communityId: activeCommunityId,
       channelSlug: communityChannelSlug,
-      inChat: activePage === "community" && communityTab === "chat",
+      inChat: activePage === "community" && isCommunityChatBackedTab(communityTab),
       canViewMembers: canViewMembersActiveCommunity,
       closeDetail: () => {
         if (showMobileShell) prepareMobileGlobalNavigation();
@@ -2987,6 +2988,10 @@ export default function App() {
     setSettingsPage,
     hasLeftPanel,
     isGlobalSettings,
+    // Managers see the community's draft theme with ?design=draft (polynet dev).
+    themeDraftSession: canViewActiveCommunitySettings ? session ?? null : null,
+    // Layout blocks that read member data (upcoming events) use the viewer's own session.
+    memberSession: session ?? null,
   });
 
   if (shouldHoldRouteForAccess) {

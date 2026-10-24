@@ -48,12 +48,20 @@ export const COMMUNITY_TABS = [
   "agent",
   "resources",
   "events",
+  "members",
+  "about",
   "settings",
   "workflows",
   "analytics",
 ] as const;
 
 export type CommunityTab = (typeof COMMUNITY_TABS)[number];
+
+// Tabs drawn by the community chat surface: Members is the chat's member list
+// shown as a page, so it loads the same channel, directory and presence.
+export function isCommunityChatBackedTab(tab: CommunityTab): boolean {
+  return tab === "chat" || tab === "members";
+}
 
 export const COMMUNITY_SETTINGS_PANES = [
   "community",
@@ -94,6 +102,8 @@ export function isCommunityTabAllowedForAccess(
     case "agent":
     case "resources":
     case "events":
+    case "members":
+    case "about":
       return true;
   }
 }
@@ -131,6 +141,10 @@ export function parseCommunityTab(
       return "workflows";
     case "agent":
       return "agent";
+    case "members":
+      return "members";
+    case "about":
+      return "about";
     case "ai_agent":
       return "settings";
     case "funnel":
