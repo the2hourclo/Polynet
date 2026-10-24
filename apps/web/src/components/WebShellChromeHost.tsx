@@ -33,6 +33,8 @@ export type WebShellChromeHostProps = {
   isGlobalSettings: boolean;
   mainSurface: ReactNode;
   globalOverlays: ReactNode;
+  /** Replaces the community nav and page while the member owes welcome forms. */
+  welcomeSurface?: ReactNode;
 };
 
 // Pages that belong to the community itself take its theme. Settings,
@@ -79,18 +81,19 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     <WebDesktopShellHeader {...props.desktopHeader} />
   );
 
-  const desktopCommunityNav = props.communityShell.showDesktopCommunityNav ? (
+  const welcome = props.welcomeSurface ?? null;
+  const desktopCommunityNav = props.communityShell.showDesktopCommunityNav && !welcome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
       presentation="desktop"
     />
   ) : null;
-  const mobileGlobalShellContent = isMobileCommunityHome ? (
+  const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
       presentation="mobile-home"
     />
-  ) : isMobileDedicatedRoot ? null : props.mainSurface;
+  ) : isMobileDedicatedRoot ? null : props.mainSurface);
   const mobileGlobalShellLabel = isMobileCommunityHome
     ? "Community home"
     : props.communityShell.mobileRootPage === "agent"
@@ -112,7 +115,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     >
       {mobileGlobalShellContent}
     </WebMobileGlobalShell>
-  ) : props.mainSurface;
+  ) : welcome ?? props.mainSurface;
   // On desktop the community surface below carries the theme. Elsewhere the
   // page is wrapped without a box of its own, so layout is unchanged.
   const mainSurface =

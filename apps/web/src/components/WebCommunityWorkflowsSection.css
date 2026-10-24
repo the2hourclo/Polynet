@@ -985,3 +985,7 @@
   margin-top: 12px;
   max-width: 360px;
 }
+.workflow-welcome-gate { display:flex; align-items:flex-start; gap:10px; margin:0 0 12px; color:var(--text-primary); cursor:pointer; }
+.workflow-welcome-gate input { margin-top:3px; }
+.workflow-welcome-gate span { display:flex; flex-direction:column; gap:2px; }
+.workflow-welcome-gate small { color:var(--text-secondary); }

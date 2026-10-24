@@ -13,6 +13,7 @@ import {
   subscribeCloudCommunityMemberSuccessDossier,
   updateCloudCommunityMemberWorkflowMilestone,
   setCloudCommunityMemberServiceChannel,
+  setCloudCommunityWelcomeGate,
   forceCloudCommunityMemberMilestone,
   approveCloudCommunityMemberMilestone,
   retryCloudCommunityMemberGoalReview,
@@ -42,6 +43,7 @@ function workflowErrorMessage(error: unknown): string {
     return "A selected channel is unavailable. Choose another channel or remove that automation.";
   }
   if (message.includes("workflow_delay_invalid")) return "Choose a duration from 1 minute to 365 days.";
+  if (message.includes("welcome_gate_requires_join_form")) return "Add a Member joins rule that requests a form to the first milestone, then turn on the welcome flow.";
   if (message.includes("milestone_has_members")) {
     return "Move members out of this milestone before deleting it.";
   }
@@ -589,6 +591,9 @@ export function useWebCommunityWorkflowsController(params: {
           milestoneKey,
         }),
       ),
+    setWelcomeGate: (enabled: boolean) =>
+      mutateMilestone("community_workflows_welcome_gate", (session, communityId, revision) =>
+        setCloudCommunityWelcomeGate({ session, communityId, expectedRevision: revision, enabled })),
     clearActionError: () => setActionError(null),
   };
 }

@@ -34,6 +34,8 @@ export type CloudCommunityMemberWorkflowBoard = {
   community_id: string;
   revision: number;
   milestones: CommunityMemberWorkflowMilestone[];
+  /** New members finish the first stage's join forms before the community opens. */
+  welcome_gate?: boolean;
   updated_at: string;
 };
 
@@ -254,6 +256,16 @@ export async function setCloudCommunityMemberServiceChannel<SessionT>(params: Wo
     authSubject, communityId: params.communityId as Id<"communities">,
     membershipId: params.membershipId as Id<"communityMemberships">,
     channelId: params.channelId as Id<"communityChannels"> | null, expectedRevision: params.expectedRevision,
+  });
+}
+
+export async function setCloudCommunityWelcomeGate<SessionT>(params: WorkflowGatewayParams<SessionT> & {
+  communityId: string; expectedRevision: number; enabled: boolean;
+}): Promise<{ revision: number; welcome_gate: boolean }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, {
+    authSubject, communityId: params.communityId as Id<"communities">,
+    expectedRevision: params.expectedRevision, enabled: params.enabled,
   });
 }
 

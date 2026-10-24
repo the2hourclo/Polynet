@@ -7,6 +7,7 @@ import {
 } from "react";
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
+import { WebCommunityWelcome } from "./components/WebCommunityWelcome";
 import {
   beginBrowserSignedOutState,
   getAuthPublicKey,
@@ -2244,6 +2245,7 @@ export default function App() {
         onCreateMilestone: communityWorkflows.createMilestone,
         onUpdateMilestone: communityWorkflows.updateMilestone,
         onDeleteMilestone: communityWorkflows.deleteMilestone,
+        onSetWelcomeGate: communityWorkflows.setWelcomeGate,
         onClearActionError: communityWorkflows.clearActionError,
         onOpenMemberDossier: communityWorkflows.openMemberDossier,
         onCloseMemberDossier: communityWorkflows.closeMemberDossier,
@@ -2988,6 +2990,21 @@ export default function App() {
     hasLeftPanel,
     isGlobalSettings,
   });
+  // The builder's welcome flow: until the member submits the join forms, the
+  // community pane shows only those forms. The left rail keeps working.
+  const welcomeRequestKey = activeCommunityAccess?.welcome_required
+    ? (activeCommunityAccess.welcome_form_request_ids ?? []).join(",") : "";
+  const welcomeRequestIds = useMemo(
+    () => (welcomeRequestKey ? welcomeRequestKey.split(",") : []),
+    [welcomeRequestKey],
+  );
+  if (session && activeCommunityId && welcomeRequestIds.length && activePage === "community" && !isPublicCommunityFunnel) {
+    shellChromeHostProps.welcomeSurface = (
+      <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
+        communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeRequestIds}
+        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess} />
+    );
+  }
 
   if (shouldHoldRouteForAccess) {
     const previewAdmissionError = isPublicFunnelPreviewRoute

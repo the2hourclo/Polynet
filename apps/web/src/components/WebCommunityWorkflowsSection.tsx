@@ -55,6 +55,7 @@ export type WebCommunityWorkflowsSectionProps = {
     requireHumanApproval?: boolean,
   ) => Promise<boolean>;
   onDeleteMilestone: (milestoneKey: string) => Promise<boolean>;
+  onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
   onClearActionError: () => void;
   onOpenMemberDossier: (membershipId: string) => void;
   onCloseMemberDossier: () => void;
@@ -238,6 +239,20 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
         className="community-panel community-utility-panel workflow-pipeline-shell"
         aria-label="Workflow board"
       >
+        {props.board && props.onSetWelcomeGate ? (
+          <label className="workflow-welcome-gate">
+            <input
+              type="checkbox"
+              checked={props.board.welcome_gate === true}
+              disabled={props.isSaving}
+              onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)}
+            />
+            <span>
+              <strong>Welcome flow</strong>
+              <small>New members finish the first milestone’s join forms before the community opens.</small>
+            </span>
+          </label>
+        ) : null}
         <div className="workflow-board-stage">
         <div className="workflow-milestone-canvas" aria-label="Member success milestones">
           {milestones.map((milestone, index) => {
