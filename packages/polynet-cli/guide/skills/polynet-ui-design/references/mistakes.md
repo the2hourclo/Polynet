@@ -52,6 +52,8 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | 25 | 2-Hour Club phone: course cards ran off the right edge inside a clipping container, so the page didn't scroll and the overflow check stayed quiet. | Check what's cut off, not only what scrolls. | `cut-off` |
 | 26 | 2-Hour Club phone: "New event" sat on top of the chat button. | Controls never overlap, however they're positioned. | `control-collision` |
 | 27 | 2-Hour Club: page titles were the same size as the navigation. | A page title is a clear step above everything else on the page. | reviewer, `drift` |
+| 28 | AIEB Knowledge "feels very vibe coded": the theme's hand-drawn face and hard sketch shadow went onto every card, list row and back link, and the back link was set in mono. | A theme's character lives in one or two places (page titles, covers); repeated components keep calm, flat defaults in the text face. | `heavy-cards`, `display-font-on-items`, reviewer |
+| 29 | AIEB Knowledge: a lock reason was printed over every locked course's cover, and an empty header row left a dead gap above the catalog. | Status on a cover is a small icon; its words go in the card's meta line. A row with nothing in it isn't drawn. | `text-levels`, reviewer |
 
 ## What each automatic check means
 
