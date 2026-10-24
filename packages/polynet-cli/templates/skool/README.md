@@ -1,8 +1,9 @@
 # Skool style
 
 A starting point for a classroom-style community: tabs across the top, a post
-feed as the home page, a course grid with progress, a calendar, members, a
-leaderboard and an About page.
+feed as the home page, a course grid with progress, a calendar, members and an
+About page. Every part runs on a system Polynet already has; Skool's points,
+levels, leaderboard and member map are left out on purpose.
 
 ```sh
 polynet init --template skool

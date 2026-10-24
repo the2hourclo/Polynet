@@ -1,7 +1,7 @@
 {
   "name": "skool",
   "label": "Skool style",
-  "description": "A classroom community laid out the way Skool members expect: tabs across the top, a post feed as home, a course grid with progress, a calendar, members, a leaderboard and an About page. Light and neutral; pick your own accent colour.",
+  "description": "A classroom community laid out the way Skool members expect: tabs across the top, a post feed as home, a course grid with progress, a calendar, members and an About page. Built only from systems Polynet already has. Light and neutral; keeps your own colours if you have them.",
   "contract": 1,
   "apply": {
     "layout": "replace",
@@ -29,11 +29,6 @@
         {
           "tab": "members",
           "label": "Members"
-        },
-        {
-          "tab": "leaderboard",
-          "label": "Leaderboard",
-          "needs": "points and levels"
         },
         {
           "tab": "agent",
@@ -67,12 +62,6 @@
             "block": "community_card"
           },
           {
-            "block": "leaderboard",
-            "period": "30d",
-            "limit": 5,
-            "needs": "points and levels"
-          },
-          {
             "block": "upcoming_events",
             "limit": 3
           }
@@ -102,18 +91,6 @@
               "all",
               "admins",
               "online"
-            ]
-          }
-        ]
-      },
-      "leaderboard": {
-        "main": [
-          {
-            "block": "leaderboard",
-            "periods": [
-              "7d",
-              "30d",
-              "all"
             ]
           }
         ]

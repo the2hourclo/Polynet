@@ -43,3 +43,12 @@ describe("template apply rules", () => {
     expect(manifest.apply?.theme).toBe("keep_existing");
   });
 });
+
+describe("skool template scope", () => {
+  // Only blocks backed by a system Polynet already has (posts, resources,
+  // events, members, funnel, agent). No points, levels or map.
+  test("asks for no block Polynet has no system for", () => {
+    const text = readFileSync(join(TEMPLATES_DIR, "skool", "template.json"), "utf8");
+    expect(text).not.toMatch(/leaderboard|level|points|map"/i);
+  });
+});
