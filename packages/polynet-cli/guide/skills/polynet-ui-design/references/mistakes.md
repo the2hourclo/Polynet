@@ -49,6 +49,9 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | 22 | 2-Hour Club: the memory graph drew cyan dots that aren't the community's colours, and showed the word "Error" under it. | Charts and graphs draw in the theme's colours; a failed widget shows a designed empty state, never a bare error. | `off-palette` (SVG fill and stroke), `error-state` |
 | 23 | 2-Hour Club: courses without covers showed a grey book icon next to courses with real covers. | A catalog has one cover language: every course gets a cover, or none do. | reviewer |
 | 24 | 2-Hour Club: the community name was typed over a banner logo that already says it. | Say the name once: the logo or the text, not both. | reviewer |
+| 25 | 2-Hour Club phone: course cards ran off the right edge inside a clipping container, so the page didn't scroll and the overflow check stayed quiet. | Check what's cut off, not only what scrolls. | `cut-off` |
+| 26 | 2-Hour Club phone: "New event" sat on top of the chat button. | Controls never overlap, however they're positioned. | `control-collision` |
+| 27 | 2-Hour Club: page titles were the same size as the navigation. | A page title is a clear step above everything else on the page. | reviewer, `drift` |
 
 ## What each automatic check means
 
@@ -73,5 +76,7 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | `filler-copy` | lorem, "untitled", test data | real content |
 | `emoji-chrome` | emoji as interface icons or labels | real icons, or none |
 | `clipped-text` | text cut off with no ellipsis or clamp | clamp it on purpose, or give it room |
+| `cut-off` | content runs past the screen's right edge, even inside a clipping box | let it wrap or shrink at phone width |
+| `control-collision` | two controls overlap | move one, or let the row wrap |
 | `error-state` | an error message shows where content should be | fix the cause, or design the empty state |
 | `broken-image`, `console-error`, `load` | the page itself is broken | fix before judging the design |

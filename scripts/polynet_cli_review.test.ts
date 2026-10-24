@@ -130,3 +130,11 @@ test("tuned on the 2-Hour Club run: real findings carry numbers, Polynet's own n
   expect(checks(result.warnings)).toEqual(["off-palette"]);
   expect((result.warnings[0] as any).where[0]).toContain("(fill)");
 });
+
+test("tuned on the fresh review: clipped cards and colliding buttons are caught even when the page doesn't scroll", async () => {
+  const html = page(`<div style="overflow:hidden"><div style="width:520px" class="card">A course card that runs off the phone</div></div>
+    <div style="position:relative;height:48px"><button>New event</button><button style="position:absolute;left:30px;top:0">Chat</button></div>`);
+  const result = await audit(html, {}, 390);
+  expect(checks(result.errors)).toEqual(expect.arrayContaining(["control-collision", "cut-off"]));
+  expect(checks(result.errors)).not.toContain("overflow");
+});

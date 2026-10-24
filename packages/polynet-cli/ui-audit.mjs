@@ -272,6 +272,27 @@ export function auditPage(options) {
     .filter((el) => { const t = (el.innerText || "").trim(); return /^[a-z_]+$/.test(t) && /mono/i.test(getComputedStyle(el).fontFamily); });
   if (internal.length) add(warnings, "internal-label", "An interface label looks like an internal name.", internal);
 
+  // 15b. Content cut off at the screen's right edge. The page may not scroll
+  // sideways when a container clips it, but members still lose the content.
+  if (page.scrollWidth <= vw + 1) {
+    const cut = all.filter((el) => el.getBoundingClientRect().right > vw + 1 && el.getBoundingClientRect().left < vw)
+      .filter((el) => ![...el.children].some((child) => visible(child) && child.getBoundingClientRect().right > vw + 1))
+      .filter((el) => (el.innerText || "").trim() || el.matches("input, textarea, select, button, img"));
+    if (cut.length) add(errors, "cut-off", "Content runs past the right edge of the screen and is cut off.", cut.map((el) => [el, `right edge at ${px(el.getBoundingClientRect().right)}`]));
+  }
+
+  // 15c. Controls on top of other controls, however they're positioned.
+  const hits = [];
+  for (let i = 0; i < controls.length; i++) {
+    for (let j = i + 1; j < controls.length; j++) {
+      if (controls[i].contains(controls[j]) || controls[j].contains(controls[i])) continue;
+      const a = controls[i].getBoundingClientRect(), b = controls[j].getBoundingClientRect();
+      const x = Math.min(a.right, b.right) - Math.max(a.left, b.left), y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (x > 4 && y > 4) hits.push(controls[i], controls[j]);
+    }
+  }
+  if (hits.length) add(errors, "control-collision", "Two controls sit on top of each other.", hits);
+
   // 15. Boxes that overlap their neighbours.
   const overlaps = [];
   for (const parent of new Set(all.map((el) => el.parentElement).filter(Boolean))) {
