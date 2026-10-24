@@ -108,7 +108,9 @@ export type CommunityResourcesActions = {
     isSaving: boolean;
     beginInlineEditResource: (resource: CommunityResource) => void;
     cancelInlineEditResource: () => void;
-    saveInlineEditResource: () => Promise<boolean>;
+    saveInlineEditResource: (options?: { keepEditing?: boolean }) => Promise<boolean>;
+    // Puts a picture in Polynet's storage and returns its address (lesson editor).
+    uploadImage?: (file: File) => Promise<string>;
     onChangeTitle: (value: string) => void;
     onChangeUrl: (value: string) => void;
     onChangeBody: (value: string) => void;

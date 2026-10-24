@@ -8385,6 +8385,47 @@ export const generateCommunityResourceSourceUploadUrl = mutation({
   },
 });
 
+// Lesson images go up through the same upload URL as source files; this
+// confirms the upload is a picture of a sane size and hands back the address
+// the lesson body links to. Anything else is deleted, not kept.
+const COMMUNITY_RESOURCE_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"]);
+export const COMMUNITY_RESOURCE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+export const resolveCommunityResourceImageUrl = mutation({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    communityId: v.id("communities"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({
+      ctx,
+      userId: args.userId,
+      authSubject: args.authSubject ?? null,
+    });
+    await requireCommunityManager({
+      ctx,
+      communityId: args.communityId,
+      userId,
+    });
+    const file = await ctx.db.system.get(args.storageId);
+    if (!file) throw new Error("community_resource_image_missing");
+    const contentType = String(file.contentType ?? "").toLowerCase();
+    if (!COMMUNITY_RESOURCE_IMAGE_TYPES.has(contentType)) {
+      await ctx.storage.delete(args.storageId);
+      throw new Error("community_resource_image_type");
+    }
+    if (file.size > COMMUNITY_RESOURCE_IMAGE_MAX_BYTES) {
+      await ctx.storage.delete(args.storageId);
+      throw new Error("community_resource_image_too_large");
+    }
+    const url = await ctx.storage.getUrl(args.storageId);
+    if (!url) throw new Error("community_resource_image_missing");
+    return { url };
+  },
+});
+
 export const getCommunitySourceIngestionStateInternal = internalQuery({
   args: {
     userId: v.optional(v.id("users")),
