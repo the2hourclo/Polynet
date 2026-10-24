@@ -190,11 +190,17 @@ function PostComposer(props: CommunityPostsFeedProps) {
     );
   }
   return (
-    <div className="community-posts-composer is-open" ref={boxRef}>
+    <div
+      className="community-posts-composer is-open"
+      ref={boxRef}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !event.defaultPrevented) setOpen(false);
+      }}
+    >
       <div className="community-posts-composer-head">
         {avatar}
         <span className="community-posts-composer-hint">
-          Posting{props.channelName ? <> in <strong>{props.channelName}</strong></> : null}
+          Posting{props.channelName ? <> in <strong>{props.channelName}</strong></> : null} · Ctrl+Enter to post
         </span>
         <button type="button" className="community-posts-composer-close" aria-label="Close" onClick={() => setOpen(false)}>
           <X size={16} aria-hidden="true" />

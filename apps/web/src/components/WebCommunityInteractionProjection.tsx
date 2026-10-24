@@ -529,14 +529,29 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
   const selectedRootBadge = selectedRoot ? agentBadgeLabel(selectedRoot.root.actor_type) : null;
   const isMobileThreadPage = Boolean(props.mobileThreadPage && selectedRoot && !props.profilePanel);
   const ThreadSurface = isMobileThreadPage ? "section" : "aside";
-  const hasDetailPanel = Boolean(selectedRoot || props.profilePanel);
+  // The Members page shows profiles only; a post left open on the chat tab
+  // stays closed here.
+  const showThreadDrawer = Boolean(selectedRoot) && props.surface !== "members";
+  const hasDetailPanel = Boolean(showThreadDrawer || props.profilePanel);
 
   const replyById = new Map(props.replies.map((bundle) => [bundle.reply.id, bundle] as const));
   const isPostsPresentation = props.presentation === "posts" && props.surface !== "members";
+  // Page layouts (posts, Members) open a post or profile over the page, like a
+  // dialog, instead of squeezing the page beside a drawer.
+  const detailAsDialog = hasDetailPanel && !isMobileThreadPage && (isPostsPresentation || props.surface === "members");
+  const closeDetail = props.profilePanel ? props.onCloseProfile : props.onCloseDrawer;
+  useEffect(() => {
+    if (!detailAsDialog) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) closeDetail?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [detailAsDialog, closeDetail]);
 
   return (
     <>
-    <div className={`community-interaction-projection${hasDetailPanel ? " has-drawer" : hasChannelContext ? " has-channel-context" : ""}${isMobileThreadPage ? " mobile-thread-page-open" : ""}${peopleOpen && !hasDetailPanel ? " people-panel-open" : ""}${props.surface === "members" ? " is-members-page" : ""}${isPostsPresentation ? " is-posts-presentation" : ""}`}>
+    <div className={`community-interaction-projection${hasDetailPanel ? " has-drawer" : hasChannelContext ? " has-channel-context" : ""}${isMobileThreadPage ? " mobile-thread-page-open" : ""}${peopleOpen && !hasDetailPanel ? " people-panel-open" : ""}${props.surface === "members" ? " is-members-page" : ""}${isPostsPresentation ? " is-posts-presentation" : ""}${detailAsDialog ? " detail-as-dialog" : ""}`}>
       <div className="community-interaction-main" ref={mainRef}>
         {isPostsPresentation ? (
           <div className="community-posts-scroll">
@@ -687,6 +702,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
         ) : null}
       </div>
 
+      {detailAsDialog ? <div className="community-detail-dialog-backdrop" aria-hidden="true" onClick={closeDetail} /> : null}
       {props.profilePanel ? (
         <aside className="community-interaction-drawer" aria-label="Profile">
           <div className="community-interaction-drawer-back">
@@ -704,7 +720,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           </div>
           <div className="community-interaction-drawer-scroll">{props.profilePanel}</div>
         </aside>
-      ) : selectedRoot ? (
+      ) : showThreadDrawer && selectedRoot ? (
         <ThreadSurface
           className={`community-interaction-drawer community-interaction-thread-drawer${isMobileThreadPage ? " community-interaction-thread-page" : ""}`}
           aria-label={isMobileThreadPage ? "Thread" : "Thread replies"}
