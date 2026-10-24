@@ -2612,10 +2612,11 @@ export default function App() {
 
   // The builder's welcome flow: until the member submits the join forms, the
   // community pane shows only those forms. The left rail keeps working.
+  // A member who just joined is held before their forms exist ("preparing").
   const welcomeRequestKey = activeCommunityAccess?.welcome_required
-    ? (activeCommunityAccess.welcome_form_request_ids ?? []).join(",") : "";
+    ? (activeCommunityAccess.welcome_form_request_ids ?? []).join(",") || "preparing" : "";
   const welcomeRequestIds = useMemo(
-    () => (welcomeRequestKey ? welcomeRequestKey.split(",") : []),
+    () => (welcomeRequestKey && welcomeRequestKey !== "preparing" ? welcomeRequestKey.split(",") : []),
     [welcomeRequestKey],
   );
   if (standalonePublicRouteViewProps) {
@@ -3001,7 +3002,7 @@ export default function App() {
     hasLeftPanel,
     isGlobalSettings,
   });
-  if (session && activeCommunityId && welcomeRequestIds.length && activePage === "community" && !isPublicCommunityFunnel) {
+  if (session && activeCommunityId && welcomeRequestKey && activePage === "community" && !isPublicCommunityFunnel) {
     shellChromeHostProps.welcomeSurface = (
       <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
         communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeRequestIds}

@@ -481,7 +481,9 @@ export const setBuilderWelcomeGate = mutation({
     }
     if ((workflow.welcomeGate ?? false) === args.enabled) return { workflow_id: String(workflow._id), revision: expectedRevision, welcome_gate: args.enabled };
     const revision = expectedRevision + 1;
-    await ctx.db.patch(workflow._id, { welcomeGate: args.enabled, revision, updatedByUserId: userId, updatedAt: Date.now() });
+    const now = Date.now();
+    await ctx.db.patch(workflow._id, { welcomeGate: args.enabled, ...(args.enabled ? { welcomeGateEnabledAt: now } : {}),
+      revision, updatedByUserId: userId, updatedAt: now });
     return { workflow_id: String(workflow._id), revision, welcome_gate: args.enabled };
   },
 });

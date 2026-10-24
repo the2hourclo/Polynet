@@ -246,6 +246,31 @@ test("the welcome flow holds a new member to the join form until it is submitted
   expect(await gate()).toEqual({ required: false, requestIds: [], held: null, owner: "open" });
 });
 
+test("a member who joins after the welcome flow is on is held before the join rule has made their form", async () => {
+  const f = await fixture("form");
+  const gate = () => f.t.run(async ctx => {
+    const { getCommunityAndMembership, readCommunityWelcomeGate } = await import("./communityCore");
+    const { community, membership } = await getCommunityAndMembership({ ctx, communityId: f.communityId, userId: f.memberId });
+    return await readCommunityWelcomeGate({ ctx, community, membership, userId: f.memberId });
+  });
+  const setActivatedAt = (activatedAt: number) => f.t.run(ctx => ctx.db.patch(f.membershipId, { activatedAt }));
+  await f.t.run(ctx => ctx.db.patch(f.workflowId, { welcomeGate: true, welcomeGateEnabledAt: f.now - 1 }));
+  // Joined, join rule not run yet: held, with no form to show yet.
+  expect(await gate()).toEqual({ required: true, requestIds: [] });
+  // Joined before the flow was turned on: never held for a form that isn't coming.
+  await setActivatedAt(f.now - 2);
+  expect(await gate()).toEqual({ required: false, requestIds: [] });
+  // The join rule never ran: the hold lapses instead of locking the member out.
+  await setActivatedAt(Date.now() - 3 * 60_000);
+  await f.t.run(ctx => ctx.db.patch(f.workflowId, { welcomeGateEnabledAt: Date.now() - 4 * 60_000 }));
+  expect(await gate()).toEqual({ required: false, requestIds: [] });
+  await setActivatedAt(f.now);
+  await f.t.run(ctx => ctx.db.patch(f.workflowId, { welcomeGateEnabledAt: f.now - 1 }));
+  await f.t.mutation(joinHandler, f.job);
+  const row = (await f.t.run(ctx => ctx.db.query("communityFormRequests").first()))!;
+  expect(await gate()).toEqual({ required: true, requestIds: [String(row._id)] });
+});
+
 test("the welcome flow can only be turned on when the first stage requests a form on join", async () => {
   const f = await fixture("room");
   const owner = f.t.withIdentity({ subject: "join-owner" });

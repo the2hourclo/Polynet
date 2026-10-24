@@ -1257,8 +1257,25 @@ export async function readCommunityWelcomeGate(args: {
     const run = await args.ctx.db.get(request.workflowRunId);
     if (run?.triggerType === "member_joined") requestIds.push(String(request._id));
   }
-  return { required: requestIds.length > 0, requestIds };
+  if (requestIds.length) return { required: true, requestIds };
+  // The join rule runs just after the join commits, so a member who joined
+  // after the flow was turned on is held from the first moment, before their
+  // forms exist. The hold lapses if the rule never runs, so nobody is locked out.
+  const membership = args.membership;
+  const joinedAfterGate = joinRules.size > 0 && membership.activationSequence === 1
+    && typeof workflow.welcomeGateEnabledAt === "number" && typeof membership.activatedAt === "number"
+    && membership.activatedAt >= workflow.welcomeGateEnabledAt
+    && Date.now() - membership.activatedAt < WELCOME_PREPARING_MS;
+  if (!joinedAfterGate) return open;
+  const runs = await args.ctx.db.query("communityMemberWorkflowRuns")
+    .withIndex("by_workflow_membership_createdAt", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+    .take(20);
+  const joinRan = runs.some((run: any) => run.triggerType === "member_joined");
+  return joinRan ? open : { required: true, requestIds: [] };
 }
+
+/** How long a new member waits on the join rule before the welcome hold lapses. */
+const WELCOME_PREPARING_MS = 2 * 60_000;
 
 export async function requireCommunityChatAccess(args: {
   ctx: any;

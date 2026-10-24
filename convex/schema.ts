@@ -1268,6 +1268,8 @@ export default defineSchema({
     communityId: v.id("communities"),
     /** Builder setting: members who joined with a pending welcome form see only that form until they submit it. */
     welcomeGate: v.optional(v.boolean()),
+    /** When the welcome flow was last turned on; members who join after it are held from the moment they join. */
+    welcomeGateEnabledAt: v.optional(v.number()),
     milestones: v.array(
       v.object({
         key: v.string(),
