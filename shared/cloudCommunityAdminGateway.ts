@@ -518,6 +518,40 @@ export async function uploadCloudCommunityResourceSourceFile<SessionT>(
   return storageId;
 }
 
+const RESOURCE_IMAGE_ERRORS: Record<string, string> = {
+  community_resource_image_type: "Use a PNG, JPEG, GIF, WebP or AVIF image.",
+  community_resource_image_too_large: "Images can be up to 10 MB.",
+};
+
+/** Uploads a picture for a lesson body and returns the address to link it by. */
+export async function uploadCloudCommunityResourceImage<SessionT>(
+  params: CloudCommunityAdminGatewayParams<SessionT> & {
+    communityId: string;
+    file: File | Blob;
+  },
+): Promise<string> {
+  const storageId = await uploadCloudCommunityResourceSourceFile(params);
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  let payload: unknown;
+  try {
+    payload = await client.mutation("communityResources:resolveCommunityResourceImageUrl" as any, {
+      authSubject,
+      communityId: params.communityId,
+      storageId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = Object.keys(RESOURCE_IMAGE_ERRORS).find((key) => message.includes(key));
+    throw new Error(code ? RESOURCE_IMAGE_ERRORS[code] : "That image didn't upload. Try again.");
+  }
+  const url =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? String((payload as Record<string, unknown>).url ?? "").trim()
+      : "";
+  if (!url) throw new Error("That image didn't upload. Try again.");
+  return url;
+}
+
 function normalizeGoogleDriveSourceConnection(payload: unknown): CloudGoogleDriveSourceConnectionStatus {
   const row = (payload ?? null) as Partial<CloudGoogleDriveSourceConnectionStatus> | null;
   return {
