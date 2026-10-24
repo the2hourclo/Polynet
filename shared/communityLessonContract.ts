@@ -470,39 +470,80 @@ export function gradeCommunityLessonResponse(
   return { value: ids, correct, complete: correct };
 }
 
-function parseSlides(markdown: string): CommunityLessonSlide[] {
+const SLIDE_IMAGE = /^!\[([^\]]*)\]\(([^)\s]+)\)\s*$/;
+
+// Where a body's "## Slides" section starts and ends, by line. Headings inside
+// a code example are text, not sections.
+function findSlidesSection(lines: string[]): { heading: number; end: number } | null {
+  let fence: string | null = null;
+  let heading = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (fence) {
+      if (line.startsWith(fence)) fence = null;
+      continue;
+    }
+    const open = FENCE.exec(line);
+    if (open) fence = open[1];
+    else if (heading < 0 && /^## Slides[ \t]*$/.test(line)) heading = i;
+    else if (heading >= 0 && /^## (?!#)/.test(line)) return { heading, end: i };
+  }
+  return heading < 0 ? null : { heading, end: lines.length };
+}
+
+// The section's image lines, each with the text under it as its note. Text
+// before the first image is kept apart, and images in code examples stay text.
+function parseSlides(lines: string[]): { preamble: string; slides: CommunityLessonSlide[]; complete: boolean } {
   const slides: CommunityLessonSlide[] = [];
   const notes: string[][] = [];
-  for (const line of markdown.split("\n")) {
-    const image = /^!\[([^\]]*)\]\(([^)\s]+)\)\s*$/.exec(line.trim());
-    if (image) {
-      if (slides.length >= MAX_SLIDES) break;
-      slides.push({ image: image[2], alt: image[1], note_md: "" });
-      notes.push([]);
-    } else if (notes.length) {
-      notes[notes.length - 1].push(line);
+  const preamble: string[] = [];
+  let fence: string | null = null;
+  let complete = true;
+  for (const line of lines) {
+    const into = notes[notes.length - 1] ?? preamble;
+    if (fence) {
+      if (line.startsWith(fence)) fence = null;
+      into.push(line);
+      continue;
     }
+    const open = FENCE.exec(line);
+    const image = open ? null : SLIDE_IMAGE.exec(line.trim());
+    if (open) fence = open[1];
+    if (!image) {
+      into.push(line);
+      continue;
+    }
+    if (slides.length >= MAX_SLIDES) {
+      complete = false;
+      break;
+    }
+    slides.push({ image: image[2], alt: image[1], note_md: "" });
+    notes.push([]);
   }
-  return slides.map((slide, index) => ({ ...slide, note_md: notes[index].join("\n").trim() }));
+  return {
+    preamble: preamble.join("\n").trim(),
+    slides: slides.map((slide, index) => ({ ...slide, note_md: notes[index].join("\n").trim() })),
+    complete,
+  };
 }
 
 /**
  * Splits a body around its "## Slides" section so a reader can show the deck
- * one slide at a time between the text before and after it. Null when the
- * body has no slides section, or the section holds no image lines.
+ * one slide at a time between the text before and after it. Text between the
+ * heading and the first image reads just before the deck. Null, so the body
+ * reads as written, when there's no slides section, it holds no image lines,
+ * or it holds more slides than a deck shows.
  */
 export function splitCommunityLessonSlides(
   bodyMd: string | null | undefined,
 ): { before: string; slides: CommunityLessonSlide[]; after: string } | null {
-  const text = String(bodyMd ?? "").replace(/\r\n?/g, "\n");
-  const heading = /^## Slides[ \t]*$/m.exec(text);
-  if (!heading) return null;
-  const start = heading.index + heading[0].length;
-  const next = /^## (?!#)/m.exec(text.slice(start));
-  const end = next ? start + next.index : text.length;
-  const slides = parseSlides(text.slice(start, end));
-  if (!slides.length) return null;
-  return { before: text.slice(0, heading.index).trim(), slides, after: text.slice(end).trim() };
+  const lines = String(bodyMd ?? "").replace(/\r\n?/g, "\n").split("\n");
+  const section = findSlidesSection(lines);
+  if (!section) return null;
+  const deck = parseSlides(lines.slice(section.heading + 1, section.end));
+  if (!deck.slides.length || !deck.complete) return null;
+  const before = [lines.slice(0, section.heading).join("\n").trim(), deck.preamble].filter(Boolean).join("\n\n");
+  return { before, slides: deck.slides, after: lines.slice(section.end).join("\n").trim() };
 }
 
 /**
@@ -516,8 +557,9 @@ export function splitCommunityLessonSlides(
 export function projectCommunityLessonBody(bodyMd: string | null | undefined): CommunityLessonProjection {
   const original = String(bodyMd ?? "").replace(/\r\n?/g, "\n");
   const text = redactCommunityLessonAnswers(original);
-  const [main, ...slideParts] = text.split(/^## Slides[ \t]*$/m);
-  const slideSection = slideParts.join("\n").split(/^## (?!#)/m)[0] ?? "";
+  const lines = text.split("\n");
+  const section = findSlidesSection(lines);
+  const main = section ? lines.slice(0, section.heading).join("\n") : text;
   const headings = [...main.matchAll(/^### In (.+?)\s*$/gm)];
   const intro = (headings.length ? main.slice(0, headings[0].index) : main).trim();
   const commands: CommunityLessonCommand[] = [];
@@ -538,7 +580,7 @@ export function projectCommunityLessonBody(bodyMd: string | null | undefined): C
   return {
     intro_md: intro,
     variants,
-    slides: slideParts.length ? parseSlides(slideSection) : [],
+    slides: section ? parseSlides(lines.slice(section.heading + 1, section.end)).slides : [],
     commands,
     elements: parseCommunityLessonElements(original).map(publicCommunityLessonElement),
   };

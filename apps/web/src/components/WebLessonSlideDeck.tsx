@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import type { CommunityLessonSlide } from "../../../../shared/communityLessonContract";
 import { renderMarkdown } from "../../../../shared/markdownUi";
@@ -10,8 +10,10 @@ const MAX_DOTS = 20;
 // A lesson's "## Slides" section shown one slide at a time: the slide, its
 // note underneath, arrows, a counter and full screen. Arrow keys work once the
 // deck has focus, and a sideways swipe turns the slide on touch screens.
-export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[] }) {
+// Notes render like the rest of the lesson, so a checklist or quiz in one works.
+export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; renderNote?: (markdown: string) => ReactNode }) {
   const { slides } = props;
+  const renderNote = props.renderNote ?? ((markdown: string) => renderMarkdown(markdown));
   const [index, setIndex] = useState(0);
   const [ratio, setRatio] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -129,7 +131,7 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[] }) {
           </button>
         </div>
       </div>
-      {current.note_md ? <div className="lesson-slide-deck-note">{renderMarkdown(current.note_md)}</div> : null}
+      {current.note_md ? <div className="lesson-slide-deck-note">{renderNote(current.note_md)}</div> : null}
     </section>
   );
 }

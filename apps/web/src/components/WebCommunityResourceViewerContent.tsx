@@ -196,7 +196,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     return (
       <>
         {deck.before ? render(deck.before) : null}
-        <WebLessonSlideDeck key={resource.id} slides={deck.slides} />
+        <WebLessonSlideDeck key={resource.id} slides={deck.slides} renderNote={render} />
         {deck.after ? render(deck.after) : null}
       </>
     );
