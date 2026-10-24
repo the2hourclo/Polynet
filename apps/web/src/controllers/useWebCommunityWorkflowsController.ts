@@ -458,9 +458,14 @@ export function useWebCommunityWorkflowsController(params: {
       listCloudCommunityResourceRows<AuthSession, CommunityResource>({ session: usableSession, communityId: params.activeCommunityId, limit: 1000 }),
       listCloudCommunityResourceModuleRows<AuthSession, CommunityResourceModule>({ session: usableSession, communityId: params.activeCommunityId, limit: 200 }),
     ]);
-    const live = new Map(modules.filter((module) => module.module_status === "live").map((module) => [module.id, module.name]));
+    const liveModules = modules.filter((module) => module.module_status === "live");
+    const live = new Map(liveModules.map((module) => [module.id, module.name]));
+    // Courses in the order Knowledge shows them; lessons keep the server's order within each.
+    const courseOrder = new Map([...liveModules].sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)) || a.name.localeCompare(b.name))
+      .map((module, index) => [module.id, index]));
     return resources
       .filter((resource) => resource.resource_role === "page" && resource.module_id && live.has(resource.module_id))
+      .sort((a, b) => courseOrder.get(a.module_id!)! - courseOrder.get(b.module_id!)!)
       .map((resource) => ({ id: resource.id, title: resource.title, course: live.get(resource.module_id!) ?? "", courseId: resource.module_id! }));
   }, [params.activeCommunityId, params.ensureSession, params.session]);
 
