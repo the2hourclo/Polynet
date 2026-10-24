@@ -180,7 +180,8 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
     if (focusable.length === 0) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    // The dialog itself can hold focus (after its content changed), so Shift+Tab from it wraps too.
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
       event.preventDefault();
       last.focus();
     } else if (!event.shiftKey && document.activeElement === last) {
@@ -320,12 +321,13 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                         <button type="button" className="workflow-secondary-button" aria-label={`Run again: ${action.label}`}
                           // The pressed button stays enabled (and focused) while it runs; the guard stops a second press.
                           disabled={retryingAction !== null && retryingAction !== action.automation_key}
-                          aria-disabled={retryingAction === action.automation_key || undefined} onClick={async () => {
+                          aria-disabled={retryingAction === action.automation_key || undefined} onClick={async (event) => {
                             if (actionRetryPending.current || !props.onRetryAction) return;
                             const generation = approvalGeneration.current;
                             actionRetryPending.current = true; setRetryingAction(action.automation_key); setActionRetryError(null);
                             refocusAction.current = { membershipId: dossier.membership_id, key: action.automation_key };
-                            refocusTarget.current = null;
+                            // Followed from the button itself, so moving off it while it runs stops the follow.
+                            refocusTarget.current = event.currentTarget;
                             try {
                               const result = await props.onRetryAction(dossier, action.automation_key);
                               if (result.status === "action_failed") refocusAction.current = null;
