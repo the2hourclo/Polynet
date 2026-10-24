@@ -37,7 +37,9 @@ export function WebCommunityWelcome(props: Props) {
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [runner, setRunner] = useState(0);
-  const [page, setPage] = useState<MemberWelcomePage<CommunityResource> | null>(null);
+  // The page is kept with the lesson ids it was read for, so a change the owner
+  // makes while the member is here (a new or replaced lesson) reads it again.
+  const [loaded, setLoaded] = useState<{ key: string; page: MemberWelcomePage<CommunityResource> } | null>(null);
   const [pageError, setPageError] = useState(false);
   const [lessonBusy, setLessonBusy] = useState(false);
   const [lessonError, setLessonError] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export function WebCommunityWelcome(props: Props) {
       main.focus({ preventScroll: true });
     });
   }, []);
+  const lessonKey = props.lessonIds.join(",");
   useEffect(() => {
     let alive = true; setPageError(false);
     void (async () => {
@@ -72,11 +75,12 @@ export function WebCommunityWelcome(props: Props) {
         const ready = await props.ensureSession(props.session, "community_welcome");
         if (!ready) throw new Error("session_unavailable");
         const next = await getMemberWelcomePage<AuthSession, CommunityResource>(ready, props.communityId);
-        if (alive) setPage(next);
+        if (alive) setLoaded({ key: lessonKey, page: next });
       } catch { if (alive) setPageError(true); }
     })();
     return () => { alive = false; };
-  }, [props.session, props.communityId, props.ensureSession, retry]);
+  }, [props.session, props.communityId, props.ensureSession, lessonKey, retry]);
+  const page = loaded?.page ?? null;
   useEffect(() => {
     let alive = true; setError(false); setRows(null);
     if (!formsOwed && !preparing) return;
@@ -111,6 +115,19 @@ export function WebCommunityWelcome(props: Props) {
   const total = formsTotal.current + lessonsTotal;
   const done = formsTotal.current - (formsOwed ? rows?.length ?? formsTotal.current : 0) + (lessonsTotal - props.lessonIds.length);
   const next = formsOwed ? rows?.[0] : undefined;
+  // Read for the current lessons, and still missing the next one: unpublished in between.
+  const lessonMissing = !formsOwed && props.lessonIds.length > 0 && !lesson && loaded?.key === lessonKey;
+  // Moving to another step replaces what had focus, so focus and read out where the member is now.
+  const stepKey = lesson ? `lesson:${lesson.id}` : next ? `form:${next.id}` : "";
+  const shownStep = useRef("");
+  const stepRef = useRef<HTMLParagraphElement | null>(null);
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
+  useEffect(() => {
+    if (!stepKey || shownStep.current === stepKey) return;
+    const first = !shownStep.current;
+    shownStep.current = stepKey;
+    if (!first) (stepRef.current ?? titleRef.current)?.focus();
+  }, [stepKey]);
   const finishLesson = async (resourceId: string) => {
     setLessonBusy(true); setLessonError(null);
     try {
@@ -135,11 +152,12 @@ export function WebCommunityWelcome(props: Props) {
   return <section className="community-welcome" aria-label={`Welcome to ${props.communityName}`}>
     <div className="community-welcome-intro">
       <small>Welcome</small>
-      <h1>{title}</h1>
+      <h1 ref={titleRef} tabIndex={-1}>{title}</h1>
       {intro.message ? <div className="community-welcome-message">{intro.message}</div>
         : <p>Finish {total > 1 ? "these steps" : "this step"} to open the community.</p>}
       {intro.media ? <div className="community-welcome-media">{intro.media}</div> : null}
-      {total > 1 && (next || lesson) ? <p className="community-welcome-step">Step {Math.min(done + 1, total)} of {total}</p> : null}
+      {total > 1 && (next || lesson) ? <p ref={stepRef} tabIndex={-1} className="community-welcome-step">
+        Step {Math.min(done + 1, total)} of {total}{lesson ? `: ${lesson.title}` : ""}</p> : null}
     </div>
     {lesson ? <div className="community-welcome-lesson">
       <WebCommunityResourceViewerContent resource={lesson} lessonActivity={lessonActivity} />
@@ -152,7 +170,7 @@ export function WebCommunityWelcome(props: Props) {
     </div> : <div className="member-form-dialog community-welcome-form">
       {next ? <MemberFormRunner key={`${next.id}:${runner}`} communityId={props.communityId} session={props.session} ensureSession={props.ensureSession}
         requestId={next.id} onClose={() => setRunner((n) => n + 1)} />
-        : error || (pageError && !formsOwed && !preparing) ? <div role="alert"><p>Your welcome steps could not be loaded.</p><button type="button" onClick={() => setRetry((n) => n + 1)}>Retry</button></div>
+        : error || lessonMissing || (pageError && !formsOwed && !preparing) ? <div role="alert"><p>Your welcome steps could not be loaded.</p><button type="button" onClick={() => { setRetry((n) => n + 1); onFinished.current(); }}>Retry</button></div>
         : <p role="status">{status}</p>}
     </div>}
   </section>;

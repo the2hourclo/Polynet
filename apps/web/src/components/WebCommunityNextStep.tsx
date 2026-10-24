@@ -90,7 +90,10 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
         return saveMemberForm(ready, props.communityId, { ...row, revision: attempt.revision }, attempt.answers, attempt.intent === "submit");
       });
       setRequest(row); setAnswers(row.answers); setError(null); setValidation(null); setFailedIntent(null);
-      const next = row.questions.findIndex(q => !formQuestionAnswered(q, row.answers)); setIndex(Math.max(0, next));
+      // Back where they left off: after the furthest answered question, or on the
+      // last one (to submit) when every question is answered.
+      const last = row.questions.reduce((found, q, i) => formQuestionAnswered(q, row.answers) ? i : found, -1);
+      setIndex(Math.max(0, Math.min(last + 1, row.questions.length - 1)));
     } catch { if (alive.current) { setFailedIntent(null); setError("This form could not be opened. It may no longer be required."); } }
     finally { saving.current = false; if (alive.current) setBusy(false); }
   };
@@ -135,13 +138,15 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
         onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) ?? []), String(i)] : ((a[q.key] as string[]) ?? []).filter(v => v !== String(i)) }))} />{option}</label>)}</fieldset>
         : q.type === "long_text" ? <textarea {...field} aria-required={q.required} rows={5} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />
         : <input {...field} aria-required={q.required} maxLength={10000} inputMode={q.answerFormat === "number" ? "decimal" : q.answerFormat === "url" ? "url" : undefined} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
+      {/* Right under the answer, so it's seen without scrolling and read out with the field. */}
+      {validation ? <p role="alert" id={`${fieldId}-issue`} className="member-form-issue">{validation}</p> : null}
       <footer><button disabled={busy || !!error || index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button disabled={busy || !!error} onClick={async () => {
-        if (q.required && !formQuestionAnswered(q, answers)) { setValidation("Please answer this question."); return; }
+        const answerField = () => requestAnimationFrame(() => questionSection.current?.querySelector<HTMLElement>("input,textarea")?.focus());
+        if (q.required && !formQuestionAnswered(q, answers)) { setValidation("Please answer this question."); answerField(); return; }
         const shape = q.answerFormat && typeof answers[q.key] === "string" ? communityClientAnswerFormatIssue(q.answerFormat, answers[q.key] as string) : null;
-        if (shape) { setValidation(shape); return; }
+        if (shape) { setValidation(shape); answerField(); return; }
         await save(index === request!.questions.length - 1 ? "submit" : "continue");
       }}>{index === request!.questions.length - 1 ? "Submit" : "Continue"}</button><small role="status">{busy ? "Saving…" : saver.current?.dirty(answers) ? "Unsaved answers" : "Saved"}</small></footer>
-      {validation ? <p role="alert" id={`${fieldId}-issue`}>{validation}</p> : null}
     </section> : !error ? <p role="status">Loading form…</p> : null}
     {error ? <div role="alert"><p>{error}</p><button disabled={busy} onClick={() => failedIntent ? void save(failedIntent, true) : void load()}>Retry</button><button disabled={busy} onClick={() => void load()}>Discard edits and reload</button><button disabled={busy} onClick={props.onClose}>Discard unsaved answers and close</button></div> : null}
   </div>;
