@@ -10,6 +10,7 @@
 // communities, courses and lessons are matched by slug/name/title and updated.
 
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
@@ -18,7 +19,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { parseCommunityLessonMarkdown } from "../../shared/communityLessonContract.ts";
 import { DEV_IDP, LOCAL_CONVEX, WEB_ORIGIN } from "../local-dev/config.mjs";
-import { COMMUNITY_CONTENT } from "../local-dev/content-paths.mjs";
+import { COMMUNITY_CONTENT, CONTENT_ROOT } from "../local-dev/content-paths.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../..");
@@ -242,6 +243,78 @@ async function ensureTheme(owner, communityId, theme) {
   });
 }
 
+// The community's real banner, avatar and one-liner live in
+// community-covers/<slug>/ (covers.json records where each came from). They go
+// in through the owner's settings save, the same path as the settings screen,
+// and only when they differ from what is already stored.
+async function ensureCovers(owner, communityId, slug) {
+  const dir = join(CONTENT_ROOT, "community-covers", slug);
+  if (!existsSync(join(dir, "covers.json"))) return;
+  const covers = JSON.parse(readFileSync(join(dir, "covers.json"), "utf8"));
+  const current = await owner.client.query(api.communityLifecycle.getCommunitySettings, { communityId });
+  const storedHashes = JSON.parse(
+    convexCliRun([
+      "run",
+      "--inline-query",
+      `const ids = ${JSON.stringify([current.avatar_storage_id, current.banner_storage_id])};
+       return await Promise.all(ids.map(async (id) => (id ? (await ctx.db.system.get(id))?.sha256 ?? null : null)));`,
+    ]),
+  );
+  const images = {};
+  let changed = (covers.one_liner ?? current.one_liner) !== current.one_liner;
+  for (const [index, kind] of ["avatar", "banner"].entries()) {
+    const spec = covers[kind];
+    if (!spec?.file) continue;
+    const file = join(dir, spec.file);
+    const hash = createHash("sha256").update(readFileSync(file)).digest("base64");
+    let storageId = current[`${kind}_storage_id`];
+    if (hash !== storedHashes[index]) {
+      const { uploadUrl } = await owner.client.mutation(api.communityLifecycle.generateCommunityBrandingUploadUrl, { kind });
+      storageId = await uploadFile(uploadUrl, file);
+      changed = true;
+    }
+    const focus = { focusX: spec.focus_x ?? 0.5, focusY: spec.focus_y ?? 0.5, zoom: spec.zoom ?? 1 };
+    if (
+      focus.focusX !== current[`${kind}_focus_x`] ||
+      focus.focusY !== current[`${kind}_focus_y`] ||
+      focus.zoom !== current[`${kind}_zoom`]
+    ) {
+      changed = true;
+    }
+    images[kind] = { storageId, ...focus };
+  }
+  if (!changed) return;
+  const amount = (value) => (value === null || value === undefined ? null : Number(value));
+  await owner.client.mutation(api.communityLifecycle.saveCommunitySettings, {
+    communityId,
+    expectedSettingsRevision: current.settings_revision,
+    name: current.name,
+    slug: current.slug,
+    oneLiner: covers.one_liner ?? current.one_liner,
+    about: current.about,
+    ...(images.avatar
+      ? {
+          avatarStorageId: images.avatar.storageId,
+          avatarFocusX: images.avatar.focusX,
+          avatarFocusY: images.avatar.focusY,
+          avatarZoom: images.avatar.zoom,
+        }
+      : null),
+    ...(images.banner
+      ? {
+          bannerStorageId: images.banner.storageId,
+          bannerFocusX: images.banner.focusX,
+          bannerFocusY: images.banner.focusY,
+          bannerZoom: images.banner.zoom,
+        }
+      : null),
+    visibility: current.visibility,
+    monthlyAmountBaseUnits: amount(current.pricing?.monthly_amount_base_units),
+    annualAmountBaseUnits: amount(current.pricing?.annual_amount_base_units),
+  });
+  log(`${slug}: community banner, avatar and one-liner set from community-covers`);
+}
+
 // ---------------------------------------------------------- courses/lessons
 
 // COMMUNITY_RESOURCE_BODY_DEFAULT_MAX_CHARS in convex/communityResourceContent.ts.
@@ -447,6 +520,7 @@ async function main() {
     const courses = readCourses(spec.slug);
     const communityId = await ensureCommunity(owner, spec, courses.find((c) => c.banner)?.banner ?? null);
     await ensureTheme(owner, communityId, spec.theme);
+    await ensureCovers(owner, communityId, spec.slug);
     // The knowledge comes from the course content below, so close the setup wizard.
     await owner.client.mutation(api.communityBuilderKnowledgeSetup.completeBuilderKnowledgeSetup, { communityId });
     await seedCourses(owner, ownerUserId, communityId, spec.slug);
