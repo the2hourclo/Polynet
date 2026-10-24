@@ -33,6 +33,8 @@ export type WebShellChromeHostProps = {
   isGlobalSettings: boolean;
   mainSurface: ReactNode;
   globalOverlays: ReactNode;
+  // A manager's session, for the draft theme preview; null for everyone else.
+  themeDraftSession?: unknown;
 };
 
 // Pages that belong to the community itself take its theme. Settings,
@@ -47,11 +49,13 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
 ]);
 
 export function WebShellChromeHost(props: WebShellChromeHostProps) {
-  const communityThemeAttribute = useWebCommunityThemeStyle(
+  const communityTheme = useWebCommunityThemeStyle(
     COMMUNITY_THEMED_DESTINATIONS.has(props.communityShell.destination.kind)
       ? props.communityShell.activeCommunity?.id ?? null
       : null,
+    { draftSession: props.themeDraftSession ?? null },
   );
+  const communityThemeAttribute = communityTheme.attribute;
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&
     (props.communityShell.mobileRootPage === "agent" ||
@@ -150,6 +154,11 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
 
   return (
     <div className={rootClassName}>
+      {communityTheme.previewingDraft ? (
+        <div className="community-theme-draft-banner" role="status">
+          Draft preview. Members still see the published look.
+        </div>
+      ) : null}
       {shellHeader}
       <WebMobileCommunityShell communityShell={props.communityShell} />
 
