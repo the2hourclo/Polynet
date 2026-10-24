@@ -11,6 +11,13 @@
 
 import { COMMUNITY_EMBED_LANGUAGE, COMMUNITY_EMBED_MAX_KEY_LENGTH, COMMUNITY_EMBED_MAX_VALUE_LENGTH } from "./communityEmbed";
 import { COMMUNITY_LESSON_BUTTON_ACTIONS, COMMUNITY_LESSON_ELEMENT_TYPES } from "./communityLessonContract";
+import {
+  COMMUNITY_LAYOUT_ASIDE_BLOCKS,
+  COMMUNITY_LAYOUT_TABS,
+  COMMUNITY_LAYOUT_TAB_DEFAULT_LABELS,
+  COMMUNITY_LAYOUT_VERSION,
+  DEFAULT_COMMUNITY_LAYOUT,
+} from "./communityLayout";
 import { COMMUNITY_THEME_FONTS, COMMUNITY_THEME_VERSION, DEFAULT_COMMUNITY_THEME } from "./communityTheme";
 
 export const COMMUNITY_DESIGN_CONTRACT_VERSION = 1 as const;
@@ -96,6 +103,15 @@ export function describeCommunityDesignContract() {
       tokens: Object.keys(themeTokens),
       fonts: Object.entries(COMMUNITY_THEME_FONTS).map(([name, font]) => ({ name, role: font.role })),
       defaults: DEFAULT_COMMUNITY_THEME,
+    },
+    layout: {
+      version: COMMUNITY_LAYOUT_VERSION,
+      positions: ["side", "top"],
+      widths: ["wide", "centered"],
+      tabs: COMMUNITY_LAYOUT_TABS.map((tab) => ({ tab, default_label: COMMUNITY_LAYOUT_TAB_DEFAULT_LABELS[tab] })),
+      pinned_tabs: ["workflows", "analytics", "settings"],
+      pages: { chat: { presentations: ["messages", "posts"], aside_blocks: [...COMMUNITY_LAYOUT_ASIDE_BLOCKS] } },
+      defaults: DEFAULT_COMMUNITY_LAYOUT,
     },
     surfaces: Object.fromEntries(
       Object.entries(COMMUNITY_DESIGN_SURFACES).map(([name, surface]) => [name, { label: surface.label, tokens: surface.tokens }]),

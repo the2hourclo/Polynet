@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
+import { normalizeCommunityLayout } from "../shared/communityLayout";
 import { normalizeCommunityTheme } from "../shared/communityTheme";
 
 // Every CLI template must ship a theme the validator accepts as-is, so
@@ -36,9 +37,11 @@ describe("CLI community templates", () => {
   });
 });
 
+const layoutTemplateNames = templateNames.filter((name) => existsSync(join(TEMPLATES_DIR, name, "layout.json")));
+
 describe("template apply rules", () => {
   // A founder who picks a layout template keeps their own colours and fonts.
-  test.each(templateNames)("%s keeps a community's existing theme", (name) => {
+  test.each(layoutTemplateNames)("%s keeps a community's existing theme", (name) => {
     const manifest = readJson(name, "template.json") as { apply?: { theme?: string } };
     expect(manifest.apply?.theme).toBe("keep_existing");
   });
@@ -50,5 +53,12 @@ describe("skool template scope", () => {
   test("asks for no block Polynet has no system for", () => {
     const text = readFileSync(join(TEMPLATES_DIR, "skool", "template.json"), "utf8");
     expect(text).not.toMatch(/leaderboard|level|points|map"/i);
+  });
+});
+
+describe("template layouts", () => {
+  test.each(layoutTemplateNames)("%s layout passes the layout validator", (name) => {
+    const result = normalizeCommunityLayout(readJson(name, "layout.json"));
+    if (!result.ok) throw new Error(JSON.stringify(result.problems, null, 2));
   });
 });
