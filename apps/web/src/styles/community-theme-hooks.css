@@ -184,3 +184,14 @@
 [data-community-theme] :is(code, pre, kbd) {
   font-family: var(--pn-font-mono);
 }
+
+/* Slides drawn on white sit on the light plate in dark themes, like lesson images. */
+[data-community-theme] .lesson-slide-deck-stage img {
+  background: var(--pn-media-plate);
+}
+[data-community-theme] .lesson-slide-deck-note {
+  font-size: var(--pn-type-reading);
+}
+[data-community-theme] .lesson-slide-deck-count {
+  font-size: var(--pn-type-small);
+}

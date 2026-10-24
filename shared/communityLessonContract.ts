@@ -487,6 +487,25 @@ function parseSlides(markdown: string): CommunityLessonSlide[] {
 }
 
 /**
+ * Splits a body around its "## Slides" section so a reader can show the deck
+ * one slide at a time between the text before and after it. Null when the
+ * body has no slides section, or the section holds no image lines.
+ */
+export function splitCommunityLessonSlides(
+  bodyMd: string | null | undefined,
+): { before: string; slides: CommunityLessonSlide[]; after: string } | null {
+  const text = String(bodyMd ?? "").replace(/\r\n?/g, "\n");
+  const heading = /^## Slides[ \t]*$/m.exec(text);
+  if (!heading) return null;
+  const start = heading.index + heading[0].length;
+  const next = /^## (?!#)/m.exec(text.slice(start));
+  const end = next ? start + next.index : text.length;
+  const slides = parseSlides(text.slice(start, end));
+  if (!slides.length) return null;
+  return { before: text.slice(0, heading.index).trim(), slides, after: text.slice(end).trim() };
+}
+
+/**
  * Derives the structured parts of a lesson body:
  * - "### In <Platform>" headings split it into platform variants;
  * - a "## Slides" section of image lines, each followed by its note, is a deck;

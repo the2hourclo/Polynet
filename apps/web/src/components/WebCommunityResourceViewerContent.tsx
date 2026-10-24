@@ -12,11 +12,16 @@ import { renderMarkdown } from "../../../../shared/markdownUi";
 import type { CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
 import type { CommunityEmbedStorage } from "../../../../shared/communityEmbed";
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
-import { parseCommunityLessonElements, publicCommunityLessonElement } from "../../../../shared/communityLessonContract";
+import {
+  parseCommunityLessonElements,
+  publicCommunityLessonElement,
+  splitCommunityLessonSlides,
+} from "../../../../shared/communityLessonContract";
 import { markCommunityLessonElementBlocks } from "../../../../shared/communityLessonElementMarkdown";
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
+import { WebLessonSlideDeck } from "./WebLessonSlideDeck";
 import type { CommunityResource } from "./communityResourcesContracts";
 
 type WebCommunityResourceViewerContentProps = {
@@ -161,8 +166,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const renderedBodyMarkdown = useMemo(() => {
     if (!hasBody) return null;
     const byId = new Map(lessonElements.map((element) => [element.id, element]));
-    const body = byId.size ? markCommunityLessonElementBlocks(trimmedBody, new Set(byId.keys())) : trimmedBody;
-    return renderMarkdown(body, {
+    const render = (markdown: string) => renderMarkdown(byId.size ? markCommunityLessonElementBlocks(markdown, new Set(byId.keys())) : markdown, {
       embedStandaloneMedia: true,
       headingLevelOffset: 1,
       communityEmbeds: props.communityEmbeds ?? null,
@@ -186,6 +190,16 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
           }
         : null,
     });
+    // A "## Slides" section reads as a deck, one slide at a time, in place.
+    const deck = splitCommunityLessonSlides(trimmedBody);
+    if (!deck) return render(trimmedBody);
+    return (
+      <>
+        {deck.before ? render(deck.before) : null}
+        <WebLessonSlideDeck key={resource.id} slides={deck.slides} />
+        {deck.after ? render(deck.after) : null}
+      </>
+    );
   }, [hasBody, trimmedBody, props.communityEmbeds, lessonActivity, lessonElements, lessonResponses, lessonRef, resource.id]);
 
   const syncBodyTextareaHeight = () => {
