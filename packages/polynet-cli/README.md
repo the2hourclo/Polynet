@@ -64,3 +64,31 @@ npx @polynet/cli push             # stage the changes for the owner to apply
   `POLYNET_TOKEN` is used as the access token instead of a browser sign-in.
 
 Limits: static files only, up to 50 MB and 2,000 files.
+
+## The community's look
+
+Edit a community's theme like a website: files in a folder, a live preview,
+then publish. Members see nothing until you publish.
+
+```sh
+npx @polynet/cli init my-community --template stopwatch --community the-2-hour-club
+npx @polynet/cli dev my-community       # saves theme.json to the draft on every edit, opens the preview
+npx @polynet/cli publish my-community   # makes it the theme members see
+```
+
+- `polynet init` without `--template` lists the templates. A template is a
+  design with no content: `template.json` and `theme.json` in `templates/<name>/`.
+- A layout template with `"apply": { "theme": "keep_existing" }` keeps your own
+  colours and fonts: `init --community` writes the community's published theme
+  into `theme.json` and takes only the template's layout. Its theme is used only
+  when the community has none. Theme and layout never reset each other.
+- `polynet pull` copies the community's current draft into `theme.json`.
+- `polynet dev` checks each save against the design contract first; a broken
+  theme shows its problems and never reaches the draft. The preview is the
+  real app at `/c/<slug>?design=draft`, which only the owner and admins can see.
+- A save or publish refuses if someone else changed the draft since your last
+  save or pull. Run `polynet pull` and redo your change on top.
+
+Agents can do the same through the MCP: read `/communities/<slug>/builder/theme.json`,
+then call `community.theme.save_draft` and `community.theme.publish`. What a
+theme may change is listed in `docs/community-design-contract.md`.

@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { existsSync, watch } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -79,21 +79,22 @@ async function writeState(root, state) {
 
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
-/** Writes the community's current draft theme into the folder. */
-export async function pullDesign({ root, community, call }) {
+/** Writes the community's current draft theme into the folder's theme file. */
+export async function pullDesign({ root, themeFile, community, call }) {
   const theme = await readTheme({ community, call });
-  await writeFile(join(root, "theme.json"), json(theme.draft));
+  await mkdir(dirname(themeFile), { recursive: true });
+  await writeFile(themeFile, json(theme.draft));
   await writeState(root, { community, draft_revision: theme.draft_revision });
   return theme;
 }
 
-export async function listTemplates() {
-  if (!existsSync(TEMPLATES_DIR)) return [];
-  const names = (await readdir(TEMPLATES_DIR, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+export async function listTemplates({ templatesDir = TEMPLATES_DIR } = {}) {
+  if (!existsSync(templatesDir)) return [];
+  const names = (await readdir(templatesDir, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   const templates = [];
   for (const name of names.sort()) {
     try {
-      templates.push({ name, ...JSON.parse(await readFile(join(TEMPLATES_DIR, name, "template.json"), "utf8")) });
+      templates.push({ name, ...JSON.parse(await readFile(join(templatesDir, name, "template.json"), "utf8")) });
     } catch {
       // A folder without template.json isn't a template.
     }
@@ -101,28 +102,53 @@ export async function listTemplates() {
   return templates;
 }
 
-/** Starts a design folder from a template: its theme and anything else it ships, never content. */
-export async function initFromTemplate({ root, template }) {
-  const source = join(TEMPLATES_DIR, template);
+/**
+ * Starts a design folder from a template: its theme, layout and anything else
+ * it ships, never content. A template's `apply` says what it may overwrite:
+ * `"theme": "keep_existing"` keeps the founder's own colours and fonts (the
+ * folder's theme.json, or the community's theme when `community` and `call`
+ * are given) and uses the template's theme only when there is none. Theme and
+ * layout are separate records, so taking one never resets the other.
+ */
+export async function initFromTemplate({ root, template, community, call, templatesDir = TEMPLATES_DIR }) {
+  const source = join(templatesDir, template);
   if (!existsSync(join(source, "template.json"))) {
-    const names = (await listTemplates()).map((entry) => entry.name);
+    const names = (await listTemplates({ templatesDir })).map((entry) => entry.name);
     throw new Error(`No template named "${template}".${names.length ? ` Templates: ${names.join(", ")}.` : ""}`);
   }
-  if (existsSync(join(root, "theme.json"))) throw new Error("This folder already has a theme.json. Start a template in an empty folder.");
+  const chosen = JSON.parse(await readFile(join(source, "template.json"), "utf8"));
+  const keepTheme = chosen.apply?.theme === "keep_existing";
+  const themeFile = join(root, "theme.json");
+  let theme = "template";
+  if (existsSync(themeFile)) {
+    if (!keepTheme) throw new Error("This folder already has a theme.json. Start a template in an empty folder.");
+    theme = "kept";
+  } else if (keepTheme && community && call) {
+    const current = await readTheme({ community, call });
+    if (current.published) {
+      await pullDesign({ root, themeFile, community, call });
+      theme = "community";
+    }
+  }
   await mkdir(root, { recursive: true });
   for (const entry of await readdir(source)) {
-    if (entry === "template.json") continue;
+    if (entry === "template.json" || (entry === "theme.json" && theme !== "template")) continue;
     await cp(join(source, entry), join(root, entry), { recursive: true });
   }
-  return JSON.parse(await readFile(join(source, "template.json"), "utf8"));
+  return { ...chosen, theme };
 }
 
 /**
  * Saves the folder's theme.json as the draft. `check(theme)` returns problems
  * (the CLI passes its contract check); errors stop the save before Polynet sees it.
  */
-export async function saveFolderDraft({ root, community, call, check }) {
-  const theme = JSON.parse(await readFile(join(root, "theme.json"), "utf8"));
+export async function saveFolderDraft({ root, themeFile, community, call, check }) {
+  let theme;
+  try {
+    theme = JSON.parse(await readFile(themeFile, "utf8"));
+  } catch (error) {
+    return { ok: false, problems: [{ level: "error", path: basename(themeFile), message: `Not valid JSON: ${error instanceof Error ? error.message : error}` }] };
+  }
   const problems = check ? check(theme) : [];
   if (problems.some((problem) => problem.level === "error")) return { ok: false, problems };
   const state = await readState(root);
@@ -139,15 +165,15 @@ export async function publishFolderDraft({ root, community, call }) {
   return await publishTheme({ community, expectedRevision: state.draft_revision, call });
 }
 
-/** Calls `onChange` (debounced) whenever theme.json changes. Returns a function that stops watching. */
-export function watchDesign({ root, onChange, delayMs = 300 }) {
+/** Calls `onChange` (debounced) whenever the theme file changes. Returns a function that stops watching. */
+export function watchDesign({ themeFile, onChange, delayMs = 300 }) {
   let timer = null;
   let last = null;
-  const watcher = watch(root, (_event, file) => {
-    if (file !== "theme.json") return;
+  const watcher = watch(dirname(themeFile), (_event, file) => {
+    if (file !== basename(themeFile)) return;
     clearTimeout(timer);
     timer = setTimeout(async () => {
-      const stamp = await stat(join(root, "theme.json")).then((info) => info.mtimeMs, () => null);
+      const stamp = await stat(themeFile).then((info) => info.mtimeMs, () => null);
       if (stamp === null || stamp === last) return;
       last = stamp;
       onChange();

@@ -72,15 +72,16 @@ test("sign-in uses PKCE", () => {
   expect(pkce().state).not.toBe(first.state);
 });
 
-test("the published package is exactly the command, its library and checks, README, and the agent guide (no site template)", () => {
+test("the published package is exactly the command, its library and checks, README, and the agent guide, and the design templates (no site template)", () => {
   const packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: join(__dirname, "../packages/polynet-cli"), encoding: "utf8" }))[0];
   expect(packed.name).toBe("@polynet/cli");
   expect(packed.files.map((file: { path: string }) => file.path).sort()).toEqual([
     "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
-    "contracts/embed.mjs", "contracts/lesson.mjs", "contracts/theme.mjs",
+    "contracts/embed.mjs", "contracts/lesson.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md",
     ...["accessibility", "build-site", "deploy-verify", "design", "sdk"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
     "lib.mjs", "mcp.mjs", "package.json", "project.mjs",
+    "templates/stopwatch/template.json", "templates/stopwatch/theme.json",
   ]);
 });
 

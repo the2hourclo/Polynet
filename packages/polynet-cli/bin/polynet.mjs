@@ -3,6 +3,10 @@
 // polynet check [dir]                          the checks a site passes before going live
 // polynet deploy [dir] [--community <slug>]   check, then put a site live at <slug>.polynet.page
 // polynet push [dir] [--dry-run] [--wait]     stage courses and lessons for the owner to apply
+// polynet init [dir] --template <name>        start a community design from a template
+// polynet pull [dir]                           copy the community's draft theme into theme.json
+// polynet dev [dir]                            save theme.json to the draft on every edit; open the preview
+// polynet publish [dir]                        make the draft theme live for members
 // polynet skills [dir]                         add or update Polynet's skills for AI agents
 // polynet login | logout                       sign in with Polynet (browser), or forget it
 //
@@ -19,11 +23,13 @@ import {
 } from "../lib.mjs";
 import { checkSite, formatProblems } from "../checks.mjs";
 import { checkCourses, checkTheme, describeOperation, lessonEmbeds, planContentPush, readCourses, resolveCourses, stageChangeset } from "../content.mjs";
+import { draftPreviewUrl, initFromTemplate, listTemplates, publishFolderDraft, pullDesign, saveFolderDraft, watchDesign } from "../design.mjs";
 import { createMcpClient, PolynetToolError } from "../mcp.mjs";
 import { readProject, siteFiles } from "../project.mjs";
 
 const API_URL = (process.env.POLYNET_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
 const AUTH_FILE = join(homedir(), ".polynet", "auth.json");
+const APP_URL = (process.env.POLYNET_APP_URL || "https://www.polynet.ai").replace(/\/+$/, "");
 
 function fail(message) {
   console.error(`✗ ${message}`);
@@ -392,12 +398,119 @@ async function push(args) {
   fail("Stopped waiting. Run polynet push again to continue.");
 }
 
+// ---------------------------------------------------------------- design
+// A community's look, edited like a website: init or pull, dev, publish.
+
+function flagValue(args, name) {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+function designDir(args) {
+  const dirArg = args.find((arg, index) => !arg.startsWith("--") && !["--community", "--template"].includes(args[index - 1]));
+  return resolve(dirArg ?? ".");
+}
+
+async function designProject(args) {
+  const project = await readProject(designDir(args), { community: flagValue(args, "--community") });
+  if (!project.community) fail("Which community? Add \"community\" to polynet.json or pass --community <slug>.");
+  const themeFile = project.theme ?? resolve(project.root, project.config.theme ?? "theme.json");
+  return { project, themeFile };
+}
+
+async function init(args) {
+  const template = flagValue(args, "--template");
+  if (!template) {
+    const templates = await listTemplates();
+    if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, templates }, null, 2));
+    say("Templates:", ...templates.map((entry) => `  ${entry.name.padEnd(14)} ${entry.description ?? ""}`), "", "Start one: polynet init [folder] --template <name>");
+    return;
+  }
+  const root = designDir(args);
+  const community = flagValue(args, "--community");
+  // Only a template that keeps the founder's theme needs to ask Polynet for it.
+  const keepsTheme = (await listTemplates()).find((entry) => entry.name === template)?.apply?.theme === "keep_existing";
+  const call = community && keepsTheme
+    ? createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() }).call
+    : undefined;
+  const chosen = await initFromTemplate({ root, template, community, call });
+  if (community) await writeFile(join(root, "polynet.json"), `${JSON.stringify({ community }, null, 2)}\n`);
+  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, template: chosen }, null, 2));
+  const kept = { kept: "  Kept this folder's theme.json.", community: `  Kept ${community}'s own theme in theme.json.` }[chosen.theme];
+  say(`✓ Started from ${chosen.label ?? template} in ${root}.`, ...(kept ? [kept] : []), "  Edit theme.json (or ask your agent to), then run polynet dev to see it on your community.");
+}
+
+async function pull(args) {
+  const { project, themeFile } = await designProject(args);
+  const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
+  const theme = await pullDesign({ root: project.root, themeFile, community: project.community, call: mcp.call });
+  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, draft_revision: theme.draft_revision, has_unpublished_changes: theme.has_unpublished_changes }, null, 2));
+  say(`✓ Wrote ${project.community}'s draft theme to ${themeFile}.`,
+    theme.has_unpublished_changes ? "  The draft has changes members don't see yet." : "  The draft matches what members see.");
+}
+
+async function saveDraftOnce({ project, themeFile, call }) {
+  const result = await saveFolderDraft({ root: project.root, themeFile, community: project.community, call,
+    check: (theme) => checkTheme(theme, themeFile.slice(project.root.length + 1) || "theme.json") });
+  if (!result.ok) {
+    printProblems(result.problems);
+    say("  Not saved. Fix the theme and save the file again.");
+    return null;
+  }
+  return result.saved;
+}
+
+function openInBrowser(url) {
+  const opener = process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
+  try {
+    spawn(opener[0], opener[1], { stdio: "ignore", detached: true }).unref();
+  } catch {
+    // No browser here; the link is printed.
+  }
+}
+
+async function dev(args) {
+  const { project, themeFile } = await designProject(args);
+  const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
+  const call = mcp.call;
+  const save = async () => {
+    try {
+      const saved = await saveDraftOnce({ project, themeFile, call });
+      if (saved) say(`✓ ${new Date().toLocaleTimeString()} Draft saved (revision ${saved.draft_revision}). The preview updates in a moment.`);
+    } catch (error) {
+      say(`✗ ${error instanceof Error ? error.message : error}`);
+      if (/theme_revision_conflict/.test(String(error))) say("  Someone else changed the draft. Run polynet pull to start from theirs.");
+    }
+  };
+  await save();
+  const url = draftPreviewUrl(APP_URL, project.community);
+  say(`  Preview (only managers see the draft): ${url}`, `  Watching ${themeFile}. Press Ctrl+C to stop; run polynet publish when it's ready.`);
+  if (!args.includes("--no-open")) openInBrowser(url);
+  const stop = watchDesign({ themeFile, onChange: save });
+  await new Promise((done) => process.on("SIGINT", () => { stop(); done(); }));
+}
+
+async function publish(args) {
+  const { project, themeFile } = await designProject(args);
+  const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
+  // Publish exactly what the folder has: save it first, so the draft can't be a stale one.
+  const saved = await saveDraftOnce({ project, themeFile, call: mcp.call });
+  if (!saved) fail("Nothing was published.");
+  const published = await publishFolderDraft({ root: project.root, community: project.community, call: mcp.call });
+  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, published }, null, 2));
+  say(`✓ ${project.community} now has this theme for everyone. Polynet keeps the earlier one until you change it again.`);
+}
+
 const [command, ...rest] = process.argv.slice(2);
 try {
   if (command === "deploy") await deploy(rest);
   else if (command === "create") await create(rest);
   else if (command === "check") await check(rest);
   else if (command === "push") await push(rest);
+  else if (command === "init") await init(rest);
+  else if (command === "pull") await pull(rest);
+  else if (command === "dev") await dev(rest);
+  else if (command === "publish") await publish(rest);
   else if (command === "skills") await skills(rest);
   else if (command === "login") await login();
   else if (command === "logout") { await saveAuth(null); console.log("✓ Signed out."); }
@@ -419,6 +532,16 @@ try {
       "      The owner applies it in Polynet (the Apply card on the Agent page); new",
       "      pages arrive as drafts. --dry-run shows the changes and sends nothing;",
       "      --wait stays until each round is applied and stages the next.",
+      "  polynet init [folder] --template <name> [--community <slug>]",
+      "      Start a community design from a template (theme.json, no content).",
+      "      Without --template, lists the templates.",
+      "  polynet pull [folder]",
+      "      Copy the community's draft theme into theme.json.",
+      "  polynet dev [folder] [--no-open]",
+      "      Save theme.json to the community's draft on every edit and open the",
+      "      draft preview in the real app. Members keep the published look.",
+      "  polynet publish [folder]",
+      "      Save theme.json, then make it the theme members see.",
       "  polynet skills [folder]",
       "      Add or update Polynet's skills for AI agents (.agents/skills, .claude/skills).",
       "  polynet login     Sign in with Polynet in the browser.",
