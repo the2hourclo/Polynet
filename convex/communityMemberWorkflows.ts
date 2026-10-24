@@ -1117,6 +1117,52 @@ export const retryBuilderMemberGoalReview = mutation({
   },
 });
 
+// A lesson- or course-done property write that failed (say the option was
+// removed), or ran before the builder changed the rule. The lesson won't be
+// finished again, so the builder runs the current rule once more in this
+// visit, answering the rule's newest run so each one is retried once.
+export const retryBuilderMemberWorkflowAction = mutation({
+  args: { ...managerIdentityArgs, communityId: v.id("communities"), membershipId: v.id("communityMemberships"),
+    expectedWorkflowId: v.id("communityMemberWorkflows"), expectedWorkflowRevision: v.number(),
+    expectedMilestoneKey: v.string(), expectedMilestoneEnteredAt: v.number(),
+    expectedActivationSequence: v.number(), expectedTransitionSeq: v.number(), automationKey: v.string() },
+  handler: async (ctx, args) => {
+    await requireWorkflowManager({ ctx, ...args });
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    const membership = await ctx.db.get(args.membershipId);
+    if (!workflow || workflow._id !== args.expectedWorkflowId || workflow.revision !== args.expectedWorkflowRevision
+      || !membership || membership.communityId !== args.communityId || !communityMembershipRowIsActive(membership))
+      throw new Error("community_member_workflow_action_retry_authority_changed");
+    const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+    const current = resolveCurrentMilestone({ workflow, membership, state });
+    const activation = Number(membership.activationSequence ?? 0), transitionSeq = Number(state?.transitionSeq ?? 0);
+    if (current.completedAt || current.milestone.key !== args.expectedMilestoneKey
+      || current.milestoneEnteredAt !== args.expectedMilestoneEnteredAt
+      || activation !== args.expectedActivationSequence || transitionSeq !== args.expectedTransitionSeq)
+      throw new Error("community_member_workflow_action_retry_evidence_changed");
+    const automation = (current.milestone as CommunityMemberWorkflowMilestone).automations.find(a => a.key === args.automationKey);
+    const progress = await readWorkflowActionProgress(ctx, { workflow, membership, milestone: current.milestone,
+      milestoneEnteredAt: current.milestoneEnteredAt, transitionSeq });
+    const item = progress.actions.find(a => a.automation_key === args.automationKey);
+    if (!automation || automation.action.type !== "set_client_property" || !item?.retryable || item.evidence || item.status === "running")
+      throw new Error("community_member_workflow_action_retry_unavailable");
+    const runs = await ctx.db.query("communityMemberWorkflowRuns")
+      .withIndex("by_workflow_membership_createdAt", q => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+      .order("desc").take(256);
+    const last = runs.find(run => run.automationKey === automation.key && run.milestoneKey === current.milestone.key
+      && run.milestoneEnteredAt === current.milestoneEnteredAt && run.activationSequence === activation
+      && run.transitionSeq === transitionSeq && run.triggerSnapshot
+      && workflowTriggerIdentity(run.triggerSnapshot) === workflowTriggerIdentity(automation.trigger));
+    if (!last || last.status === "running") throw new Error("community_member_workflow_action_retry_unavailable");
+    const result = await executeWorkflowAutomation({ ctx, workflow, membership, current, automation,
+      timerReceiptRef: `workflow_action_retry:${last._id}` });
+    if (result.status === "already_executed") throw new Error("community_member_workflow_action_retry_unavailable");
+    return result.status === "action_failed"
+      ? { status: "action_failed" as const, error_code: "error_code" in result ? result.error_code : undefined }
+      : { status: "client_property_set" as const };
+  },
+});
+
 export const forceBuilderMemberMilestone = mutation({
   args: { ...managerIdentityArgs, communityId: v.id("communities"), membershipId: v.id("communityMemberships"),
     expectedWorkflowId: v.id("communityMemberWorkflows"),

@@ -47,6 +47,8 @@ export type WorkflowActionProgress = {
     action_type: "prompt_agent" | "request_form" | "create_service_channel" | "set_client_property";
     status: "pending" | "running" | "complete" | "failed" | "unavailable" | "waiting";
     waiting_for?: string;
+    /** A lesson- or course-done property write a builder can run again. */
+    retryable?: boolean;
     evidence: { run_id: string; source_id: string; completed_at: number } | null;
   }>;
   /** Proven work only, never authority to advance or a goal judgment. */

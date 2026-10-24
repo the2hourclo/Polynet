@@ -51,6 +51,8 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       status: "unavailable", evidence: null,
     };
     let seen = false;
+    // This rule's trigger fired in this visit, whatever the action looked like then.
+    let fired = false;
     for (const run of runs.slice(0, 256)) {
       if (run.communityId !== workflow.communityId || run.workflowId !== workflow._id || run.membershipId !== membership._id
         || run.activationSequence !== (membership.activationSequence ?? 0) || run.transitionSeq !== args.transitionSeq
@@ -58,10 +60,15 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
         // Older receipts remain proof when this rule and visit still match.
         // Keep rejecting impossible future-revision receipts.
         || run.workflowRevision > workflow.revision || run.automationKey !== rule.key
-        || !run.triggerSnapshot || workflowTriggerIdentity(run.triggerSnapshot) !== workflowTriggerIdentity(rule.trigger)
-        || run.actionSnapshot.key !== rule.action.key || run.actionSnapshot.type !== rule.action.type
+        || !run.triggerSnapshot || workflowTriggerIdentity(run.triggerSnapshot) !== workflowTriggerIdentity(rule.trigger)) continue;
+      fired = true;
+      if (run.actionSnapshot.key !== rule.action.key || run.actionSnapshot.type !== rule.action.type
         || (rule.action.type === "prompt_agent" && (run.actionSnapshot.type !== "prompt_agent" || run.actionSnapshot.prompt !== rule.action.prompt))
         || (rule.action.type === "request_form" && (run.actionSnapshot.type !== "request_form" || run.actionSnapshot.formKey !== rule.action.formKey))
+        // A write of another property or value is not this rule's write.
+        || (rule.action.type === "set_client_property" && (run.actionSnapshot.type !== "set_client_property"
+          || run.actionSnapshot.propertyKey !== rule.action.propertyKey
+          || JSON.stringify(run.actionSnapshot.value ?? null) !== JSON.stringify(rule.action.value ?? null)))
         || (run.milestoneContextSnapshot?.instructions ?? "") !== (milestone.instructions ?? "")
         || (run.milestoneContextSnapshot?.goal ?? "") !== (milestone.goal ?? "")) continue;
       let status: typeof item.status = "unavailable";
@@ -132,10 +139,13 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       const predecessor = actions.find(a => a.action_key === predecessorKey);
       item.status = "waiting";
       item.waiting_for = predecessor?.label ?? "previous action";
-    } else if (!seen && !item.evidence && finishes(rule)) {
+    } else if (!seen && !item.evidence && finishes(rule) && !fired) {
       item.status = "waiting";
       item.waiting_for = rule.trigger.type === "course_completed" ? "the course to be finished" : "the lesson to be done";
     }
+    // The lesson or course is done but the write failed, or ran before the
+    // builder changed it. The trigger won't fire again, so a builder can rerun it.
+    if (rule.action.type === "set_client_property" && fired && !item.evidence) item.retryable = true;
     actions.push(item);
   }
   return { actions, all_actions_complete: actions.length > 0 && actions.every(a => a.status === "complete"), scan_truncated: runs.length > 256 };

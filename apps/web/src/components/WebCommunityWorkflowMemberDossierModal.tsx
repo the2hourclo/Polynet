@@ -71,6 +71,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
   onForceMove: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
   onApproveMilestone?: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
   onRetryGoalReview?: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
+  onRetryAction?: (snapshot: CloudCommunityMemberSuccessDossier, automationKey: string) => Promise<{ status: string; error_code?: string }>;
   onOpenServiceChannel: (channelId: string) => void;
 }) {
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -82,6 +83,9 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
   const [goalReviewRetryError, setGoalReviewRetryError] = useState<string | null>(null);
   const [submittedGoalReviewReceipt, setSubmittedGoalReviewReceipt] = useState<string | null>(null);
   const goalReviewRetryPending = useRef(false);
+  const [retryingAction, setRetryingAction] = useState<string | null>(null);
+  const [actionRetryError, setActionRetryError] = useState<{ key: string; message: string } | null>(null);
+  const actionRetryPending = useRef(false);
   useEffect(() => {
     approvalGeneration.current += 1;
     approvalPending.current = false;
@@ -91,6 +95,9 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
     setRetryingGoalReview(false);
     setGoalReviewRetryError(null);
     setSubmittedGoalReviewReceipt(null);
+    actionRetryPending.current = false;
+    setRetryingAction(null);
+    setActionRetryError(null);
   }, [props.isOpen, props.dossier?.membership_id, props.dossier?.workflow?.current_milestone_entered_at,
     props.dossier?.workflow?.goal_review?.receipt_ref]);
   const [view, setView] = useState("progress");
@@ -281,8 +288,31 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                         <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : action.action_type === "set_client_property" ? "Done" : "Channel ready"
                           : action.status === "pending" ? action.action_type === "request_form" ? "Awaiting submission" : "Queued"
                           : action.status === "waiting" ? `Waiting for ${action.waiting_for ?? "previous action"}`
+                          : action.retryable && action.status === "unavailable" ? "Changed since it ran"
                           : action.status === "unavailable" ? "Completion unavailable" : readableLabel(action.status)}</span></div>
                       {action.evidence ? <small>Verified <ActivityTime value={new Date(action.evidence.completed_at).toISOString()} /></small> : null}
+                      {action.retryable && props.onRetryAction ? <>
+                        <button type="button" className="workflow-secondary-button" aria-label={`Run again: ${action.label}`}
+                          disabled={retryingAction !== null} onClick={async () => {
+                            if (actionRetryPending.current || !props.onRetryAction) return;
+                            const generation = approvalGeneration.current;
+                            actionRetryPending.current = true; setRetryingAction(action.automation_key); setActionRetryError(null);
+                            try {
+                              const result = await props.onRetryAction(dossier, action.automation_key);
+                              if (generation === approvalGeneration.current && result.status === "action_failed")
+                                setActionRetryError({ key: action.automation_key, message: "It failed again. Check this property's type and options in Clients, then run it again." });
+                            } catch (error) {
+                              if (generation === approvalGeneration.current) {
+                                const stale = String(error instanceof Error ? error.message : error).includes("evidence_changed");
+                                setActionRetryError({ key: action.automation_key, message: stale ? "The member moved on. Refresh and check their current stage."
+                                  : "Could not run it again. Refresh the member panel and try again." });
+                              }
+                            } finally {
+                              if (generation === approvalGeneration.current) { actionRetryPending.current = false; setRetryingAction(null); }
+                            }
+                          }}>{retryingAction === action.automation_key ? "Running…" : "Run again"}</button>
+                        {actionRetryError?.key === action.automation_key ? <p role="alert" className="workflow-error">{actionRetryError.message}</p> : null}
+                      </> : null}
                     </li>)}
                   </ul> : <p>No actions configured.</p>}
                   {dossier.workflow.action_progress.scan_truncated ? <p>Only a bounded set of recent receipts was checked. Unproven actions remain unavailable.</p> : null}

@@ -2260,6 +2260,7 @@ export default function App() {
         onForceMove: communityWorkflows.forceMove,
         onApproveMilestone: communityWorkflows.approveMilestone,
         onRetryGoalReview: communityWorkflows.retryGoalReview,
+        onRetryAction: communityWorkflows.retryAction,
         onOpenServiceChannel: (expectedChannelId: string) => communityWorkflows.openServiceChannel(expectedChannelId, (channelId) => {
           const channel = activeCommunityChannels.find(item => item.id === channelId && item.community_id === activeCommunityId);
           if (!channel) return;

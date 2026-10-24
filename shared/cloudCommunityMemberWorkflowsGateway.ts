@@ -313,6 +313,13 @@ export async function retryCloudCommunityMemberGoalReview<SessionT>(params: Work
     { authSubject, ...currentWorkflowAuthorityArgs(params.dossier), expectedReceiptRef: receiptRef });
 }
 
+/** Runs a failed or since-changed lesson- or course-done property write again. */
+export async function retryCloudCommunityMemberWorkflowAction<SessionT>(params: WorkflowGatewayParams<SessionT> & { dossier: CloudCommunityMemberSuccessDossier; automationKey: string }) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return client.mutation(api.communityMemberWorkflows.retryBuilderMemberWorkflowAction,
+    { authSubject, ...currentWorkflowAuthorityArgs(params.dossier), automationKey: params.automationKey });
+}
+
 async function submitCloudCommunityMemberDecision<SessionT>(params: WorkflowGatewayParams<SessionT> & { dossier: CloudCommunityMemberSuccessDossier }, approval: boolean) {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
   const args = { authSubject, ...currentWorkflowAuthorityArgs(params.dossier) };

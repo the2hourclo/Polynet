@@ -474,6 +474,7 @@
 .workflow-member-action-progress strong { overflow-wrap: anywhere; }
 .workflow-member-action-progress span, .workflow-member-action-progress small { color: var(--text-muted); }
 .workflow-member-action-progress small { display: block; margin-top: 4px; }
+.workflow-member-action-progress li > button { margin-top: 8px; }
 
 .workflow-member-dossier-section {
   padding: 20px 0;
