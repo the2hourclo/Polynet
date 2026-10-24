@@ -57,7 +57,7 @@ type LessonPages = {
   truncated: boolean;
 };
 
-async function listMemberVisibleLessonPages(ctx: any, communityId: any): Promise<LessonPages> {
+export async function listMemberVisibleLessonPages(ctx: any, communityId: any): Promise<LessonPages> {
   const modules = ((await ctx.db
     .query("communityResourceModules")
     .withIndex("by_community", (q: any) => q.eq("communityId", communityId))
@@ -76,7 +76,7 @@ async function listMemberVisibleLessonPages(ctx: any, communityId: any): Promise
   };
 }
 
-async function readProgressRows(ctx: any, communityId: any, userId: any) {
+export async function readProgressRows(ctx: any, communityId: any, userId: any) {
   return (await ctx.db
     .query("communityResourceProgress")
     .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", userId))
@@ -159,7 +159,7 @@ async function buildMemberProgress(ctx: any, source: LessonPages, rows: Progress
 }
 
 // Totals come from the course's visible lessons; done counts from the member's rows.
-function courseSummaries(source: LessonPages, rows: ProgressRow[]) {
+export function courseSummaries(source: LessonPages, rows: ProgressRow[]) {
   const rowByResource = new Map(rows.map((row) => [normalizeIdValue(row.resourceId), row]));
   return source.modules.map((module) => {
     const inCourse = source.pages.filter((page) => normalizeIdValue(page.moduleId) === normalizeIdValue(module._id));

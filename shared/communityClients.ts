@@ -1,0 +1,173 @@
+// A community's clients: one row per membership, past members included, for the
+// owner, admins and their agents. The row is a read model over records Polynet
+// already keeps (membership, subscription, workflow stage, lesson progress,
+// approved member facts). The only stored state added here is the owner's own
+// properties: fields the founder or their agent defines and fills in, kept
+// apart from member facts, which belong to the member and need their consent.
+
+export const COMMUNITY_CLIENT_PROPERTY_TYPES = [
+  "text",
+  "number",
+  "select",
+  "multi_select",
+  "date",
+  "checkbox",
+  "url",
+] as const;
+export type CommunityClientPropertyType = (typeof COMMUNITY_CLIENT_PROPERTY_TYPES)[number];
+
+export const COMMUNITY_CLIENT_PROPERTY_LIMIT = 50;
+export const COMMUNITY_CLIENT_PROPERTY_NAME_MAX = 60;
+export const COMMUNITY_CLIENT_PROPERTY_OPTION_LIMIT = 30;
+export const COMMUNITY_CLIENT_PROPERTY_OPTION_MAX = 60;
+export const COMMUNITY_CLIENT_TEXT_MAX = 2000;
+export const COMMUNITY_CLIENT_URL_MAX = 2000;
+export const COMMUNITY_CLIENT_STUCK_DEFAULT_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export type CommunityClientPropertyValue = string | number | boolean | string[];
+
+export type CommunityClientPropertyDefinition = {
+  key: string;
+  name: string;
+  type: CommunityClientPropertyType;
+  options: string[];
+};
+
+export class CommunityClientError extends Error {
+  constructor(readonly code: string, message?: string) {
+    super(message ? `${code}: ${message}` : code);
+  }
+}
+
+function cleanName(value: unknown, max: number, code: string): string {
+  if (typeof value !== "string") throw new CommunityClientError(code);
+  const name = value.replace(/\s+/g, " ").trim();
+  if (!name || name.length > max) throw new CommunityClientError(code);
+  return name;
+}
+
+/** A stable key from a property name: "Business offer" -> "business_offer". */
+export function communityClientPropertyKey(name: string): string {
+  const key = name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+  return key || "property";
+}
+
+export function normalizeCommunityClientPropertyOptions(type: CommunityClientPropertyType, options: unknown): string[] {
+  if (type !== "select" && type !== "multi_select") {
+    if (options !== undefined && !(Array.isArray(options) && options.length === 0)) {
+      throw new CommunityClientError("client_property_options_not_allowed");
+    }
+    return [];
+  }
+  if (!Array.isArray(options) || options.length === 0 || options.length > COMMUNITY_CLIENT_PROPERTY_OPTION_LIMIT) {
+    throw new CommunityClientError("client_property_options_invalid");
+  }
+  const seen = new Set<string>();
+  return options.map((option) => {
+    const name = cleanName(option, COMMUNITY_CLIENT_PROPERTY_OPTION_MAX, "client_property_options_invalid");
+    if (seen.has(name.toLowerCase())) throw new CommunityClientError("client_property_options_duplicate");
+    seen.add(name.toLowerCase());
+    return name;
+  });
+}
+
+export function normalizeCommunityClientPropertyDraft(draft: { name: unknown; type: unknown; options?: unknown }) {
+  const name = cleanName(draft.name, COMMUNITY_CLIENT_PROPERTY_NAME_MAX, "client_property_name_invalid");
+  if (!COMMUNITY_CLIENT_PROPERTY_TYPES.includes(draft.type as CommunityClientPropertyType)) {
+    throw new CommunityClientError("client_property_type_invalid");
+  }
+  const type = draft.type as CommunityClientPropertyType;
+  return { name, type, options: normalizeCommunityClientPropertyOptions(type, draft.options) };
+}
+
+/**
+ * Checks one value against its property. `null` clears it. Dates are stored
+ * as YYYY-MM-DD so they read the same in every timezone.
+ */
+export function normalizeCommunityClientPropertyValue(
+  property: CommunityClientPropertyDefinition,
+  value: unknown,
+): CommunityClientPropertyValue | null {
+  if (value === null) return null;
+  const invalid = () => new CommunityClientError("client_property_value_invalid", property.key);
+  switch (property.type) {
+    case "text": {
+      if (typeof value !== "string" || value.length > COMMUNITY_CLIENT_TEXT_MAX) throw invalid();
+      const text = value.trim();
+      return text ? text : null;
+    }
+    case "number":
+      if (typeof value !== "number" || !Number.isFinite(value)) throw invalid();
+      return value;
+    case "checkbox":
+      if (typeof value !== "boolean") throw invalid();
+      return value;
+    case "date": {
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw invalid();
+      const parsed = new Date(`${value}T00:00:00Z`);
+      if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) throw invalid();
+      return value;
+    }
+    case "url": {
+      if (typeof value !== "string" || value.length > COMMUNITY_CLIENT_URL_MAX) throw invalid();
+      let url: URL;
+      try { url = new URL(value.trim()); } catch { throw invalid(); }
+      if (url.protocol !== "https:" && url.protocol !== "http:") throw invalid();
+      return url.toString();
+    }
+    case "select": {
+      if (typeof value !== "string") throw invalid();
+      const option = property.options.find((name) => name.toLowerCase() === value.trim().toLowerCase());
+      if (!option) throw invalid();
+      return option;
+    }
+    case "multi_select": {
+      if (!Array.isArray(value)) throw invalid();
+      const picked = new Set<string>();
+      for (const item of value) {
+        const option = typeof item === "string"
+          ? property.options.find((name) => name.toLowerCase() === item.trim().toLowerCase())
+          : undefined;
+        if (!option) throw invalid();
+        picked.add(option);
+      }
+      // Kept in the property's option order so two equal picks always compare equal.
+      const ordered = property.options.filter((name) => picked.has(name));
+      return ordered.length ? ordered : null;
+    }
+  }
+}
+
+/** Status from the membership and its subscription, newest truth first. */
+export type CommunityClientStatus = "active" | "cancelling" | "past_due" | "cancelled" | "previous";
+
+export function deriveCommunityClientStatus(args: {
+  active: boolean;
+  subscription: { status: string; cancelAtPeriodEnd: boolean } | null;
+}): CommunityClientStatus {
+  if (!args.active) {
+    return args.subscription && (args.subscription.status === "canceled" || args.subscription.status === "ended")
+      ? "cancelled" : "previous";
+  }
+  if (args.subscription?.status === "past_due") return "past_due";
+  if (args.subscription && (args.subscription.cancelAtPeriodEnd || args.subscription.status === "cancel_at_period_end")) {
+    return "cancelling";
+  }
+  return "active";
+}
+
+/**
+ * Stuck: an active member with no progress (lesson finished, form submitted,
+ * stage moved, or joining itself) for `days`. The owner can change `days`.
+ */
+export function deriveCommunityClientStuck(args: {
+  active: boolean;
+  lastProgressAtMs: number | null;
+  nowMs: number;
+  days?: number;
+}): boolean {
+  if (!args.active || args.lastProgressAtMs === null) return false;
+  const days = args.days ?? COMMUNITY_CLIENT_STUCK_DEFAULT_DAYS;
+  return args.nowMs - args.lastProgressAtMs >= days * DAY_MS;
+}

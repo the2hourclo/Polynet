@@ -56,6 +56,7 @@ import type * as communityChannelCore from "../communityChannelCore.js";
 import type * as communityChannelParticipants from "../communityChannelParticipants.js";
 import type * as communityChannelValidators from "../communityChannelValidators.js";
 import type * as communityChannels from "../communityChannels.js";
+import type * as communityClients from "../communityClients.js";
 import type * as communityChat from "../communityChat.js";
 import type * as communityCognitionCleanup from "../communityCognitionCleanup.js";
 import type * as communityCognitionCleanupCore from "../communityCognitionCleanupCore.js";
@@ -312,6 +313,7 @@ declare const fullApi: ApiFromModules<{
   communityChannelParticipants: typeof communityChannelParticipants;
   communityChannelValidators: typeof communityChannelValidators;
   communityChannels: typeof communityChannels;
+  communityClients: typeof communityClients;
   communityChat: typeof communityChat;
   communityCognitionCleanup: typeof communityCognitionCleanup;
   communityCognitionCleanupCore: typeof communityCognitionCleanupCore;

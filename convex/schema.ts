@@ -2734,6 +2734,52 @@ export default defineSchema({
 
   // A member's own progress through lesson pages. Locks are computed on read
   // from lesson gates; only completion state is stored.
+  // The owner's own fields about their clients (shared/communityClients.ts).
+  // Member facts stay in memberFacts; these are the founder's records.
+  communityClientProperties: defineTable({
+    communityId: v.id("communities"),
+    key: v.string(),
+    name: v.string(),
+    type: v.union(
+      v.literal("text"),
+      v.literal("number"),
+      v.literal("select"),
+      v.literal("multi_select"),
+      v.literal("date"),
+      v.literal("checkbox"),
+      v.literal("url"),
+    ),
+    options: v.array(v.string()),
+    position: v.number(),
+    archivedAt: v.optional(v.number()),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_key", ["communityId", "key"]),
+
+  // The community's client rules: for now, how many days without progress count as stuck.
+  communityClientSettings: defineTable({
+    communityId: v.id("communities"),
+    stuckDays: v.number(),
+    updatedByUserId: v.id("users"),
+    updatedAt: v.number(),
+  }).index("by_community", ["communityId"]),
+
+  communityClientValues: defineTable({
+    communityId: v.id("communities"),
+    membershipId: v.id("communityMemberships"),
+    propertyKey: v.string(),
+    value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string())),
+    updatedByUserId: v.id("users"),
+    updatedVia: v.union(v.literal("web"), v.literal("agent")),
+    updatedAt: v.number(),
+  })
+    .index("by_membership", ["membershipId"])
+    .index("by_membership_property", ["membershipId", "propertyKey"])
+    .index("by_community_property", ["communityId", "propertyKey"]),
+
   communityResourceProgress: defineTable({
     communityId: v.id("communities"),
     userId: v.id("users"),

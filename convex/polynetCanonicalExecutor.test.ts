@@ -646,6 +646,7 @@ const modules = import.meta.glob([
   "./communityResourceEvidence.ts",
   "./communityResources.ts",
   "./communityResourceProgress.ts",
+  "./communityClients.ts",
   "./polynetCanonicalReceipts.ts",
   "./_generated/**/*.*s",
 ]);
@@ -3962,4 +3963,55 @@ test("a staged lesson body with a broken quiz is refused before the changeset is
   expect(result.ok).toBe(false);
   const changesets = await t.run(async (ctx) => await ctx.db.query("communityResourceBuilderChangesets").collect());
   expect(changesets).toHaveLength(0);
+});
+
+test("owners and their external agent read clients and set their own client properties; members and the community agent cannot", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const membership = await t.run(async (ctx) => (await ctx.db.query("communityMemberships")
+    .withIndex("by_community_user", (q) => q.eq("communityId", fixture.communityId).eq("userId", fixture.memberId)).unique())!);
+  const as = (principalKind: any, subject: string, userId: any) => {
+    let key = 0;
+    const run = (toolName: "polynet_list" | "polynet_read" | "polynet_call", input: Record<string, unknown>) =>
+      executePolynetCanonicalTool({
+        ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+        principalKind, evidenceSurface: "external_mcp", toolName, input,
+      });
+    const callOp = (operation: string, input: Record<string, unknown>) => run("polynet_call", {
+      operation, version: 1, target: `/communities/canonical-community/capabilities/${operation}.json`,
+      input, idempotency_key: `clients-${principalKind}-${key++}`,
+    });
+    return { run, callOp };
+  };
+  const owner = as("external_mcp", fixture.ownerSubject, fixture.ownerId);
+
+  const builder = await owner.run("polynet_list", { path: "/communities/canonical-community/builder/" });
+  expect(JSON.stringify(builder)).toContain("/builder/clients/");
+  await expect(owner.callOp("community.client.property.define", { name: "Tier", type: "select", options: ["VIP", "Standard"] }))
+    .resolves.toMatchObject({ ok: true, value: { property: { key: "tier", type: "select" } } });
+  await expect(owner.callOp("community.client.value.set", { membership_ref: `membership:${membership._id}`, key: "tier", value: "Gold" }))
+    .resolves.toMatchObject({ ok: false, code: "client_property_value_invalid" });
+  await expect(owner.callOp("community.client.value.set", { membership_ref: `membership:${membership._id}`, key: "tier", value: "VIP" }))
+    .resolves.toMatchObject({ ok: true, value: { key: "tier", value: "VIP" } });
+
+  await expect(owner.callOp("community.client.settings.set", { stuck_days: 3 }))
+    .resolves.toMatchObject({ ok: true, value: { stuck_days: 3 } });
+  const clients = await owner.run("polynet_list", { path: "/communities/canonical-community/builder/clients/" });
+  expect(clients, JSON.stringify(clients)).toMatchObject({ ok: true, value: { stuck_days: 3, properties: [{ key: "tier" }] } });
+  const row = ((clients as any).value.entries as any[]).find((entry) => entry.user_id === String(fixture.memberId));
+  expect(row).toMatchObject({ name: "canonical-member", status: "active", ref: `membership:${membership._id}`,
+    properties: { tier: "VIP" } });
+  expect(row.dossier_path).toContain(`/builder/workflow-members/${membership._id}.md`);
+  const stored = await t.run(async (ctx) => await ctx.db.query("communityClientValues").collect());
+  expect(stored).toMatchObject([{ propertyKey: "tier", value: "VIP", updatedVia: "agent" }]);
+
+  // Members and the community-owned agent get neither the list nor the operations.
+  const member = as("external_mcp", fixture.memberSubject, fixture.memberId);
+  await expect(member.run("polynet_list", { path: "/communities/canonical-community/builder/clients/" }))
+    .resolves.toMatchObject({ ok: false });
+  await expect(member.callOp("community.client.value.set", { membership_ref: `membership:${membership._id}`, key: "tier", value: "Standard" }))
+    .resolves.toMatchObject({ ok: false });
+  const communityAgent = as("community_agent", fixture.ownerSubject, fixture.ownerId);
+  await expect(communityAgent.run("polynet_list", { path: "/communities/canonical-community/builder/clients/" }))
+    .resolves.toMatchObject({ ok: false });
 });
