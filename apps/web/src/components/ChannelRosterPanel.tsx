@@ -34,6 +34,9 @@ function trapTab(event: KeyboardEvent, container: HTMLElement | null) {
 }
 
 type RosterProps = {
+  // The community's Members page: the full directory (search, join requests,
+  // auto-join) shown in the page as member cards instead of in a dialog.
+  page?: boolean;
   memberDetailOpen?: boolean;
   narrowOpen?: boolean;
   onCloseNarrow?: () => void;
@@ -58,6 +61,11 @@ export function ChannelRosterPanel(props: RosterProps) {
 }
 
 function ChannelRosterWorkspace(props: RosterProps) {
+  if (props.page) return <RosterSurface {...props} channelId={undefined} narrowOpen={false} onCloseNarrow={undefined} directory />;
+  return <ChannelRosterSidebar {...props} />;
+}
+
+function ChannelRosterSidebar(props: RosterProps) {
   const [membersOpen, setMembersOpen] = useState(false);
   const [channel, setChannel] = useState(props.channelId);
   if (channel !== props.channelId) {
@@ -208,7 +216,7 @@ function RosterSurface(props: RosterProps & {
   const settings = <CommunityMemberSettingsDialog {...props.memberSettings}
     member={selectedMember ? { ...selectedMember.profile, id: selectedMember.membership_id!, user_id: selectedMember.user_id, role: selectedMember.role, created_at: selectedMember.membership_created_at } : null}
     onClose={() => setSelectedMembershipId(null)} />;
-  const content = <><aside className={props.directory ? "members-directory-content" : "community-context-panel channel-roster-panel"} aria-label={props.directory ? "Community members" : "Channel people and agents"}
+  const content = <><aside className={props.page ? "members-directory-content members-page" : props.directory ? "members-directory-content" : "community-context-panel channel-roster-panel"} aria-label={props.directory ? "Community members" : "Channel people and agents"}
     style={!props.directory && props.memberDetailOpen ? { display: "none" } : undefined}
     onKeyDown={event => {
       if (event.key === "Escape" && !event.defaultPrevented && props.narrowOpen) {
@@ -305,7 +313,7 @@ function RosterSurface(props: RosterProps & {
   </>;
   // The chat shell isolates its stacking context beneath the community rail.
   // Keep overlays outside that shell, as the directory already does below.
-  if (!props.directory) return <>{content}{selectedMember ? createPortal(settings, document.body) : null}</>;
+  if (!props.directory || props.page) return <>{content}{selectedMember ? createPortal(settings, document.body) : null}</>;
   // Keep search and pagination mounted while the existing profile inspector is open.
   return createPortal(<><div className="modal-overlay" style={props.memberDetailOpen ? { display: "none" } : undefined} onMouseDown={props.onCloseMembers}>
     <section ref={dialogRef} className="modal members-directory-modal" role="dialog" aria-modal="true"

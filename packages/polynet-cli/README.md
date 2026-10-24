@@ -76,7 +76,10 @@ Edit a community's look like a website: files in a folder, a live preview,
 then publish. Members see nothing until you publish. `theme.json` holds the
 colours, type and shape; `layout.json` (optional) holds where the navigation
 sits, which tabs show, and how the community page is arranged. They are
-separate records, so publishing one never resets the other.
+separate records, so publishing one never resets the other. `brand.json`
+(optional) is what the community should feel like: its words, colours, fonts
+and logo. Members never see it; `init` makes a template's theme from it, and
+`check` warns when the theme strays from it.
 
 ```sh
 npx @polynet/cli init my-community --template stopwatch --community the-2-hour-club

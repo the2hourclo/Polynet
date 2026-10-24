@@ -78,11 +78,11 @@ test("the published package is exactly the command, its library and checks, READ
   expect(packed.name).toBe("@polynet/cli");
   expect(packed.files.map((file: { path: string }) => file.path).sort()).toEqual([
     "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
-    "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/sections.mjs", "contracts/theme.mjs", "design.mjs",
+    "contracts/brand.mjs", "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/sections.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md",
     ...["accessibility", "build-site", "deploy-verify", "design", "sdk"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
     "lib.mjs", "mcp.mjs", "package.json", "project.mjs",
-    "templates/skool/README.md", "templates/skool/layout.json", "templates/skool/template.json", "templates/skool/theme.json",
+    "templates/skool/layout.json", "templates/skool/template.json", "templates/skool/theme.json",
     "templates/stopwatch/template.json", "templates/stopwatch/theme.json",
   ]);
 });

@@ -19,6 +19,7 @@ import { parseCommunityEmbedBlock, COMMUNITY_EMBED_LANGUAGE } from "./contracts/
 import { normalizeCommunityTheme } from "./contracts/theme.mjs";
 import { normalizeCommunityLayout } from "./contracts/layout.mjs";
 import { checkCommunityResourceBody } from "./contracts/sections.mjs";
+import { normalizeCommunityBrand, themeDriftsFromBrand } from "./contracts/brand.mjs";
 
 // The server's limits (convex/communityResources.ts). A lesson body's limits
 // (sections of up to 20,000 characters) come from contracts/sections.mjs.
@@ -220,6 +221,24 @@ export function checkLayout(raw, path = "layout.json") {
     path: problem.path ? `${path} → ${problem.path}` : path,
     message: problem.message,
   }));
+}
+
+export function checkBrand(raw, path = "brand.json") {
+  const result = normalizeCommunityBrand(raw);
+  if (result.ok) return [];
+  return result.problems.map((problem) => ({
+    level: "error",
+    path: problem.path ? `${path} → ${problem.path}` : path,
+    message: problem.message,
+  }));
+}
+
+/** Warnings, never errors: where a theme strays from the brand it should carry. */
+export function checkThemeAgainstBrand(theme, brand, path = "theme.json") {
+  const checkedTheme = normalizeCommunityTheme(theme);
+  const checkedBrand = normalizeCommunityBrand(brand);
+  if (!checkedTheme.ok || !checkedBrand.ok) return [];
+  return themeDriftsFromBrand(checkedTheme.theme, checkedBrand.brand).map((message) => ({ level: "warning", path, message }));
 }
 
 // ------------------------------------------------------------------- planning

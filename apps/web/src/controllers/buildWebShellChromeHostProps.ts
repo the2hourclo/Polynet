@@ -101,6 +101,7 @@ export function buildWebShellChromeHostProps(params: {
   hasLeftPanel: boolean;
   isGlobalSettings: boolean;
   themeDraftSession?: unknown;
+  memberSession?: unknown;
 }): Omit<WebShellChromeHostProps, "mainSurface" | "globalOverlays"> {
   const isMobileCommunityHome =
     params.showMobileAppShell &&
@@ -290,5 +291,6 @@ export function buildWebShellChromeHostProps(params: {
     hasLeftPanel: params.hasLeftPanel,
     isGlobalSettings: params.isGlobalSettings,
     themeDraftSession: params.themeDraftSession ?? null,
+    memberSession: params.memberSession ?? null,
   };
 }

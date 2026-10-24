@@ -46,8 +46,10 @@ export async function readProject(dir, { community: communityFlag } = {}) {
   const theme = (await isFile(themePath)) ? themePath : null;
   const layoutPath = resolve(root, config.layout ?? "layout.json");
   const layout = (await isFile(layoutPath)) ? layoutPath : null;
+  const brandPath = resolve(root, config.brand ?? "brand.json");
+  const brand = (await isFile(brandPath)) ? brandPath : null;
   const siteOrigin = (process.env.POLYNET_SITE_ORIGIN || config.site_origin || (community ? `https://${community}.polynet.page` : "")).replace(/\/+$/, "");
-  return { root, config, community, site, courses, theme, layout, siteOrigin };
+  return { root, config, community, site, courses, theme, layout, brand, siteOrigin };
 }
 
 /** The files the site serves: never the courses folder or the design files. */
@@ -58,7 +60,7 @@ export async function siteFiles(project) {
     return rel && !rel.startsWith("..") ? "/" + rel.split(sep).join("/") : null;
   };
   const hiddenDir = project.courses ? inside(project.courses) : null;
-  const hiddenFiles = [project.theme, project.layout].filter(Boolean).map(inside);
+  const hiddenFiles = [project.theme, project.layout, project.brand].filter(Boolean).map(inside);
   return (await collectFiles(project.site)).filter(
     (file) => !hiddenFiles.includes(file.path) && !(hiddenDir && (file.path === hiddenDir || file.path.startsWith(hiddenDir + "/"))),
   );

@@ -1,7 +1,9 @@
-import type {
-  ComponentProps,
-  ReactNode,
+import {
+  useEffect,
+  type ComponentProps,
+  type ReactNode,
 } from "react";
+import { visibleCommunityLayoutTabs } from "../../../../shared/communityLayout";
 import { WebMobileTopBar } from "./WebMobileTopBar";
 import { buildWebShellChromeClassNames } from "../controllers/buildWebShellChromeClassNames";
 import { WebDesktopShellHeader } from "./WebDesktopShellHeader";
@@ -11,6 +13,10 @@ import { WebMobileGlobalShell } from "./WebMobileGlobalShell";
 import { WebCommunityNavSurface } from "./WebCommunityNavSurface";
 import { WebSettingsSidebar } from "./WebSettingsSidebar";
 import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
+import { useWebCommunityLayout } from "../controllers/useWebCommunityLayout";
+import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
+import { WebCommunityAside } from "./WebCommunityAside";
+import { WebCommunityTopNav } from "./WebCommunityTopNav";
 import type {
   MobileOverlay,
   WebCommunityShellProps,
@@ -35,15 +41,21 @@ export type WebShellChromeHostProps = {
   globalOverlays: ReactNode;
   // A manager's session, for the draft theme preview; null for everyone else.
   themeDraftSession?: unknown;
+  memberSession?: unknown;
 };
 
-// Pages that belong to the community itself take its theme. Settings,
-// analytics and everything outside a community keep Polynet's look.
+// Every page inside a community takes its theme, its owner pages included, so
+// the community's navigation never changes look between tabs. The community
+// rail and everything outside a community keep Polynet's look.
 const COMMUNITY_THEMED_DESTINATIONS = new Set([
+  "community_settings",
+  "community_analytics",
   "community_home",
   "community_chat",
   "community_resources",
   "community_events",
+  "community_members",
+  "community_about",
   "community_agent",
   "community_workflows",
 ]);
@@ -56,6 +68,32 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     { draftSession: props.themeDraftSession ?? null },
   );
   const communityThemeAttribute = communityTheme.attribute;
+  // The community's layout applies wherever its own navigation shows, owner
+  // tools included, so the tab bar doesn't jump between pages.
+  const { layout: communityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
+    props.communityShell.activeCommunity?.id ?? null,
+    { draftSession: props.themeDraftSession ?? null },
+  );
+  // Members and About are pages only where the community's layout shows them.
+  // Elsewhere their links keep landing on chat, as before layouts existed.
+  const activeCommunityTab = props.communityShell.communityTab;
+  const onSelectCommunityTab = props.communityShell.onSelectCommunityTab;
+  const layoutHidesActiveTab =
+    communityLayoutReady &&
+    (activeCommunityTab === "members" || activeCommunityTab === "about") &&
+    !visibleCommunityLayoutTabs(communityLayout).some((entry) => entry.tab === activeCommunityTab);
+  useEffect(() => {
+    if (layoutHidesActiveTab) onSelectCommunityTab("chat");
+  }, [layoutHidesActiveTab, onSelectCommunityTab]);
+  const communityFrame: WebCommunityFrame = {
+    layout: communityLayout,
+    community: props.communityShell.activeCommunity,
+    memberCount: props.communityShell.activeCommunityMemberCount,
+    session: props.memberSession ?? null,
+    canInvite: props.communityShell.canViewMembersActiveCommunity,
+    onSelectTab: props.communityShell.onSelectCommunityTab,
+    onCopyJoinLink: props.communityShell.onCopyCommunityJoinLink,
+  };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&
     (props.communityShell.mobileRootPage === "agent" ||
@@ -83,12 +121,22 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     <WebDesktopShellHeader {...props.desktopHeader} />
   );
 
+  const isTopCommunityNav =
+    !props.showMobileAppShell &&
+    props.communityShell.showDesktopCommunityNav &&
+    communityLayout.navigation.position === "top";
   const desktopCommunityNav = props.communityShell.showDesktopCommunityNav ? (
-    <WebCommunityNavSurface
-      communityShell={props.communityShell}
-      presentation="desktop"
-    />
+    isTopCommunityNav ? (
+      <WebCommunityTopNav communityShell={props.communityShell} />
+    ) : (
+      <WebCommunityNavSurface
+        communityShell={props.communityShell}
+        presentation="desktop"
+      />
+    )
   ) : null;
+  const communityAsideBlocks =
+    isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
   const mobileGlobalShellContent = isMobileCommunityHome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
@@ -119,22 +167,29 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   ) : props.mainSurface;
   // On desktop the community surface below carries the theme. Elsewhere the
   // page is wrapped without a box of its own, so layout is unchanged.
-  const mainSurface =
+  const themedMainSurface =
     communityThemeAttribute && !desktopCommunityNav ? (
       <div className="community-theme-scope" data-community-theme={communityThemeAttribute}>
         {unthemedMainSurface}
       </div>
     ) : unthemedMainSurface;
+  // With the top tab bar the page sits under it, beside the layout's aside.
+  const mainSurface = isTopCommunityNav ? (
+    <div className={`community-top-body${communityAsideBlocks.length > 0 ? " has-aside" : ""}`}>
+      <div className="community-top-main">{themedMainSurface}</div>
+      <WebCommunityAside blocks={communityAsideBlocks} />
+    </div>
+  ) : themedMainSurface;
   const desktopSettingsSidebar = (
     <WebSettingsSidebar settingsSidebar={props.settingsSidebar} />
   );
   const desktopFrameMode = desktopCommunityNav
-    ? "community"
+    ? isTopCommunityNav ? "community-top" : "community"
     : props.isGlobalSettings
       ? "settings"
       : "single";
 
-  const { rootClassName, shellClassName } = buildWebShellChromeClassNames({
+  const { rootClassName: chromeRootClassName, shellClassName } = buildWebShellChromeClassNames({
     showMobileAppShell: props.showMobileAppShell,
     showMobileSettingsShell: props.showMobileSettingsShell,
     showMobileGlobalShell,
@@ -152,7 +207,12 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       props.desktopHeader.hasBackTargetSnapshot,
   });
 
+  const rootClassName = isTopCommunityNav
+    ? `${chromeRootClassName} community-layout-top community-layout-${communityLayout.width}`
+    : chromeRootClassName;
+
   return (
+    <WebCommunityFrameContext.Provider value={communityFrame}>
     <div className={rootClassName}>
       {communityTheme.previewingDraft ? (
         <div className="community-theme-draft-banner" role="status">
@@ -178,7 +238,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
           </div>
         ) : desktopCommunityNav ? (
           <div
-            className="product-shell-surface product-shell-surface--community"
+            className={`product-shell-surface product-shell-surface--${isTopCommunityNav ? "community-top" : "community"}`}
             data-community-theme={communityThemeAttribute ?? undefined}
           >
             {desktopCommunityNav}
@@ -194,5 +254,6 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
 
       {props.globalOverlays}
     </div>
+    </WebCommunityFrameContext.Provider>
   );
 }
