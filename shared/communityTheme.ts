@@ -396,6 +396,21 @@ function courseColumns(theme: CommunityThemeV1): string {
   return `repeat(auto-fill, minmax(min(100%, ${COURSE_CARD_MIN_WIDTH[theme.course_card_size]}px), 1fr))`;
 }
 
+// Every text size inside a community is one of these roles, so one text-size
+// setting moves all of them together. Sizes are Polynet's defaults at 100%.
+export const COMMUNITY_TYPE_ROLES = {
+  display: 32, title: 24, heading: 20, subheading: 17, reading: 16, body: 15, small: 13, label: 12, meta: 11,
+} as const;
+
+function typeRoles(scale: number): Record<string, string> {
+  const px = (size: number) => `${Math.round(size * scale * 10) / 10}px`;
+  const roles: Record<string, string> = {};
+  for (const [role, size] of Object.entries(COMMUNITY_TYPE_ROLES)) roles[`--pn-type-${role}`] = px(size);
+  // Page titles still shrink on narrow screens, at the same proportions.
+  roles["--pn-type-display"] = `clamp(${px(26)}, ${Math.round(3 * scale * 100) / 100}vw, ${px(COMMUNITY_TYPE_ROLES.display)})`;
+  return roles;
+}
+
 // The variables a community area gets for one scheme: the public --pn-* set
 // (also what custom sites and <polynet-account> read) and Polynet's internal
 // variables derived from it.
@@ -429,6 +444,7 @@ export function communityThemeVariables(
     "--pn-heading-case": upper ? "uppercase" : "none",
     "--pn-heading-tracking": upper ? "0.04em" : "normal",
     "--pn-type-scale": String(theme.type_scale),
+    ...typeRoles(theme.type_scale),
     "--pn-numerals": theme.numerals === "tabular" ? "tabular-nums" : "normal",
     "--pn-radius-card": cardRadius(theme),
     "--pn-radius-card-top": cardTopRadius(theme),

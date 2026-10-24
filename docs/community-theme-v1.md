@@ -45,7 +45,7 @@ look; both follow the member's own Light/Dark choice.
 | `font_body`, `font_heading`, `font_mono` | A name from `COMMUNITY_THEME_FONTS`. Display faces only for headings |
 | `heading_weight` | 300 to 900 |
 | `heading_case` | `none`, `upper` |
-| `type_scale` | 0.9 to 1.2 |
+| `type_scale` | 0.9 to 1.2. Multiplies every text role below |
 | `numerals` | `proportional`, `tabular` |
 | `radius` | 0 to 24 (px) |
 | `corner_style` | `even`, `sketch` |
@@ -56,6 +56,17 @@ look; both follow the member's own Light/Dark choice.
 | `media_plate` | `none`, `light` (frames white-background images in dark schemes) |
 | `course_cover_ratio` | `auto` (Polynet's fixed height), `16:9`, `3:2`, `4:3`, `1:1`, `21:9` |
 | `course_card_size` | `default` (two columns), `small`, `medium`, `large` (cards at least 220, 300 or 420px wide, as many columns as fit) |
+
+## Text roles
+
+Community text uses nine sizes, compiled as `--pn-type-<role>` from
+`COMMUNITY_TYPE_ROLES` times `type_scale`: `display` 32 (page and lesson
+titles, shrinking to 26 on narrow screens), `title` 24, `heading` 20,
+`subheading` 17, `reading` 16 (lesson text), `body` 15 (messages, card
+titles), `small` 13, `label` 12, `meta` 11. `community-theme-hooks.css` maps
+Polynet's components to a role, so changing `type_scale` moves all of them
+together and no screen keeps a one-off size. A screen not yet mapped keeps
+Polynet's own size.
 
 ## Validation
 

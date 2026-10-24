@@ -68,12 +68,65 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  font-size: calc(16px * var(--pn-type-scale));
 }
 [data-community-theme] .resource-course-card-description {
   -webkit-line-clamp: 3;
   min-height: calc(3 * 1.5em);
-  font-size: calc(13px * var(--pn-type-scale));
+}
+
+/* Text roles: every size below is one of --pn-type-*, so the text-size setting
+   moves all community text together and nothing drifts to a one-off size. */
+[data-community-theme] :is(.resource-viewer-title, .community-welcome-intro h1) {
+  font-size: var(--pn-type-display);
+}
+[data-community-theme] :is(.resource-viewer-prose h1.md-header, .member-form-dialog section h2) {
+  font-size: var(--pn-type-title);
+}
+[data-community-theme] .resource-viewer-prose h2.md-header {
+  font-size: var(--pn-type-heading);
+}
+[data-community-theme] .resource-viewer-prose h3.md-header {
+  font-size: var(--pn-type-subheading);
+}
+[data-community-theme] .resource-viewer-prose {
+  font-size: var(--pn-type-reading);
+}
+[data-community-theme] :is(
+  .resource-viewer-prose :is(h4, h5, h6).md-header,
+  .community-interaction-author,
+  .community-interaction-body,
+  .resource-course-card-heading > strong,
+  .community-knowledge-header h1,
+  .community-nav-identity-name,
+  .member-form-dialog header h2,
+  .community-welcome-intro p
+) {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] :is(
+  .nav-item,
+  .knowledge-resource-item-title,
+  .resource-course-card-description,
+  .community-channel-participant
+) {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] :is(
+  .community-interaction-meta-row,
+  .resource-viewer-prose .md-media-embed-caption,
+  .resource-course-card-lock,
+  .community-welcome-intro small,
+  .community-welcome-step
+) {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] :is(
+  .resource-course-card-status,
+  .resource-course-card-meta,
+  .resource-course-card-progress-label,
+  .resource-course-outline-header
+) {
+  font-size: var(--pn-type-meta);
 }
 
 /* Images drawn on white sit on a light plate in dark themes, so they don't glare. */
