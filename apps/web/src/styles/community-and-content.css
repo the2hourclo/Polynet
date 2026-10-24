@@ -13010,7 +13010,10 @@ button.chat-reply-quote:hover {
   background: transparent;
   color: var(--text-primary);
 }
-.lesson-element-button:disabled {
+.lesson-element-button:disabled,
+.lesson-element-button[aria-disabled="true"],
+.lesson-element-choices[aria-disabled="true"] input,
+.lesson-element-choices input[aria-disabled="true"] {
   opacity: 0.6;
   cursor: default;
 }
