@@ -49,23 +49,14 @@ export const COMMUNITY_DESIGN_SURFACES = {
     ],
   },
   cards: {
-    label: "Course cards, workflow columns, member cards, post cards and sidebar cards",
+    label: "Course cards, workflow columns and member cards",
     tokens: ["radius", "corner_style", "border_width", "shadow"],
-    classes: [
-      "resource-course-card",
-      "resource-course-create-card",
-      "workflow-milestone-column",
-      "workflow-member-stub",
-      "community-post-card",
-      "community-posts-composer",
-      "community-aside-card",
-      "community-about-main",
-    ],
+    classes: ["resource-course-card", "resource-course-create-card", "workflow-milestone-column", "workflow-member-stub"],
   },
   buttons: {
     label: "Primary buttons",
     tokens: ["button_shape", "shadow"],
-    classes: ["settings-primary-action", "community-events-primary-link", "knowledge-source-intake-primary", "platform-save-button"],
+    classes: ["settings-primary-action", "community-events-primary-link", "knowledge-source-intake-primary", "platform-save-button", "stripe-setup-button"],
   },
   course_catalog: {
     label: "Course grid, covers and card text",
@@ -81,6 +72,11 @@ export const COMMUNITY_DESIGN_SURFACES = {
     label: "Course covers and lesson images on dark themes",
     tokens: ["media_plate"],
     classes: ["resource-course-card-cover-image", "resource-viewer-prose"],
+  },
+  page_cards: {
+    label: "Post cards, the post box and sidebar cards (stay flat; corners follow the theme)",
+    tokens: ["radius", "font_body"],
+    classes: ["community-post-card", "community-posts-composer", "community-aside-card", "community-about-main", "community-post-card-title"],
   },
   community_area: {
     label: "The community's own area (never the community rail or Polynet's navigation)",

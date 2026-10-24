@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { MessageSquare, Pin, X } from "lucide-react";
+import { MessageSquare, Pin, ThumbsUp, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import type { UserProfile } from "../../../../shared/communityTypes";
 import {
@@ -9,10 +9,8 @@ import {
   agentBadgeLabel,
   bundleText,
   formatRelativeTime,
-  kindChipLabel,
   stripSharedAttachmentSummary,
 } from "./communityInteractionFeed";
-import { ReactionSummary } from "./communityInteractionRowParts";
 
 // The community's posts as one card each, newest activity first: the "posts"
 // presentation a layout can choose for the chat page. Same posts, replies,
@@ -67,8 +65,20 @@ export function splitPostTitle(title: string | null, body: string): { title: str
   const lines = body.split("\n");
   const first = lines[0]?.trim() ?? "";
   const rest = lines.slice(1).join("\n").trim();
-  if (!rest || first.length > 120) return { title: null, body };
+  if (first.length > 120) return { title: null, body };
+  // A short one-line post is all title, as on a Skool feed.
+  if (!rest) return first.length <= 80 ? { title: first, body: "" } : { title: null, body };
   return { title: first.replace(/^#+\s*/, "").replace(/^\*\*(.*)\*\*$/, "$1"), body: rest };
+}
+
+const LIKE = "👍";
+
+// The picture a post shows on its card: its first image, or a link preview's.
+function postThumbnail(bundle: CommunityInteractionRootBundle): { src: string; alt: string } | null {
+  const image = bundle.attachments.find((attachment) => attachment.type === "image" && (attachment.url || attachment.data_url));
+  if (image) return { src: (image.url || image.data_url)!, alt: image.name };
+  const embed = bundle.embeds?.find((entry) => entry.status === "ready" && entry.image_url);
+  return embed ? { src: embed.image_url!, alt: embed.image_alt ?? embed.title ?? "" } : null;
 }
 
 function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractionRootBundle; pinned: boolean }) {
@@ -77,11 +87,13 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
   const label = actorLabel(root, props.displayName, props.activeCommunityName);
   const profile = root.actor_user_id ? props.profilesByUserId[root.actor_user_id] ?? null : null;
   const badge = agentBadgeLabel(root.actor_type);
-  const chip = kindChipLabel(root.kind);
   const text = splitPostTitle(
     root.title,
     stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0),
   );
+  const thumbnail = postThumbnail(bundle);
+  const likes = root.reaction_summary.find((row) => row.emoji === LIKE)?.count ?? 0;
+  const liked = root.viewer_emojis.includes(LIKE);
   const open = () => props.onSelectRoot(root.id);
   // The whole card opens the post; its own buttons and links keep their job.
   const openFromCard = (event: MouseEvent<HTMLElement>) => {
@@ -110,37 +122,40 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
           <span className="community-post-card-author">{label}</span>
           <span className="community-post-card-meta">
             {formatRelativeTime(root.created_at)}
+            {props.channelName ? <> · <span className="community-post-card-category">{props.channelName}</span></> : null}
+            {badge ? <> · {badge}</> : null}
           </span>
         </div>
-        {props.channelName ? <span className="community-post-card-category">{props.channelName}</span> : null}
         {props.pinned ? (
           <span className="community-post-card-pin"><Pin size={14} aria-hidden="true" /> Pinned</span>
         ) : null}
-        {badge ? <span className="community-interaction-badge">{badge}</span> : null}
-        {chip ? <span className="community-interaction-kind">{chip}</span> : null}
       </header>
-      <button type="button" className="community-post-card-open" onClick={open}>
-        {text.title ? <h3 className="community-post-card-title">{text.title}</h3> : null}
-        {text.body ? (
-          <div className="community-post-card-preview">
-            <InteractionContent text={text.body} renderTextWithLinks={props.renderTextWithLinks} />
-          </div>
-        ) : null}
-        {bundle.attachments.length > 0 ? (
-          <span className="community-post-card-attachments">
-            {bundle.attachments.length === 1 ? "1 attachment" : `${bundle.attachments.length} attachments`}
-          </span>
-        ) : null}
-      </button>
+      <div className={`community-post-card-body${thumbnail ? " has-thumbnail" : ""}`}>
+        <button type="button" className="community-post-card-open" onClick={open}>
+          {text.title ? <h3 className="community-post-card-title">{text.title}</h3> : null}
+          {text.body ? (
+            <div className="community-post-card-preview">
+              <InteractionContent text={text.body} renderTextWithLinks={props.renderTextWithLinks} />
+            </div>
+          ) : null}
+        </button>
+        {thumbnail ? <img className="community-post-card-thumbnail" src={thumbnail.src} alt={thumbnail.alt} loading="lazy" /> : null}
+      </div>
       <footer className="community-post-card-footer">
-        <ReactionSummary
-          rows={root.reaction_summary}
-          viewerEmojis={root.viewer_emojis}
-          onToggle={(emoji) => props.onToggleReaction?.("root", root.id, emoji)}
-        />
-        <button type="button" className="community-post-card-replies" onClick={open}>
-          <MessageSquare size={16} aria-hidden="true" />
-          {root.reply_count === 0 ? "Comment" : root.reply_count === 1 ? "1 comment" : `${root.reply_count} comments`}
+        <button
+          type="button"
+          className={`community-post-card-action${liked ? " is-active" : ""}`}
+          aria-pressed={liked}
+          aria-label={liked ? "Unlike" : "Like"}
+          disabled={!props.onToggleReaction}
+          onClick={() => props.onToggleReaction?.("root", root.id, LIKE)}
+        >
+          <ThumbsUp size={17} aria-hidden="true" />
+          <span>{likes}</span>
+        </button>
+        <button type="button" className="community-post-card-action" aria-label={`${root.reply_count} comments`} onClick={open}>
+          <MessageSquare size={17} aria-hidden="true" />
+          <span>{root.reply_count}</span>
         </button>
         {root.last_reply_actor_user_id && root.last_reply_at ? (
           <span className="community-post-card-last-reply">

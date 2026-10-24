@@ -97,14 +97,22 @@ const DESIGN_RECORDS = {
     record: "a community layout v1 record (shared/communityLayout.ts): navigation, width and page blocks; {} is Polynet's default",
     invalid: "problems lists each key, tab or block the contract doesn't allow",
     forbidden: ["move_manager_tabs"] },
+  // The brand is a reference for whoever designs the community, not something
+  // members see: saved directly, with no draft to publish.
+  brand: { path: "/builder/brand.json", module: "communityBrands", internal: "Brand", name: "Community brand (what designs start from)",
+    record: "a community brand v1 record (shared/communityBrand.ts): words, feels_like, colours, fonts, logo, photos, phrases, dos, donts, notes; all optional",
+    invalid: "problems lists each field that isn't valid",
+    forbidden: ["change_theme", "change_layout"], publishes: false },
 } as const;
 type DesignRecordKind = keyof typeof DESIGN_RECORDS;
 const DESIGN_KINDS = Object.keys(DESIGN_RECORDS) as DesignRecordKind[];
-const designSaveOperation = (kind: DesignRecordKind) => `community.${kind}.save_draft`;
+const designPublishes = (kind: DesignRecordKind) => (DESIGN_RECORDS[kind] as { publishes?: boolean }).publishes !== false;
+const designSaveOperation = (kind: DesignRecordKind) => designPublishes(kind) ? `community.${kind}.save_draft` : `community.${kind}.save`;
 const designPublishOperation = (kind: DesignRecordKind) => `community.${kind}.publish`;
-const DESIGN_OPERATIONS = DESIGN_KINDS.flatMap(kind => [designSaveOperation(kind), designPublishOperation(kind)]);
+const DESIGN_OPERATIONS = DESIGN_KINDS.flatMap(kind =>
+  designPublishes(kind) ? [designSaveOperation(kind), designPublishOperation(kind)] : [designSaveOperation(kind)]);
 const designKindOf = (operation: string) => DESIGN_KINDS.find(kind =>
-  operation === designSaveOperation(kind) || operation === designPublishOperation(kind));
+  operation === designSaveOperation(kind) || (designPublishes(kind) && operation === designPublishOperation(kind)));
 const designKindAt = (localPath: string) => DESIGN_KINDS.find(kind => DESIGN_RECORDS[kind].path === localPath);
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
@@ -767,7 +775,9 @@ function capabilityDocument(args: {
       ? { required: [kind, "expected_draft_revision"],
         [kind]: record.record,
         expected_draft_revision: `draft_revision from ${record.path}`,
-        result: "the saved draft and its new draft_revision. Only managers see a draft, in the app's draft preview",
+        result: designPublishes(kind)
+          ? "the saved draft and its new draft_revision. Only managers see a draft, in the app's draft preview"
+          : `the saved ${kind} and its new draft_revision; it takes effect at once for whoever designs next`,
         refusals: { [`${kind}_invalid`]: record.invalid, [`${kind}_revision_conflict`]: "the draft changed since you read it" },
         effects: [`replace_${kind}_draft`], forbidden_effects: ["publish", "change_other_communities", ...record.forbidden] }
       : { required: ["expected_draft_revision"],

@@ -44,9 +44,12 @@ export type WebShellChromeHostProps = {
   memberSession?: unknown;
 };
 
-// Pages that belong to the community itself take its theme. Settings,
-// analytics and everything outside a community keep Polynet's look.
+// Every page inside a community takes its theme, its owner pages included, so
+// the community's navigation never changes look between tabs. The community
+// rail and everything outside a community keep Polynet's look.
 const COMMUNITY_THEMED_DESTINATIONS = new Set([
+  "community_settings",
+  "community_analytics",
   "community_home",
   "community_chat",
   "community_resources",

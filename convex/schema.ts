@@ -1528,6 +1528,15 @@ export default defineSchema({
   // A community's layout (shared/communityLayout.ts): navigation position, tab
   // order and page arrangement. Kept apart from communityThemes so changing
   // the look never resets the layout, and the other way round.
+  communityBrands: defineTable({
+    communityId: v.id("communities"),
+    brand: v.any(),
+    revision: v.number(),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_community", ["communityId"]),
+
   communityLayouts: defineTable({
     communityId: v.id("communities"),
     draftLayout: v.any(),

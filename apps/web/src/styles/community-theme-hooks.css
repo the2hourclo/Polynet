@@ -37,11 +37,7 @@
   .resource-course-card,
   .resource-course-create-card,
   .workflow-milestone-column,
-  .workflow-member-stub,
-  .community-post-card,
-  .community-posts-composer,
-  .community-aside-card,
-  .community-about-main
+  .workflow-member-stub
 ) {
   border-width: var(--pn-border-width);
   border-radius: var(--pn-radius-card);
@@ -56,11 +52,31 @@
   border-radius: var(--pn-radius-button);
   box-shadow: var(--pn-shadow-button);
 }
+/* Payment setup uses the community's button colour, not a fixed indigo. */
+[data-community-theme] .stripe-setup-button {
+  --stripe-setup-bg: var(--pn-button);
+  --stripe-setup-bg-hover: color-mix(in srgb, var(--pn-button) 88%, var(--pn-on-button));
+  color: var(--pn-on-button);
+  border-radius: var(--pn-radius-button);
+}
 
 /* Course catalog: card size and cover shape */
 [data-community-theme] .resource-course-grid {
   grid-template-columns: var(--pn-course-columns);
 }
+/* Page layouts (shared/communityLayout.ts) keep flat, hairline cards and a
+   sans title on the feed whatever the theme's card style: only the corner
+   size follows the theme. */
+[data-community-theme] :is(.community-post-card, .community-posts-composer, .community-aside-card, .community-about-main) {
+  border-radius: min(var(--pn-radius), 14px);
+}
+[data-community-theme] .community-post-card-title {
+  font-family: var(--pn-font-body);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.005em;
+}
+
 /* Phones always get one column, whatever the card size. */
 @media (max-width: 640px) {
   [data-community-theme] .resource-course-grid {

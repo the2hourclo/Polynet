@@ -650,6 +650,7 @@ const modules = import.meta.glob([
   "./communityResourceProgress.ts",
   "./communityThemes.ts",
   "./communityLayouts.ts",
+  "./communityBrands.ts",
   "./polynetCanonicalReceipts.ts",
   "./_generated/**/*.*s",
 ]);
@@ -4144,4 +4145,37 @@ test("the layout is its own design record over the MCP: publishing it never rese
   expect(JSON.stringify(listing)).not.toContain("community.layout");
   const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
   expect(JSON.stringify(builder)).toContain("/builder/layout.json");
+});
+
+test("the community brand is a design record with no publish step, for managers only", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const read = (call: typeof owner) => readDesignRecord({ community, kind: "brand", call });
+  const save = (brand: unknown, expected: number, key: string) => owner("polynet_call", { operation: "community.brand.save", version: 1,
+    target: `/communities/${community}/capabilities/community.brand.save.json`,
+    input: { brand, expected_draft_revision: expected }, idempotency_key: key });
+
+  expect(await read(owner)).toMatchObject({ draft: { version: 1 }, draft_revision: 0 });
+  const brand = { version: 1, words: ["calm", "premium", "practical"], colours: [{ hex: "#2b863a", role: "primary", note: "CLO green" }] };
+  expect((await save(brand, 0, "brand-1")).result).toMatchObject({ draft_revision: 1, draft: { colours: [{ hex: "#2B863A" }] } });
+  await expect(save({ version: 1, colour: "#2B863A" }, 1, "brand-2")).rejects.toThrow("brand_invalid");
+  await expect(save(brand, 0, "brand-3")).rejects.toThrow("brand_revision_conflict");
+  await expect(owner("polynet_call", { operation: "community.brand.publish", version: 1,
+    target: `/communities/${community}/capabilities/community.brand.publish.json`,
+    input: { expected_draft_revision: 1 }, idempotency_key: "brand-publish" })).rejects.toThrow();
+
+  await expect(read(member)).rejects.toThrow("semantic_not_found");
+  const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
+  expect(JSON.stringify(builder)).toContain("/builder/brand.json");
 });

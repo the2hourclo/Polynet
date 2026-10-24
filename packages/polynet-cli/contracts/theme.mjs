@@ -115,6 +115,12 @@ export function contrastRatio(a, b) {
 function mix(a, b, t) {
     return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
+// `a` moved toward `b` by t (0..1), as hex; null for a malformed colour.
+export function mixHex(a, b, t) {
+    const ra = parseHex(a);
+    const rb = parseHex(b);
+    return ra && rb ? toHex(mix(ra, rb, t)) : null;
+}
 // The closest colour to `color` (moving toward black or white) that reaches
 // `ratio` against `against`; null when even black or white can't.
 export function nearestPassingColor(color, against, ratio) {
@@ -402,6 +408,7 @@ export function communityThemeVariables(theme, scheme) {
         "--accent-brand": c.accent,
         "--accent-selection": c.accent,
         "--accent-agent": c.accent,
+        "--accent-attention": c.accent,
         "--accent-agent-foreground": link,
         "--accent-success": c.accent,
         "--border-active": c.accent,
