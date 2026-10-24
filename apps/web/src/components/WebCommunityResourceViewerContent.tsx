@@ -250,21 +250,25 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   // Autosave: a moment after the owner stops typing, the page saves and
   // editing carries on. A body the server would refuse waits, with the reason shown.
   const bodyProblem = isEditing && editor ? lessonBodyProblem(editor.bodyInput) : null;
-  const canAutosave = Boolean(editor?.isEditing && editor.isDirty && editor.canSave && !bodyProblem && editor.onSaveInPlace);
+  const hasSavableChanges = Boolean(editor?.isEditing && editor.isDirty && editor.titleInput.trim() && !bodyProblem);
+  const canAutosave = Boolean(hasSavableChanges && editor?.canSave && editor.onSaveInPlace);
+  // The panel hands a new save function each render; the timer keys on the content.
+  const saveInPlaceRef = useRef(editor?.onSaveInPlace ?? null);
+  saveInPlaceRef.current = editor?.onSaveInPlace ?? null;
   useEffect(() => {
-    if (!canAutosave || !editor?.onSaveInPlace) return;
-    const save = editor.onSaveInPlace;
-    const timeoutId = window.setTimeout(() => void save(), 1200);
+    if (!canAutosave) return;
+    const timeoutId = window.setTimeout(() => void saveInPlaceRef.current?.(), 1200);
     return () => window.clearTimeout(timeoutId);
-  }, [canAutosave, editor?.onSaveInPlace, editor?.titleInput, editor?.bodyInput, editor?.pinnedInput]);
+  }, [canAutosave, editor?.titleInput, editor?.bodyInput, editor?.pinnedInput]);
 
-  // Leaving the lesson saves what the timer hadn't yet.
-  const latestEditorRef = useRef(editor);
-  latestEditorRef.current = editor;
-  const canAutosaveRef = useRef(canAutosave);
-  canAutosaveRef.current = canAutosave;
+  // Leaving the lesson saves what the timer hadn't yet. These refs are set
+  // after each commit, so the cleanup below still sees the lesson being left.
+  const leavingRef = useRef<{ pending: boolean; save: (() => Promise<boolean>) | null }>({ pending: false, save: null });
+  useEffect(() => {
+    leavingRef.current = { pending: hasSavableChanges, save: editor?.onSaveInPlace ?? null };
+  });
   useEffect(() => () => {
-    if (canAutosaveRef.current) void latestEditorRef.current?.onSaveInPlace?.();
+    if (leavingRef.current.pending) void leavingRef.current.save?.();
   }, [resource.id]);
   const hasUnsaved = Boolean(editor?.isEditing && editor.isDirty);
   useEffect(() => {
