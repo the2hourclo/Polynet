@@ -61,6 +61,12 @@
 [data-community-theme] .resource-course-grid {
   grid-template-columns: var(--pn-course-columns);
 }
+/* Phones always get one column, whatever the card size. */
+@media (max-width: 640px) {
+  [data-community-theme] .resource-course-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 [data-community-theme] .resource-course-card-cover {
   position: relative;
   aspect-ratio: var(--pn-course-cover-ratio);
