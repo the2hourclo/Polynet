@@ -38,10 +38,19 @@ export type CommunityMemberWorkflowPromptAgentAction = {
   prompt: string;
 };
 
+/** Writes one owner property on the member's client row; `null` clears it. */
+export type CommunityMemberWorkflowSetClientPropertyAction = {
+  key: string;
+  type: "set_client_property";
+  propertyKey: string;
+  value: string | number | boolean | string[] | null;
+};
+
 export type CommunityMemberWorkflowAction =
   | { key: string; type: "create_service_channel" }
   | { key: string; type: "request_form"; formKey: string }
-  | CommunityMemberWorkflowPromptAgentAction;
+  | CommunityMemberWorkflowPromptAgentAction
+  | CommunityMemberWorkflowSetClientPropertyAction;
 
 export type CommunityMemberWorkflowAutomation = {
   key: string;

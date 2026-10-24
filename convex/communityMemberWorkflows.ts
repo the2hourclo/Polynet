@@ -1,4 +1,6 @@
 import { listMemberVisibleLessonPages, readProgressRows } from "./communityResourceProgress";
+import { setValue as setClientPropertyValue } from "./communityClients";
+import { normalizeCommunityClientPropertyValue } from "../shared/communityClients";
 import { workflowSequenceCompletionIsNew, workflowSequenceIssue, workflowSequenceReceipt } from "../shared/communityMemberWorkflow";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -112,6 +114,12 @@ const automationInputValidator = v.object({
       key: v.optional(v.string()),
       type: v.literal("prompt_agent"),
       prompt: v.string(),
+    }),
+    v.object({
+      key: v.optional(v.string()),
+      type: v.literal("set_client_property"),
+      propertyKey: v.string(),
+      value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
     }),
   ),
 });
@@ -230,18 +238,23 @@ function normalizeAutomations(
             prompt: normalizeCommunityMemberWorkflowPrompt(input.action.prompt),
           }
         : input.action.type === "request_form" ? { key: actionKey, type: "request_form", formKey: input.action.formKey }
+        : input.action.type === "set_client_property"
+        ? { key: actionKey, type: "set_client_property", propertyKey: String(input.action.propertyKey).trim(), value: input.action.value }
         : { key: actionKey, type: "create_service_channel" };
+    if (action.type === "set_client_property" && !action.propertyKey) throw new Error("client_property_required");
     if ((action.type === "request_form" && !action.formKey.trim()) || (input.trigger.type === "form_submitted" && !input.trigger.formKey.trim())) throw new Error("form_required");
     if ((action.type === "create_service_channel" && input.trigger.type !== "member_joined")
       || (input.trigger.type === "member_joined" && action.type !== "create_service_channel" && action.type !== "request_form")) throw new Error("workflow_join_action_invalid");
     // Lesson and course completion request a Form (the checkpoint) for now; the
     // agent and channel actions need their own source receipts first.
-    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed") && action.type !== "request_form") {
+    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed")
+      && action.type !== "request_form" && action.type !== "set_client_property") {
       throw new Error("lesson_trigger_action_invalid");
     }
     if (input.trigger.type === "form_submitted") {
       if (action.type === "request_form") throw new Error("form_submission_action_invalid");
-      const submissionLane = `${action.type}:${input.trigger.formKey}`;
+      const submissionLane = action.type === "set_client_property"
+        ? `${action.type}:${action.propertyKey}:${input.trigger.formKey}` : `${action.type}:${input.trigger.formKey}`;
       if (submittedForms.has(submissionLane)) throw new Error("form_submission_trigger_duplicate");
       submittedForms.add(submissionLane);
     }
@@ -249,7 +262,8 @@ function normalizeAutomations(
       && workflowTriggerIdentity(existing.trigger) === workflowTriggerIdentity(input.trigger)
       && existing.action.key === action.key && existing.action.type === action.type
       && (action.type !== "prompt_agent" || (existing.action.type === "prompt_agent" && existing.action.prompt === action.prompt))
-      && (action.type !== "request_form" || (existing.action.type === "request_form" && existing.action.formKey === action.formKey));
+      && (action.type !== "request_form" || (existing.action.type === "request_form" && existing.action.formKey === action.formKey))
+      && action.type !== "set_client_property";
     return {
       key: automationKey,
       ...(input.trigger.type === "previous_action_completed" ? { sequenceEnabledAt:
@@ -400,6 +414,15 @@ export const updateBuilderWorkflowMilestone = mutation({
       }
     }
     for (const automation of milestone.automations) {
+      // The property must exist and the value must fit it now; the run checks
+      // again, because the owner can change the property later.
+      if (automation.action.type === "set_client_property") {
+        const property = await ctx.db.query("communityClientProperties")
+          .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", (automation.action as any).propertyKey))
+          .unique();
+        if (!property || property.archivedAt) throw new Error("client_property_not_found");
+        automation.action.value = normalizeCommunityClientPropertyValue(property, automation.action.value);
+      }
       if (automation.trigger.type === "lesson_completed" && automation.trigger.resourceId) {
         const id = ctx.db.normalizeId("communityResources", automation.trigger.resourceId);
         const page = id ? await ctx.db.get(id) : null;
@@ -1198,6 +1221,17 @@ async function executeWorkflowAutomation(args: {
       }, finishedAt: nowMs, updatedAt: nowMs });
       return { status: "form_requested" as const, workflow_run_id: String(workflowRunId), replayed: false };
     }
+    if (args.automation.action.type === "set_client_property") {
+      const result = await setClientPropertyValue(args.ctx, {
+        communityId: args.workflow.communityId, userId: args.workflow.updatedByUserId,
+        membershipId: String(args.membership._id), key: args.automation.action.propertyKey,
+        value: args.automation.action.value, via: "workflow",
+      });
+      await args.ctx.db.patch(workflowRunId, { status: "finished", actionResult: {
+        actionKey: args.automation.action.key, status: "complete", resultCode: "client_property_set",
+      }, finishedAt: nowMs, updatedAt: nowMs });
+      return { status: "client_property_set" as const, workflow_run_id: String(workflowRunId), key: result.key, replayed: false };
+    }
     if (args.automation.action.type === "prompt_agent") {
       if (!args.workflowPreviousRunId && !args.workflowTimerId && !args.workflowFormRequestId && (!args.row || !args.objectType || args.automation.trigger.type !== "member_contributed")) {
         throw new Error("community_member_workflow_timer_action_invalid");
@@ -1247,7 +1281,10 @@ async function executeWorkflowAutomation(args: {
     // Capacity rejects before any assignment write. It may be recorded without
     // rolling back the source event or blocking independent completion rules.
     const capacityRejected = args.automation.action.type === "request_form" && errorCode === "form_pending_limit_reached";
-    if (!capacityRejected && (args.workflowTimerId || args.automation.action.type !== "prompt_agent")) throw error;
+    // A property that was archived or changed since the save fails the run, not
+    // the lesson, form or post that triggered it.
+    const propertyRejected = args.automation.action.type === "set_client_property";
+    if (!capacityRejected && !propertyRejected && (args.workflowTimerId || args.automation.action.type !== "prompt_agent")) throw error;
     await args.ctx.db.patch(workflowRunId, {
       status: "failed",
       actionResult: {

@@ -1295,6 +1295,12 @@ export default defineSchema({
               type: v.literal("prompt_agent"),
               prompt: v.string(),
             }),
+            v.object({
+              key: v.string(),
+              type: v.literal("set_client_property"),
+              propertyKey: v.string(),
+              value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
+            }),
           ),
         })),
       }),
@@ -1375,6 +1381,12 @@ export default defineSchema({
       v.object({ key: v.string(), type: v.literal("create_service_channel") }),
       v.object({ key: v.string(), type: v.literal("request_form"), formKey: v.string() }),
       v.object({ key: v.string(), type: v.literal("prompt_agent"), prompt: v.string() }),
+      v.object({
+        key: v.string(),
+        type: v.literal("set_client_property"),
+        propertyKey: v.string(),
+        value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
+      }),
       v.object({
         key: v.string(),
         type: v.literal("move_member"),
@@ -2785,7 +2797,7 @@ export default defineSchema({
       v.literal("contacted"),
     ),
     actorUserId: v.id("users"),
-    via: v.union(v.literal("web"), v.literal("agent")),
+    via: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow")),
     propertyKey: v.optional(v.string()),
     value: v.optional(v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null())),
     body: v.optional(v.string()),
@@ -2799,7 +2811,7 @@ export default defineSchema({
     propertyKey: v.string(),
     value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string())),
     updatedByUserId: v.id("users"),
-    updatedVia: v.union(v.literal("web"), v.literal("agent")),
+    updatedVia: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow")),
     updatedAt: v.number(),
   })
     .index("by_membership", ["membershipId"])

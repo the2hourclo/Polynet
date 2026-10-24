@@ -24,7 +24,8 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   const { workflow, membership, milestone } = args;
   if (!communityMembershipRowIsActive(membership) || membership.communityId !== workflow.communityId)
     throw new Error("workflow_completion_scope_invalid");
-  const work = milestone.automations;
+  // A property write is bookkeeping, not member work, so it never holds a stage open.
+  const work = milestone.automations.filter(rule => rule.action.type !== "set_client_property");
   if (!work.length) return { actions: [], all_actions_complete: false, scan_truncated: false };
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
     .withIndex("by_workflow_membership_createdAt", q => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))

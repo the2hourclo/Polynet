@@ -8,6 +8,7 @@ import schema from "./schema";
 import { buildCommunityAgentServePromptBundle } from "../shared/communityAgentServePrompt";
 
 const modules = import.meta.glob([
+  "./communityClients.ts",
   "./communityForms.ts",
   "./communityFormRequests.ts",
   "./communityCapabilityContext.ts",
@@ -1005,4 +1006,58 @@ test("finishing every lesson in a course requests the stage's checkpoint form on
     { communityId: f.communityId, userId: f.memberId, resourceId: second });
   expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect())).toHaveLength(1);
   expect(await t.run(ctx => ctx.db.query("communityFormRequests").collect())).toHaveLength(1);
+});
+
+test("a stage rule writes a client property when a lesson is done; an archived property fails the run, not the lesson", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Phase", type: "select", options: ["Onboarding", "Building"] });
+  const { first, second } = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: f.communityId, createdByUserId: f.ownerId, status: "live", name: "Start", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    const page = (title: string, sortOrder: number) => ctx.db.insert("communityResources", {
+      communityId: f.communityId, moduleId, createdByUserId: f.ownerId, type: "post", role: "page", status: "published",
+      title, bodyMd: "Go.", bodyChars: 3, pinned: false, sortOrder, createdAt: now, updatedAt: now,
+    } as any);
+    return { first: await page("One", 1), second: await page("Two", 2) };
+  });
+  const configured = await configureAutomations(t, f.communityId, []);
+  const save = (propertyKey: string, value: any, resourceId?: any) => owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [{ key: "", trigger: { type: "lesson_completed" as const, ...(resourceId ? { resourceId: String(resourceId) } : {}) },
+      action: { key: "", type: "set_client_property" as const, propertyKey, value } }],
+  });
+  await expect(save("missing", "Building")).rejects.toThrow("client_property_not_found");
+  await expect(save("phase", "Nope")).rejects.toThrow("client_property_value_invalid");
+  const saved = await save("phase", "building");
+  expect(saved.milestone.automations[0].action).toMatchObject({ type: "set_client_property", value: "Building" });
+  const finish = async (resourceId: any) => {
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      await ctx.db.insert("communityResourceProgress", {
+        communityId: f.communityId, userId: f.memberId, resourceId, status: "done", startedAt: now, completedAt: now, updatedAt: now,
+      });
+    });
+    return await t.mutation(internalApi.communityMemberWorkflows.handleLessonCompletedInternal,
+      { communityId: f.communityId, userId: f.memberId, resourceId });
+  };
+  await finish(first);
+  expect(await t.run(ctx => ctx.db.query("communityClientValues").collect())).toMatchObject([{ propertyKey: "phase", value: "Building", updatedVia: "workflow" }]);
+  const timeline = await owner.query(api.communityClients.getClientTimeline, { communityId: f.communityId, membershipId: String(f.membershipId) });
+  expect(timeline.entries.some((entry: any) => entry.summary === 'Workflow set phase to "Building"')).toBe(true);
+  // The rule never holds the stage open as unfinished member work.
+  const progress = await t.run(async (ctx) => {
+    const { readWorkflowActionProgress } = await import("./communityWorkflowCompletionCore");
+    const workflow = (await ctx.db.query("communityMemberWorkflows").first())!;
+    return readWorkflowActionProgress(ctx as any, { workflow, membership: (await ctx.db.get(f.membershipId))!,
+      milestone: workflow.milestones[0] as any, milestoneEnteredAt: 0, transitionSeq: 0 });
+  });
+  expect(progress.actions).toHaveLength(0);
+  await owner.mutation(api.communityClients.archiveClientProperty, { communityId: f.communityId, key: "phase" });
+  expect(await finish(second)).toMatchObject({ status: "handled" });
+  const runs = await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect());
+  expect(runs.map(run => run.status).sort()).toEqual(["failed", "finished"]);
+  expect(await t.run(ctx => ctx.db.query("communityResourceProgress").collect())).toHaveLength(2);
 });

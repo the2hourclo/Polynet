@@ -136,7 +136,9 @@ const setValueArgs = {
   via: v.optional(v.union(v.literal("web"), v.literal("agent"))),
 };
 
-async function setValue(ctx: any, args: any) {
+// Workflows call this too (via "workflow", as the builder who saved the
+// Workflow), so a stage rule and an owner edit leave the same trail.
+export async function setValue(ctx: any, args: any) {
   await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
   const membership = await requireMembershipInCommunity(ctx, args.communityId, args.membershipId);
   const property = await findProperty(ctx, args.communityId, args.key);
@@ -285,7 +287,7 @@ async function readTimeline(ctx: any, args: any) {
     }
   }
   for (const row of ownerEvents as any[]) {
-    const who = row.via === "agent" ? "Agent" : "Owner";
+    const who = row.via === "agent" ? "Agent" : row.via === "workflow" ? "Workflow" : "Owner";
     const summary = row.type === "property_set" ? `${who} set ${row.propertyKey} to ${row.value === null ? "empty" : JSON.stringify(row.value)}`
       : row.type === "flagged" ? `${who} flagged${row.body ? `: ${row.body}` : ""}`
       : row.type === "contacted" ? `${who} contacted by ${row.channel ?? "other"}: ${row.body}`
