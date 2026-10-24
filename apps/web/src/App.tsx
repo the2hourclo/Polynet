@@ -2608,6 +2608,14 @@ export default function App() {
     authError,
   });
 
+  // The builder's welcome flow: until the member submits the join forms, the
+  // community pane shows only those forms. The left rail keeps working.
+  const welcomeRequestKey = activeCommunityAccess?.welcome_required
+    ? (activeCommunityAccess.welcome_form_request_ids ?? []).join(",") : "";
+  const welcomeRequestIds = useMemo(
+    () => (welcomeRequestKey ? welcomeRequestKey.split(",") : []),
+    [welcomeRequestKey],
+  );
   if (standalonePublicRouteViewProps) {
     return (
       <Suspense fallback={<div className="landing-auth-hold" aria-hidden="true" />}>
@@ -2993,19 +3001,12 @@ export default function App() {
     hasLeftPanel,
     isGlobalSettings,
   });
-  // The builder's welcome flow: until the member submits the join forms, the
-  // community pane shows only those forms. The left rail keeps working.
-  const welcomeRequestKey = activeCommunityAccess?.welcome_required
-    ? (activeCommunityAccess.welcome_form_request_ids ?? []).join(",") : "";
-  const welcomeRequestIds = useMemo(
-    () => (welcomeRequestKey ? welcomeRequestKey.split(",") : []),
-    [welcomeRequestKey],
-  );
   if (session && activeCommunityId && welcomeRequestIds.length && activePage === "community" && !isPublicCommunityFunnel) {
     shellChromeHostProps.welcomeSurface = (
       <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
         communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeRequestIds}
-        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess} />
+        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess}
+        onReleased={() => { void communityContent.retryResourceRead("modules"); void communityContent.retryResourceRead("resources"); }} />
     );
   }
 

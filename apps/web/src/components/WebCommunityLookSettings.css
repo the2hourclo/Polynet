@@ -13,6 +13,7 @@
 .community-look-sample small { color:var(--text-secondary); }
 .community-look-sample { font-size:calc(16px * var(--pn-type-scale, 1)); }
 .community-look-sample small { font-size:calc(12px * var(--pn-type-scale, 1)); }
+.community-look-sample .settings-primary-action { font-size:calc(12px * var(--pn-type-scale, 1)); }
 .community-look-sample h2 { margin:0; font-size:calc(24px * var(--pn-type-scale, 1)); }
 .community-look-sample p { margin:0; color:var(--text-secondary); }
 .community-look-card { display:flex; flex-direction:column; gap:4px; padding:12px; border:1px solid var(--border-default); border-radius:12px; background:var(--surface-elevated, var(--surface-workspace)); }

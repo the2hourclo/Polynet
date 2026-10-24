@@ -13,6 +13,8 @@ type Props = {
   ensureSession: (session: AuthSession, source?: string) => Promise<AuthSession | null>;
   /** Called once no welcome form is left, so the shell reloads access and opens the community. */
   onFinished: () => void;
+  /** Called when the page closes after the member finished, so lists read while held load again. */
+  onReleased: () => void;
 };
 
 // The builder's welcome flow: the member sees only these forms until they are
@@ -26,6 +28,9 @@ export function WebCommunityWelcome(props: Props) {
   // The forms list can briefly read empty while its subscription settles, so
   // every change to "nothing left" reloads access, not just the first.
   const wasEmpty = useRef(false);
+  const onReleased = useRef(props.onReleased);
+  onReleased.current = props.onReleased;
+  useEffect(() => () => { if (wasEmpty.current) onReleased.current(); }, []);
   useEffect(() => {
     let alive = true; setError(false);
     const stop = subscribeMemberForms(props.session, props.communityId, props.ensureSession,
