@@ -71,6 +71,10 @@ for a new one.
   the current tab. If everything is accented, nothing is.
 - Choose light, dark or both because the concept calls for it, not by habit.
   On dark themes, images drawn on white need a light plate behind them.
+- One brand can live in light and in dark. To carry a light brand into dark
+  mode, keep its accent and character, build near-black neutrals tinted
+  toward it, and re-check contrast: an accent that passes on white often
+  needs a lighter shade on black. It should still read as the same brand.
 - Derive from the founder's brand, but adjust shades until they pass contrast
   (see the hard limits). A slightly deeper brand green that passes is still
   their green.
