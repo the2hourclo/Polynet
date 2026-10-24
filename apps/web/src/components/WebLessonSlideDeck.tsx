@@ -87,10 +87,11 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[] }) {
             if (!ratio && naturalWidth && naturalHeight) setRatio(naturalWidth / naturalHeight);
           }}
         />
-        <button className="lesson-slide-deck-side is-prev" type="button" aria-label="Previous slide" disabled={index === 0} onClick={() => go(index - 1)}>
+        {/* Pointer shortcuts on the slide; keyboard and screen reader users get the same buttons in the bar below. */}
+        <button className="lesson-slide-deck-side is-prev" type="button" tabIndex={-1} aria-hidden="true" disabled={index === 0} onClick={() => go(index - 1)}>
           <ChevronLeft aria-hidden="true" />
         </button>
-        <button className="lesson-slide-deck-side is-next" type="button" aria-label="Next slide" disabled={index === last} onClick={() => go(index + 1)}>
+        <button className="lesson-slide-deck-side is-next" type="button" tabIndex={-1} aria-hidden="true" disabled={index === last} onClick={() => go(index + 1)}>
           <ChevronRight aria-hidden="true" />
         </button>
       </div>
