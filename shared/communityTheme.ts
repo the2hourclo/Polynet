@@ -539,6 +539,10 @@ export function communityThemeVariables(
     "--conversation-primary-action-foreground": c.on_button,
     "--hover-overlay": mixed(c.text, 6, "transparent"),
     "--active-overlay": mixed(c.text, 10, "transparent"),
+    // Polynet's shared corner sizes, at the theme's radius.
+    "--radius-sm": `${Math.round(8 * theme.radius / DEFAULT_COMMUNITY_THEME.radius)}px`,
+    "--radius-md": `${Math.round(14 * theme.radius / DEFAULT_COMMUNITY_THEME.radius)}px`,
+    "--radius-lg": `${Math.round(16 * theme.radius / DEFAULT_COMMUNITY_THEME.radius)}px`,
     "--font-sans": font(theme.font_body),
     "--font-mono": font(theme.font_mono),
   };
