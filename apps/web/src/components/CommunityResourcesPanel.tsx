@@ -860,6 +860,8 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           onChangeBody: actions.resourceEditor.onChangeBody,
           onChangePinned: actions.resourceEditor.onChangePinned,
           onSave: saveResourceInlineEdit,
+          onSaveInPlace: () => actions.resourceEditor.saveInlineEditResource({ keepEditing: true }),
+          onUploadImage: actions.resourceEditor.uploadImage ?? null,
           onCancel: cancelResourceInlineEdit,
         }
       : null;

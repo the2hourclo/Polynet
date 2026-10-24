@@ -101,7 +101,8 @@ export type UseWebCommunityResourceUiControllerResult<
     isSaving: boolean;
     beginInlineEditResource: (resource: ResourceT) => void;
     cancelInlineEditResource: () => void;
-    saveInlineEditResource: () => Promise<boolean>;
+    saveInlineEditResource: (options?: { keepEditing?: boolean }) => Promise<boolean>;
+    uploadImage: (file: File) => Promise<string>;
     onChangeTitle: (value: string) => void;
     onChangeUrl: (value: string) => void;
     onChangeBody: (value: string) => void;
@@ -168,6 +169,7 @@ export function useWebCommunityResourceUiController<
     handleReorderCommunityResources,
     handleMoveCommunityResourceToModule,
     handleSaveCommunityResource,
+    handleUploadCommunityResourceImage,
     handleDeleteResource,
     handleCreateBlankPageDraft,
     handleAddCommunitySources,
@@ -249,8 +251,8 @@ export function useWebCommunityResourceUiController<
     resetResourceForm();
   };
 
-  const saveInlineEditResource = async () => {
-    const didSave = await handleSaveCommunityResource();
+  const saveInlineEditResource = async (options?: { keepEditing?: boolean }) => {
+    const didSave = await handleSaveCommunityResource(options);
     return didSave === true;
   };
 
@@ -393,6 +395,7 @@ export function useWebCommunityResourceUiController<
       beginInlineEditResource,
       cancelInlineEditResource,
       saveInlineEditResource,
+      uploadImage: handleUploadCommunityResourceImage,
       onChangeTitle: setResourceTitleInput,
       onChangeUrl: setResourceUrlInput,
       onChangeBody: setResourceBodyInput,
