@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 // @ts-expect-error plain ES module without types
-import { buildManifest, collectFiles, hashFile, installGuide, mimeType, pkce, readCheckedFiles, uploadBuckets } from "../packages/polynet-cli/lib.mjs";
+import { buildManifest, collectFiles, hashFile, installGuide, installSkills, mimeType, pkce, readCheckedFiles, uploadBuckets } from "../packages/polynet-cli/lib.mjs";
 import { checkSite } from "../packages/polynet-cli/checks.mjs";
 // @ts-expect-error plain ES module without types
 import { checkCourses, checkTheme, packChangesets, readCourses, resolveCourses, resolveLessonBody } from "../packages/polynet-cli/content.mjs";
@@ -79,7 +79,8 @@ test("the published package is exactly the command, its library and checks, READ
     "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
     "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md",
-    ...["accessibility", "build-site", "deploy-verify", "design", "sdk"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
+    ...["accessibility", "build-site", "deploy-verify", "design", "sdk", "ui-design"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
+    "guide/skills/polynet-ui-design/references/in-the-app.md",
     "lib.mjs", "mcp.mjs", "package.json", "project.mjs",
     "templates/skool/README.md", "templates/skool/layout.json", "templates/skool/template.json", "templates/skool/theme.json",
     "templates/stopwatch/template.json", "templates/stopwatch/theme.json",
@@ -138,10 +139,10 @@ test("skills install into both agent folders without overwriting the founder's g
   const dir = mkdtempSync(join(tmpdir(), "polynet-guide-"));
   writeFileSync(join(dir, "AGENTS.md"), "# mine");
   const written = await installGuide(dir);
-  expect(written).toEqual(["CLAUDE.md", ".agents/skills/ (5 skills)", ".claude/skills/ (5 skills)"]);
+  expect(written).toEqual(["CLAUDE.md", ".agents/skills/ (6 skills)", ".claude/skills/ (6 skills)"]);
   expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toBe("# mine");
   for (const skills of [".agents/skills", ".claude/skills"]) {
-    expect(readdirSync(join(dir, skills)).sort()).toEqual(["polynet-accessibility", "polynet-build-site", "polynet-deploy-verify", "polynet-design", "polynet-sdk"]);
+    expect(readdirSync(join(dir, skills)).sort()).toEqual(["polynet-accessibility", "polynet-build-site", "polynet-deploy-verify", "polynet-design", "polynet-sdk", "polynet-ui-design"]);
     for (const skill of readdirSync(join(dir, skills))) {
       const text = readFileSync(join(dir, skills, skill, "SKILL.md"), "utf8");
       expect(text).toMatch(new RegExp(`^---\nname: ${skill}\ndescription: .{40,}\n---\n`));
@@ -151,6 +152,14 @@ test("skills install into both agent folders without overwriting the founder's g
   writeFileSync(join(dir, ".claude/skills/polynet-sdk/old.md"), "stale");
   await installGuide(dir);
   expect(existsSync(join(dir, ".claude/skills/polynet-sdk/old.md"))).toBe(false);
+  expect(existsSync(join(dir, ".claude/skills/polynet-ui-design/references/in-the-app.md"))).toBe(true);
+});
+
+test("a community design folder gets the skills but not the site guides", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "polynet-design-skills-"));
+  expect(await installSkills(dir)).toEqual([".agents/skills/ (6 skills)", ".claude/skills/ (6 skills)"]);
+  expect(existsSync(join(dir, "AGENTS.md"))).toBe(false);
+  expect(existsSync(join(dir, ".agents/skills/polynet-ui-design/SKILL.md"))).toBe(true);
 });
 
 test("the CLI's copies of Polynet's lesson, embed, theme and layout contracts match shared/", async () => {

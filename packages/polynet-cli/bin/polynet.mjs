@@ -18,7 +18,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import {
-  CALLBACK_PORT, DEFAULT_API_URL, REDIRECT_URI, buildManifest, collectFiles, formatBytes, installGuide, isDirectory, pkce,
+  CALLBACK_PORT, DEFAULT_API_URL, REDIRECT_URI, buildManifest, collectFiles, formatBytes, installGuide, installSkills, isDirectory, pkce,
   readCheckedFiles, uploadBuckets,
 } from "../lib.mjs";
 import { checkSite, formatProblems } from "../checks.mjs";
@@ -436,9 +436,11 @@ async function init(args) {
     : undefined;
   const chosen = await initFromTemplate({ root, template, community, call });
   if (community) await writeFile(join(root, "polynet.json"), `${JSON.stringify({ community }, null, 2)}\n`);
+  // The design skills travel with the folder, so the founder's agent designs with them.
+  await installSkills(root);
   if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, template: chosen }, null, 2));
   const kept = { kept: "  Kept this folder's theme.json.", community: `  Kept ${community}'s own theme in theme.json.` }[chosen.theme];
-  say(`✓ Started from ${chosen.label ?? template} in ${root}.`, ...(kept ? [kept] : []), "  Edit theme.json (or ask your agent to), then run polynet dev to see it on your community.");
+  say(`✓ Started from ${chosen.label ?? template} in ${root}.`, ...(kept ? [kept] : []), "  Edit theme.json (or ask your agent to: Polynet's design skills are in .claude/skills and .agents/skills),", "  then run polynet dev to see it on your community.");
 }
 
 async function pull(args) {
