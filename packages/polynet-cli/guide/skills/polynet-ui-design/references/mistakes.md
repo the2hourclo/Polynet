@@ -54,6 +54,7 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | 27 | 2-Hour Club: page titles were the same size as the navigation. | A page title is a clear step above everything else on the page. | reviewer, `drift` |
 | 28 | AIEB Knowledge "feels very vibe coded": the theme's hand-drawn face and hard sketch shadow went onto every card, list row and back link, and the back link was set in mono. | A theme's character lives in one or two places (page titles, covers); repeated components keep calm, flat defaults in the text face. | `heavy-cards`, `display-font-on-items`, reviewer |
 | 29 | AIEB Knowledge: a lock reason was printed over every locked course's cover, and an empty header row left a dead gap above the catalog. | Status on a cover is a small icon; its words go in the card's meta line. A row with nothing in it isn't drawn. | `text-levels`, reviewer |
+| 30 | AIEB Knowledge (fresh review): the lesson view had two display headings ("Knowledge" and the lesson title) a hand apart, and on phones the open lesson list pushed the lesson below the fold. | One display heading per screen: the thing you're reading. On phones, content comes first and navigation folds. | reviewer |
 
 ## What each automatic check means
 
