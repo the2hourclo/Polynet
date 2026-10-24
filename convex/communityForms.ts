@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireCommunityManager, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 import { communityFormQuestionValidator } from "./communityFormValidators";
 import { COMMUNITY_FORM_MAX_FORMS, communityFormIssue } from "../shared/communityForms";
+import { communityClientPropertyAcceptsQuestion } from "../shared/communityClients";
 
 const scope = { communityId: v.id("communities"), authSubject: v.optional(v.string()) };
 async function manager(ctx: any, args: any) {
@@ -25,6 +26,14 @@ export const saveBuilderForm = mutation({
     await manager(ctx, args);
     if (!args.key || args.key.length > 80) throw new Error("form_key_invalid");
     const issue = communityFormIssue(args); if (issue) throw new Error(issue);
+    // A mapped question must point at a live property that can hold its answer.
+    for (const question of args.questions) {
+      if (!question.clientPropertyKey) continue;
+      const property = await ctx.db.query("communityClientProperties")
+        .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", question.clientPropertyKey!)).unique();
+      if (!property || property.archivedAt) throw new Error("client_property_not_found");
+      if (!communityClientPropertyAcceptsQuestion(property.type, question.type)) throw new Error("form_property_type_mismatch");
+    }
     const row = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", args.key)).unique();
     const unchanged = row && row.name === args.name && JSON.stringify(row.questions) === JSON.stringify(args.questions);
     // Exact retry is a no-op, including a create whose response was lost.

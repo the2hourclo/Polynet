@@ -18,6 +18,12 @@ export async function saveCloudCommunityForm(session: unknown, communityId: stri
   return client.mutation(api.communityForms.saveBuilderForm, { authSubject, communityId: communityId as Id<"communities">,
     key: form.key, expectedRevision: form.revision, name: form.name, questions: form.questions });
 }
+export type CloudCommunityClientProperty = { key: string; name: string; type: string; options: string[] };
+export async function listCloudCommunityClientProperties(session: unknown, communityId: string): Promise<CloudCommunityClientProperty[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  const result = await client.query(api.communityClients.listClientProperties, { authSubject, communityId: communityId as Id<"communities"> });
+  return (result as any).properties ?? [];
+}
 export async function publishCloudCommunityForm(session: unknown, communityId: string, form: CommunityFormDraft): Promise<CommunityFormDraft> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.mutation(api.communityForms.publishBuilderForm, { authSubject, communityId: communityId as Id<"communities">,

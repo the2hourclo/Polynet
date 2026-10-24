@@ -6,6 +6,7 @@ import { requestIsCurrent, pendingFormsForVisit, cancelMilestoneFormRequests } f
 import { getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
 import { readSubmittedFormRecord, readSubmittedFormRecords } from "./communityFormEvidenceCore";
 import { processSubmittedWorkflowForm } from "./communityMemberWorkflows";
+import { writeMappedFormAnswers } from "./communityClients";
 import { formAnswersIssue, formQuestionAnswered } from "../shared/communityFormAnswers";
 import { internal } from "./_generated/api";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
@@ -90,7 +91,13 @@ async function saveOwnAnswers(ctx: MutationCtx, args: { expectedRevision: number
   const revision = row.revision + 1;
   await ctx.db.patch(row._id, { answers: args.answers, revision, updatedAt: Date.now(),
     ...(args.submit ? { status: "submitted" as const, submittedAt: Date.now() } : {}) });
-  if (args.submit) await processSubmittedWorkflowForm(ctx, await ctx.db.get(row._id));
+  if (args.submit) {
+    // Answers fill the client properties their questions map to before any
+    // Workflow rule on this submission runs, so those rules see the new values.
+    await writeMappedFormAnswers(ctx, { communityId: row.communityId, membership: await ctx.db.get(row.membershipId),
+      questions: version.questions, answers: args.answers });
+    await processSubmittedWorkflowForm(ctx, await ctx.db.get(row._id));
+  }
   return { revision, submitted: args.submit };
 }
 export const saveMyAnswers = mutation({ args: { ...scope, requestId: v.id("communityFormRequests"), expectedRevision: v.number(), answers: v.record(v.string(), v.union(v.string(), v.array(v.string()))), submit: v.boolean() }, handler: async (ctx, args) => {

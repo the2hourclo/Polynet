@@ -2,7 +2,11 @@ import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { blankCommunityFormQuestion, communityFormIssue, communityFormValidationIssue, COMMUNITY_FORM_MAX_FORMS, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion, type CommunityFormValidationIssue } from "../../../../shared/communityForms";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
+import { communityClientPropertyAcceptsQuestion, type CommunityClientPropertyType } from "../../../../shared/communityClients";
 import "./WebCommunityForms.css";
+
+const clientPropertyFits = (propertyType: string, questionType: string) =>
+  communityClientPropertyAcceptsQuestion(propertyType as CommunityClientPropertyType, questionType);
 
 const contentKey = (form: CommunityFormDraft) => JSON.stringify({ name: form.name, questions: form.questions });
 const errorText = (error: unknown, operation: "save" | "publish") => String(error).includes("form_revision_conflict")
@@ -38,6 +42,12 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
 
 export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { initial: CommunityFormDraft; gateway: CommunityFormsGateway; onBack: () => void; leaveGuard?: LeaveGuard }) {
   const [draft, setDraft] = useState(initial);
+  const [clientProperties, setClientProperties] = useState<Array<{ key: string; name: string; type: string }>>([]);
+  useEffect(() => {
+    let active = true;
+    gateway.clientProperties?.().then(rows => { if (active) setClientProperties(rows); }).catch(() => {});
+    return () => { active = false; };
+  }, [gateway]);
   const [index, setIndex] = useState(0);
   const [preview, setPreview] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -149,6 +159,11 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { 
             <option value="short_text">Short text</option><option value="long_text">Long text</option><option value="single_choice">Single choice</option><option value="multiple_choice">Multiple choice</option>
           </select></label>
           <label><input type="checkbox" disabled={publishing} checked={q.required} onChange={e => patch({ required: e.target.checked })} /> Required</label>
+          {clientProperties.length || q.clientPropertyKey ? <label title="The answer fills this property on the member's client record">Fills <select disabled={publishing} aria-label="Client property this answer fills" value={q.clientPropertyKey ?? ""}
+            onChange={e => { const { clientPropertyKey: _old, ...rest } = q; setValidation(null); setDraft(d => ({ ...d, questions: d.questions.map(item => item.key === q.key ? (e.target.value ? { ...rest, clientPropertyKey: e.target.value } : rest) : item) })); }}>
+            <option value="">Nothing</option>
+            {clientProperties.filter(p => clientPropertyFits(p.type, q.type) || p.key === q.clientPropertyKey).map(p => <option key={p.key} value={p.key}>{p.name}</option>)}
+          </select></label> : null}
           <button className="workflow-secondary-button" aria-label="Delete question" disabled={publishing || draft.questions.length === 1} onClick={() => { setDraft({ ...draft, questions: draft.questions.filter(item => item.key !== q.key) }); setIndex(Math.max(0, index - 1)); }}><Trash2 size={15} /></button>
         </div> : <p className="community-form-hint">Preview only · Answers are not submitted</p>}
         {finished ? <div className="community-form-question"><h2>Preview complete</h2><p>No answers were submitted.</p><button className="workflow-secondary-button" onClick={() => { setFinished(false); setIndex(0); }}>Start again</button></div> : <div className="community-form-question" key={`${q.key}-${preview}`}>

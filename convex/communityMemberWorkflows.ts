@@ -1383,7 +1383,8 @@ export async function processSubmittedWorkflowForm(ctx: any, request: any) {
   const current = resolveCurrentMilestone({ workflow, membership, state });
   const matches = current.milestone.automations.filter((a: CommunityMemberWorkflowAutomation) =>
     a.trigger.type === "form_submitted" && a.trigger.formKey === request.formKey);
-  if (new Set(matches.map((a: CommunityMemberWorkflowAutomation) => a.action.type)).size !== matches.length) return;
+  const lane = (a: CommunityMemberWorkflowAutomation) => a.action.type === "set_client_property" ? `${a.action.type}:${a.action.propertyKey}` : a.action.type;
+  if (new Set(matches.map(lane)).size !== matches.length) return;
   for (const automation of matches) {
     await executeWorkflowAutomation({ ctx, workflow, membership, current, automation,
       workflowFormRequestId: request._id, timerReceiptRef: `form_submission:${request._id}` });

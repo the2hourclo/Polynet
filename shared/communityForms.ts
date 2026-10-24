@@ -5,6 +5,8 @@ export type CommunityFormQuestion = {
   type: "short_text" | "long_text" | "single_choice" | "multiple_choice";
   required: boolean;
   options: string[];
+  /** The client property a submitted answer fills, when the builder maps one. */
+  clientPropertyKey?: string;
 };
 export type CommunityFormContent = { name: string; questions: CommunityFormQuestion[] };
 export type CommunityFormDraft = CommunityFormContent & {

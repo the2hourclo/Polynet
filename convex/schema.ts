@@ -2799,7 +2799,7 @@ export default defineSchema({
       v.literal("contacted"),
     ),
     actorUserId: v.id("users"),
-    via: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow")),
+    via: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow"), v.literal("form")),
     propertyKey: v.optional(v.string()),
     value: v.optional(v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null())),
     body: v.optional(v.string()),
@@ -2813,7 +2813,7 @@ export default defineSchema({
     propertyKey: v.string(),
     value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string())),
     updatedByUserId: v.id("users"),
-    updatedVia: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow")),
+    updatedVia: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow"), v.literal("form")),
     updatedAt: v.number(),
   })
     .index("by_membership", ["membershipId"])

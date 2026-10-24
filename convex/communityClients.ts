@@ -14,7 +14,9 @@ import {
   COMMUNITY_CLIENT_PROPERTY_LIMIT,
   COMMUNITY_CLIENT_STUCK_DEFAULT_DAYS,
   CommunityClientError,
+  communityClientPropertyAcceptsQuestion,
   communityClientPropertyKey,
+  communityClientValueFromAnswer,
   deriveCommunityClientStatus,
   deriveCommunityClientStuck,
   normalizeCommunityClientPropertyDraft,
@@ -142,19 +144,48 @@ export async function setValue(ctx: any, args: any) {
   await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
   const membership = await requireMembershipInCommunity(ctx, args.communityId, args.membershipId);
   const property = await findProperty(ctx, args.communityId, args.key);
-  const value = normalizeCommunityClientPropertyValue(property, args.value);
+  return writeValue(ctx, { communityId: args.communityId, membership, property, actorUserId: args.userId,
+    via: args.via ?? "web", value: normalizeCommunityClientPropertyValue(property, args.value) });
+}
+
+// A member's submitted form fills the properties its questions map to. The
+// member is the actor; an answer that no longer fits its property is skipped,
+// so a changed property never blocks the submission.
+export async function writeMappedFormAnswers(ctx: any, args: {
+  communityId: any; membership: any; questions: Array<{ key: string; type: string; options: string[]; clientPropertyKey?: string }>;
+  answers: Record<string, string | string[]>;
+}) {
+  const written: string[] = [];
+  for (const question of args.questions) {
+    if (!question.clientPropertyKey) continue;
+    const property = await ctx.db.query("communityClientProperties")
+      .withIndex("by_community_key", (q: any) => q.eq("communityId", args.communityId).eq("key", question.clientPropertyKey))
+      .unique();
+    if (!property || property.archivedAt || !communityClientPropertyAcceptsQuestion(property.type, question.type)) continue;
+    let value;
+    try { value = communityClientValueFromAnswer(property, question, args.answers[question.key]); } catch { continue; }
+    if (value === null) continue;
+    await writeValue(ctx, { communityId: args.communityId, membership: args.membership, property,
+      actorUserId: args.membership.userId, via: "form", value });
+    written.push(property.key);
+  }
+  return written;
+}
+
+async function writeValue(ctx: any, args: { communityId: any; membership: any; property: any; actorUserId: any; via: string; value: any }) {
+  const { membership, property, value } = args;
   const existing = await ctx.db.query("communityClientValues")
     .withIndex("by_membership_property", (q: any) => q.eq("membershipId", membership._id).eq("propertyKey", property.key))
     .unique();
-  const via = args.via ?? "web";
+  const via = args.via;
   await ctx.db.insert("communityClientEvents", {
-    communityId: args.communityId, membershipId: membership._id, type: "property_set", actorUserId: args.userId, via,
+    communityId: args.communityId, membershipId: membership._id, type: "property_set", actorUserId: args.actorUserId, via,
     propertyKey: property.key, value, createdAt: Date.now(),
   });
   if (value === null) {
     if (existing) await ctx.db.delete(existing._id);
   } else {
-    const row = { value, updatedByUserId: args.userId, updatedVia: via, updatedAt: Date.now() };
+    const row = { value, updatedByUserId: args.actorUserId, updatedVia: via, updatedAt: Date.now() };
     if (existing) await ctx.db.patch(existing._id, row);
     else await ctx.db.insert("communityClientValues", {
       communityId: args.communityId, membershipId: membership._id, propertyKey: property.key, ...row,
@@ -287,7 +318,7 @@ async function readTimeline(ctx: any, args: any) {
     }
   }
   for (const row of ownerEvents as any[]) {
-    const who = row.via === "agent" ? "Agent" : row.via === "workflow" ? "Workflow" : "Owner";
+    const who = row.via === "agent" ? "Agent" : row.via === "workflow" ? "Workflow" : row.via === "form" ? "Form" : "Owner";
     const summary = row.type === "property_set" ? `${who} set ${row.propertyKey} to ${row.value === null ? "empty" : JSON.stringify(row.value)}`
       : row.type === "flagged" ? `${who} flagged${row.body ? `: ${row.body}` : ""}`
       : row.type === "contacted" ? `${who} contacted by ${row.channel ?? "other"}: ${row.body}`

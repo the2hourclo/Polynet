@@ -139,6 +139,40 @@ export function normalizeCommunityClientPropertyValue(
   }
 }
 
+/**
+ * Which property types a form question can fill. Text takes any answer; a
+ * select takes one choice, a multi-select several; number, date and link take
+ * a short answer that must parse.
+ */
+export function communityClientPropertyAcceptsQuestion(propertyType: CommunityClientPropertyType, questionType: string): boolean {
+  if (propertyType === "text") return true;
+  if (propertyType === "select") return questionType === "single_choice";
+  if (propertyType === "multi_select") return questionType === "multiple_choice";
+  if (propertyType === "number" || propertyType === "date" || propertyType === "url") return questionType === "short_text";
+  return false;
+}
+
+/** A submitted answer as the value its mapped property expects; choices arrive as option indexes. */
+export function communityClientValueFromAnswer(
+  property: CommunityClientPropertyDefinition,
+  question: { type: string; options: string[] },
+  answer: string | string[] | undefined,
+): CommunityClientPropertyValue | null {
+  if (answer === undefined || answer === "" || (Array.isArray(answer) && !answer.length)) return null;
+  const option = (index: string) => question.options[Number(index)];
+  const text = question.type === "single_choice" ? option(String(answer))
+    : question.type === "multiple_choice" ? (Array.isArray(answer) ? answer : [answer]).map(option).filter(Boolean).join(", ")
+    : String(answer);
+  if (property.type === "multi_select") {
+    return normalizeCommunityClientPropertyValue(property, (Array.isArray(answer) ? answer : [answer]).map(option));
+  }
+  if (property.type === "number") {
+    const number = Number(String(text).replace(/,/g, "").trim());
+    return normalizeCommunityClientPropertyValue(property, Number.isFinite(number) && String(text).trim() ? number : NaN);
+  }
+  return normalizeCommunityClientPropertyValue(property, property.type === "text" ? String(text).slice(0, COMMUNITY_CLIENT_TEXT_MAX) : text);
+}
+
 /** Status from the membership and its subscription, newest truth first. */
 export type CommunityClientStatus = "active" | "cancelling" | "past_due" | "cancelled" | "previous";
 

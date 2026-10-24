@@ -252,3 +252,30 @@ test("the welcome flow can only be turned on when the first stage requests a for
   await expect(owner.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, { communityId: f.communityId, expectedRevision: 1, enabled: true }))
     .rejects.toThrow("welcome_gate_requires_join_form");
 });
+
+test("a submitted form fills the client properties its questions map to, and skips an answer that no longer fits", async () => {
+  const f = await fixture("form");
+  const owner = f.t.withIdentity({ subject: "join-owner" });
+  const member = f.t.withIdentity({ subject: "join-member" });
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Business", type: "text" });
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Hours per week", type: "number" });
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Stage", type: "select", options: ["Idea", "Selling"] });
+  await expect(owner.mutation(api.communityForms.saveBuilderForm, { communityId: f.communityId, key: "check", expectedRevision: 0, name: "Check",
+    questions: [{ key: "s", title: "Stage", description: "", required: false, type: "long_text", options: [], clientPropertyKey: "stage" }] }))
+    .rejects.toThrow("form_property_type_mismatch");
+  await f.t.run(ctx => ctx.db.patch(f.versionId, { questions: [
+    { key: "sells", title: "What does your business sell?", description: "", type: "long_text", required: true, options: [], clientPropertyKey: "business" },
+    { key: "hours", title: "How many hours a week?", description: "", type: "short_text", required: false, options: [], clientPropertyKey: "hours_per_week" },
+    { key: "stage", title: "Where are you?", description: "", type: "single_choice", required: false, options: ["Selling", "Idea"], clientPropertyKey: "stage" },
+    { key: "free", title: "Anything else?", description: "", type: "short_text", required: false, options: [] },
+  ] }));
+  await f.t.mutation(joinHandler, f.job);
+  const row = (await f.t.run(ctx => ctx.db.query("communityFormRequests").first()))!;
+  await member.mutation(api.communityFormRequests.saveMyAnswers, { communityId: f.communityId, requestId: row._id, expectedRevision: row.revision,
+    answers: { sells: "AI employee builds", hours: "about 5", stage: "0", free: "hi" }, submit: true });
+  const values = await f.t.run(ctx => ctx.db.query("communityClientValues").collect());
+  // "about 5" is not a number, so that one answer is skipped; the submission still goes through.
+  expect(values.map(row => [row.propertyKey, row.value, row.updatedVia]).sort()).toEqual([
+    ["business", "AI employee builds", "form"], ["stage", "Selling", "form"]]);
+  expect(await f.t.run(ctx => ctx.db.get(row._id))).toMatchObject({ status: "submitted" });
+});
