@@ -321,16 +321,18 @@ function ResourceRailItem(props: {
 export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   const { capabilities, state, actions, courseProgress } = props;
   const selectedModuleId = state.selectedModuleId;
-  // Widget answers stay in this browser until Polynet keeps them per member.
+  // Widget answers are kept per member on the server when signed in, and in
+  // this browser otherwise.
+  const embedStorage = props.lessonActivity?.embedStorage ?? null;
   const communityEmbeds = useMemo<CommunityEmbedContext | null>(
     () =>
       capabilities.activeCommunityId && capabilities.activeCommunitySiteOrigin
         ? {
             siteOrigin: capabilities.activeCommunitySiteOrigin,
-            storage: createBrowserCommunityEmbedStorage(capabilities.activeCommunityId),
+            storage: embedStorage ?? createBrowserCommunityEmbedStorage(capabilities.activeCommunityId),
           }
         : null,
-    [capabilities.activeCommunityId, capabilities.activeCommunitySiteOrigin],
+    [capabilities.activeCommunityId, capabilities.activeCommunitySiteOrigin, embedStorage],
   );
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [pendingDeleteResourceId, setPendingDeleteResourceId] = useState<string | null>(null);

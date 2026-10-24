@@ -2807,6 +2807,16 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_membership_createdAt", ["membershipId", "createdAt"]),
 
+  // A member's own widget answers (community site embeds), kept on the server so
+  // they follow the member across devices. Member data: only the member reads it.
+  communityEmbedValues: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    key: v.string(),
+    value: v.string(),
+    updatedAt: v.number(),
+  }).index("by_community_user_key", ["communityId", "userId", "key"]),
+
   communityClientValues: defineTable({
     communityId: v.id("communities"),
     membershipId: v.id("communityMemberships"),

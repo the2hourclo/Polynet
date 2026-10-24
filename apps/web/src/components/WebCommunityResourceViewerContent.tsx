@@ -10,6 +10,7 @@ import {
 import { normalizeExternalUrl, parseEmbedUrl, StableMediaEmbedFrame } from "../../../../shared/linkEmbedUi";
 import { renderMarkdown } from "../../../../shared/markdownUi";
 import type { CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
+import type { CommunityEmbedStorage } from "../../../../shared/communityEmbed";
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
 import { parseCommunityLessonElements, publicCommunityLessonElement } from "../../../../shared/communityLessonContract";
 import { markCommunityLessonElementBlocks } from "../../../../shared/communityLessonElementMarkdown";
@@ -32,6 +33,8 @@ export type WebLessonActivity = {
   onRequireSignIn: () => void;
   forms: WebLessonFormAccess | null;
   onAskAgent?: ((text: string) => void) | null;
+  /** Where widget answers are kept for this member; the browser when absent. */
+  embedStorage?: CommunityEmbedStorage | null;
 };
 
 export type WebCommunityResourceInlineEditorField = "title" | "body" | "pin";
@@ -148,6 +151,13 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   );
   const lessonRef = buildCommunityResourceEvidenceRef(resource.id);
   const lessonResponses = lessonActivity?.progress.responsesByRef[lessonRef];
+  // Opening a lesson starts it, in whichever view the member opened it from,
+  // so "started" means the same thing on the client record everywhere.
+  const lessonStatus = lessonActivity?.progress.loaded ? lessonActivity.progress.statusByRef[lessonRef] ?? "not_started" : null;
+  const startLesson = lessonActivity?.signedIn ? lessonActivity.progress.setStatus : null;
+  useEffect(() => {
+    if (startLesson && lessonStatus === "not_started") startLesson(resource.id, lessonRef, "in_progress");
+  }, [startLesson, lessonStatus, resource.id, lessonRef]);
   const renderedBodyMarkdown = useMemo(() => {
     if (!hasBody) return null;
     const byId = new Map(lessonElements.map((element) => [element.id, element]));
