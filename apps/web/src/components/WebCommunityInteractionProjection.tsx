@@ -50,6 +50,10 @@ import {
 } from "./mobileReadingModePolicy";
 
 export type WebCommunityInteractionProjectionProps = {
+  // Set by the community's layout: posts as cards instead of a chat timeline,
+  // and the Members tab, which shows the member list as the whole page.
+  presentation?: "messages" | "posts";
+  surface?: "chat" | "members";
   peopleOpen?: boolean;
   onPeopleOpenChange?: (open: boolean) => void;
   admission?: CommunityAdmissionControl;
@@ -167,6 +171,7 @@ import {
 } from "./communityInteractionFeed";
 import { interactionMentionsViewer } from "../controllers/communityMentionAttention";
 import { CommunityPinnedRootSurface } from "./CommunityPinnedRootSurface";
+import { CommunityPostsFeed } from "./CommunityPostsFeed";
 
 export function resolveSelectedCommunityInteractionRoot(
   roots: CommunityInteractionRootBundle[],
@@ -192,7 +197,8 @@ export function communityInteractionRootHasRichContent(
 
 export function WebCommunityInteractionProjection(props: WebCommunityInteractionProjectionProps) {
   const hasChannelContext = Boolean(props.communityId && props.activeChannel);
-  const peopleOpen = Boolean(props.peopleOpen && hasChannelContext);
+  // The Members page is the member list kept open.
+  const peopleOpen = Boolean((props.peopleOpen || props.surface === "members") && hasChannelContext);
   const closePeople = useCallback(() => {
     props.onPeopleOpenChange?.(false);
   }, [props.onPeopleOpenChange]);
@@ -523,15 +529,58 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
   const selectedRootBadge = selectedRoot ? agentBadgeLabel(selectedRoot.root.actor_type) : null;
   const isMobileThreadPage = Boolean(props.mobileThreadPage && selectedRoot && !props.profilePanel);
   const ThreadSurface = isMobileThreadPage ? "section" : "aside";
-  const hasDetailPanel = Boolean(selectedRoot || props.profilePanel);
+  // The Members page shows profiles only; a post left open on the chat tab
+  // stays closed here.
+  const showThreadDrawer = Boolean(selectedRoot) && props.surface !== "members";
+  const hasDetailPanel = Boolean(showThreadDrawer || props.profilePanel);
 
   const replyById = new Map(props.replies.map((bundle) => [bundle.reply.id, bundle] as const));
+  const isPostsPresentation = props.presentation === "posts" && props.surface !== "members";
+  // Page layouts (posts, Members) open a post or profile over the page, like a
+  // dialog, instead of squeezing the page beside a drawer.
+  const detailAsDialog = hasDetailPanel && !isMobileThreadPage && (isPostsPresentation || props.surface === "members");
+  const closeDetail = props.profilePanel ? props.onCloseProfile : props.onCloseDrawer;
+  useEffect(() => {
+    if (!detailAsDialog) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) closeDetail?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [detailAsDialog, closeDetail]);
 
   return (
     <>
-    <div className={`community-interaction-projection${hasDetailPanel ? " has-drawer" : hasChannelContext ? " has-channel-context" : ""}${isMobileThreadPage ? " mobile-thread-page-open" : ""}${peopleOpen && !hasDetailPanel ? " people-panel-open" : ""}`}>
+    <div className={`community-interaction-projection${hasDetailPanel ? " has-drawer" : hasChannelContext ? " has-channel-context" : ""}${isMobileThreadPage ? " mobile-thread-page-open" : ""}${peopleOpen && !hasDetailPanel ? " people-panel-open" : ""}${props.surface === "members" ? " is-members-page" : ""}${isPostsPresentation ? " is-posts-presentation" : ""}${detailAsDialog ? " detail-as-dialog" : ""}`}>
       <div className="community-interaction-main" ref={mainRef}>
-        {props.activeChannel ? (
+        {isPostsPresentation ? (
+          <div className="community-posts-scroll">
+            <CommunityPostsFeed
+              roots={props.roots}
+              pinnedRoot={props.pinnedRoot}
+              selectedRootId={props.selectedRootId}
+              isLoadingRoots={props.isLoadingRoots}
+              error={props.error}
+              errorActionLabel={props.errorActionLabel}
+              onRetryRoots={props.onRetryRoots}
+              onSelectRoot={props.onSelectRoot}
+              onToggleReaction={props.onToggleReaction}
+              canLoadOlderRoots={props.canLoadOlderRoots}
+              isLoadingOlderRoots={props.isLoadingOlderRoots}
+              onLoadOlderRoots={props.onLoadOlderRoots}
+              composer={props.mainComposer}
+              channelName={props.activeChannel?.name ?? null}
+              activeCommunityName={props.activeCommunityName}
+              currentUserId={props.currentUserId}
+              profilesByUserId={props.profilesByUserId}
+              displayName={props.displayName}
+              getAvatarColor={props.getAvatarColor}
+              getInitials={props.getInitials}
+              renderTextWithLinks={props.renderTextWithLinks}
+            />
+          </div>
+        ) : null}
+        {!isPostsPresentation && props.activeChannel ? (
           <WebCommunityChannelHeader
             trailingAction={!hasDetailPanel && props.communityId ? <button
               type="button"
@@ -548,7 +597,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             onDeleteChannel={props.onDeleteChannel}
           />
         ) : null}
-        {props.pinnedRoot ? (
+        {!isPostsPresentation && props.pinnedRoot ? (
           <CommunityPinnedRootSurface
             hasRichContent={communityInteractionRootHasRichContent(props.pinnedRoot)}
             selected={props.pinnedRoot.root.id === props.selectedRootId}
@@ -591,7 +640,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             {props.pinnedRootError}
           </div>
         ) : null}
-        <div
+        {isPostsPresentation ? null : <div
           className="community-interaction-feed-scroll"
           ref={scrollRef}
           onScroll={handleFeedScroll}
@@ -606,13 +655,13 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             onSaveEdit={saveEdit}
             onCancelEdit={cancelEdit}
           />
-        </div>
-        {showJumpToLatest ? (
+        </div>}
+        {!isPostsPresentation && showJumpToLatest ? (
           <button type="button" className="community-interaction-jump-latest" onClick={scrollToLatest}>
             <span aria-hidden="true">↓</span> New messages
           </button>
         ) : null}
-        {!props.floatingComposers ? (
+        {!isPostsPresentation && !props.floatingComposers ? (
           <TypingIndicator
             users={(props.typingPresence?.users ?? []).filter(
               (user) => user.user_id !== props.currentUserId && !user.root_id,
@@ -623,7 +672,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             getInitials={props.getInitials}
           />
         ) : null}
-        {props.mainComposer ? (
+        {!isPostsPresentation && props.mainComposer ? (
           <div
             className="community-interaction-main-composer"
             ref={composerRef}
@@ -653,6 +702,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
         ) : null}
       </div>
 
+      {detailAsDialog ? <div className="community-detail-dialog-backdrop" aria-hidden="true" onClick={closeDetail} /> : null}
       {props.profilePanel ? (
         <aside className="community-interaction-drawer" aria-label="Profile">
           <div className="community-interaction-drawer-back">
@@ -670,7 +720,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           </div>
           <div className="community-interaction-drawer-scroll">{props.profilePanel}</div>
         </aside>
-      ) : selectedRoot ? (
+      ) : showThreadDrawer && selectedRoot ? (
         <ThreadSurface
           className={`community-interaction-drawer community-interaction-thread-drawer${isMobileThreadPage ? " community-interaction-thread-page" : ""}`}
           aria-label={isMobileThreadPage ? "Thread" : "Thread replies"}
@@ -975,6 +1025,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
         </ThreadSurface>
       ) : null}
       {props.communityId && props.activeChannel ? <ChannelRosterPanel
+        page={props.surface === "members"}
         onCloseNarrow={closePeople}
         narrowOpen={peopleOpen}
         joinReview={{

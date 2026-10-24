@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import type { CommunityTab } from "../../../../shared/appShellNavigation";
 import { communityInitials } from "../../../../shared/messageMetadataUi";
 import { slugifyCommunityName } from "../../../../shared/communitySlug";
+import { WebCommunityAboutPage } from "./WebCommunityAboutPage";
 import { WebCommunityAnalyticsSection } from "./WebCommunityAnalyticsSection";
 import { WebCommunityAiAgentSection } from "./WebCommunityAiAgentSection";
 import { WebCommunityAvatarEditorModal } from "./WebCommunityAvatarEditorModal";
@@ -144,6 +145,8 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
 
       {props.communityTab === "events" &&
         renderCenteredPane(<WebCommunityEventsSection {...props.events} />)}
+
+      {props.communityTab === "about" && <WebCommunityAboutPage />}
 
     </>
   );

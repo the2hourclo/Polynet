@@ -210,7 +210,7 @@ const RESOURCE_CHANGESET_OPERATION_SCHEMA: PlatformOperationJsonSchema = {
     name: { type: "string", minLength: 1, maxLength: 180 },
     title: { type: "string", minLength: 1, maxLength: 180 },
     description_md: { type: ["string", "null"], maxLength: 1_200 },
-    body_md: { type: ["string", "null"], maxLength: 20_000 },
+    body_md: { type: ["string", "null"], maxLength: 240_000 },
     module_status: {
       type: ["string", "null"],
       enum: ["draft", "live", null],

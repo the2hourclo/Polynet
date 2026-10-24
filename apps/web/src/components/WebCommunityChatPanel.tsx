@@ -1141,7 +1141,12 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
   };
 
   const activeCommunityChannelSlug = String(interactionProjection?.activeChannel?.slug ?? "").trim();
-  const activeCommunityComposerPlaceholder = activeCommunityChannelSlug
+  // In the posts layout the composer writes a post: several lines, the first
+  // read as the title, so Enter is a new line and Ctrl/Cmd+Enter posts.
+  const isPostsComposer = interactionProjection?.presentation === "posts" && interactionProjection?.surface !== "members";
+  const activeCommunityComposerPlaceholder = isPostsComposer
+    ? "Title on the first line, then your post..."
+    : activeCommunityChannelSlug
     ? `Message #${activeCommunityChannelSlug}`
     : "Message the community...";
   const mainCommunityComposerPlaceholder = !hasSession
@@ -1244,7 +1249,7 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
                 if (
                   handleCommunityComposerAuthoringKeyDown(event, handleMainCommunityComposerUserInput)
                 ) return;
-                if (event.key === "Enter" && !event.shiftKey) {
+                if (event.key === "Enter" && (isPostsComposer ? event.ctrlKey || event.metaKey : !event.shiftKey)) {
                   event.preventDefault();
                   if (isAuthRecoveringSignedIn) return;
                   void handleMainCommunityComposerSubmit();
@@ -1256,7 +1261,7 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
                 !activeCommunity ||
                 !canUseComposer
               }
-              rows={1}
+              rows={isPostsComposer ? 4 : 1}
             />
           </div>
         </div>
@@ -1284,7 +1289,7 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
           onAttach={() => fileInputRef.current?.click()}
           onMention={mainMention.begin}
           onEmoji={insertMainComposerEmoji}
-          voiceControl={(
+          voiceControl={isPostsComposer ? null : (
             <VoiceInputButton
               {...voiceButtonProps}
               disabled={
