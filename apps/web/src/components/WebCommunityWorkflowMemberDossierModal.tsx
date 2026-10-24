@@ -86,6 +86,19 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
   const [retryingAction, setRetryingAction] = useState<string | null>(null);
   const [actionRetryError, setActionRetryError] = useState<{ key: string; message: string } | null>(null);
   const actionRetryPending = useRef(false);
+  const actionRows = useRef(new Map<string, HTMLLIElement>());
+  const actionsHeading = useRef<HTMLHeadingElement | null>(null);
+  // The action whose Run again was pressed. When its button goes (the write
+  // worked, or the member moved on), focus goes to its row, else to Actions.
+  const refocusAction = useRef<string | null>(null);
+  useEffect(() => {
+    const key = refocusAction.current;
+    if (!key) return;
+    const row = actionRows.current.get(key);
+    if (row?.querySelector("button")) return;
+    refocusAction.current = null;
+    (row ?? actionsHeading.current ?? dialogRef.current)?.focus();
+  }, [props.dossier]);
   useEffect(() => {
     approvalGeneration.current += 1;
     approvalPending.current = false;
@@ -280,10 +293,11 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                 <p>{dossier.workflow.goal || "No goal specified."}</p>
               </section> : null}
               {dossier.workflow && !dossier.workflow.completed_at ? <section className="workflow-member-dossier-section">
-                <h3>Actions</h3>
+                <h3 ref={actionsHeading} tabIndex={-1}>Actions</h3>
                 {!dossier.workflow.action_progress ? <p>Action completion unavailable.</p> : <>
                   {dossier.workflow.action_progress.actions.length ? <ul className="workflow-member-action-progress">
-                    {dossier.workflow.action_progress.actions.map(action => <li key={action.automation_key}>
+                    {dossier.workflow.action_progress.actions.map(action => <li key={action.automation_key} tabIndex={-1}
+                      ref={(node) => { if (node) actionRows.current.set(action.automation_key, node); else actionRows.current.delete(action.automation_key); }}>
                       <div><strong>{action.label}</strong>
                         <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : action.action_type === "set_client_property" ? "Done" : "Channel ready"
                           : action.status === "pending" ? action.action_type === "request_form" ? "Awaiting submission" : "Queued"
@@ -293,15 +307,20 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                       {action.evidence ? <small>Verified <ActivityTime value={new Date(action.evidence.completed_at).toISOString()} /></small> : null}
                       {action.retryable && props.onRetryAction ? <>
                         <button type="button" className="workflow-secondary-button" aria-label={`Run again: ${action.label}`}
-                          disabled={retryingAction !== null} onClick={async () => {
+                          // The pressed button stays enabled (and focused) while it runs; the guard stops a second press.
+                          disabled={retryingAction !== null && retryingAction !== action.automation_key}
+                          aria-disabled={retryingAction === action.automation_key || undefined} onClick={async () => {
                             if (actionRetryPending.current || !props.onRetryAction) return;
                             const generation = approvalGeneration.current;
                             actionRetryPending.current = true; setRetryingAction(action.automation_key); setActionRetryError(null);
+                            refocusAction.current = action.automation_key;
                             try {
                               const result = await props.onRetryAction(dossier, action.automation_key);
+                              if (result.status === "action_failed") refocusAction.current = null;
                               if (generation === approvalGeneration.current && result.status === "action_failed")
                                 setActionRetryError({ key: action.automation_key, message: "It failed again. Check this property's type and options in Clients, then run it again." });
                             } catch (error) {
+                              refocusAction.current = null;
                               if (generation === approvalGeneration.current) {
                                 const stale = String(error instanceof Error ? error.message : error).includes("evidence_changed");
                                 setActionRetryError({ key: action.automation_key, message: stale ? "The member moved on. Refresh and check their current stage."

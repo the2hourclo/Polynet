@@ -1128,6 +1128,12 @@ test("a lesson-done property write that failed runs again once repaired, and an 
   expect(await retry()).toMatchObject({ status: "client_property_set" });
   expect(await progress()).toMatchObject({ all_actions_complete: true, actions: [{ status: "complete" }] });
   expect(await t.run(ctx => ctx.db.query("communityClientValues").collect())).toMatchObject([{ propertyKey: "phase", value: "Onboarding" }]);
+  // Back to the first value: that older write was replaced, so it no longer counts.
+  await save(5, "Building", { key: rule.key, action: rule.action.key });
+  expect(await progress()).toMatchObject({ all_actions_complete: false, actions: [{ status: "unavailable", retryable: true }] });
+  expect(await retry()).toMatchObject({ status: "client_property_set" });
+  expect(await progress()).toMatchObject({ all_actions_complete: true, actions: [{ status: "complete" }] });
+  expect(await t.run(ctx => ctx.db.query("communityClientValues").collect())).toMatchObject([{ propertyKey: "phase", value: "Building" }]);
   // Each success completes the stage once the scheduled check runs.
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const state = await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").first());
