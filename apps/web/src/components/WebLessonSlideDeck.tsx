@@ -18,6 +18,7 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; rend
   const [ratio, setRatio] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const deckRef = useRef<HTMLElement | null>(null);
+  const noteRef = useRef<HTMLDivElement | null>(null);
   const swipeFrom = useRef<number | null>(null);
   const last = slides.length - 1;
   const current = slides[Math.min(index, last)];
@@ -41,7 +42,11 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; rend
   };
 
   // Keys stay inside the deck, so Enter on an arrow never opens the owner's body editor.
+  // Keys in a note's checklist, quiz or form (or a dialog it opens, which React
+  // bubbles through here) belong to that control, not to the deck.
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const target = event.target as Node;
+    if (!event.currentTarget.contains(target) || noteRef.current?.contains(target)) return;
     event.stopPropagation();
     if (event.key === "ArrowRight" || event.key === "PageDown") go(index + 1);
     else if (event.key === "ArrowLeft" || event.key === "PageUp") go(index - 1);
@@ -131,7 +136,7 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; rend
           </button>
         </div>
       </div>
-      {current.note_md ? <div className="lesson-slide-deck-note">{renderNote(current.note_md)}</div> : null}
+      {current.note_md ? <div ref={noteRef} className="lesson-slide-deck-note">{renderNote(current.note_md)}</div> : null}
     </section>
   );
 }

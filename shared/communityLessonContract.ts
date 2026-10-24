@@ -472,6 +472,18 @@ export function gradeCommunityLessonResponse(
 
 const SLIDE_IMAGE = /^!\[([^\]]*)\]\(([^)\s]+)\)\s*$/;
 
+// Markdown's own fence rules, so the deck agrees with how the page renders:
+// up to three spaces, then three or more backticks (with no backtick in the
+// info, like ```c#) or tildes. It closes on the same mark, at least as long,
+// with nothing after it.
+function markdownFenceOpen(line: string): string | null {
+  return /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/.exec(line)?.[1] ?? null;
+}
+function markdownFenceCloses(line: string, fence: string): boolean {
+  const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line)?.[1];
+  return Boolean(close && close[0] === fence[0] && close.length >= fence.length);
+}
+
 // Where a body's "## Slides" section starts and ends, by line. Headings inside
 // a code example are text, not sections.
 function findSlidesSection(lines: string[]): { heading: number; end: number } | null {
@@ -480,11 +492,11 @@ function findSlidesSection(lines: string[]): { heading: number; end: number } | 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     if (fence) {
-      if (line.startsWith(fence)) fence = null;
+      if (markdownFenceCloses(line, fence)) fence = null;
       continue;
     }
-    const open = FENCE.exec(line);
-    if (open) fence = open[1];
+    const open = markdownFenceOpen(line);
+    if (open) fence = open;
     else if (heading < 0 && /^## Slides[ \t]*$/.test(line)) heading = i;
     else if (heading >= 0 && /^## (?!#)/.test(line)) return { heading, end: i };
   }
@@ -502,13 +514,13 @@ function parseSlides(lines: string[]): { preamble: string; slides: CommunityLess
   for (const line of lines) {
     const into = notes[notes.length - 1] ?? preamble;
     if (fence) {
-      if (line.startsWith(fence)) fence = null;
+      if (markdownFenceCloses(line, fence)) fence = null;
       into.push(line);
       continue;
     }
-    const open = FENCE.exec(line);
+    const open = markdownFenceOpen(line);
     const image = open ? null : SLIDE_IMAGE.exec(line.trim());
-    if (open) fence = open[1];
+    if (open) fence = open;
     if (!image) {
       into.push(line);
       continue;
