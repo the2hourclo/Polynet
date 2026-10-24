@@ -55,7 +55,8 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
       ? createServerCommunityEmbedStorage({
           communityId: context.communityId,
           ensureSession: () => context.ensureSession(session),
-          fallback: createBrowserCommunityEmbedStorage(context.communityId),
+          // Per member: another account in this browser never sees these answers.
+          fallback: createBrowserCommunityEmbedStorage(`${context.communityId}:user:${session.user.id}`),
         })
       : null,
     [session, context.communityId, context.ensureSession],

@@ -24,6 +24,9 @@ import { WebCommunityForms } from "./WebCommunityForms";
 import { WebCommunityFormResponses } from "./WebCommunityFormResponses";
 import { WebCommunityMemberCourseProgress } from "./WebCommunityMemberCourseProgress";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
+import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
+import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
+import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
 
 export type WebCommunityWorkflowsSectionProps = {
   forms?: CommunityFormsGateway;
@@ -56,6 +59,9 @@ export type WebCommunityWorkflowsSectionProps = {
   ) => Promise<boolean>;
   onDeleteMilestone: (milestoneKey: string) => Promise<boolean>;
   onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
+  onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
+  onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
+  communityName?: string | null;
   onClearActionError: () => void;
   onOpenMemberDossier: (membershipId: string) => void;
   onCloseMemberDossier: () => void;
@@ -128,14 +134,19 @@ export function WebCommunityWorkflowsSection(
       ariaLabel="Workflow sections" idPrefix="workflow-sections" className="platform-switcher platform-switcher-compact workflow-section-tabs"
       style={buildPlatformSwitcherStyle(WORKFLOW_SECTIONS.length, WORKFLOW_SECTIONS.indexOf(section))} />
     <div className="workflow-section-content" role="tabpanel" id={platformTabPanelId("workflow-sections", section)} aria-labelledby={platformTabId("workflow-sections", section)}>
-      {section === "workflows" ? <WorkflowBoard {...props} /> : props.forms
+      {section === "workflows" ? <WorkflowBoard {...props} onOpenWelcome={() => void select("welcome")} />
+        : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
+          forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
+          onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
+          onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
+        : props.forms
         ? <WebCommunityForms key={props.forms.scopeKey} gateway={props.forms} leaveGuard={beforeLeave} />
         : <p role="status">Forms are unavailable.</p>}
     </div>
   </div>;
 }
 
-function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
+function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcome: () => void }) {
   const [publishedForms, setPublishedForms] = useState<Array<{ key: string; name: string }>>([]);
   const [formsState, setFormsState] = useState<"loading" | "ready" | "error">("loading");
   const [formsRetry, setFormsRetry] = useState(0);
@@ -239,19 +250,16 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
         className="community-panel community-utility-panel workflow-pipeline-shell"
         aria-label="Workflow board"
       >
-        {props.board && props.onSetWelcomeGate ? (
-          <label className="workflow-welcome-gate">
-            <input
-              type="checkbox"
-              checked={props.board.welcome_gate === true}
-              disabled={props.isSaving}
-              onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)}
-            />
+        {props.board ? (
+          <p className="workflow-welcome-gate">
             <span>
-              <strong>Welcome flow</strong>
-              <small>New members finish the first milestone’s join forms before the community opens.</small>
+              <strong>Welcome page: {props.board.welcome_gate ? "on" : "off"}</strong>
+              <small>{props.board.welcome_gate
+                ? "New members finish its steps before the community opens."
+                : "Turn it on to give new members steps to finish before the community opens."}</small>
             </span>
-          </label>
+            <button type="button" className="workflow-secondary-button" onClick={props.onOpenWelcome}>Edit welcome page</button>
+          </p>
         ) : null}
         <div className="workflow-board-stage">
         <div className="workflow-milestone-canvas" aria-label="Member success milestones">

@@ -2247,6 +2247,9 @@ export default function App() {
         onUpdateMilestone: communityWorkflows.updateMilestone,
         onDeleteMilestone: communityWorkflows.deleteMilestone,
         onSetWelcomeGate: communityWorkflows.setWelcomeGate,
+        onSaveWelcomePage: communityWorkflows.saveWelcomePage,
+        onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
+        communityName: activeCommunity?.name ?? null,
         onClearActionError: communityWorkflows.clearActionError,
         onOpenMemberDossier: communityWorkflows.openMemberDossier,
         onCloseMemberDossier: communityWorkflows.closeMemberDossier,
@@ -2610,15 +2613,15 @@ export default function App() {
     authError,
   });
 
-  // The builder's welcome flow: until the member submits the join forms, the
-  // community pane shows only those forms. The left rail keeps working.
-  // A member who just joined is held before their forms exist ("preparing").
-  const welcomeRequestKey = activeCommunityAccess?.welcome_required
-    ? (activeCommunityAccess.welcome_form_request_ids ?? []).join(",") || "preparing" : "";
-  const welcomeRequestIds = useMemo(
-    () => (welcomeRequestKey && welcomeRequestKey !== "preparing" ? welcomeRequestKey.split(",") : []),
-    [welcomeRequestKey],
-  );
+  // The builder's welcome flow: until the member finishes its forms, then its
+  // lessons, the community pane shows only those steps. The left rail keeps
+  // working. A member who just joined is held before their forms exist (no steps yet).
+  const welcomeStepsKey = activeCommunityAccess?.welcome_required
+    ? `${(activeCommunityAccess.welcome_form_request_ids ?? []).join(",")}|${(activeCommunityAccess.welcome_lesson_ids ?? []).join(",")}` : "";
+  const welcomeSteps = useMemo(() => {
+    const [forms = "", lessons = ""] = welcomeStepsKey.split("|");
+    return { requestIds: forms ? forms.split(",") : [], lessonIds: lessons ? lessons.split(",") : [] };
+  }, [welcomeStepsKey]);
   if (standalonePublicRouteViewProps) {
     return (
       <Suspense fallback={<div className="landing-auth-hold" aria-hidden="true" />}>
@@ -3002,10 +3005,10 @@ export default function App() {
     hasLeftPanel,
     isGlobalSettings,
   });
-  if (session && activeCommunityId && welcomeRequestKey && activePage === "community" && !isPublicCommunityFunnel) {
+  if (session && activeCommunityId && welcomeStepsKey && activePage === "community" && !isPublicCommunityFunnel) {
     shellChromeHostProps.welcomeSurface = (
       <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
-        communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeRequestIds}
+        communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeSteps.requestIds} lessonIds={welcomeSteps.lessonIds}
         session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess}
         onReleased={() => { void communityContent.retryResourceRead("modules"); void communityContent.retryResourceRead("resources"); }} />
     );

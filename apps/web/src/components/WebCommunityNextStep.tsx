@@ -115,20 +115,28 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
   const close = async () => { if (saving.current) return; if (done || !request) props.onClose(); else if (!error) await save("close"); };
   const locked = (busy && intent !== "autosave") || failedIntent !== null;
   const q = request?.questions[index];
+  // The question, its help text, whether it's required and any problem are read
+  // out with the answer field (or the group of choices), not only shown above it.
+  const fieldId = `member-form-${props.requestId}-${index}`;
+  const field = q ? {
+    "aria-labelledby": `${fieldId}-title`,
+    "aria-describedby": [q.description ? `${fieldId}-help` : "", `${fieldId}-count`, validation ? `${fieldId}-issue` : ""].filter(Boolean).join(" "),
+    "aria-invalid": validation ? true : undefined,
+  } : {};
   return <div onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); void close(); } }}>
     <header><h2>{request?.name ?? "Your next step"}</h2><button disabled={busy} onClick={() => void close()} aria-label="Save and close form"><X size={20} /></button></header>
     {done ? <section ref={questionSection}><h2>Submitted</h2><p>You’re all set.</p><button onClick={props.onClose}>Done</button></section> : q ? <section ref={questionSection} onChange={() => setValidation(null)}>
-      <small>{index + 1} of {request!.questions.length}{q.required ? " · Required" : " · Optional"}</small><h2>{q.title}</h2>{q.description ? <p>{q.description}</p> : null}
-      {q.type.endsWith("choice") ? <div className="member-form-choices">{q.options.map((option, i) => <label key={i}><input disabled={locked} name={q.key} type={q.type === "single_choice" ? "radio" : "checkbox"}
+      <small id={`${fieldId}-count`}>{index + 1} of {request!.questions.length}{q.required ? " · Required" : " · Optional"}</small><h2 id={`${fieldId}-title`}>{q.title}</h2>{q.description ? <p id={`${fieldId}-help`}>{q.description}</p> : null}
+      {q.type.endsWith("choice") ? <fieldset className="member-form-choices" {...field}>{q.options.map((option, i) => <label key={i}><input disabled={locked} name={q.key} type={q.type === "single_choice" ? "radio" : "checkbox"}
         checked={q.type === "single_choice" ? answers[q.key] === String(i) : ((answers[q.key] as string[]) ?? []).includes(String(i))}
-        onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) ?? []), String(i)] : ((a[q.key] as string[]) ?? []).filter(v => v !== String(i)) }))} />{option}</label>)}</div>
-        : q.type === "long_text" ? <textarea aria-label={q.title} rows={5} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />
-        : <input aria-label={q.title} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
+        onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) ?? []), String(i)] : ((a[q.key] as string[]) ?? []).filter(v => v !== String(i)) }))} />{option}</label>)}</fieldset>
+        : q.type === "long_text" ? <textarea {...field} aria-required={q.required} rows={5} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />
+        : <input {...field} aria-required={q.required} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
       <footer><button disabled={busy || !!error || index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button disabled={busy || !!error} onClick={async () => {
         if (q.required && !formQuestionAnswered(q, answers)) { setValidation("Please answer this question."); return; }
         await save(index === request!.questions.length - 1 ? "submit" : "continue");
       }}>{index === request!.questions.length - 1 ? "Submit" : "Continue"}</button><small role="status">{busy ? "Saving…" : saver.current?.dirty(answers) ? "Unsaved answers" : "Saved"}</small></footer>
-      {validation ? <p role="alert">{validation}</p> : null}
+      {validation ? <p role="alert" id={`${fieldId}-issue`}>{validation}</p> : null}
     </section> : !error ? <p role="status">Loading form…</p> : null}
     {error ? <div role="alert"><p>{error}</p><button disabled={busy} onClick={() => failedIntent ? void save(failedIntent, true) : void load()}>Retry</button><button disabled={busy} onClick={() => void load()}>Discard edits and reload</button><button disabled={busy} onClick={props.onClose}>Discard unsaved answers and close</button></div> : null}
   </div>;

@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
   communityMembershipRowIsActive,
+  communityWelcomeLessonAllowed,
   communityResourceIsLiveModulePage,
   communityResourceModuleIsLive,
   normalizeIdValue,
@@ -186,7 +187,8 @@ const readOwnResourceProgressArgs = {
 };
 
 async function readOwnResourceProgress(ctx: any, args: any) {
-  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
+  // A member in the welcome flow reads their own progress for its lesson steps.
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId, allowWelcome: true });
   const source = await listMemberVisibleLessonPages(ctx, args.communityId);
   const rows = await readProgressRows(ctx, args.communityId, args.userId);
   const { stages, lessons } = await buildMemberProgress(ctx, source, rows);
@@ -198,6 +200,7 @@ async function readOwnResourceProgress(ctx: any, args: any) {
     ctx,
     actorUserId: args.userId,
     communityId: args.communityId,
+    allowWelcome: true,
   });
   const workflow = self.workflow
     ? await ctx.db.get(self.workflow.id as any)
@@ -262,7 +265,8 @@ const setOwnResourceProgressArgs = {
 };
 
 async function setOwnResourceProgress(ctx: any, args: any) {
-  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId,
+    allowWelcome: await communityWelcomeLessonAllowed(ctx, args.communityId, args.resourceId) });
   const found = await findVisibleLesson(ctx, args.communityId, args.resourceId);
   if (!found) return UNAVAILABLE;
   const { resourceId, page, source } = found;
@@ -326,7 +330,8 @@ const setOwnLessonResponseArgs = {
 };
 
 async function saveOwnLessonResponse(ctx: any, args: any) {
-  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId,
+    allowWelcome: await communityWelcomeLessonAllowed(ctx, args.communityId, args.resourceId) });
   const found = await findVisibleLesson(ctx, args.communityId, args.resourceId);
   if (!found) return UNAVAILABLE;
   const { resourceId, page, source } = found;

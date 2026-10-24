@@ -36,6 +36,10 @@ export type CloudCommunityMemberWorkflowBoard = {
   milestones: CommunityMemberWorkflowMilestone[];
   /** New members finish the first stage's join forms before the community opens. */
   welcome_gate?: boolean;
+  /** Lesson pages members mark done after the forms, in order. */
+  welcome_lesson_ids?: string[];
+  /** The builder's words on the welcome page; empty means Polynet's default. */
+  welcome_page?: { title: string; message: string; media_url: string };
   updated_at: string;
 };
 
@@ -266,6 +270,18 @@ export async function setCloudCommunityWelcomeGate<SessionT>(params: WorkflowGat
   return await client.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, {
     authSubject, communityId: params.communityId as Id<"communities">,
     expectedRevision: params.expectedRevision, enabled: params.enabled,
+  });
+}
+
+export type CloudCommunityWelcomePageDraft = { title: string; message: string; mediaUrl: string; lessonIds: string[] };
+
+export async function saveCloudCommunityWelcomePage<SessionT>(params: WorkflowGatewayParams<SessionT> & {
+  communityId: string; expectedRevision: number; page: CloudCommunityWelcomePageDraft;
+}): Promise<{ revision: number }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.mutation(api.communityMemberWorkflows.saveBuilderWelcomePage, {
+    authSubject, communityId: params.communityId as Id<"communities">, expectedRevision: params.expectedRevision,
+    title: params.page.title, message: params.page.message, mediaUrl: params.page.mediaUrl, lessonIds: params.page.lessonIds,
   });
 }
 

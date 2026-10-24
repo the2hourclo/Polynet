@@ -1233,45 +1233,78 @@ export async function readCommunityWelcomeGate(args: {
   community: CommunityLike;
   membership: CommunityMembershipLike | null;
   userId: any;
-}): Promise<{ required: boolean; requestIds: string[] }> {
-  const open = { required: false, requestIds: [] as string[] };
+}): Promise<{ required: boolean; requestIds: string[]; lessonIds: string[] }> {
+  const open = { required: false, requestIds: [] as string[], lessonIds: [] as string[] };
   if (String(args.community.ownerId) === String(args.userId) || !args.membership) return open;
   if (normalizeCommunityRoleForOutput(args.membership.role) === "admin") return open;
   const workflow = await args.ctx.db.query("communityMemberWorkflows")
     .withIndex("by_community", (q: any) => q.eq("communityId", args.community._id)).first();
   if (!workflow?.welcomeGate) return open;
-  const pending = await args.ctx.db.query("communityFormRequests")
-    .withIndex("by_member_status", (q: any) => q.eq("membershipId", args.membership!._id).eq("status", "pending"))
+  const byStatus = (status: "pending" | "submitted") => args.ctx.db.query("communityFormRequests")
+    .withIndex("by_member_status", (q: any) => q.eq("membershipId", args.membership!._id).eq("status", status))
     .take(20);
+  const [pending, submitted] = await Promise.all([byStatus("pending"), byStatus("submitted")]);
   // Only a request whose first-stage "member joins" rule still exists holds the
   // member; a rule the builder removed never leaves anyone locked out.
   const first = workflow.milestones?.[0];
   const joinRules = new Set((first?.automations ?? [])
     .filter((rule: any) => rule.trigger?.type === "member_joined" && rule.action?.type === "request_form")
     .map((rule: any) => rule.key));
-  const requestIds: string[] = [];
-  for (const request of pending) {
-    if (String(request.workflowId) !== String(workflow._id) || request.milestoneKey !== first?.key) continue;
-    if ((request.activationSequence ?? 0) !== (args.membership.activationSequence ?? 0)) continue;
-    if (!joinRules.has(request.automationKey)) continue;
+  const isWelcomeRequest = async (request: any) => {
+    if (String(request.workflowId) !== String(workflow._id) || request.milestoneKey !== first?.key) return false;
+    if ((request.activationSequence ?? 0) !== (args.membership!.activationSequence ?? 0)) return false;
+    if (!joinRules.has(request.automationKey)) return false;
     const run = await args.ctx.db.get(request.workflowRunId);
-    if (run?.triggerType === "member_joined") requestIds.push(String(request._id));
+    return run?.triggerType === "member_joined";
+  };
+  const requestIds: string[] = [];
+  for (const request of pending) if (await isWelcomeRequest(request)) requestIds.push(String(request._id));
+  // A member who has already sent a welcome form is in the flow, so its lessons apply to them too.
+  let sentWelcomeForm = false;
+  for (const request of submitted) if (!sentWelcomeForm && await isWelcomeRequest(request)) sentWelcomeForm = true;
+  const membership = args.membership;
+  const joinedAfterGate = membership.activationSequence === 1
+    && typeof workflow.welcomeGateEnabledAt === "number" && typeof membership.activatedAt === "number"
+    && membership.activatedAt >= workflow.welcomeGateEnabledAt;
+  // Welcome lessons come after the forms and hold anyone the flow applies to
+  // until each is marked done. A lesson since removed or unpublished drops out.
+  const lessonIds: string[] = [];
+  if ((requestIds.length || sentWelcomeForm || joinedAfterGate) && workflow.welcomeLessonIds?.length) {
+    for (const resourceId of workflow.welcomeLessonIds) {
+      if (!(await welcomeLessonIsLive(args.ctx, args.community._id, resourceId))) continue;
+      const progress = await args.ctx.db.query("communityResourceProgress")
+        .withIndex("by_community_user_resource", (q: any) =>
+          q.eq("communityId", args.community._id).eq("userId", args.userId).eq("resourceId", resourceId))
+        .unique();
+      if (progress?.status !== "done") lessonIds.push(String(resourceId));
+    }
   }
-  if (requestIds.length) return { required: true, requestIds };
+  if (requestIds.length || lessonIds.length) return { required: true, requestIds, lessonIds };
   // The join rule runs just after the join commits, so a member who joined
   // after the flow was turned on is held from the first moment, before their
   // forms exist. The hold lapses if the rule never runs, so nobody is locked out.
-  const membership = args.membership;
-  const joinedAfterGate = joinRules.size > 0 && membership.activationSequence === 1
-    && typeof workflow.welcomeGateEnabledAt === "number" && typeof membership.activatedAt === "number"
-    && membership.activatedAt >= workflow.welcomeGateEnabledAt
-    && Date.now() - membership.activatedAt < WELCOME_PREPARING_MS;
-  if (!joinedAfterGate) return open;
+  if (!joinedAfterGate || joinRules.size === 0 || Date.now() - membership.activatedAt! >= WELCOME_PREPARING_MS) return open;
   const runs = await args.ctx.db.query("communityMemberWorkflowRuns")
     .withIndex("by_workflow_membership_createdAt", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
     .take(20);
   const joinRan = runs.some((run: any) => run.triggerType === "member_joined");
-  return joinRan ? open : { required: true, requestIds: [] };
+  return joinRan ? open : { required: true, requestIds: [], lessonIds: [] };
+}
+
+/** A welcome lesson counts only while members can see it: a page in a live course. */
+export async function welcomeLessonIsLive(ctx: any, communityId: any, resourceId: any): Promise<boolean> {
+  const row = (await ctx.db.get(resourceId)) as CommunityResourceLike | null;
+  if (!row || String((row as any).communityId) !== String(communityId)) return false;
+  const module = row.moduleId ? ((await ctx.db.get(row.moduleId)) as CommunityResourceModuleLike | null) : null;
+  const liveModuleIds = new Set(module && communityResourceModuleIsLive(module) ? [normalizeIdValue(module._id)] : []);
+  return communityResourceIsLiveModulePage(row, liveModuleIds);
+}
+
+/** Whether a lesson is one of the community's welcome steps, so a held member may work on it. */
+export async function communityWelcomeLessonAllowed(ctx: any, communityId: any, rawResourceId: string): Promise<boolean> {
+  const workflow = await ctx.db.query("communityMemberWorkflows")
+    .withIndex("by_community", (q: any) => q.eq("communityId", communityId)).first();
+  return Boolean(workflow?.welcomeGate && workflow.welcomeLessonIds?.some((id: any) => String(id) === String(rawResourceId)));
 }
 
 /** How long a new member waits on the join rule before the welcome hold lapses. */
@@ -1365,7 +1398,7 @@ export async function resolveCommunityAccessBundle(args: {
               : null;
   const welcome = isEntitled
     ? await readCommunityWelcomeGate({ ctx: args.ctx, community: args.community, membership: args.membership, userId: args.userId })
-    : { required: false, requestIds: [] as string[] };
+    : { required: false, requestIds: [] as string[], lessonIds: [] as string[] };
   const canViewLanding = true;
   // A member held by the welcome flow enters the community but sees only the form.
   const canEnterCommunity = isEntitled;
@@ -1435,6 +1468,7 @@ export async function resolveCommunityAccessBundle(args: {
     can_manage_payouts: canManagePayouts,
     welcome_required: welcome.required,
     welcome_form_request_ids: welcome.requestIds,
+    welcome_lesson_ids: welcome.lessonIds,
   };
 }
 

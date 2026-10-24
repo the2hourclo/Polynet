@@ -14,6 +14,8 @@ import {
   updateCloudCommunityMemberWorkflowMilestone,
   setCloudCommunityMemberServiceChannel,
   setCloudCommunityWelcomeGate,
+  saveCloudCommunityWelcomePage,
+  type CloudCommunityWelcomePageDraft,
   forceCloudCommunityMemberMilestone,
   approveCloudCommunityMemberMilestone,
   retryCloudCommunityMemberGoalReview,
@@ -23,6 +25,11 @@ import {
   type CloudCommunityMemberSuccessDossier,
 } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import type { CommunityMemberWorkflowAutomation } from "../../../../shared/communityMemberWorkflow";
+import { listCloudCommunityResourceModuleRows, listCloudCommunityResourceRows } from "../../../../shared/cloudCommunityAdminGateway";
+import type { CommunityResource, CommunityResourceModule } from "../components/communityResourcesContracts";
+
+/** A lesson page the builder can make a welcome step: a page in a live course. */
+export type WelcomeLessonOption = { id: string; title: string; course: string };
 
 type EnsureAuthSession = (
   session?: AuthSession | null,
@@ -43,7 +50,12 @@ function workflowErrorMessage(error: unknown): string {
     return "A selected channel is unavailable. Choose another channel or remove that automation.";
   }
   if (message.includes("workflow_delay_invalid")) return "Choose a duration from 1 minute to 365 days.";
-  if (message.includes("welcome_gate_requires_join_form")) return "Add a Member joins rule that requests a form to the first milestone, then turn on the welcome flow.";
+  if (message.includes("welcome_gate_requires_join_form")) return "Add a Member joins rule that requests a form to the first milestone, or a welcome lesson, then turn on the welcome flow.";
+  if (message.includes("welcome_lesson_unavailable")) return "A chosen lesson is no longer published. Pick another lesson.";
+  if (message.includes("welcome_lessons_too_many")) return "Choose up to 5 welcome lessons.";
+  if (message.includes("welcome_media_url_invalid")) return "Enter a full video or image link, starting with https://.";
+  if (message.includes("welcome_title_too_long")) return "Keep the welcome headline to 120 characters.";
+  if (message.includes("welcome_message_too_long")) return "Keep the welcome message to 4,000 characters.";
   if (message.includes("milestone_has_members")) {
     return "Move members out of this milestone before deleting it.";
   }
@@ -594,6 +606,21 @@ export function useWebCommunityWorkflowsController(params: {
     setWelcomeGate: (enabled: boolean) =>
       mutateMilestone("community_workflows_welcome_gate", (session, communityId, revision) =>
         setCloudCommunityWelcomeGate({ session, communityId, expectedRevision: revision, enabled })),
+    loadWelcomeLessonOptions: async (): Promise<WelcomeLessonOption[]> => {
+      const usableSession = params.activeCommunityId ? await params.ensureSession(params.session, "community_workflows_welcome_lessons") : null;
+      if (!usableSession || !params.activeCommunityId) return [];
+      const [resources, modules] = await Promise.all([
+        listCloudCommunityResourceRows<AuthSession, CommunityResource>({ session: usableSession, communityId: params.activeCommunityId, limit: 1000 }),
+        listCloudCommunityResourceModuleRows<AuthSession, CommunityResourceModule>({ session: usableSession, communityId: params.activeCommunityId, limit: 200 }),
+      ]);
+      const live = new Map(modules.filter((module) => module.module_status === "live").map((module) => [module.id, module.name]));
+      return resources
+        .filter((resource) => resource.resource_role === "page" && resource.module_id && live.has(resource.module_id))
+        .map((resource) => ({ id: resource.id, title: resource.title, course: live.get(resource.module_id!) ?? "" }));
+    },
+    saveWelcomePage: (page: CloudCommunityWelcomePageDraft) =>
+      mutateMilestone("community_workflows_welcome_page", (session, communityId, revision) =>
+        saveCloudCommunityWelcomePage({ session, communityId, expectedRevision: revision, page })),
     clearActionError: () => setActionError(null),
   };
 }

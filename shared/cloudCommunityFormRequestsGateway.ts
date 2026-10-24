@@ -59,3 +59,10 @@ export async function findMyPendingFormByKey(session: unknown, communityId: stri
   const rows = await client.query(api.communityFormRequests.listMyRequests, { communityId: communityId as Id<"communities">, authSubject }) as Array<MemberFormSummary & { form_key?: string }>;
   return (Array.isArray(rows) ? rows : []).find(row => row.form_key === formKey) ?? null;
 }
+
+/** What the held member's welcome page shows: the builder's words and its lesson steps. */
+export type MemberWelcomePage<TLesson> = { title: string | null; message: string | null; media_url: string | null; lessons: TLesson[] };
+export async function getMemberWelcomePage<S, TLesson>(session: S, communityId: string): Promise<MemberWelcomePage<TLesson>> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.query(api.communityResources.getMyWelcomePage, { authSubject, communityId: communityId as Id<"communities"> }) as MemberWelcomePage<TLesson>;
+}

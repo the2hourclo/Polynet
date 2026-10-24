@@ -105,11 +105,14 @@ export async function resolveSelfCommunityMembershipContext(args: {
   ctx: QueryCtx;
   actorUserId: Id<"users">;
   communityId: Id<"communities">;
+  /** The member's own progress read, which a member in the welcome flow may make. */
+  allowWelcome?: boolean;
 }): Promise<CommunityMemberSelfContext> {
   const { community } = await requireCommunityChatAccess({
     ctx: args.ctx,
     communityId: args.communityId,
     userId: args.actorUserId,
+    allowWelcome: args.allowWelcome,
   });
   const membership = await getUniqueCommunityMembershipByPair({
     ctx: args.ctx,

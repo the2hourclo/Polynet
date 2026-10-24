@@ -38,6 +38,8 @@ import {
   requireCommunityChatAccess,
   resolveUserIdForAuthenticatedRequest,
   toIsoString,
+  normalizeOptionalUrl,
+  welcomeLessonIsLive,
   type CommunityMembershipLike,
 } from "./communityCore";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
@@ -476,7 +478,8 @@ export const setBuilderWelcomeGate = mutation({
     const expectedRevision = normalizeExpectedRevision(args.expectedRevision);
     const workflow = requireWorkflowRevision(
       await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId }), expectedRevision);
-    if (args.enabled && !(workflow.milestones[0]?.automations ?? []).some(a => a.trigger.type === "member_joined" && a.action.type === "request_form")) {
+    if (args.enabled && !(workflow.milestones[0]?.automations ?? []).some(a => a.trigger.type === "member_joined" && a.action.type === "request_form")
+      && !workflow.welcomeLessonIds?.length) {
       throw new Error("welcome_gate_requires_join_form");
     }
     if ((workflow.welcomeGate ?? false) === args.enabled) return { workflow_id: String(workflow._id), revision: expectedRevision, welcome_gate: args.enabled };
@@ -485,6 +488,48 @@ export const setBuilderWelcomeGate = mutation({
     await ctx.db.patch(workflow._id, { welcomeGate: args.enabled, ...(args.enabled ? { welcomeGateEnabledAt: now } : {}),
       revision, updatedByUserId: userId, updatedAt: now });
     return { workflow_id: String(workflow._id), revision, welcome_gate: args.enabled };
+  },
+});
+
+const WELCOME_LESSONS_MAX = 5;
+const WELCOME_TITLE_MAX = 120;
+const WELCOME_MESSAGE_MAX = 4_000;
+
+/** What the welcome page says and which lesson pages, in order, members mark done after its forms. */
+export const saveBuilderWelcomePage = mutation({
+  args: {
+    ...managerIdentityArgs, communityId: v.id("communities"), expectedRevision: v.number(),
+    title: v.string(), message: v.string(), mediaUrl: v.string(), lessonIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requireWorkflowManager({ ctx, communityId: args.communityId, userId: args.userId, authSubject: args.authSubject });
+    const expectedRevision = normalizeExpectedRevision(args.expectedRevision);
+    const workflow = requireWorkflowRevision(
+      await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId }), expectedRevision);
+    const title = args.title.replace(/\s+/g, " ").trim();
+    const message = args.message.replace(/\r\n?/g, "\n").trim();
+    if (title.length > WELCOME_TITLE_MAX) throw new Error("welcome_title_too_long");
+    if (message.length > WELCOME_MESSAGE_MAX) throw new Error("welcome_message_too_long");
+    let mediaUrl: string | undefined;
+    try { mediaUrl = normalizeOptionalUrl(args.mediaUrl); } catch { throw new Error("welcome_media_url_invalid"); }
+    const ids = [...new Set(args.lessonIds.map(id => id.trim()).filter(Boolean))];
+    if (ids.length > WELCOME_LESSONS_MAX) throw new Error("welcome_lessons_too_many");
+    const lessonIds = [];
+    for (const raw of ids) {
+      const resourceId = ctx.db.normalizeId("communityResources", raw);
+      if (!resourceId || !(await welcomeLessonIsLive(ctx, args.communityId, resourceId))) throw new Error("welcome_lesson_unavailable");
+      lessonIds.push(resourceId);
+    }
+    if (!lessonIds.length && workflow.welcomeGate
+      && !(workflow.milestones[0]?.automations ?? []).some(a => a.trigger.type === "member_joined" && a.action.type === "request_form")) {
+      throw new Error("welcome_gate_requires_join_form");
+    }
+    const revision = expectedRevision + 1;
+    await ctx.db.patch(workflow._id, {
+      welcomePage: { ...(title ? { title } : {}), ...(message ? { message } : {}), ...(mediaUrl ? { mediaUrl } : {}) },
+      welcomeLessonIds: lessonIds, revision, updatedByUserId: userId, updatedAt: Date.now(),
+    });
+    return { workflow_id: String(workflow._id), revision };
   },
 });
 
@@ -635,6 +680,12 @@ export const getBuilderWorkflowBoardPage = query({
         revision: workflow.revision,
         milestones: workflow.milestones,
         welcome_gate: workflow.welcomeGate ?? false,
+        welcome_lesson_ids: (workflow.welcomeLessonIds ?? []).map(String),
+        welcome_page: {
+          title: workflow.welcomePage?.title ?? "",
+          message: workflow.welcomePage?.message ?? "",
+          media_url: workflow.welcomePage?.mediaUrl ?? "",
+        },
         updated_at: toIsoString(workflow.updatedAt),
       },
       page: members,
