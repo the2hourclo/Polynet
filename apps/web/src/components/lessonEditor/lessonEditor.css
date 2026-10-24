@@ -1,7 +1,16 @@
-/* Lesson editor. The text itself uses the reader's classes (.resource-viewer-prose
+/* Lesson editor. Sizes are the community's type roles (--pn-type-*) and
+   corners follow --pn-radius-scale, so a community's Look reaches the editor.
+   The text itself uses the reader's classes (.resource-viewer-prose
    and .md-*), so these rules only add what editing needs: the block handle,
    menus, and the cards for media and lesson blocks. Colours and corners come
    from the app and community theme tokens. */
+
+.lesson-editor,
+.lesson-editor-save-state,
+.lesson-editor-menu {
+  /* The same red as the app's form errors (.auth-error). */
+  --lesson-editor-danger: #b64b3a;
+}
 
 .lesson-editor {
   --lesson-editor-surface: var(--bg-card-solid, var(--web-popover-surface, #fff));
@@ -42,7 +51,7 @@
 }
 
 .lesson-editor-content > .ProseMirror-selectednode:not(.react-renderer) {
-  border-radius: 6px;
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
   box-shadow: 0 0 0 2px var(--lesson-editor-focus);
 }
 
@@ -52,7 +61,7 @@
 
 .lesson-editor-dropcursor {
   background: var(--accent-primary, var(--accent, #2f7d5b));
-  border-radius: 2px;
+  border-radius: calc(2px * var(--pn-radius-scale, 1));
 }
 
 /* Code and prompts */
@@ -93,7 +102,7 @@
   height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
@@ -125,11 +134,11 @@
   padding: 6px;
   min-width: 220px;
   border: 1px solid var(--web-popover-border, var(--lesson-editor-line));
-  border-radius: 12px;
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
   background: var(--lesson-editor-surface, var(--bg-card, #fff));
   box-shadow: var(--web-popover-shadow, 0 12px 32px rgba(15, 23, 20, 0.14), 0 2px 6px rgba(15, 23, 20, 0.08));
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--pn-type-ui, 14px);
   line-height: 1.3;
 }
 
@@ -146,7 +155,7 @@
 .lesson-editor-menu-group {
   padding: 8px 8px 4px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--pn-type-meta, 11px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -159,7 +168,7 @@
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   background: transparent;
   color: inherit;
   font: inherit;
@@ -179,7 +188,7 @@
 }
 
 .lesson-editor-menu-item.is-danger {
-  color: var(--accent-attention, #b42318);
+  color: var(--lesson-editor-danger);
 }
 
 .lesson-editor-menu-icon {
@@ -189,7 +198,7 @@
   width: 32px;
   height: 32px;
   border: 1px solid var(--lesson-editor-line, var(--border-default));
-  border-radius: 8px;
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   background: var(--bg-card, #fff);
   color: var(--text-secondary, var(--text-primary));
 }
@@ -218,7 +227,7 @@
 
 .lesson-editor-menu-text small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--pn-type-label, 12px);
 }
 
 .lesson-editor-menu-empty {
@@ -251,11 +260,11 @@
   height: 30px;
   padding: 0 6px;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--pn-radius-scale, 1));
   background: transparent;
   color: var(--text-secondary, var(--text-primary));
   font: inherit;
-  font-size: 13px;
+  font-size: var(--pn-type-small, 13px);
   cursor: pointer;
 }
 
@@ -313,11 +322,11 @@
   min-height: 34px;
   padding: 6px 10px;
   border: 1px solid var(--lesson-editor-line, var(--border-default));
-  border-radius: 8px;
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   background: var(--bg-input, transparent);
   color: var(--text-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--pn-type-ui, 14px);
   line-height: 1.45;
 }
 
@@ -337,7 +346,7 @@ select.lesson-editor-field {
 
 .lesson-editor-code-field {
   font-family: var(--pn-font-mono, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace));
-  font-size: 13px;
+  font-size: var(--pn-type-small, 13px);
   line-height: 1.55;
   resize: vertical;
   white-space: pre;
@@ -356,7 +365,7 @@ select.lesson-editor-field {
   background: var(--bg-card, transparent);
   color: var(--text-primary);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--pn-type-small, 13px);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -386,7 +395,7 @@ select.lesson-editor-field {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--pn-radius-scale, 1));
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -410,11 +419,11 @@ select.lesson-editor-field {
   gap: 4px;
   padding: 4px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--pn-type-label, 12px);
   font-weight: 500;
   cursor: pointer;
 }
@@ -440,7 +449,7 @@ select.lesson-editor-field {
 .lesson-editor-hint {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--pn-type-label, 12px);
   line-height: 1.5;
 }
 
@@ -457,7 +466,7 @@ select.lesson-editor-field {
   border: var(--pn-border-width, 1px) solid var(--lesson-editor-line);
   border-radius: var(--lesson-editor-radius);
   background: var(--surface-card, var(--bg-card, transparent));
-  font-size: 14px;
+  font-size: var(--pn-type-ui, 14px);
   line-height: 1.5;
   white-space: normal;
   transition: border-color 140ms ease, box-shadow 140ms ease;
@@ -475,7 +484,7 @@ select.lesson-editor-field {
   gap: 8px;
   min-height: 28px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--pn-type-label, 12px);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -485,7 +494,7 @@ select.lesson-editor-field {
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
   background: color-mix(in srgb, var(--accent-primary, var(--accent, #2f7d5b)) 12%, transparent);
   color: var(--accent-primary, var(--accent, #2f7d5b));
 }
@@ -509,11 +518,11 @@ select.lesson-editor-field {
 
 .lesson-editor-card-id {
   padding: 2px 6px;
-  border-radius: 5px;
+  border-radius: calc(5px * var(--pn-radius-scale, 1));
   background: var(--lesson-editor-soft);
   color: var(--text-muted);
   font-family: var(--pn-font-mono, var(--font-mono, ui-monospace, monospace));
-  font-size: 11px;
+  font-size: var(--pn-type-meta, 11px);
   font-weight: 400;
   letter-spacing: 0;
 }
@@ -521,10 +530,10 @@ select.lesson-editor-field {
 .lesson-editor-block-problem {
   margin: 0;
   padding: 8px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent-attention, #b42318) 9%, transparent);
-  color: var(--accent-attention, #b42318);
-  font-size: 13px;
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  background: color-mix(in srgb, var(--lesson-editor-danger) 9%, transparent);
+  color: var(--lesson-editor-danger);
+  font-size: var(--pn-type-small, 13px);
 }
 
 .lesson-editor-fields {
@@ -538,7 +547,7 @@ select.lesson-editor-field {
   align-items: center;
   gap: 10px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--pn-type-small, 13px);
 }
 
 .lesson-editor-prompt {
@@ -546,7 +555,7 @@ select.lesson-editor-field {
   border-color: transparent;
   background: transparent;
   padding-left: 0;
-  font-size: 16px;
+  font-size: var(--pn-type-reading, 16px);
   font-weight: 600;
 }
 
@@ -595,7 +604,7 @@ select.lesson-editor-field {
 }
 
 .lesson-editor-choice-box {
-  border-radius: 5px;
+  border-radius: calc(5px * var(--pn-radius-scale, 1));
 }
 
 .lesson-editor-choice-mark {
@@ -631,7 +640,7 @@ select.lesson-editor-field {
   align-items: center;
   gap: 4px 10px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--pn-type-small, 13px);
   cursor: pointer;
 }
 
@@ -681,7 +690,7 @@ select.lesson-editor-field {
   flex-basis: 100%;
   padding-left: 40px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--pn-type-label, 12px);
 }
 
 /* Video */
@@ -762,7 +771,7 @@ select.lesson-editor-field {
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.65);
   color: #fff;
-  font-size: 12px;
+  font-size: var(--pn-type-label, 12px);
 }
 
 .lesson-editor-image-bar {
@@ -782,7 +791,7 @@ select.lesson-editor-field {
 
 .lesson-editor-image-alt {
   min-height: 30px;
-  font-size: 13px;
+  font-size: var(--pn-type-small, 13px);
 }
 
 .lesson-editor-media-empty {
@@ -832,18 +841,18 @@ select.lesson-editor-field {
   border-radius: 999px;
   background: var(--text-primary);
   color: var(--bg-app, #fff);
-  font-size: 13px;
+  font-size: var(--pn-type-small, 13px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
 .lesson-editor-save-state {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--pn-type-label, 12px);
   white-space: nowrap;
 }
 
 .lesson-editor-save-state.is-blocked {
-  color: var(--accent-attention, #b42318);
+  color: var(--lesson-editor-danger);
 }
 
 /* Narrow screens: no hover handle, and the block menu opens inline. */

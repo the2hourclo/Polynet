@@ -267,6 +267,11 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     return () => window.clearTimeout(timeoutId);
   }, [isTitleEditing, resource.id]);
 
+  // A click on the read view places the caret once; other ways in start at the end.
+  useEffect(() => {
+    if (!isEditing) bodyFocusAtRef.current = null;
+  }, [isEditing]);
+
   // Autosave: a moment after the owner stops typing, the page saves and
   // editing carries on. A body the server would refuse waits, with the reason shown.
   const bodyProblem = isEditing && editor ? lessonBodyProblem(editor.bodyInput) : null;
