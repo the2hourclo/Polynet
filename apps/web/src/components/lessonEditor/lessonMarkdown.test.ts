@@ -156,6 +156,33 @@ describe("lesson editor Markdown", () => {
     expect(lessonShape(fresh)).toEqual(lessonShape(LESSON));
   });
 
+  it("keeps a slides section a deck when its notes and pictures are edited", () => {
+    const deck = "Intro.\n\n## Slides\n\n![One](media/x/01.png)\n\nFirst note.\n\n![Two](media/x/02.png)\n\nSecond note.\n\n## Next\n\nAfter.";
+    const { doc, serialize } = parseLessonMarkdown(schema, deck, { isVideoUrl });
+    let noteIndex = -1;
+    doc.forEach((node, _offset, index) => {
+      if (node.textContent === "First note.") noteIndex = index;
+    });
+    const note = doc.child(noteIndex);
+    let edited = replaceBlock(doc, noteIndex, note.type.create(note.attrs, schema.text("First note, longer.")));
+    // A picture added from the editor, with brackets in its alt text.
+    const blocks: PMNode[] = [];
+    edited.forEach((node, _offset, index) => {
+      blocks.push(node);
+      if (index === noteIndex) {
+        blocks.push(schema.nodes.image.create({ src: "https://cdn.example/03.png", alt: "Step [3]" }));
+        blocks.push(schema.nodes.paragraph.create(null, schema.text("Third note.")));
+      }
+    });
+    edited = doc.type.create(doc.attrs, blocks);
+    const slides = projectCommunityLessonBody(serialize(edited)).slides;
+    expect(slides.map((slide) => [slide.image, slide.note_md])).toEqual([
+      ["media/x/01.png", "First note, longer."],
+      ["https://cdn.example/03.png", "Third note."],
+      ["media/x/02.png", "Second note."],
+    ]);
+  });
+
   it("rewrites only the block that changed", () => {
     const { doc, serialize } = parseLessonMarkdown(schema, LESSON, { isVideoUrl });
     let headingIndex = -1;
