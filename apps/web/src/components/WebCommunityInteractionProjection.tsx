@@ -1009,6 +1009,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
         </ThreadSurface>
       ) : null}
       {props.communityId && props.activeChannel ? <ChannelRosterPanel
+        page={props.surface === "members"}
         onCloseNarrow={closePeople}
         narrowOpen={peopleOpen}
         joinReview={{

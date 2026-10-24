@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { MessageSquare, Pin } from "lucide-react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { MessageSquare, Pin, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import type { UserProfile } from "../../../../shared/communityTypes";
 import {
@@ -60,6 +60,17 @@ export function orderCommunityPosts(
   return pinnedRoot ? [pinnedRoot, ...rest] : rest;
 }
 
+// A post with no title of its own uses its first line as one, so cards read as
+// title and body the way members write them.
+export function splitPostTitle(title: string | null, body: string): { title: string | null; body: string } {
+  if (title) return { title, body };
+  const lines = body.split("\n");
+  const first = lines[0]?.trim() ?? "";
+  const rest = lines.slice(1).join("\n").trim();
+  if (!rest || first.length > 120) return { title: null, body };
+  return { title: first.replace(/^#+\s*/, "").replace(/^\*\*(.*)\*\*$/, "$1"), body: rest };
+}
+
 function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractionRootBundle; pinned: boolean }) {
   const { bundle } = props;
   const root = bundle.root;
@@ -67,14 +78,24 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
   const profile = root.actor_user_id ? props.profilesByUserId[root.actor_user_id] ?? null : null;
   const badge = agentBadgeLabel(root.actor_type);
   const chip = kindChipLabel(root.kind);
-  const body = stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0);
+  const text = splitPostTitle(
+    root.title,
+    stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0),
+  );
   const open = () => props.onSelectRoot(root.id);
+  // The whole card opens the post; its own buttons and links keep their job.
+  const openFromCard = (event: MouseEvent<HTMLElement>) => {
+    if ((event.target as HTMLElement).closest("button, a, input, textarea")) return;
+    if (window.getSelection()?.toString()) return;
+    open();
+  };
   return (
     <article
       className={["community-post-card", root.id === props.selectedRootId && "selected", props.pinned && "is-pinned", bundle.pending && "is-pending"]
         .filter(Boolean)
         .join(" ")}
-      aria-label={root.title ? `${root.title}, by ${label}` : `Post by ${label}`}
+      aria-label={text.title ? `${text.title}, by ${label}` : `Post by ${label}`}
+      onClick={openFromCard}
     >
       <header className="community-post-card-header">
         <ActorAvatar
@@ -89,9 +110,9 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
           <span className="community-post-card-author">{label}</span>
           <span className="community-post-card-meta">
             {formatRelativeTime(root.created_at)}
-            {props.channelName ? <> · <span className="community-post-card-category">{props.channelName}</span></> : null}
           </span>
         </div>
+        {props.channelName ? <span className="community-post-card-category">{props.channelName}</span> : null}
         {props.pinned ? (
           <span className="community-post-card-pin"><Pin size={14} aria-hidden="true" /> Pinned</span>
         ) : null}
@@ -99,10 +120,12 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
         {chip ? <span className="community-interaction-kind">{chip}</span> : null}
       </header>
       <button type="button" className="community-post-card-open" onClick={open}>
-        {root.title ? <h3 className="community-post-card-title">{root.title}</h3> : null}
-        <div className="community-post-card-preview">
-          <InteractionContent text={body} renderTextWithLinks={props.renderTextWithLinks} />
-        </div>
+        {text.title ? <h3 className="community-post-card-title">{text.title}</h3> : null}
+        {text.body ? (
+          <div className="community-post-card-preview">
+            <InteractionContent text={text.body} renderTextWithLinks={props.renderTextWithLinks} />
+          </div>
+        ) : null}
         {bundle.attachments.length > 0 ? (
           <span className="community-post-card-attachments">
             {bundle.attachments.length === 1 ? "1 attachment" : `${bundle.attachments.length} attachments`}
@@ -117,7 +140,7 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
         />
         <button type="button" className="community-post-card-replies" onClick={open}>
           <MessageSquare size={16} aria-hidden="true" />
-          {root.reply_count === 0 ? "Reply" : root.reply_count === 1 ? "1 comment" : `${root.reply_count} comments`}
+          {root.reply_count === 0 ? "Comment" : root.reply_count === 1 ? "1 comment" : `${root.reply_count} comments`}
         </button>
         {root.last_reply_actor_user_id && root.last_reply_at ? (
           <span className="community-post-card-last-reply">
@@ -137,11 +160,56 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
   );
 }
 
+// Writing a post starts from a slim "Write something" bar; the full composer
+// (attachments, mentions, agent notices) opens in its place.
+function PostComposer(props: CommunityPostsFeedProps) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (open) boxRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+  }, [open]);
+  if (!props.composer) return null;
+  const userId = props.currentUserId ?? null;
+  const name = userId ? props.displayName(userId) : "You";
+  const avatar = (
+    <ActorAvatar
+      className="community-posts-composer-avatar"
+      label={name}
+      seed={userId ?? "viewer"}
+      profile={userId ? props.profilesByUserId[userId] ?? null : null}
+      getAvatarColor={props.getAvatarColor}
+      getInitials={props.getInitials}
+    />
+  );
+  if (!open) {
+    return (
+      <button type="button" className="community-posts-composer community-posts-composer-bar" onClick={() => setOpen(true)}>
+        {avatar}
+        <span>Write something</span>
+      </button>
+    );
+  }
+  return (
+    <div className="community-posts-composer is-open" ref={boxRef}>
+      <div className="community-posts-composer-head">
+        {avatar}
+        <span className="community-posts-composer-hint">
+          Posting{props.channelName ? <> in <strong>{props.channelName}</strong></> : null}
+        </span>
+        <button type="button" className="community-posts-composer-close" aria-label="Close" onClick={() => setOpen(false)}>
+          <X size={16} aria-hidden="true" />
+        </button>
+      </div>
+      {props.composer}
+    </div>
+  );
+}
+
 export function CommunityPostsFeed(props: CommunityPostsFeedProps) {
   const posts = orderCommunityPosts(props.roots, props.pinnedRoot);
   return (
     <div className="community-posts-feed">
-      {props.composer ? <div className="community-posts-composer">{props.composer}</div> : null}
+      <PostComposer {...props} />
       {props.error && posts.length === 0 ? (
         <div className="community-interaction-state" role="alert">
           <div>{props.error}</div>

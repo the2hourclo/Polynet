@@ -1141,7 +1141,9 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
   };
 
   const activeCommunityChannelSlug = String(interactionProjection?.activeChannel?.slug ?? "").trim();
-  const activeCommunityComposerPlaceholder = activeCommunityChannelSlug
+  const activeCommunityComposerPlaceholder = interactionProjection?.presentation === "posts"
+    ? "Title on the first line, then your post..."
+    : activeCommunityChannelSlug
     ? `Message #${activeCommunityChannelSlug}`
     : "Message the community...";
   const mainCommunityComposerPlaceholder = !hasSession
