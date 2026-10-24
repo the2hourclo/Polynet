@@ -562,13 +562,23 @@ export const deleteBuilderWorkflowMilestone = mutation({
     if (milestoneIndex < 0) {
       throw new Error("community_member_workflow_milestone_invalid");
     }
-    const occupied = await ctx.db
+    // A member who left keeps a position row, but their membership is gone and
+    // a rejoin starts a new one, so those rows go with the stage instead of
+    // blocking it. Anyone still a member holds it.
+    const positions = await ctx.db
       .query("communityMemberWorkflowMemberMilestones")
       .withIndex("by_workflow_milestone", (q: any) =>
         q.eq("workflowId", workflow._id).eq("currentMilestoneKey", milestoneKey),
       )
-      .first();
-    if (occupied) throw new Error("community_member_workflow_milestone_has_members");
+      .take(257);
+    const departed = [];
+    for (const position of positions) {
+      if (positions.length > 256 || await ctx.db.get(position.membershipId)) {
+        throw new Error("community_member_workflow_milestone_has_members");
+      }
+      departed.push(position._id);
+    }
+    for (const id of departed) await ctx.db.delete(id);
     if (milestoneIndex === 0) {
       const activeMemberCount = readCommunityActiveMemberCount(community);
       if (activeMemberCount === null) {

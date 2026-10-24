@@ -1064,6 +1064,30 @@ test("a stage rule writes a client property when a lesson is done; an archived p
   expect(await t.run(ctx => ctx.db.query("communityResourceProgress").collect())).toHaveLength(2);
 });
 
+test("a stage only members who left ever reached can be deleted; a current member still holds it", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  const configured = await configureAutomations(t, f.communityId, []);
+  const { workflowId, departed } = await t.run(async (ctx) => {
+    const workflow = (await ctx.db.query("communityMemberWorkflows").first())!;
+    const { _id, _creationTime, ...member } = (await ctx.db.get(f.membershipId))!;
+    const departed = await ctx.db.insert("communityMemberships", member);
+    await ctx.db.delete(departed);
+    return { workflowId: workflow._id, departed };
+  });
+  const place = (membershipId: any) => t.run(ctx => ctx.db.insert("communityMemberWorkflowMemberMilestones", {
+    workflowId, membershipId, currentMilestoneKey: configured.secondKey, milestoneEnteredAt: 1, transitionSeq: 1, createdAt: 1, updatedAt: 1,
+  }));
+  const live = await place(f.membershipId);
+  await place(departed);
+  const remove = () => owner.mutation(api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
+    { communityId: f.communityId, expectedRevision: 3, milestoneKey: configured.secondKey });
+  await expect(remove()).rejects.toThrow("community_member_workflow_milestone_has_members");
+  await t.run(ctx => ctx.db.delete(live));
+  await remove();
+  expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").collect())).toHaveLength(0);
+});
+
 test("a lesson-done property write that failed runs again once repaired, and an edited rule needs a fresh write", async () => {
   vi.useFakeTimers();
   const t = convexTest(schema, modules), f = await fixture(t);
