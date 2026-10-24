@@ -1,13 +1,21 @@
 # Applying the craft inside the Polynet app
 
-A community in the app is styled through two records, `theme.json` (how it
+A community's design starts from its brand, `brand.json`: what the founder
+wants it to feel like (words, feels_like), its colours with roles
+(primary, accent, neutral, avoid), fonts, logo, photos, phrases, dos and
+don'ts. It has no publish step: members never see it, every design reads
+it. Read `/communities/<slug>/builder/brand.json`; save with
+`community.brand.save` and `{ brand, expected_draft_revision }`.
+
+It is styled through two records, `theme.json` (how it
 looks) and `layout.json` (how it's arranged). They're separate, so changing
 one never resets the other. Every change is a draft the founder previews in
 the real app and then publishes:
 
     polynet init [folder] --template <name> --community <slug>   # optional starting point
     polynet dev [folder]       # saves each edit to the draft, opens the preview
-    polynet publish [folder]   # members see it
+    polynet review [folder]    # screenshots and audits every page; must pass
+    polynet publish [folder]   # members see it (refuses without a passing review)
 
 Agents without the CLI do the same over the MCP: read
 `/communities/<slug>/builder/theme.json` or `layout.json`, then call
@@ -38,8 +46,9 @@ colours and type unless they ask for new ones.
 | Width | `layout.width` (`wide`, `centered`) | Centred suits reading and feeds; wide suits boards and dashboards. |
 | Community page | `layout.pages.chat.presentation` (`messages`, `posts`), `aside` blocks | Posts for forum-style communities, messages for live chat. Keep the aside short. |
 
-The community rail on the far left and owner tools (workflows, analytics,
-settings) are not part of any design.
+The community rail on the far left is not part of any design. Owner tools
+(workflows, analytics, settings) stay in place, but they sit inside the
+community and take its theme, so review them too.
 
 ## Content is design too
 

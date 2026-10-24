@@ -4169,4 +4169,8 @@ test("the design guide is a read-only builder document for managers over the MCP
   expect(guide.body).not.toMatch(/^---\nname:/);
   expect(JSON.stringify(await owner("polynet_list", { path: `/communities/${community}/builder/` }))).toContain("/builder/design-guide.md");
   await expect(member("polynet_read", { path })).rejects.toThrow("semantic_not_found");
+  const review = await owner("polynet_read", { path: `/communities/${community}/builder/design-review.md` });
+  expect(review.body).toContain("# The mistake ledger");
+  expect(review.body).toContain("# The fresh-eyes review");
+  for (const doc of [guide, review]) expect(doc.body.length).toBeLessThanOrEqual(24_000);
 });

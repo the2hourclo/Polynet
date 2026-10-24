@@ -83,6 +83,15 @@ npx @polynet/cli publish my-community   # makes it the theme members see
   `polynet-ui-design`: design taste and craft for your agent (type, colour,
   space, polish, avoiding the generic AI look). It's guidance, not a style:
   your community's look is still yours.
+- `polynet review` opens the draft in the real app at 390, 1280 and 1440px,
+  screenshots every page (owner pages too) and audits it: sideways overflow,
+  overlaps, contrast, colours outside the theme and `brand.json`, too many
+  sizes or radii, control heights, tap targets, heavy cards, filler. Errors
+  fail it, and `publish` refuses until the current files pass (or
+  `--skip-review`). Sign in with `--login-url` (a local no-login link) or
+  `--storage-state`; it needs Playwright in the folder. Screenshots and
+  `report.md` land in `.polynet/review/`. Then a fresh reviewer (the
+  `polynet-ui-reviewer` agent) judges the screenshots.
 - `polynet init` without `--template` lists the templates. A template is a
   design with no content: `template.json` and `theme.json` in `templates/<name>/`.
 - A layout template with `"apply": { "theme": "keep_existing" }` keeps your own

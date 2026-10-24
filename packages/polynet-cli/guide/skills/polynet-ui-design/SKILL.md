@@ -17,11 +17,14 @@ a strong default you may break when you know why.
 
 ## 1. Start from the community, then commit
 
-First read the community's saved brand, if Polynet has one: its colours,
-fonts, words, phrases and dos and don'ts. Each community keeps its own, and
-it is the founder's world, so build from it, not around it. When the
-founder tells you a preference ("I always use this navy", "never orange"),
-save it to that community's brand so the next design starts from it too. Never replace their colours with ones you like
+First read the community's saved brand: its colours, fonts, words,
+phrases and dos and don'ts (`/communities/<slug>/builder/brand.json` over
+the MCP, or `brand.json` in the design folder). Each community keeps its
+own, and it is the founder's world, so build from it, not around it. When
+the founder tells you a preference ("I always use this navy", "never
+orange"), save it to that community's brand (`community.brand.save`) so the
+next design starts from it too. If there's no brand yet, ask for one and
+save it before designing. Never replace their colours with ones you like
 better; adjust a shade only when contrast requires it, and say so.
 
 Then, before touching a token, know:
@@ -180,6 +183,9 @@ looks busier, louder or less resolved, it isn't ready.
 
 ## 9. Look at it, twice
 
+Read [references/mistakes.md](references/mistakes.md) before you start and
+again now: every mistake founders have caught so far, and why it happened.
+
 Never ship from the code alone. Look at the real thing at 390px and 1440px
 (the preview, a browser tool, or screenshots from the founder) and ask:
 
@@ -190,8 +196,34 @@ Never ship from the code alone. Look at the real thing at 390px and 1440px
    serve the idea.
 5. Anything cramped, misaligned, inconsistent or unreadable?
 
-Fix, look again. At least two passes. Then tell the founder what you chose
-and why in a sentence or two, and what you'd try next.
+Fix, look again. At least two passes.
+
+## 10. Done means reviewed
+
+You may not call a design done, show it to the founder or publish it until
+both gates pass. This is the one process rule in this skill, because every
+mistake in the ledger got through without it.
+
+1. **`polynet review`** opens the draft in the real app at 390, 1280 and
+   1440px, screenshots every page and audits each one: sideways overflow,
+   overlaps, contrast, colours outside the theme and brand, drift in sizes
+   and radii, control heights, tap targets, heavy cards, unclamped previews,
+   emoji and filler. Errors fail it. Fix every error; fix each warning or
+   say why it stays. `polynet publish` refuses without a passing review of
+   the current files.
+2. **A fresh reviewer** judges the screenshots against this skill and the
+   ledger: the `polynet-ui-reviewer` agent in Claude Code, or a new session
+   with [references/reviewer.md](references/reviewer.md). Only its PASS
+   counts; never grade your own work.
+
+Then present it with the screenshots, what you chose and why in a sentence
+or two, and what you'd try next. When the founder points out something the
+gates missed, add it to the ledger in the same turn, so the next design
+can't repeat it.
+
+Working over the MCP without the CLI? Take the screenshots with a browser
+tool at the same widths, check them against the ledger yourself, and still
+hand them to a fresh reviewer.
 
 ## The few hard limits
 

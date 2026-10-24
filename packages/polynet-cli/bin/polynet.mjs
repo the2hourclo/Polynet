@@ -7,6 +7,7 @@
 // polynet pull [dir]                           copy the community's draft theme into theme.json
 // polynet dev [dir]                            save theme.json to the draft on every edit; open the preview
 // polynet publish [dir]                        make the draft theme live for members
+// polynet review [dir]                         screenshot the draft at phone and desktop width and audit the UI
 // polynet skills [dir]                         add or update Polynet's skills for AI agents
 // polynet login | logout                       sign in with Polynet (browser), or forget it
 //
@@ -26,6 +27,7 @@ import { checkCourses, checkLayout, checkTheme, describeOperation, lessonEmbeds,
 import { designFiles, draftPreviewUrl, initFromTemplate, listTemplates, publishFolderDraft, pullDesign, saveFolderDraft, watchDesign } from "../design.mjs";
 import { createMcpClient, PolynetToolError } from "../mcp.mjs";
 import { readProject, siteFiles } from "../project.mjs";
+import { formatReview, latestReview, reviewCommunity } from "../review.mjs";
 
 const API_URL = (process.env.POLYNET_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
 const AUTH_FILE = join(homedir(), ".polynet", "auth.json");
@@ -409,7 +411,8 @@ function flagValue(args, name) {
 }
 
 function designDir(args) {
-  const dirArg = args.find((arg, index) => !arg.startsWith("--") && !["--community", "--template"].includes(args[index - 1]));
+  const valued = ["--community", "--template", "--url", "--login-url", "--storage-state", "--screens", "--out"];
+  const dirArg = args.find((arg, index) => !arg.startsWith("--") && !valued.includes(args[index - 1]));
   return resolve(dirArg ?? ".");
 }
 
@@ -498,8 +501,32 @@ async function dev(args) {
   await new Promise((done) => process.on("SIGINT", () => { stop(); done(); }));
 }
 
+async function review(args) {
+  const { project, files } = await designProject(args);
+  const screens = flagValue(args, "--screens")?.split(",").map((screen) => screen.trim()).filter(Boolean);
+  const report = await reviewCommunity({
+    root: project.root, files, community: project.community, appOrigin: flagValue(args, "--url") ?? APP_URL,
+    loginUrl: flagValue(args, "--login-url"), storageState: flagValue(args, "--storage-state"), screens,
+    outDir: flagValue(args, "--out"),
+  });
+  if (JSON_OUTPUT) console.log(JSON.stringify(report, null, 2));
+  else {
+    console.log(formatReview(report).split("\n").filter((line) => !line.startsWith("Screenshot:")).join("\n").trim());
+    say("", `${report.ok ? "✓" : "✗"} Screenshots and report: ${report.out_dir}`,
+      "  Next: have a fresh reviewer judge the screenshots (polynet-ui-design references/reviewer.md).");
+  }
+  if (!report.ok) process.exit(1);
+}
+
 async function publish(args) {
   const { project, files } = await designProject(args);
+  // The gate the UI design skill relies on: nothing goes live without a
+  // passing review of exactly these files.
+  if (!args.includes("--skip-review")) {
+    const review = await latestReview(project.root, Object.values(files));
+    if (!review) fail("Run polynet review first: no review of the current theme.json and layout.json yet (or pass --skip-review).");
+    if (!review.ok) fail(`The last review found ${review.errors} errors (${review.out_dir}/report.md). Fix them and run polynet review again, or pass --skip-review.`);
+  }
   const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
   // Publish exactly what the folder has: save it first, so a draft can't be a stale one.
   const saved = await saveDraftOnce({ project, files, call: mcp.call });
@@ -520,6 +547,7 @@ try {
   else if (command === "dev") await dev(rest);
   else if (command === "publish") await publish(rest);
   else if (command === "skills") await skills(rest);
+  else if (command === "review") await review(rest);
   else if (command === "login") await login();
   else if (command === "logout") { await saveAuth(null); console.log("✓ Signed out."); }
   else {
@@ -548,8 +576,13 @@ try {
       "  polynet dev [folder] [--no-open]",
       "      Save theme.json and layout.json to the community's drafts on every edit and open the",
       "      draft preview in the real app. Members keep the published look.",
-      "  polynet publish [folder]",
-      "      Save theme.json and layout.json, then make them what members see.",
+      "  polynet publish [folder] [--skip-review]",
+      "      Save theme.json and layout.json, then make them what members see. Needs a",
+      "      passing polynet review of the current files.",
+      "  polynet review [folder] [--url <app>] [--login-url <url>] [--storage-state <file>] [--screens a,b]",
+      "      Open the community's draft in the real app at 390, 1280 and 1440px, screenshot every",
+      "      page and audit it (overflow, contrast, off-theme colours, drift, tap targets, clutter).",
+      "      Errors fail it; publish needs a passing review. Report in .polynet/review/.",
       "  polynet skills [folder]",
       "      Add or update Polynet's skills for AI agents (.agents/skills, .claude/skills).",
       "  polynet login     Sign in with Polynet in the browser.",
