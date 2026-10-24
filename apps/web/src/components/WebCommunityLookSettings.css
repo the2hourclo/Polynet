@@ -2,6 +2,8 @@
 @media (max-width: 760px) { .community-look-grid { grid-template-columns:1fr; } }
 .community-look-controls { display:flex; flex-direction:column; gap:12px; }
 .community-look-controls input[type="range"] { width:100%; }
+.community-look-group { display:flex; flex-direction:column; gap:12px; margin:0; padding:12px 0 0; border:0; border-top:1px solid var(--border-default); min-width:0; }
+.community-look-group legend { padding:0 0 8px; font-weight:600; font-size:13px; }
 .community-look-scheme { display:flex; gap:8px; }
 .community-look-scheme button { padding:6px 12px; border:1px solid var(--border-default); border-radius:8px; background:transparent; color:var(--text-primary); font:inherit; cursor:pointer; }
 .community-look-scheme button.is-active { background:var(--hover-overlay); font-weight:600; }

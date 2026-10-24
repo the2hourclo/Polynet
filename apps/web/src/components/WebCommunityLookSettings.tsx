@@ -26,8 +26,19 @@ const TEXT_FONTS = Object.entries(COMMUNITY_THEME_FONTS).filter(([, font]) => fo
 const HEADING_FONTS = Object.entries(COMMUNITY_THEME_FONTS).filter(([, font]) => font.role !== "mono").map(([name]) => name);
 const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
-  ["accent", "Accent"], ["button", "Buttons"], ["on_button", "Button text"],
+  ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "course_cover_ratio" | "course_card_size" | "course_cover_plate" | "media_plate";
+const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
+  heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
+  numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
+  corner_style: ["Corner style", [["even", "Even"], ["sketch", "Hand-drawn"]]],
+  shadow: ["Shadows", [["none", "None"], ["soft", "Soft"], ["hard", "Hard"]]],
+  course_cover_ratio: ["Cover shape", [["auto", "Polynet default"], ["16:9", "Wide 16:9"], ["3:2", "Photo 3:2"], ["4:3", "Classic 4:3"], ["1:1", "Square"], ["21:9", "Banner 21:9"]]],
+  course_card_size: ["Card size", [["default", "Two columns"], ["small", "Small"], ["medium", "Medium"], ["large", "Large"]]],
+  course_cover_plate: ["Cover background (light scheme)", [["none", "Plain"], ["tint", "Soft accent tint"]]],
+  media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
+};
 
 function problemText(error: unknown): CommunityThemeProblem[] | string {
   const data = (error as { data?: { code?: string; problems?: CommunityThemeProblem[] } })?.data;
@@ -79,6 +90,12 @@ export function WebCommunityLookSettings(props: Props) {
     return <div className="settings-section">{typeof error === "string" ? <p role="alert">{error} <button className="secondary" type="button" onClick={() => setReload((n) => n + 1)}>Retry</button></p> : <p role="status">Loading…</p>}</div>;
   }
   const set = (change: Partial<CommunityThemeV1>) => { setError(null); setTheme({ ...theme, ...change }); };
+  const choice = (key: ChoiceKey) => {
+    const [label, options] = CHOICES[key];
+    return <label className="create-community-field" key={key}><span>{label}</span>
+      <select value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value } as Partial<CommunityThemeV1>)}>
+        {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>;
+  };
   const colors = theme.schemes[scheme];
   const setColor = (key: keyof CommunityThemeColors, value: string) => {
     if (!colors) return;
@@ -134,6 +151,19 @@ export function WebCommunityLookSettings(props: Props) {
         <label className="create-community-field"><span>Buttons</span>
           <select value={theme.button_shape} disabled={busy} {...problemFor("button_shape")} onChange={(e) => set({ button_shape: e.target.value as CommunityThemeV1["button_shape"] })}>
             <option value="rounded">Rounded</option><option value="pill">Pill</option><option value="square">Square</option><option value="sketch">Sketch</option></select></label>
+        {choice("corner_style")}
+        <label className="create-community-field"><span>Border width · {theme.border_width}px</span>
+          <input type="range" min={0} max={3} step={1} value={theme.border_width} disabled={busy} {...problemFor("border_width")} onChange={(e) => set({ border_width: Number(e.target.value) })} /></label>
+        {choice("shadow")}
+        {choice("heading_case")}
+        {choice("numerals")}
+        <fieldset className="community-look-group">
+          <legend>Courses</legend>
+          {choice("course_cover_ratio")}
+          {choice("course_card_size")}
+          {choice("course_cover_plate")}
+          {choice("media_plate")}
+        </fieldset>
         <div className="community-look-scheme" role="group" aria-label="Colour scheme">
           {(["light", "dark"] as const).filter((key) => theme.schemes[key]).map((key) => <button key={key} type="button" className={key === scheme ? "is-active" : ""} aria-pressed={key === scheme} onClick={() => setScheme(key)}>{key === "light" ? "Light" : "Dark"}</button>)}
         </div>
