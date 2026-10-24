@@ -71,6 +71,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
   onForceMove: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
   onApproveMilestone?: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
   onRetryGoalReview?: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
+  onRetryAction?: (snapshot: CloudCommunityMemberSuccessDossier, automationKey: string) => Promise<{ status: string; error_code?: string }>;
   onOpenServiceChannel: (channelId: string) => void;
 }) {
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -82,6 +83,32 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
   const [goalReviewRetryError, setGoalReviewRetryError] = useState<string | null>(null);
   const [submittedGoalReviewReceipt, setSubmittedGoalReviewReceipt] = useState<string | null>(null);
   const goalReviewRetryPending = useRef(false);
+  const [retryingAction, setRetryingAction] = useState<string | null>(null);
+  const [actionRetryError, setActionRetryError] = useState<{ key: string; message: string } | null>(null);
+  const actionRetryPending = useRef(false);
+  const actionRows = useRef(new Map<string, HTMLLIElement>());
+  const actionsHeading = useRef<HTMLHeadingElement | null>(null);
+  // The action whose Run again was pressed. When its button goes (the write
+  // worked), focus goes to its row; when the row goes too (the member moved on
+  // or finished), to Actions, else the dialog. It keeps following through each
+  // update until the builder moves focus somewhere else.
+  const refocusAction = useRef<{ membershipId: string; key: string } | null>(null);
+  const refocusTarget = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const tracked = refocusAction.current;
+    if (!tracked) return;
+    const active = document.activeElement;
+    if (!props.isOpen || (props.dossier && props.dossier.membership_id !== tracked.membershipId)
+      || (refocusTarget.current && active && active !== refocusTarget.current && active !== document.body)) {
+      refocusAction.current = null; refocusTarget.current = null;
+      return;
+    }
+    const row = actionRows.current.get(tracked.key);
+    if (row?.querySelector("button")) return;
+    const target = row ?? actionsHeading.current ?? dialogRef.current;
+    if (target && target !== active) target.focus();
+    refocusTarget.current = target;
+  }, [props.dossier, props.isOpen]);
   useEffect(() => {
     approvalGeneration.current += 1;
     approvalPending.current = false;
@@ -91,6 +118,9 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
     setRetryingGoalReview(false);
     setGoalReviewRetryError(null);
     setSubmittedGoalReviewReceipt(null);
+    actionRetryPending.current = false;
+    setRetryingAction(null);
+    setActionRetryError(null);
   }, [props.isOpen, props.dossier?.membership_id, props.dossier?.workflow?.current_milestone_entered_at,
     props.dossier?.workflow?.goal_review?.receipt_ref]);
   const [view, setView] = useState("progress");
@@ -150,7 +180,8 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
     if (focusable.length === 0) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    // The dialog itself can hold focus (after its content changed), so Shift+Tab from it wraps too.
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
       event.preventDefault();
       last.focus();
     } else if (!event.shiftKey && document.activeElement === last) {
@@ -167,6 +198,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
       <section
         ref={dialogRef}
         className="modal resource-modal workflow-member-dossier-modal"
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="workflow-member-dossier-title"
@@ -273,16 +305,47 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                 <p>{dossier.workflow.goal || "No goal specified."}</p>
               </section> : null}
               {dossier.workflow && !dossier.workflow.completed_at ? <section className="workflow-member-dossier-section">
-                <h3>Actions</h3>
+                <h3 ref={actionsHeading} tabIndex={-1}>Actions</h3>
                 {!dossier.workflow.action_progress ? <p>Action completion unavailable.</p> : <>
                   {dossier.workflow.action_progress.actions.length ? <ul className="workflow-member-action-progress">
-                    {dossier.workflow.action_progress.actions.map(action => <li key={action.automation_key}>
+                    {dossier.workflow.action_progress.actions.map(action => <li key={action.automation_key} tabIndex={-1}
+                      ref={(node) => { if (node) actionRows.current.set(action.automation_key, node); else actionRows.current.delete(action.automation_key); }}>
                       <div><strong>{action.label}</strong>
-                        <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : "Channel ready"
+                        <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : action.action_type === "set_client_property" ? "Done" : "Channel ready"
                           : action.status === "pending" ? action.action_type === "request_form" ? "Awaiting submission" : "Queued"
                           : action.status === "waiting" ? `Waiting for ${action.waiting_for ?? "previous action"}`
+                          : action.retryable && action.status === "unavailable" ? "Changed since it ran"
                           : action.status === "unavailable" ? "Completion unavailable" : readableLabel(action.status)}</span></div>
                       {action.evidence ? <small>Verified <ActivityTime value={new Date(action.evidence.completed_at).toISOString()} /></small> : null}
+                      {action.retryable && props.onRetryAction ? <>
+                        <button type="button" className="workflow-secondary-button" aria-label={`Run again: ${action.label}`}
+                          // The pressed button stays enabled (and focused) while it runs; the guard stops a second press.
+                          disabled={retryingAction !== null && retryingAction !== action.automation_key}
+                          aria-disabled={retryingAction === action.automation_key || undefined} onClick={async (event) => {
+                            if (actionRetryPending.current || !props.onRetryAction) return;
+                            const generation = approvalGeneration.current;
+                            actionRetryPending.current = true; setRetryingAction(action.automation_key); setActionRetryError(null);
+                            refocusAction.current = { membershipId: dossier.membership_id, key: action.automation_key };
+                            // Followed from the button itself, so moving off it while it runs stops the follow.
+                            refocusTarget.current = event.currentTarget;
+                            try {
+                              const result = await props.onRetryAction(dossier, action.automation_key);
+                              if (result.status === "action_failed") refocusAction.current = null;
+                              if (generation === approvalGeneration.current && result.status === "action_failed")
+                                setActionRetryError({ key: action.automation_key, message: "It failed again. Check this property's type and options in Clients, then run it again." });
+                            } catch (error) {
+                              refocusAction.current = null;
+                              if (generation === approvalGeneration.current) {
+                                const stale = String(error instanceof Error ? error.message : error).includes("evidence_changed");
+                                setActionRetryError({ key: action.automation_key, message: stale ? "The member moved on. Refresh and check their current stage."
+                                  : "Could not run it again. Refresh the member panel and try again." });
+                              }
+                            } finally {
+                              if (generation === approvalGeneration.current) { actionRetryPending.current = false; setRetryingAction(null); }
+                            }
+                          }}>{retryingAction === action.automation_key ? "Running…" : "Run again"}</button>
+                        {actionRetryError?.key === action.automation_key ? <p role="alert" className="workflow-error">{actionRetryError.message}</p> : null}
+                      </> : null}
                     </li>)}
                   </ul> : <p>No actions configured.</p>}
                   {dossier.workflow.action_progress.scan_truncated ? <p>Only a bounded set of recent receipts was checked. Unproven actions remain unavailable.</p> : null}

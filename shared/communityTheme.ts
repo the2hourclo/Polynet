@@ -44,6 +44,12 @@ export type CommunityThemeV1 = {
   // image shows is the course's own cover framing (focus and zoom).
   course_cover_ratio: "auto" | "16:9" | "3:2" | "4:3" | "1:1" | "21:9";
   course_card_size: "default" | "small" | "medium" | "large";
+  // "tint" prints course covers onto a soft wash of the accent (light schemes),
+  // so pale drawings and dark screenshots share one colour.
+  course_cover_plate: "none" | "tint";
+  // "whole" shows each cover in full inside the cover box (wide banners with
+  // words on them), instead of cropping it to fill the box.
+  course_cover_fit: "crop" | "whole";
 };
 
 export type CommunityThemeProblem = {
@@ -56,8 +62,8 @@ export type CommunityThemeResult =
   | { ok: true; theme: CommunityThemeV1 }
   | { ok: false; problems: CommunityThemeProblem[] };
 
-// Faces a theme may use. "polynet" faces ship with Polynet (Excalifont is
-// still to be added; the AIEB preview inlines it); "google" faces load
+// Faces a theme may use. "polynet" faces ship with Polynet (Excalifont from
+// apps/web/public/fonts/excalifont.woff2); "google" faces load
 // from Google Fonts; "system" faces are installed on the device. Display faces
 // are for headings only: long text set in them is hard to read.
 type CommunityThemeFont = {
@@ -116,6 +122,8 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   media_plate: "none",
   course_cover_ratio: "auto",
   course_card_size: "default",
+  course_cover_plate: "none",
+  course_cover_fit: "crop",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -142,6 +150,8 @@ const ENUMS = {
   media_plate: ["none", "light"],
   course_cover_ratio: ["auto", "16:9", "3:2", "4:3", "1:1", "21:9"],
   course_card_size: ["default", "small", "medium", "large"],
+  course_cover_plate: ["none", "tint"],
+  course_cover_fit: ["crop", "whole"],
 } as const;
 
 const RANGES = {
@@ -396,6 +406,21 @@ function courseColumns(theme: CommunityThemeV1): string {
   return `repeat(auto-fill, minmax(min(100%, ${COURSE_CARD_MIN_WIDTH[theme.course_card_size]}px), 1fr))`;
 }
 
+// Every text size inside a community is one of these roles, so one text-size
+// setting moves all of them together. Sizes are Polynet's defaults at 100%.
+export const COMMUNITY_TYPE_ROLES = {
+  display: 32, title: 24, heading: 22, subheading: 18, reading: 16, body: 15, ui: 14, small: 13, label: 12, meta: 11, micro: 10,
+} as const;
+
+function typeRoles(scale: number): Record<string, string> {
+  const px = (size: number) => `${Math.round(size * scale * 10) / 10}px`;
+  const roles: Record<string, string> = {};
+  for (const [role, size] of Object.entries(COMMUNITY_TYPE_ROLES)) roles[`--pn-type-${role}`] = px(size);
+  // Page titles still shrink on narrow screens, at the same proportions.
+  roles["--pn-type-display"] = `clamp(${px(26)}, ${Math.round(3 * scale * 100) / 100}vw, ${px(COMMUNITY_TYPE_ROLES.display)})`;
+  return roles;
+}
+
 // The variables a community area gets for one scheme: the public --pn-* set
 // (also what custom sites and <polynet-account> read) and Polynet's internal
 // variables derived from it.
@@ -410,6 +435,7 @@ export function communityThemeVariables(
   const shadow = shadows(theme, scheme);
   const upper = theme.heading_case === "upper";
   const plate = theme.media_plate === "light" && scheme === "dark";
+  const coverTint = theme.course_cover_plate === "tint" && scheme === "light";
 
   const pn: Record<string, string> = {
     "--pn-background": c.background,
@@ -429,7 +455,10 @@ export function communityThemeVariables(
     "--pn-heading-case": upper ? "uppercase" : "none",
     "--pn-heading-tracking": upper ? "0.04em" : "normal",
     "--pn-type-scale": String(theme.type_scale),
+    ...typeRoles(theme.type_scale),
     "--pn-numerals": theme.numerals === "tabular" ? "tabular-nums" : "normal",
+    // Polynet's own corners scale with the theme's radius (16px is Polynet's default).
+    "--pn-radius-scale": String(Math.round((theme.radius / DEFAULT_COMMUNITY_THEME.radius) * 1000) / 1000),
     "--pn-radius-card": cardRadius(theme),
     "--pn-radius-card-top": cardTopRadius(theme),
     "--pn-radius-button": buttonRadius(theme),
@@ -439,6 +468,8 @@ export function communityThemeVariables(
     "--pn-space": String(DENSITY[theme.density]),
     "--pn-media-plate": plate ? "#F4F4F0" : "transparent",
     "--pn-media-plate-pad": plate ? "8px" : "0px",
+    "--pn-cover-plate": coverTint ? `color-mix(in srgb, ${c.accent} 9%, ${c.surface})` : "var(--bg-card-alt)",
+    "--pn-cover-blend": coverTint ? "multiply" : "normal",
     "--pn-course-columns": courseColumns(theme),
     "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
     "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",
@@ -521,6 +552,11 @@ export function communityThemeVariables(
     "--conversation-primary-action-foreground": c.on_button,
     "--hover-overlay": mixed(c.text, 6, "transparent"),
     "--active-overlay": mixed(c.text, 10, "transparent"),
+    // Polynet's shared corner sizes, at the theme's radius. Scaled exactly like
+    // --pn-radius-scale corners, so rows that use either one match.
+    "--radius-sm": `calc(8px * var(--pn-radius-scale))`,
+    "--radius-md": `calc(14px * var(--pn-radius-scale))`,
+    "--radius-lg": `calc(16px * var(--pn-radius-scale))`,
     "--font-sans": font(theme.font_body),
     "--font-mono": font(theme.font_mono),
   };
@@ -546,6 +582,12 @@ export function compileCommunityThemeCss(theme: CommunityThemeV1, scope: string)
         block(scope, communityThemeVariables(theme, "dark"), "dark"),
         block(`:root[data-theme="light"] ${scope}`, communityThemeVariables(theme, "light"), "light"),
       ];
+  // A cover's framing is written inline (StableFramedMedia), so showing it
+  // whole has to outrank that framing. The bands around it are the cover's
+  // own background, not the media plate.
+  if (theme.course_cover_fit === "whole") {
+    parts.push(`${scope} .resource-course-card-cover-image {\n  inset: 0 !important;\n  width: 100% !important;\n  height: 100% !important;\n  object-fit: contain !important;\n  padding: 0 !important;\n  background: none !important;\n}`);
+  }
   return `/* Community theme v${theme.version}; compiled, do not edit. */\n${parts.join("\n\n")}\n`;
 }
 

@@ -92,7 +92,7 @@ export async function requireServiceWorkflowDestination(ctx: any, request: any) 
     const source = progress.actions.find(a => a.evidence?.run_id === String(predecessor._id));
     if (progress.scan_truncated || !source || !workflowSequenceCompletionIsNew(automation, source.evidence!.completed_at, predecessor.workflowRevision))
       throw new Error("workflow_sequence_source_stale");
-    await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: membership.userId });
+    await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: membership.userId, allowWelcome: true });
     resolved = { membership, workflow, automation };
   } else if (request.workflowFormRequestId) {
     const formRequest = await ctx.db.get(request.workflowFormRequestId);
@@ -105,7 +105,7 @@ export async function requireServiceWorkflowDestination(ctx: any, request: any) 
       || membership.communityId !== request.communityId || workflow.communityId !== request.communityId
       || (membership.activationSequence ?? 0) !== formRequest.activationSequence
       || (!request._id && !await requestIsCurrent(ctx, formRequest))) throw new Error("workflow_form_source_stale");
-    await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: membership.userId });
+    await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: membership.userId, allowWelcome: true });
     const matches = workflow.milestones.find((m: any) => m.key === formRequest.milestoneKey)?.automations.filter((a: any) =>
       a.key === run?.automationKey && a.action.type === "prompt_agent"
       && a.trigger.type === "form_submitted" && a.trigger.formKey === formRequest.formKey) ?? [];

@@ -6,7 +6,8 @@ import {
   type DragEvent,
   type MouseEvent,
 } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, ChevronsDown, ChevronsUp, GripVertical, Plus } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronsDown, ChevronsUp, GripVertical, Plus } from "lucide-react";
+import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
 import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import type {
   CommunityResource,
@@ -93,6 +94,15 @@ function moveOrderedId(ids: string[], id: string, direction: ReorderDirection): 
   return nextIds;
 }
 
+// Below this width the lesson outline sits above the lesson, so it starts folded.
+function isNarrowViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
+}
+
+function lessonCountLabel(count: number): string {
+  return `${count} ${count === 1 ? "lesson" : "lessons"}`;
+}
+
 function PinIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -137,6 +147,8 @@ function MoreIcon() {
 function ResourceRailItem(props: {
   resource: CommunityResource;
   isActive: boolean;
+  // The member finished this lesson (null when progress isn't known).
+  isDone: boolean | null;
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -156,6 +168,7 @@ function ResourceRailItem(props: {
   const {
     resource,
     isActive,
+    isDone,
     onSelect,
     onEdit,
     onDelete,
@@ -215,6 +228,11 @@ function ResourceRailItem(props: {
         aria-current={isActive ? "page" : undefined}
         onClick={onSelect}
       >
+        {isDone !== null ? (
+          <span className={`knowledge-resource-item-status${isDone ? " is-done" : ""}`} aria-label={isDone ? "Done" : "Not done"} role="img">
+            {isDone ? <Check aria-hidden="true" /> : null}
+          </span>
+        ) : null}
         <span className="knowledge-resource-item-copy">
           <span className="knowledge-resource-item-topline">
             <span className="knowledge-resource-item-title" title={resource.title}>
@@ -321,16 +339,18 @@ function ResourceRailItem(props: {
 export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   const { capabilities, state, actions, courseProgress } = props;
   const selectedModuleId = state.selectedModuleId;
-  // Widget answers stay in this browser until Polynet keeps them per member.
+  // Widget answers are kept per member on the server when signed in, and in
+  // this browser otherwise.
+  const embedStorage = props.lessonActivity?.embedStorage ?? null;
   const communityEmbeds = useMemo<CommunityEmbedContext | null>(
     () =>
       capabilities.activeCommunityId && capabilities.activeCommunitySiteOrigin
         ? {
             siteOrigin: capabilities.activeCommunitySiteOrigin,
-            storage: createBrowserCommunityEmbedStorage(capabilities.activeCommunityId),
+            storage: embedStorage ?? createBrowserCommunityEmbedStorage(capabilities.activeCommunityId),
           }
         : null,
-    [capabilities.activeCommunityId, capabilities.activeCommunitySiteOrigin],
+    [capabilities.activeCommunityId, capabilities.activeCommunitySiteOrigin, embedStorage],
   );
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [pendingDeleteResourceId, setPendingDeleteResourceId] = useState<string | null>(null);
@@ -346,7 +366,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   const [activeResourceEditField, setActiveResourceEditField] =
     useState<WebCommunityResourceInlineEditorField | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [isCourseOutlineOpen, setIsCourseOutlineOpen] = useState(true);
+  const [isCourseOutlineOpen, setIsCourseOutlineOpen] = useState(() => !isNarrowViewport());
   const [isCreatingPageDraft, setIsCreatingPageDraft] = useState(false);
   const pageDraftCreationInFlightRef = useRef(false);
   const canManageResources = capabilities.canOperateResources && !isPreviewMode;
@@ -426,6 +446,9 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     if (!selectedModuleId) return null;
     return moduleViews.find((module) => module.id === selectedModuleId) ?? null;
   }, [moduleViews, selectedModuleId]);
+  const selectedModuleProgress = selectedModule ? courseProgress?.[selectedModule.id] ?? null : null;
+  const selectedCourseProgress =
+    selectedModuleProgress && selectedModuleProgress.total > 0 && !selectedModuleProgress.lockedReason ? selectedModuleProgress : null;
   const selectedModuleSection = useMemo(
     () => selectedModule
       ? moduleSections.find((section) => section.module.id === selectedModule.id) ?? null
@@ -478,7 +501,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   }, [capabilities.activeCommunityId]);
 
   useEffect(() => {
-    setIsCourseOutlineOpen(true);
+    setIsCourseOutlineOpen(!isNarrowViewport());
   }, [selectedModuleId]);
 
   useEffect(() => {
@@ -704,7 +727,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
       actions.handleSelectModule(resource.module_id);
     }
     setSelectedLessonId(resource.id);
-    if (window.matchMedia("(max-width: 900px)").matches) {
+    if (isNarrowViewport()) {
       setIsCourseOutlineOpen(false);
     }
   };
@@ -754,6 +777,8 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     return didSave;
   };
 
+  const lessonProgress = props.lessonActivity?.progress;
+  const lessonStatusByRef = lessonProgress?.loaded ? lessonProgress.statusByRef : null;
   const renderResourceRailItem = (resource: CommunityResource) => {
     const moduleSelectionId = resource.module_id;
     if (!moduleSelectionId) return null;
@@ -770,6 +795,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
         key={resource.id}
         resource={resource}
         isActive={selectedResource?.id === resource.id}
+        isDone={lessonStatusByRef ? lessonStatusByRef[buildCommunityResourceEvidenceRef(resource.id)] === "done" : null}
         onSelect={() => handleSelectResource(resource)}
         onEdit={() => startResourceInlineEdit(resource, "body")}
         onDelete={() => setPendingDeleteResourceId(resource.id)}
@@ -841,12 +867,13 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   return (
     <>
       <div className="community-panel community-utility-panel resources-panel">
-        <div className="feed-header-row">
+        {/* Members on the catalog have nothing here, so the row isn't drawn. */}
+        {selectedModule || capabilities.canOperateResources ? <div className="feed-header-row">
           <div className="feed-header-copy">
             {selectedModule ? (
               <button className="resources-back-btn" type="button" onClick={handleBackToCatalog}>
                 <ArrowLeft aria-hidden="true" />
-                <span>Resources</span>
+                <span>All courses</span>
               </button>
             ) : (
               <div className="resources-header">Resources</div>
@@ -887,7 +914,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
               </div>
             ) : null}
           </div>
-        </div>
+        </div> : null}
 
         {readErrors.map(({ collection, message }) => <div className="resource-read-error" role="alert" key={collection}>
           <span>{collection === "modules" ? "Courses" : "Lessons"} could not be refreshed. {message}</span>{" "}
@@ -959,10 +986,25 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   {selectedModule.name}
                 </span>
                 <span className="resource-course-outline-count">
-                  {state.resourceRead.hasData ? selectedModuleSection?.lessonResources.length ?? 0 : <span aria-label="Lesson count not loaded">—</span>}
+                  {state.resourceRead.hasData ? lessonCountLabel(selectedModuleSection?.lessonResources.length ?? 0) : <span aria-label="Lesson count not loaded">—</span>}
                   <ChevronDown aria-hidden="true" />
                 </span>
               </button>
+              {selectedCourseProgress ? (
+                <div className="resource-course-outline-progress">
+                  <span
+                    className="resource-course-card-progress-track"
+                    role="progressbar"
+                    aria-label={`${selectedModule.name} progress`}
+                    aria-valuemin={0}
+                    aria-valuemax={selectedCourseProgress.total}
+                    aria-valuenow={selectedCourseProgress.done}
+                  >
+                    <span style={{ width: `${Math.round((selectedCourseProgress.done / selectedCourseProgress.total) * 100)}%` }} />
+                  </span>
+                  <span>{selectedCourseProgress.done} of {selectedCourseProgress.total} done</span>
+                </div>
+              ) : null}
               <div
                 id="resource-course-lesson-navigation"
                 className="resource-course-outline-scroll"

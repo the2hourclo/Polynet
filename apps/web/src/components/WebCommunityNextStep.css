@@ -15,9 +15,30 @@
 .member-form-dialog button:hover { background:var(--hover-overlay); }
 .member-form-dialog button:disabled { opacity:.45; cursor:default; }
 .member-form-dialog input:not([type=radio]):not([type=checkbox]), .member-form-dialog textarea { width:100%; padding:12px 0; color:var(--text-primary); background:transparent; border:0; border-bottom:1px solid var(--border-strong); font:inherit; }
-.member-form-choices { display:grid; gap:10px; }
+.member-form-format { color:var(--text-secondary); margin:0 0 8px; }
+.member-form-issue { color:var(--accent-error); margin:8px 0 0; }
+.member-form-choices { display:grid; gap:10px; min-width:0; margin:0; padding:0; border:0; }
 .member-form-choices label { display:flex; gap:12px; padding:12px; border:1px solid var(--border-default); border-radius:6px; }
 .member-form-dialog footer { display:flex; gap:12px; align-items:center; margin-top:24px; flex-wrap:wrap; }
 .member-form-list-row { width:100%; display:flex; justify-content:space-between; gap:12px; margin-top:12px; }
 .community-next-step:focus-visible, .community-next-step-count:focus-visible, .member-form-dialog :focus-visible { outline:2px solid var(--focus-ring); outline-offset:3px; }
 @media(max-width:600px) { .member-form-backdrop { padding:8px; } .member-form-dialog { padding:16px; max-height:96dvh; } .member-form-dialog section { padding:24px 0; } }
+/* The welcome flow fills the whole area right of the rail: one open page, not a card. */
+.community-welcome { flex:1; min-width:0; min-height:100%; overflow:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:32px; padding:48px 24px; color:var(--text-primary); background:var(--surface-workspace); }
+.community-welcome-intro { width:min(720px,100%); display:flex; flex-direction:column; gap:8px; }
+.community-welcome-intro small, .community-welcome-step { color:var(--text-secondary); font-size:12px; margin:0; }
+.community-welcome-intro h1 { margin:0; font-size:28px; overflow-wrap:anywhere; }
+.community-welcome-intro p { margin:0; }
+.community-welcome-form { max-height:none; padding:0; border:0; border-radius:0; background:transparent; }
+/* The page heading names the step and there is nothing to close: the community stays shut until the steps are done. */
+.community-welcome-form header { display:none; }
+.community-welcome-message { line-height:1.6; overflow-wrap:anywhere; }
+.community-welcome-message > :first-child { margin-top:0; }
+.community-welcome-message > :last-child { margin-bottom:0; }
+.community-welcome-media { margin-top:8px; overflow:hidden; border-radius:12px; }
+.community-welcome-media img { display:block; max-width:100%; height:auto; }
+/* A welcome lesson reads like the lesson page itself, with one way forward under it. */
+.community-welcome-lesson { width:min(720px,100%); display:flex; flex-direction:column; gap:24px; }
+.community-welcome-lesson > footer { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.community-welcome-lesson > footer p { margin:0; color:var(--accent-error); }
+@media(max-width:600px) { .community-welcome { justify-content:flex-start; padding:32px 16px; } }

@@ -1,4 +1,4 @@
-import { Fragment, useContext, useEffect, useRef, useState, type ComponentProps, type KeyboardEvent } from "react";
+import { Fragment, useContext, useEffect, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { MessageCircle, MoreHorizontal, Search, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useWebMemberDirectorySearch } from "../controllers/useWebMemberDirectorySearch";
@@ -39,6 +39,8 @@ type RosterProps = {
   onCloseNarrow?: () => void;
   joinReview?: ComponentProps<typeof CommunityJoinRequestReview>;
   admission?: CommunityAdmissionControl;
+  /** Shown below the members list in the side panel, never in the directory. */
+  footer?: ReactNode;
   communityName: string;
   presenceSummary?: CommunityPresenceSummary | null;
   isLoadingPresence?: boolean;
@@ -301,6 +303,7 @@ function RosterSurface(props: RosterProps & {
           </div>}
         </> : null}
     </div>
+    {!props.directory ? props.footer : null}
   </aside>
   </>;
   // The chat shell isolates its stacking context beneath the community rail.

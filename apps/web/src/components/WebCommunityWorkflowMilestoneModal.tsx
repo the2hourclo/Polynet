@@ -3,7 +3,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { WebCommunityWorkflowAutomationEditor } from "./WebCommunityWorkflowAutomationEditor";
+import { WebCommunityWorkflowAutomationEditor, type WorkflowCatalog } from "./WebCommunityWorkflowAutomationEditor";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import {
@@ -21,6 +21,7 @@ import {
 } from "../../../../shared/communityMemberWorkflow";
 
 type Props = {
+  catalog?: WorkflowCatalog;
   formsStatus?: "loading" | "ready" | "error";
   onRetryForms?: () => void;
   forms?: Array<{ key: string; name: string }>;
@@ -262,7 +263,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
             {sequenceIssue ? <p role="alert">{sequenceIssue}</p> : null}
             {pendingAutomation ? <>
               <WebCommunityWorkflowAutomationEditor automation={pendingAutomation} index={automations.length}
-                previousAction={previousAction(automations.length)} canAddJoin={props.milestoneNumber === 1} forms={props.forms} expanded hideHeading
+                previousAction={previousAction(automations.length)} canAddJoin={props.milestoneNumber === 1} catalog={props.catalog} forms={props.forms} expanded hideHeading
                 channels={props.channels} channelsUnavailable={props.channelsUnavailable} disabled={props.isSaving}
                 onToggle={() => {}} onRemove={() => setPendingAutomation(null)} onChange={setPendingAutomation}
                 creation={{ ...selection,
@@ -290,7 +291,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
                     {automations.filter(a => !expandedAutomationKey || a.key === expandedAutomationKey).map((automation, index) => (
                       <WebCommunityWorkflowAutomationEditor key={automation.key} automation={automation} index={index}
                         previousAction={previousAction(automations.indexOf(automation))}
-                        canAddJoin={props.milestoneNumber === 1}
+                        canAddJoin={props.milestoneNumber === 1} catalog={props.catalog}
                         forms={props.forms}
                         hideHeading={editingAutomation}
                         expanded={expandedAutomationKey === automation.key} channels={props.channels} channelsUnavailable={props.channelsUnavailable}

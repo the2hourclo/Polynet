@@ -157,6 +157,40 @@ describe("community theme compilation", () => {
     expect(normalizeCommunityTheme({ course_cover_ratio: "2:1" }).ok).toBe(false);
   });
 
+  test("a cover tint prints covers onto a wash of the accent, in light schemes only", () => {
+    const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
+    expect(defaults["--pn-cover-blend"]).toBe("normal");
+    const tinted = normalizeCommunityTheme({ ...CLO_THEME, course_cover_plate: "tint" });
+    if (!tinted.ok) throw new Error("invalid");
+    expect(communityThemeVariables(tinted.theme, "light")["--pn-cover-plate"]).toBe("color-mix(in srgb, #2B863A 9%, #FFFFFF)");
+    expect(communityThemeVariables(tinted.theme, "light")["--pn-cover-blend"]).toBe("multiply");
+    const dark = normalizeCommunityTheme({ ...STOPWATCH_THEME, course_cover_plate: "tint" });
+    if (!dark.ok) throw new Error("invalid");
+    expect(communityThemeVariables(dark.theme, "dark")["--pn-cover-blend"]).toBe("normal");
+    expect(normalizeCommunityTheme({ course_cover_plate: "photo" }).ok).toBe(false);
+  });
+
+  test("a whole cover fit shows each cover in full, over its inline framing", () => {
+    expect(compileCommunityThemeCss(DEFAULT_COMMUNITY_THEME, ".c")).not.toContain("object-fit: contain");
+    const whole = normalizeCommunityTheme({ ...STOPWATCH_THEME, course_cover_fit: "whole" });
+    if (!whole.ok) throw new Error("invalid");
+    expect(compileCommunityThemeCss(whole.theme, ".c")).toContain(".c .resource-course-card-cover-image {\n  inset: 0 !important;");
+    expect(normalizeCommunityTheme({ course_cover_fit: "stretch" }).ok).toBe(false);
+  });
+
+  test("text roles all follow the one text-size setting", () => {
+    const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
+    expect(defaults["--pn-type-body"]).toBe("15px");
+    expect(defaults["--pn-type-meta"]).toBe("11px");
+    expect(defaults["--pn-type-display"]).toBe("clamp(26px, 3vw, 32px)");
+    const larger = normalizeCommunityTheme({ ...DEFAULT_COMMUNITY_THEME, type_scale: 1.2 });
+    if (!larger.ok) throw new Error("invalid");
+    const vars = communityThemeVariables(larger.theme, "light");
+    expect(vars["--pn-type-body"]).toBe("18px");
+    expect(vars["--pn-type-title"]).toBe("28.8px");
+    expect(vars["--pn-type-display"]).toBe("clamp(31.2px, 3.6vw, 38.4px)");
+  });
+
   test("only Google faces add a stylesheet", () => {
     const stopwatch = normalizeCommunityTheme(STOPWATCH_THEME);
     if (!stopwatch.ok) throw new Error("invalid");

@@ -52,14 +52,20 @@ function RequiredTag({ element }: { element: CommunityLessonElement }) {
   return element.required ? <span className="lesson-element-required">Required</span> : null;
 }
 
+// While an answer saves, its controls stay enabled (and focused) but say so
+// with aria-disabled: disabling a focused control throws keyboard focus away.
+// A second answer while one is saving is ignored.
 function useAnswer(props: WebLessonElementProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const saving = useRef(false);
   const submit = async (value: true | string[] | null) => {
     if (!props.signedIn) {
       props.onRequireSignIn();
       return null;
     }
+    if (saving.current) return null;
+    saving.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -70,6 +76,7 @@ function useAnswer(props: WebLessonElementProps) {
       setError("That didn't save. Try again.");
       return null;
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   };
@@ -100,8 +107,8 @@ function LessonButton(props: WebLessonElementProps) {
           type="button"
           className={`lesson-element-button${done ? " is-done" : ""}`}
           aria-pressed={element.action === "confirm" ? done : undefined}
-          disabled={busy}
-          onClick={() => void click()}
+          aria-disabled={busy || undefined}
+          onClick={() => { if (!busy) void click(); }}
         >
           {done ? <Check aria-hidden="true" size={16} /> : null}
           <span>{label}</span>
@@ -144,8 +151,8 @@ function LessonChecklist(props: WebLessonElementProps) {
               <input
                 type="checkbox"
                 checked={ticked.includes(choice.id)}
-                disabled={busy}
-                onChange={(event) => void toggle(choice.id, event.target.checked)}
+                aria-disabled={busy || undefined}
+                onChange={(event) => { if (!busy) void toggle(choice.id, event.target.checked); }}
               />
               <span>{choice.label}</span>
             </label>
@@ -170,6 +177,13 @@ function LessonQuiz(props: WebLessonElementProps) {
   const showResult = Boolean(response) && !retrying;
   const correct = response?.correct === true;
   const name = `lesson-quiz-${element.id}`;
+  const resultRef = useRef<HTMLDivElement | null>(null);
+  const choicesRef = useRef<HTMLFieldSetElement | null>(null);
+  const focusResult = useRef(false), focusChoices = useRef(false);
+  useEffect(() => {
+    if (showResult && focusResult.current) { focusResult.current = false; resultRef.current?.focus(); }
+    if (!showResult && focusChoices.current) { focusChoices.current = false; choicesRef.current?.querySelector<HTMLElement>("input")?.focus(); }
+  });
   const pick = (id: string, checked: boolean) => {
     setPicked((current) => (element.multiple ? (checked ? [...current, id] : current.filter((value) => value !== id)) : [id]));
   };
@@ -179,7 +193,7 @@ function LessonQuiz(props: WebLessonElementProps) {
         <p className="lesson-element-prompt">{element.prompt}</p>
         <RequiredTag element={element} />
       </div>
-      <fieldset className="lesson-element-choices" aria-label={element.prompt} disabled={busy || (showResult && correct)}>
+      <fieldset ref={choicesRef} className="lesson-element-choices" aria-label={element.prompt} disabled={showResult && correct} aria-disabled={busy || undefined}>
         {(element.choices ?? []).map((choice) => {
           const isAnswer = showResult && correct && (response?.answer ?? []).includes(choice.id);
           return (
@@ -188,7 +202,7 @@ function LessonQuiz(props: WebLessonElementProps) {
                 type={element.multiple ? "checkbox" : "radio"}
                 name={name}
                 checked={picked.includes(choice.id)}
-                onChange={(event) => pick(choice.id, event.target.checked)}
+                onChange={(event) => { if (!busy) pick(choice.id, event.target.checked); }}
               />
               <span>{choice.label}</span>
             </label>
@@ -196,11 +210,11 @@ function LessonQuiz(props: WebLessonElementProps) {
         })}
       </fieldset>
       {showResult ? (
-        <div className={`lesson-element-result ${correct ? "is-correct" : "is-wrong"}`} role="status">
+        <div ref={resultRef} tabIndex={-1} className={`lesson-element-result ${correct ? "is-correct" : "is-wrong"}`} role="status">
           <strong>{correct ? "Correct" : "Not quite"}</strong>
           {response?.explanation_md ? <div className="lesson-element-explanation">{renderMarkdown(response.explanation_md)}</div> : null}
           {!correct ? (
-            <button type="button" className="lesson-element-secondary" onClick={() => { setRetrying(true); setPicked([]); }}>
+            <button type="button" className="lesson-element-secondary" onClick={() => { setRetrying(true); setPicked([]); focusChoices.current = true; }}>
               Try again
             </button>
           ) : null}
@@ -210,8 +224,15 @@ function LessonQuiz(props: WebLessonElementProps) {
           <button
             type="button"
             className="lesson-element-button"
-            disabled={busy || picked.length === 0}
-            onClick={() => void submit(picked)}
+            disabled={picked.length === 0}
+            aria-disabled={busy || undefined}
+            onClick={async () => {
+              if (busy) return;
+              // The button gives way to the result, so the result takes focus
+              // (whenever it shows: the saved answer can arrive before or after this resolves).
+              focusResult.current = true;
+              if (!(await submit(picked))?.ok) focusResult.current = false;
+            }}
           >
             Check answer
           </button>

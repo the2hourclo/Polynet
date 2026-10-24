@@ -49,6 +49,7 @@ import {
   requireResourceStatusForWrite,
   resolveUserIdForAuthenticatedRequest,
   toIsoString,
+  welcomeLessonIsLive,
 } from "./communityCore";
 import {
   revokeCommunityResourceMemoryProjection,
@@ -6445,6 +6446,30 @@ export const listCommunityResources = query({
         .slice(0, limit)
         .map((row) => mapCommunityResourceRowWithBody(ctx, row, { canManage: canManageResources }, userIdCache, moduleNameCache)),
     );
+  },
+});
+
+// The welcome page a member sees while held: the builder's words and the lesson
+// pages to work through, in order. Readable while held, for these lessons only.
+export const getMyWelcomePage = query({
+  args: { authSubject: v.optional(v.string()), communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null });
+    await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId, allowWelcome: true });
+    const workflow = await ctx.db.query("communityMemberWorkflows" as any)
+      .withIndex("by_community", (q: any) => q.eq("communityId", args.communityId)).first() as any;
+    const lessons = [];
+    for (const resourceId of workflow?.welcomeGate ? workflow.welcomeLessonIds ?? [] : []) {
+      if (!(await welcomeLessonIsLive(ctx, args.communityId, resourceId))) continue;
+      const row = (await ctx.db.get(resourceId)) as CommunityResourceLike;
+      lessons.push(await mapCommunityResourceRowWithBody(ctx, row, { canManage: false }));
+    }
+    return {
+      title: workflow?.welcomePage?.title ?? null,
+      message: workflow?.welcomePage?.message ?? null,
+      media_url: workflow?.welcomePage?.mediaUrl ?? null,
+      lessons,
+    };
   },
 });
 

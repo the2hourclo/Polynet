@@ -19,7 +19,11 @@ export type CommunityMemberWorkflowTrigger =
   | { type: "member_joined" }
   | CommunityMemberWorkflowMemberContributedTrigger
   | { type: "form_submitted"; formKey: string }
-  | { type: "milestone_elapsed"; delayMinutes: number };
+  | { type: "milestone_elapsed"; delayMinutes: number }
+  /** A lesson page marked done. Absent resourceId means any lesson. */
+  | { type: "lesson_completed"; resourceId?: string }
+  /** Every lesson in a course done. Absent moduleId means any course. */
+  | { type: "course_completed"; moduleId?: string };
 
 export function normalizeWorkflowDelayMinutes(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 525600) {
@@ -34,10 +38,19 @@ export type CommunityMemberWorkflowPromptAgentAction = {
   prompt: string;
 };
 
+/** Writes one owner property on the member's client row; `null` clears it. */
+export type CommunityMemberWorkflowSetClientPropertyAction = {
+  key: string;
+  type: "set_client_property";
+  propertyKey: string;
+  value: string | number | boolean | string[] | null;
+};
+
 export type CommunityMemberWorkflowAction =
   | { key: string; type: "create_service_channel" }
   | { key: string; type: "request_form"; formKey: string }
-  | CommunityMemberWorkflowPromptAgentAction;
+  | CommunityMemberWorkflowPromptAgentAction
+  | CommunityMemberWorkflowSetClientPropertyAction;
 
 export type CommunityMemberWorkflowAutomation = {
   key: string;
@@ -81,6 +94,8 @@ export function workflowTriggerIdentity(trigger: CommunityMemberWorkflowTrigger)
   return JSON.stringify(trigger.type === "member_contributed" ? [trigger.type, trigger.channelId ?? null]
     : trigger.type === "form_submitted" ? [trigger.type, trigger.formKey]
     : trigger.type === "previous_action_completed" ? [trigger.type, trigger.predecessorActionKey]
+    : trigger.type === "lesson_completed" ? [trigger.type, trigger.resourceId ?? null]
+    : trigger.type === "course_completed" ? [trigger.type, trigger.moduleId ?? null]
     : trigger.type === "member_joined" ? [trigger.type] : [trigger.type, trigger.delayMinutes]);
 }
 

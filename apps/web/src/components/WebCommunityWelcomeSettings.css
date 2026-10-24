@@ -1,0 +1,62 @@
+/* Workflows → Welcome. Sizes and corners read the community theme's tokens
+   directly, with Polynet's defaults outside a themed community. */
+.welcome-settings { overflow: auto; gap: 32px; padding: 8px 24px 32px; align-items: flex-start; box-sizing: border-box; }
+.welcome-settings-editor { flex: 1 1 520px; min-width: 0; max-width: 640px; display: flex; flex-direction: column; gap: 28px; }
+.welcome-settings-header { display: flex; flex-direction: column; gap: 6px; }
+.welcome-settings-header h1 { margin: 0; font-size: var(--pn-type-title, 24px); }
+.welcome-settings-header p, .welcome-settings-help, .welcome-settings-empty { margin: 0; color: var(--text-secondary); font-size: var(--pn-type-ui, 14px); line-height: 1.5; }
+.welcome-settings-section { display: flex; flex-direction: column; gap: 14px; }
+.welcome-settings-section h2, .welcome-settings-preview h2 { margin: 0; font-size: var(--pn-type-label, 12px); font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
+.welcome-settings-switch { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.welcome-settings-switch input { width: 18px; height: 18px; margin: 2px 0 0; flex-shrink: 0; accent-color: var(--accent-primary, currentColor); }
+.welcome-settings-switch input:disabled { cursor: not-allowed; }
+.welcome-settings-switch span { display: flex; flex-direction: column; gap: 3px; font-size: var(--pn-type-body, 15px); }
+.welcome-settings-switch small, .welcome-settings-field small { color: var(--text-secondary); font-size: var(--pn-type-small, 13px); line-height: 1.45; }
+.welcome-settings-field { display: flex; flex-direction: column; gap: 6px; }
+.welcome-settings-field label { font-size: var(--pn-type-ui, 14px); font-weight: 600; }
+.welcome-settings-field :is(input, textarea, select) {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; font: inherit; font-size: var(--pn-type-body, 15px);
+  color: var(--text-primary); background: var(--surface-input, transparent);
+  border: 1px solid var(--border-default); border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+.welcome-settings-field textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+.welcome-settings-field :is(input, textarea, select):focus-visible,
+.welcome-settings :is(button, select):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.welcome-settings-field select:disabled { opacity: 0.6; cursor: not-allowed; }
+.welcome-settings-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; counter-reset: welcome-step; }
+.welcome-settings-steps li {
+  counter-increment: welcome-step; display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--border-default); border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+.welcome-settings-steps li::before { content: counter(welcome-step); min-width: 1.5em; color: var(--text-secondary); font-size: var(--pn-type-small, 13px); font-variant-numeric: tabular-nums; }
+.welcome-settings-steps li.is-unavailable .welcome-settings-step-name { color: var(--accent-error); }
+.welcome-settings-step-kind { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; background: var(--hover-overlay); font-size: var(--pn-type-meta, 11px); font-weight: 650; }
+.welcome-settings-step-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--pn-type-ui, 14px); overflow-wrap: anywhere; }
+.welcome-settings-step-name small { color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
+.welcome-settings-step-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.welcome-settings-icon-button {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;
+  color: var(--text-primary); background: transparent; border: 1px solid transparent; border-radius: calc(8px * var(--pn-radius-scale, 1)); cursor: pointer;
+}
+.welcome-settings-icon-button:hover:not(:disabled) { background: var(--hover-overlay); }
+.welcome-settings-icon-button:disabled { opacity: 0.35; cursor: not-allowed; }
+.welcome-settings-link { padding: 0; border: 0; background: none; color: var(--text-primary); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.welcome-settings-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.welcome-settings-actions small { color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
+.welcome-settings-preview { flex: 1 1 320px; min-width: 0; max-width: 480px; position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; }
+.welcome-settings-preview-page {
+  display: flex; flex-direction: column; gap: 10px; padding: 28px 24px; color: var(--text-primary); background: var(--surface-workspace);
+  border: 1px solid var(--border-default); border-radius: calc(14px * var(--pn-radius-scale, 1));
+}
+.welcome-settings-preview-page > small { color: var(--text-secondary); font-size: var(--pn-type-label, 12px); }
+.welcome-settings-preview-page p { margin: 0; font-size: var(--pn-type-ui, 14px); }
+.welcome-settings-preview-page .welcome-settings-preview-title { font-size: var(--pn-type-heading, 22px); font-weight: 700; overflow-wrap: anywhere; }
+.welcome-settings-preview-message { font-size: var(--pn-type-ui, 14px); line-height: 1.55; overflow-wrap: anywhere; }
+.welcome-settings-preview-media { overflow: hidden; border-radius: calc(10px * var(--pn-radius-scale, 1)); }
+.welcome-settings-preview-media img { max-width: 100%; }
+.welcome-settings-preview-steps { margin: 4px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: var(--pn-type-ui, 14px); }
+@container workflow-sections (max-width: 760px) {
+  .welcome-settings { flex-direction: column; padding: 8px 16px 24px; }
+  .welcome-settings-editor, .welcome-settings-preview { max-width: none; width: 100%; flex: none; }
+  .welcome-settings-preview { position: static; }
+}

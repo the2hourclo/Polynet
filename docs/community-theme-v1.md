@@ -45,7 +45,7 @@ look; both follow the member's own Light/Dark choice.
 | `font_body`, `font_heading`, `font_mono` | A name from `COMMUNITY_THEME_FONTS`. Display faces only for headings |
 | `heading_weight` | 300 to 900 |
 | `heading_case` | `none`, `upper` |
-| `type_scale` | 0.9 to 1.2 |
+| `type_scale` | 0.9 to 1.2. Multiplies every text role below |
 | `numerals` | `proportional`, `tabular` |
 | `radius` | 0 to 24 (px) |
 | `corner_style` | `even`, `sketch` |
@@ -56,6 +56,25 @@ look; both follow the member's own Light/Dark choice.
 | `media_plate` | `none`, `light` (frames white-background images in dark schemes) |
 | `course_cover_ratio` | `auto` (Polynet's fixed height), `16:9`, `3:2`, `4:3`, `1:1`, `21:9` |
 | `course_card_size` | `default` (two columns), `small`, `medium`, `large` (cards at least 220, 300 or 420px wide, as many columns as fit) |
+| `course_cover_plate` | `none`, `tint` (light schemes: covers are printed onto a soft wash of the accent, so pale drawings and screenshots match) |
+| `course_cover_fit` | `crop` (covers fill the box, framed by each course's focus and zoom), `whole` (each cover shows in full, centred in the box; for wide banners with words on them) |
+
+## Text roles
+
+Community text uses eleven sizes, compiled as `--pn-type-<role>` from
+`COMMUNITY_TYPE_ROLES` times `type_scale`: `display` 32 (page and lesson
+titles, shrinking to 26 on narrow screens), `title` 24, `heading` 22,
+`subheading` 18, `reading` 16 (lesson text), `body` 15 (messages, card
+titles), `ui` 14, `small` 13, `label` 12, `meta` 11, `micro` 10. Corners
+follow `--pn-radius-scale` (the theme's `radius` over Polynet's 16px).
+
+`styles/community-theme-map.css` is generated from all of Polynet's CSS by
+`scripts/generate_community_theme_map.ts`: every fixed `font-size` becomes its
+nearest role and every fixed `border-radius` scales with the theme, so one Look
+setting moves the whole community. Regenerate it after changing app CSS; a test
+fails while it is out of date. `community-theme-hooks.css` holds the
+hand-picked rules that override the map (for example lesson titles use
+`display`). Communities without a theme keep Polynet's exact sizes.
 
 ## Validation
 

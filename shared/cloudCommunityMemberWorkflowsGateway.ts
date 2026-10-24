@@ -34,6 +34,12 @@ export type CloudCommunityMemberWorkflowBoard = {
   community_id: string;
   revision: number;
   milestones: CommunityMemberWorkflowMilestone[];
+  /** New members finish the first stage's join forms before the community opens. */
+  welcome_gate?: boolean;
+  /** Lesson pages members mark done after the forms, in order. */
+  welcome_lesson_ids?: string[];
+  /** The builder's words on the welcome page; empty means Polynet's default. */
+  welcome_page?: { title: string; message: string; media_url: string };
   updated_at: string;
 };
 
@@ -64,6 +70,8 @@ type WorkflowMilestoneMutationResult = {
   workflow_id: string;
   revision: number;
   milestone?: CommunityMemberWorkflowMilestone;
+  /** Delete only: it cleared a batch of departed members' positions; call again. */
+  pending_cleanup?: true;
 };
 
 export function createCloudCommunityMemberWorkflowLiveClient<SessionT>(
@@ -257,6 +265,28 @@ export async function setCloudCommunityMemberServiceChannel<SessionT>(params: Wo
   });
 }
 
+export async function setCloudCommunityWelcomeGate<SessionT>(params: WorkflowGatewayParams<SessionT> & {
+  communityId: string; expectedRevision: number; enabled: boolean;
+}): Promise<{ revision: number; welcome_gate: boolean }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, {
+    authSubject, communityId: params.communityId as Id<"communities">,
+    expectedRevision: params.expectedRevision, enabled: params.enabled,
+  });
+}
+
+export type CloudCommunityWelcomePageDraft = { title: string; message: string; mediaUrl: string; lessonIds: string[] };
+
+export async function saveCloudCommunityWelcomePage<SessionT>(params: WorkflowGatewayParams<SessionT> & {
+  communityId: string; expectedRevision: number; page: CloudCommunityWelcomePageDraft;
+}): Promise<{ revision: number }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.mutation(api.communityMemberWorkflows.saveBuilderWelcomePage, {
+    authSubject, communityId: params.communityId as Id<"communities">, expectedRevision: params.expectedRevision,
+    title: params.page.title, message: params.page.message, mediaUrl: params.page.mediaUrl, lessonIds: params.page.lessonIds,
+  });
+}
+
 export async function forceCloudCommunityMemberMilestone<SessionT>(params: WorkflowGatewayParams<SessionT> & { dossier: CloudCommunityMemberSuccessDossier }) {
   return submitCloudCommunityMemberDecision(params, false);
 }
@@ -285,6 +315,13 @@ export async function retryCloudCommunityMemberGoalReview<SessionT>(params: Work
     { authSubject, ...currentWorkflowAuthorityArgs(params.dossier), expectedReceiptRef: receiptRef });
 }
 
+/** Runs a failed or since-changed lesson- or course-done property write again. */
+export async function retryCloudCommunityMemberWorkflowAction<SessionT>(params: WorkflowGatewayParams<SessionT> & { dossier: CloudCommunityMemberSuccessDossier; automationKey: string }) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return client.mutation(api.communityMemberWorkflows.retryBuilderMemberWorkflowAction,
+    { authSubject, ...currentWorkflowAuthorityArgs(params.dossier), automationKey: params.automationKey });
+}
+
 async function submitCloudCommunityMemberDecision<SessionT>(params: WorkflowGatewayParams<SessionT> & { dossier: CloudCommunityMemberSuccessDossier }, approval: boolean) {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
   const args = { authSubject, ...currentWorkflowAuthorityArgs(params.dossier) };
@@ -303,13 +340,18 @@ export async function deleteCloudCommunityMemberWorkflowMilestone<SessionT>(
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(
     params.session,
   );
-  return (await client.mutation(
-    api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
-    {
-      authSubject,
-      communityId: params.communityId as Id<"communities">,
-      expectedRevision: params.expectedRevision,
-      milestoneKey: params.milestoneKey,
-    },
-  )) as WorkflowMilestoneMutationResult;
+  // A stage with many departed members' positions clears them in batches first.
+  for (let batch = 0; batch < 200; batch += 1) {
+    const result = (await client.mutation(
+      api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
+      {
+        authSubject,
+        communityId: params.communityId as Id<"communities">,
+        expectedRevision: params.expectedRevision,
+        milestoneKey: params.milestoneKey,
+      },
+    )) as WorkflowMilestoneMutationResult;
+    if (!result.pending_cleanup) return result;
+  }
+  throw new Error("community_member_workflow_milestone_cleanup_incomplete");
 }

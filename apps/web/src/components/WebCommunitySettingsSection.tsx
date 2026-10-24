@@ -1,3 +1,5 @@
+import { buildCommunityTabPath } from "../../../../shared/webAppRouteState";
+import { WebCommunityLookSettings } from "./WebCommunityLookSettings";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { DragEvent } from "react";
 import type { CommunitySettingsLayer } from "../../../../shared/communityAccessViewModel";
@@ -149,6 +151,7 @@ type SharedSettingsProps = Pick<WebCommunitySettingsSectionProps, "state" | "act
 
 const COMMUNITY_SETTINGS_PANE_LABELS: Record<CommunitySettingsPane, string> = {
   community: "General",
+  look: "Look",
   agent: "Agent",
   danger: "Danger",
 };
@@ -768,6 +771,9 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
     canView: canViewActiveCommunitySettings,
   });
   const resolvedActiveCommunity = activeCommunity as ActiveCommunity;
+  // The welcome page is edited in Workflows; this is the way there from Settings.
+  const workflowsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "workflows");
+  const welcomePagePath = workflowsPath ? `${workflowsPath}?section=welcome` : null;
 
   useEffect(() => {
     if (availableSettingsPanes.length > 0 && !availableSettingsPanes.includes(activePane)) {
@@ -961,7 +967,22 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
                     </div>
                   ) : null}
                 </div>
+                {welcomePagePath ? (
+                  <div className="community-settings-welcome-link">
+                    <div>
+                      <strong>Welcome page</strong>
+                      <small>What new members see first, and the steps they finish before the community opens.</small>
+                    </div>
+                    <button className="secondary" type="button" onClick={() => {
+                      window.history.pushState(window.history.state, "", welcomePagePath);
+                      window.dispatchEvent(new PopStateEvent("popstate"));
+                    }}>Edit welcome page</button>
+                  </div>
+                ) : null}
               </div>
+              ) : null}
+              {selectedSettingsPane === "look" && resolvedActiveCommunity ? (
+              <WebCommunityLookSettings communityId={resolvedActiveCommunity.id} session={props.session} ensureSession={props.ensureSession} />
               ) : null}
               {selectedSettingsPane === "agent" ? (
               <WebCommunityAiAgentSection {...aiAgentProps} embedded />

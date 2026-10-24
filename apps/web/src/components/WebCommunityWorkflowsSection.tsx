@@ -19,11 +19,15 @@ import { WebCommunityWorkflowMemberDossierModal } from "./WebCommunityWorkflowMe
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
 import { WebCommunityWorkflowMemberStub } from "./WebCommunityWorkflowMemberStub";
 import { WebCommunityWorkflowMilestoneModal } from "./WebCommunityWorkflowMilestoneModal";
+import type { WorkflowCatalog } from "./WebCommunityWorkflowAutomationEditor";
 import "./WebCommunityWorkflowsSection.css";
 import { WebCommunityForms } from "./WebCommunityForms";
 import { WebCommunityFormResponses } from "./WebCommunityFormResponses";
 import { WebCommunityMemberCourseProgress } from "./WebCommunityMemberCourseProgress";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
+import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
+import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
+import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
 
 export type WebCommunityWorkflowsSectionProps = {
   forms?: CommunityFormsGateway;
@@ -55,6 +59,10 @@ export type WebCommunityWorkflowsSectionProps = {
     requireHumanApproval?: boolean,
   ) => Promise<boolean>;
   onDeleteMilestone: (milestoneKey: string) => Promise<boolean>;
+  onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
+  onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
+  onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
+  communityName?: string | null;
   onClearActionError: () => void;
   onOpenMemberDossier: (membershipId: string) => void;
   onCloseMemberDossier: () => void;
@@ -65,6 +73,7 @@ export type WebCommunityWorkflowsSectionProps = {
   onForceMove: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
   onApproveMilestone?: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
   onRetryGoalReview?: (snapshot: CloudCommunityMemberSuccessDossier) => Promise<void>;
+  onRetryAction?: (snapshot: CloudCommunityMemberSuccessDossier, automationKey: string) => Promise<{ status: string; error_code?: string }>;
   onOpenServiceChannel: (channelId: string) => void;
 };
 
@@ -127,14 +136,19 @@ export function WebCommunityWorkflowsSection(
       ariaLabel="Workflow sections" idPrefix="workflow-sections" className="platform-switcher platform-switcher-compact workflow-section-tabs"
       style={buildPlatformSwitcherStyle(WORKFLOW_SECTIONS.length, WORKFLOW_SECTIONS.indexOf(section))} />
     <div className="workflow-section-content" role="tabpanel" id={platformTabPanelId("workflow-sections", section)} aria-labelledby={platformTabId("workflow-sections", section)}>
-      {section === "workflows" ? <WorkflowBoard {...props} /> : props.forms
+      {section === "workflows" ? <WorkflowBoard {...props} onOpenWelcome={() => void select("welcome")} />
+        : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
+          forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
+          onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
+          onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
+        : props.forms
         ? <WebCommunityForms key={props.forms.scopeKey} gateway={props.forms} leaveGuard={beforeLeave} />
         : <p role="status">Forms are unavailable.</p>}
     </div>
   </div>;
 }
 
-function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
+function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcome: () => void }) {
   const [publishedForms, setPublishedForms] = useState<Array<{ key: string; name: string }>>([]);
   const [formsState, setFormsState] = useState<"loading" | "ready" | "error">("loading");
   const [formsRetry, setFormsRetry] = useState(0);
@@ -144,6 +158,14 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
     props.forms.load().then(rows => { if (alive) { setPublishedForms(rows.filter(r => r.publishedRevision !== null)); setFormsState("ready"); } }).catch(() => { if (alive) setFormsState("error"); });
     return () => { alive = false; };
   }, [props.forms, formsRetry]);
+  // Lessons, courses and client properties the rule editor offers; null while loading.
+  const [catalog, setCatalog] = useState<WorkflowCatalog>({ lessons: null, properties: null });
+  useEffect(() => {
+    let alive = true; setCatalog({ lessons: null, properties: null });
+    (props.onLoadWelcomeLessonOptions?.() ?? Promise.resolve([])).then(lessons => { if (alive) setCatalog(c => ({ ...c, lessons })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, lessons: [] })); });
+    (props.forms?.clientProperties?.() ?? Promise.resolve([])).then(properties => { if (alive) setCatalog(c => ({ ...c, properties })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, properties: [] })); });
+    return () => { alive = false; };
+  }, [props.forms, props.onLoadWelcomeLessonOptions]);
   const [editingMilestoneKey, setEditingMilestoneKey] = useState<string | null>(null);
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
   const milestones = props.board?.milestones ?? [BLANK_MILESTONE];
@@ -238,6 +260,17 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
         className="community-panel community-utility-panel workflow-pipeline-shell"
         aria-label="Workflow board"
       >
+        {props.board ? (
+          <p className="workflow-welcome-gate">
+            <span>
+              <strong>Welcome page: {props.board.welcome_gate ? "on" : "off"}</strong>
+              <small>{props.board.welcome_gate
+                ? "New members finish its steps before the community opens."
+                : "Turn it on to give new members steps to finish before the community opens."}</small>
+            </span>
+            <button type="button" className="workflow-secondary-button" onClick={props.onOpenWelcome}>Edit welcome page</button>
+          </p>
+        ) : null}
         <div className="workflow-board-stage">
         <div className="workflow-milestone-canvas" aria-label="Member success milestones">
           {milestones.map((milestone, index) => {
@@ -324,6 +357,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
       </section>
 
       <WebCommunityWorkflowMilestoneModal
+        catalog={catalog}
         formsStatus={formsState}
         onRetryForms={() => setFormsRetry(n => n + 1)}
         forms={publishedForms}
@@ -364,6 +398,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps) {
         onForceMove={props.onForceMove}
         onApproveMilestone={props.onApproveMilestone}
         onRetryGoalReview={props.onRetryGoalReview}
+        onRetryAction={props.onRetryAction}
         onOpenServiceChannel={props.onOpenServiceChannel}
       />
     </div>

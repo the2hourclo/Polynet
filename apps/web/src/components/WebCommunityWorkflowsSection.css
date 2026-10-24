@@ -474,6 +474,7 @@
 .workflow-member-action-progress strong { overflow-wrap: anywhere; }
 .workflow-member-action-progress span, .workflow-member-action-progress small { color: var(--text-muted); }
 .workflow-member-action-progress small { display: block; margin-top: 4px; }
+.workflow-member-action-progress li > button { margin-top: 8px; }
 
 .workflow-member-dossier-section {
   padding: 20px 0;
@@ -985,3 +986,6 @@
   margin-top: 12px;
   max-width: 360px;
 }
+.workflow-welcome-gate { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px 16px; margin:0 0 12px; color:var(--text-primary); }
+.workflow-welcome-gate span { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.workflow-welcome-gate small { color:var(--text-secondary); }

@@ -24,7 +24,11 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   const { workflow, membership, milestone } = args;
   if (!communityMembershipRowIsActive(membership) || membership.communityId !== workflow.communityId)
     throw new Error("workflow_completion_scope_invalid");
-  const work = milestone.automations;
+  // A property write is bookkeeping, not member work, so it never holds a stage
+  // open, unless finishing a lesson or course sets it: then that is the work.
+  const finishes = (rule: CommunityMemberWorkflowMilestone["automations"][number]) =>
+    rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed";
+  const work = milestone.automations.filter(rule => rule.action.type !== "set_client_property" || finishes(rule));
   if (!work.length) return { actions: [], all_actions_complete: false, scan_truncated: false };
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
     .withIndex("by_workflow_membership_createdAt", q => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
@@ -35,13 +39,23 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
     const formKey = rule.action.type === "request_form" ? rule.action.formKey : null;
     const form = formKey ? await ctx.db.query("communityForms")
       .withIndex("by_community_key", q => q.eq("communityId", workflow.communityId).eq("key", formKey)).unique() : null;
+    const propertyKey = rule.action.type === "set_client_property" ? rule.action.propertyKey : null;
+    const property = propertyKey ? await ctx.db.query("communityClientProperties")
+      .withIndex("by_community_key", q => q.eq("communityId", workflow.communityId).eq("key", propertyKey)).unique() : null;
+    const finished = rule.trigger.type === "course_completed" ? "Course finished" : "Lesson done";
     const item: WorkflowActionProgress["actions"][number] = {
-      automation_key: rule.key, action_key: rule.action.key, action_type: rule.action.type as "prompt_agent" | "request_form" | "create_service_channel",
+      automation_key: rule.key, action_key: rule.action.key, action_type: rule.action.type as WorkflowActionProgress["actions"][number]["action_type"],
       label: rule.action.type === "request_form" ? `Request ${form?.name ?? "selected form"}`
-        : rule.action.type === "prompt_agent" ? `Ask agent: ${rule.action.prompt.slice(0, 120)}${rule.action.prompt.length > 120 ? "…" : ""}` : "Create private channel",
+        : rule.action.type === "prompt_agent" ? `Ask agent: ${rule.action.prompt.slice(0, 120)}${rule.action.prompt.length > 120 ? "…" : ""}`
+        : propertyKey ? `${finished}, then set ${property?.name ?? propertyKey}` : "Create private channel",
       status: "unavailable", evidence: null,
     };
     let seen = false;
+    // This rule's trigger fired in this visit, whatever the action looked like then.
+    let fired = false, newestRunning = false;
+    // Only a rule's newest property write sets what the member has now; runs
+    // before it, done or failed, no longer say anything.
+    let wrote = false;
     for (const run of runs.slice(0, 256)) {
       if (run.communityId !== workflow.communityId || run.workflowId !== workflow._id || run.membershipId !== membership._id
         || run.activationSequence !== (membership.activationSequence ?? 0) || run.transitionSeq !== args.transitionSeq
@@ -49,10 +63,20 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
         // Older receipts remain proof when this rule and visit still match.
         // Keep rejecting impossible future-revision receipts.
         || run.workflowRevision > workflow.revision || run.automationKey !== rule.key
-        || !run.triggerSnapshot || workflowTriggerIdentity(run.triggerSnapshot) !== workflowTriggerIdentity(rule.trigger)
-        || run.actionSnapshot.key !== rule.action.key || run.actionSnapshot.type !== rule.action.type
+        || !run.triggerSnapshot || workflowTriggerIdentity(run.triggerSnapshot) !== workflowTriggerIdentity(rule.trigger)) continue;
+      if (!fired) newestRunning = run.status === "running";
+      fired = true;
+      if (rule.action.type === "set_client_property") {
+        if (wrote) continue;
+        wrote = run.status === "finished";
+      }
+      if (run.actionSnapshot.key !== rule.action.key || run.actionSnapshot.type !== rule.action.type
         || (rule.action.type === "prompt_agent" && (run.actionSnapshot.type !== "prompt_agent" || run.actionSnapshot.prompt !== rule.action.prompt))
         || (rule.action.type === "request_form" && (run.actionSnapshot.type !== "request_form" || run.actionSnapshot.formKey !== rule.action.formKey))
+        // A write of another property or value is not this rule's write.
+        || (rule.action.type === "set_client_property" && (run.actionSnapshot.type !== "set_client_property"
+          || run.actionSnapshot.propertyKey !== rule.action.propertyKey
+          || JSON.stringify(run.actionSnapshot.value ?? null) !== JSON.stringify(rule.action.value ?? null)))
         || (run.milestoneContextSnapshot?.instructions ?? "") !== (milestone.instructions ?? "")
         || (run.milestoneContextSnapshot?.goal ?? "") !== (milestone.goal ?? "")) continue;
       let status: typeof item.status = "unavailable";
@@ -76,6 +100,8 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
               }
             }
           }
+        } else if (rule.action.type === "set_client_property") {
+          if (run.finishedAt !== undefined) evidence = { run_id: String(run._id), source_id: String(run._id), completed_at: run.finishedAt };
         } else if (rule.action.type === "create_service_channel") {
           const destination = await resolveMemberServiceChannel({ ctx, membership });
           if (destination.status === "available" && result.serviceChannelId
@@ -121,7 +147,13 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       const predecessor = actions.find(a => a.action_key === predecessorKey);
       item.status = "waiting";
       item.waiting_for = predecessor?.label ?? "previous action";
+    } else if (!seen && !item.evidence && finishes(rule) && !fired) {
+      item.status = "waiting";
+      item.waiting_for = rule.trigger.type === "course_completed" ? "the course to be finished" : "the lesson to be done";
     }
+    // The lesson or course is done but the write failed, or ran before the
+    // builder changed it. The trigger won't fire again, so a builder can rerun it.
+    if (rule.action.type === "set_client_property" && fired && !newestRunning && !item.evidence) item.retryable = true;
     actions.push(item);
   }
   return { actions, all_actions_complete: actions.length > 0 && actions.every(a => a.status === "complete"), scan_truncated: runs.length > 256 };
@@ -137,7 +169,7 @@ export async function readWorkflowApprovalObservation(ctx: QueryCtx, args: {
   const { workflow, membership } = args;
   if (!communityMembershipRowIsActive(membership) || membership.communityId !== workflow.communityId) return null;
   try {
-    await requireCommunityChatAccess({ ctx, communityId: workflow.communityId, userId: membership.userId });
+    await requireCommunityChatAccess({ ctx, communityId: workflow.communityId, userId: membership.userId, allowWelcome: true });
     const pair = await getUniqueCommunityMembershipByPair({ ctx, communityId: workflow.communityId, userId: membership.userId });
     if (pair?._id !== membership._id) return null;
   } catch { return null; }
