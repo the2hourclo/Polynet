@@ -89,16 +89,26 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
   const actionRows = useRef(new Map<string, HTMLLIElement>());
   const actionsHeading = useRef<HTMLHeadingElement | null>(null);
   // The action whose Run again was pressed. When its button goes (the write
-  // worked, or the member moved on), focus goes to its row, else to Actions.
-  const refocusAction = useRef<string | null>(null);
+  // worked), focus goes to its row; when the row goes too (the member moved on
+  // or finished), to Actions, else the dialog. It keeps following through each
+  // update until the builder moves focus somewhere else.
+  const refocusAction = useRef<{ membershipId: string; key: string } | null>(null);
+  const refocusTarget = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    const key = refocusAction.current;
-    if (!key) return;
-    const row = actionRows.current.get(key);
+    const tracked = refocusAction.current;
+    if (!tracked) return;
+    const active = document.activeElement;
+    if (!props.isOpen || (props.dossier && props.dossier.membership_id !== tracked.membershipId)
+      || (refocusTarget.current && active && active !== refocusTarget.current && active !== document.body)) {
+      refocusAction.current = null; refocusTarget.current = null;
+      return;
+    }
+    const row = actionRows.current.get(tracked.key);
     if (row?.querySelector("button")) return;
-    refocusAction.current = null;
-    (row ?? actionsHeading.current ?? dialogRef.current)?.focus();
-  }, [props.dossier]);
+    const target = row ?? actionsHeading.current ?? dialogRef.current;
+    if (target && target !== active) target.focus();
+    refocusTarget.current = target;
+  }, [props.dossier, props.isOpen]);
   useEffect(() => {
     approvalGeneration.current += 1;
     approvalPending.current = false;
@@ -187,6 +197,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
       <section
         ref={dialogRef}
         className="modal resource-modal workflow-member-dossier-modal"
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="workflow-member-dossier-title"
@@ -313,7 +324,8 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                             if (actionRetryPending.current || !props.onRetryAction) return;
                             const generation = approvalGeneration.current;
                             actionRetryPending.current = true; setRetryingAction(action.automation_key); setActionRetryError(null);
-                            refocusAction.current = action.automation_key;
+                            refocusAction.current = { membershipId: dossier.membership_id, key: action.automation_key };
+                            refocusTarget.current = null;
                             try {
                               const result = await props.onRetryAction(dossier, action.automation_key);
                               if (result.status === "action_failed") refocusAction.current = null;
