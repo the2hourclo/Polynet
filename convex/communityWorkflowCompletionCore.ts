@@ -138,7 +138,7 @@ export async function readWorkflowApprovalObservation(ctx: QueryCtx, args: {
   const { workflow, membership } = args;
   if (!communityMembershipRowIsActive(membership) || membership.communityId !== workflow.communityId) return null;
   try {
-    await requireCommunityChatAccess({ ctx, communityId: workflow.communityId, userId: membership.userId });
+    await requireCommunityChatAccess({ ctx, communityId: workflow.communityId, userId: membership.userId, allowWelcome: true });
     const pair = await getUniqueCommunityMembershipByPair({ ctx, communityId: workflow.communityId, userId: membership.userId });
     if (pair?._id !== membership._id) return null;
   } catch { return null; }

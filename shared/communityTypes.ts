@@ -377,6 +377,9 @@ export type CommunityAccess = {
   can_manage_branding?: boolean;
   can_manage_publishing?: boolean;
   can_manage_payouts?: boolean;
+  /** The builder's welcome flow is on and this member still owes a welcome form. */
+  welcome_required?: boolean;
+  welcome_form_request_ids?: string[];
 };
 
 export type CommunityAgentConfig<TLanding = unknown> = {

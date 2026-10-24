@@ -225,3 +225,30 @@ test("funnel builder self directory does not advertise the private forms adapter
   expect(result).toMatchObject({ ok: true });
   expect(JSON.stringify(result)).not.toContain("/forms/");
 });
+
+test("the welcome flow holds a new member to the join form until it is submitted, then opens the community", async () => {
+  const f = await fixture("form");
+  const owner = f.t.withIdentity({ subject: "join-owner" });
+  const member = f.t.withIdentity({ subject: "join-member" });
+  await owner.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, { communityId: f.communityId, expectedRevision: 1, enabled: true });
+  await f.t.mutation(joinHandler, { ...f.job, workflowRevision: 2 });
+  const row = (await f.t.run(ctx => ctx.db.query("communityFormRequests").first()))!;
+  const gate = () => f.t.run(async ctx => {
+    const { getCommunityAndMembership, readCommunityWelcomeGate, requireCommunityChatAccess } = await import("./communityCore");
+    const { community, membership } = await getCommunityAndMembership({ ctx, communityId: f.communityId, userId: f.memberId });
+    const held = await requireCommunityChatAccess({ ctx, communityId: f.communityId, userId: f.memberId }).then(() => null, (error: Error) => error.message);
+    const owner = await requireCommunityChatAccess({ ctx, communityId: f.communityId, userId: f.ownerId }).then(() => "open");
+    return { ...(await readCommunityWelcomeGate({ ctx, community, membership, userId: f.memberId })), held, owner };
+  });
+  expect(await gate()).toEqual({ required: true, requestIds: [String(row._id)], held: "community_welcome_required", owner: "open" });
+  // The form itself stays reachable, so the member can finish it.
+  await member.mutation(api.communityFormRequests.saveMyAnswers, { communityId: f.communityId, requestId: row._id, expectedRevision: row.revision, answers: {}, submit: true });
+  expect(await gate()).toEqual({ required: false, requestIds: [], held: null, owner: "open" });
+});
+
+test("the welcome flow can only be turned on when the first stage requests a form on join", async () => {
+  const f = await fixture("room");
+  const owner = f.t.withIdentity({ subject: "join-owner" });
+  await expect(owner.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, { communityId: f.communityId, expectedRevision: 1, enabled: true }))
+    .rejects.toThrow("welcome_gate_requires_join_form");
+});

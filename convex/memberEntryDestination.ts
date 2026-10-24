@@ -103,6 +103,8 @@ export const resolveMemberEntryDestinationInternal = internalQuery({
             ctx,
             communityId: candidateId,
             userId: args.userId,
+            // A member owing a welcome form still lands here; the community shows the form.
+            allowWelcome: true,
           });
           return {
             page: "community" as const,
@@ -128,6 +130,8 @@ export const resolveMemberEntryDestinationInternal = internalQuery({
       ctx,
       communityId: targetCommunityId,
       userId: args.userId,
+      // A member owing a welcome form still lands here; the community shows the form.
+      allowWelcome: true,
     });
     const resolvedSlug = normalizeSlug(community.slug);
     if (requestedSlug && resolvedSlug !== requestedSlug) {

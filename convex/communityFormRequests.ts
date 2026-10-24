@@ -12,7 +12,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 const scope = { communityId: v.id("communities"), authSubject: v.optional(v.string()) };
 async function actor(ctx: any, args: any) {
   const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null });
-  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId });
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId, allowWelcome: true });
   return userId;
 }
 async function ownRequest(ctx: any, args: any): Promise<Doc<"communityFormRequests">> {
@@ -112,7 +112,7 @@ export const listBuilderResponses = query({ args: { ...scope, membershipId: v.id
 // caller-selected self identity. Current authority is checked before receipt replay.
 const selfScope = { communityId: v.id("communities"), userId: v.id("users") };
 async function selfMembership(ctx: QueryCtx, args: { communityId: Id<"communities">; userId: Id<"users"> }) {
-  await requireCommunityChatAccess({ ctx, ...args });
+  await requireCommunityChatAccess({ ctx, ...args, allowWelcome: true });
   const membership = await getUniqueCommunityMembershipByPair({ ctx, ...args });
   if (!communityMembershipRowIsActive(membership)) throw new Error("form_request_unavailable");
   const row = membership ? await ctx.db.get(membership._id as Id<"communityMemberships">) : null;
@@ -143,7 +143,7 @@ function formDocument(row: Doc<"communityFormRequests">, version: Doc<"community
   return value;
 }
 export const listOwnFormsInternal = internalQuery({ args: { ...selfScope, cursor: v.optional(v.string()) }, handler: async (ctx, args) => {
-  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId, allowWelcome: true });
   const scope = JSON.stringify([args.userId, args.communityId, 1]);
   let decoded: { scope: string; cursor: string; visit: string } | undefined;
   if (args.cursor !== undefined) {

@@ -466,6 +466,26 @@ export const updateBuilderWorkflowMilestone = mutation({
   },
 });
 
+// The welcome flow: new members see only the forms the first stage's "member
+// joins" rules request until they submit them. Off by default; the gate itself
+// lives in requireCommunityChatAccess so every member surface honours it.
+export const setBuilderWelcomeGate = mutation({
+  args: { ...managerIdentityArgs, communityId: v.id("communities"), expectedRevision: v.number(), enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const { userId } = await requireWorkflowManager({ ctx, communityId: args.communityId, userId: args.userId, authSubject: args.authSubject });
+    const expectedRevision = normalizeExpectedRevision(args.expectedRevision);
+    const workflow = requireWorkflowRevision(
+      await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId }), expectedRevision);
+    if (args.enabled && !(workflow.milestones[0]?.automations ?? []).some(a => a.trigger.type === "member_joined" && a.action.type === "request_form")) {
+      throw new Error("welcome_gate_requires_join_form");
+    }
+    if ((workflow.welcomeGate ?? false) === args.enabled) return { workflow_id: String(workflow._id), revision: expectedRevision, welcome_gate: args.enabled };
+    const revision = expectedRevision + 1;
+    await ctx.db.patch(workflow._id, { welcomeGate: args.enabled, revision, updatedByUserId: userId, updatedAt: Date.now() });
+    return { workflow_id: String(workflow._id), revision, welcome_gate: args.enabled };
+  },
+});
+
 export const deleteBuilderWorkflowMilestone = mutation({
   args: {
     ...managerIdentityArgs,
@@ -612,6 +632,7 @@ export const getBuilderWorkflowBoardPage = query({
         community_id: String(workflow.communityId),
         revision: workflow.revision,
         milestones: workflow.milestones,
+        welcome_gate: workflow.welcomeGate ?? false,
         updated_at: toIsoString(workflow.updatedAt),
       },
       page: members,
@@ -1097,7 +1118,7 @@ export const approveObservedMilestoneInternal = internalMutation({ args: {
   const membership = await ctx.db.get(args.membershipId);
   if (!membership || membership.communityId !== args.communityId || !communityMembershipRowIsActive(membership))
     throw new Error("workflow_approval_unavailable");
-  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: membership.userId });
+  await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: membership.userId, allowWelcome: true });
   const pair = await getUniqueCommunityMembershipByPair({ ctx, communityId: args.communityId, userId: membership.userId });
   if (pair?._id !== membership._id || (membership.activationSequence ?? 0) !== args.expectedActivationSequence)
     throw new Error("workflow_approval_unavailable");

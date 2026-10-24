@@ -163,7 +163,7 @@ export async function resolveWorkflowExecutionMembershipContext(args: {
   if (!request || request.triggerKind !== "workflow" || request.status !== "running" ||
     request.attempt !== args.expectedAttempt || (request.leaseExpiresAt ?? 0) <= Date.now() ||
     !request.workflowRunId || !request.requesterUserId) throw new Error("workflow_context_forbidden");
-  await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: request.requesterUserId });
+  await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: request.requesterUserId, allowWelcome: true });
   const run = await ctx.db.get(request.workflowRunId);
   const membership = await getUniqueCommunityMembershipByPair({ ctx,
     communityId: request.communityId, userId: request.requesterUserId });

@@ -1266,6 +1266,8 @@ export default defineSchema({
 
   communityMemberWorkflows: defineTable({
     communityId: v.id("communities"),
+    /** Builder setting: members who joined with a pending welcome form see only that form until they submit it. */
+    welcomeGate: v.optional(v.boolean()),
     milestones: v.array(
       v.object({
         key: v.string(),

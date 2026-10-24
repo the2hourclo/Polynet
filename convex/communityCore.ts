@@ -1221,10 +1221,51 @@ export async function resolveCommunityMembershipEntitlementState(args: {
   };
 }
 
+/**
+ * The welcome flow: when the builder turns it on, a member whose first-stage
+ * "member joins" rule requested a form, and who has not submitted it yet,
+ * can open only that form. Owners and admins are never held. The gate is read
+ * from the pending requests themselves, so cancelling or submitting a request
+ * (or turning the setting off) opens the community at once.
+ */
+export async function readCommunityWelcomeGate(args: {
+  ctx: any;
+  community: CommunityLike;
+  membership: CommunityMembershipLike | null;
+  userId: any;
+}): Promise<{ required: boolean; requestIds: string[] }> {
+  const open = { required: false, requestIds: [] as string[] };
+  if (String(args.community.ownerId) === String(args.userId) || !args.membership) return open;
+  if (normalizeCommunityRoleForOutput(args.membership.role) === "admin") return open;
+  const workflow = await args.ctx.db.query("communityMemberWorkflows")
+    .withIndex("by_community", (q: any) => q.eq("communityId", args.community._id)).first();
+  if (!workflow?.welcomeGate) return open;
+  const pending = await args.ctx.db.query("communityFormRequests")
+    .withIndex("by_member_status", (q: any) => q.eq("membershipId", args.membership!._id).eq("status", "pending"))
+    .take(20);
+  // Only a request whose first-stage "member joins" rule still exists holds the
+  // member; a rule the builder removed never leaves anyone locked out.
+  const first = workflow.milestones?.[0];
+  const joinRules = new Set((first?.automations ?? [])
+    .filter((rule: any) => rule.trigger?.type === "member_joined" && rule.action?.type === "request_form")
+    .map((rule: any) => rule.key));
+  const requestIds: string[] = [];
+  for (const request of pending) {
+    if (String(request.workflowId) !== String(workflow._id) || request.milestoneKey !== first?.key) continue;
+    if ((request.activationSequence ?? 0) !== (args.membership.activationSequence ?? 0)) continue;
+    if (!joinRules.has(request.automationKey)) continue;
+    const run = await args.ctx.db.get(request.workflowRunId);
+    if (run?.triggerType === "member_joined") requestIds.push(String(request._id));
+  }
+  return { required: requestIds.length > 0, requestIds };
+}
+
 export async function requireCommunityChatAccess(args: {
   ctx: any;
   communityId: any;
   userId: any;
+  /** Form paths pass this so a member held by the welcome flow can finish it. */
+  allowWelcome?: boolean;
 }): Promise<{ community: CommunityLike }> {
   const { community, membership } = await getCommunityAndMembership(args);
   await requireCommunityBuilderAccess({ ctx: args.ctx, community });
@@ -1243,6 +1284,9 @@ export async function requireCommunityChatAccess(args: {
   });
   if (!entitlement.isEntitled) {
     throw new Error("community_entitlement_required");
+  }
+  if (!args.allowWelcome && (await readCommunityWelcomeGate({ ctx: args.ctx, community, membership, userId: args.userId })).required) {
+    throw new Error("community_welcome_required");
   }
   return { community };
 }
@@ -1302,10 +1346,14 @@ export async function resolveCommunityAccessBundle(args: {
             : !isBlocked
               ? "visitor"
               : null;
+  const welcome = isEntitled
+    ? await readCommunityWelcomeGate({ ctx: args.ctx, community: args.community, membership: args.membership, userId: args.userId })
+    : { required: false, requestIds: [] as string[] };
   const canViewLanding = true;
+  // A member held by the welcome flow enters the community but sees only the form.
   const canEnterCommunity = isEntitled;
-  const canReadChat = isEntitled;
-  const canPostChat = isEntitled;
+  const canReadChat = isEntitled && !welcome.required;
+  const canPostChat = isEntitled && !welcome.required;
   const canView = !isBlocked && builderAccess.operational;
   const canManageMembers = builderAccess.operational && (isOwner || isAdmin);
   const canManageResources = builderAccess.operational && (isOwner || isAdmin);
@@ -1317,7 +1365,7 @@ export async function resolveCommunityAccessBundle(args: {
   const canManageBranding = builderAccess.operational && isOwner;
   const canManagePublishing = builderAccess.operational && isOwner;
   const canManagePayouts = builderAccess.operational && isOwner;
-  const canPostMessage = isEntitled;
+  const canPostMessage = isEntitled && !welcome.required;
   const primaryCta: CommunityPrimaryCta = !builderAccess.operational
     ? isOwner
       ? "manage_billing"
@@ -1368,6 +1416,8 @@ export async function resolveCommunityAccessBundle(args: {
     can_manage_branding: canManageBranding,
     can_manage_publishing: canManagePublishing,
     can_manage_payouts: canManagePayouts,
+    welcome_required: welcome.required,
+    welcome_form_request_ids: welcome.requestIds,
   };
 }
 

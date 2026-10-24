@@ -117,7 +117,7 @@ export async function requireCompletionReview(ctx: any, request: any, completed 
     || run.activationSequence !== (membership.activationSequence ?? 0) || run.transitionSeq !== (review.state?.transitionSeq ?? 0))
     throw new Error("workflow_assessment_stale");
   try {
-    await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: membership.userId });
+    await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: membership.userId, allowWelcome: true });
     await requireCommunityManager({ ctx, communityId: request.communityId, userId: workflow.updatedByUserId });
   } catch { throw new Error("workflow_assessment_access_changed"); }
   const configs = await ctx.db.query("communityAgentConfigs").withIndex("by_community", (q: any) => q.eq("communityId", request.communityId)).take(5);
