@@ -137,7 +137,8 @@ const serializer = new MarkdownSerializer(
       state.text(node.text ?? "", !(state as MarkdownSerializerState & { inAutolink?: boolean }).inAutolink);
     },
     image(state, node) {
-      const alt = state.esc(String(node.attrs.alt ?? ""));
+      // No brackets in alt text: the slide deck reads image lines with a strict pattern.
+      const alt = state.esc(String(node.attrs.alt ?? "").replace(/[[\]]/g, ""));
       const src = String(node.attrs.src ?? "").replace(/[()\s]/g, (c) => encodeURIComponent(c));
       const title = node.attrs.title ? ` "${String(node.attrs.title).replace(/"/g, '\\"')}"` : "";
       state.write(`![${alt}](${src}${title})`);
