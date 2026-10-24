@@ -14,6 +14,7 @@ import {
   reorderCloudCommunityResources,
   saveCloudCommunityResource,
   saveCloudCommunityResourceModule,
+  uploadCloudCommunityResourceImage,
   uploadCloudCommunityResourceSourceFile,
   type CloudCommunitySourceIngestionResult,
 } from "./cloudCommunityAdminGateway";
@@ -305,7 +306,10 @@ export function useCommunityResourceController<
   const loadCommunityResources = useCallback((communityId: string, session: SessionT) =>
     refreshCommunityResources(communityId, session), [refreshCommunityResources]);
 
-  const handleSaveCommunityResource = useCallback(async () => {
+  // keepEditing saves in place (the lesson editor's autosave): the editor stays
+  // open on the same inputs and the list reloads with the saved page.
+  const handleSaveCommunityResource = useCallback(async (options?: { keepEditing?: boolean }) => {
+    const keepEditing = options?.keepEditing === true;
     const current = argsRef.current;
     const session = await resolveUsableSession(current.session, current.ensureSession);
     if (!session || !current.activeCommunityId) return false;
@@ -374,7 +378,7 @@ export function useCommunityResourceController<
         payload,
       });
 
-      resetResourceEditor(true);
+      if (!keepEditing) resetResourceEditor(true);
       await loadCommunityResources(current.activeCommunityId, session);
       return true;
     } catch (error) {
@@ -389,6 +393,13 @@ export function useCommunityResourceController<
       current.setIsSavingResource(false);
     }
   }, [loadCommunityResources, resetResourceEditor]);
+
+  const handleUploadCommunityResourceImage = useCallback(async (file: File | Blob) => {
+    const current = argsRef.current;
+    const session = await resolveUsableSession(current.session, current.ensureSession);
+    if (!session || !current.activeCommunityId) throw new Error("Sign in again to upload images.");
+    return uploadCloudCommunityResourceImage({ session, communityId: current.activeCommunityId, file });
+  }, []);
 
   const handleSaveCommunityResourceModule = useCallback(async () => {
     const current = argsRef.current;
@@ -648,7 +659,10 @@ export function useCommunityResourceController<
     return true;
   }, [loadCommunityResources, resetResourceEditor]);
 
-  const handleCreateBlankPageDraft = useCallback(async (moduleId: string): Promise<ResourceT | null> => {
+  const handleCreateBlankPageDraft = useCallback(async (
+    moduleId: string,
+    lesson?: { order: number },
+  ): Promise<ResourceT | null> => {
     const current = argsRef.current;
     const session = await resolveUsableSession(current.session, current.ensureSession);
     if (!session || !current.activeCommunityId) return null;
@@ -665,6 +679,7 @@ export function useCommunityResourceController<
         url: null,
         pinned: false,
         module_id: moduleId,
+        ...(lesson ? { lesson } : {}),
       };
       if (current.includeFileKeyOnSave) {
         payload.file_key = null;
@@ -856,6 +871,7 @@ export function useCommunityResourceController<
     handleReorderCommunityResources,
     handleMoveCommunityResourceToModule,
     handleSaveCommunityResource,
+    handleUploadCommunityResourceImage,
     handleDeleteResource,
     handleCreateBlankPageDraft,
     handleAddCommunitySources,

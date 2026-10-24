@@ -8385,6 +8385,48 @@ export const generateCommunityResourceSourceUploadUrl = mutation({
   },
 });
 
+// Lesson images go up through the same upload URL as source files; this
+// confirms the upload is a picture of a sane size and hands back the address
+// the lesson body links to. Anything else is deleted, not kept.
+const COMMUNITY_RESOURCE_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"]);
+export const COMMUNITY_RESOURCE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+export const resolveCommunityResourceImageUrl = mutation({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    communityId: v.id("communities"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({
+      ctx,
+      userId: args.userId,
+      authSubject: args.authSubject ?? null,
+    });
+    await requireCommunityManager({
+      ctx,
+      communityId: args.communityId,
+      userId,
+    });
+    const file = await ctx.db.system.get(args.storageId);
+    if (!file) return { url: null, problem: "community_resource_image_missing" };
+    const contentType = String(file.contentType ?? "").toLowerCase();
+    // Refusals return instead of throwing, so the delete isn't rolled back.
+    const problem = !COMMUNITY_RESOURCE_IMAGE_TYPES.has(contentType)
+      ? "community_resource_image_type"
+      : file.size > COMMUNITY_RESOURCE_IMAGE_MAX_BYTES
+        ? "community_resource_image_too_large"
+        : null;
+    if (problem) {
+      await ctx.storage.delete(args.storageId);
+      return { url: null, problem };
+    }
+    const url = await ctx.storage.getUrl(args.storageId);
+    return url ? { url, problem: null } : { url: null, problem: "community_resource_image_missing" };
+  },
+});
+
 export const getCommunitySourceIngestionStateInternal = internalQuery({
   args: {
     userId: v.optional(v.id("users")),
@@ -10066,6 +10108,7 @@ export const saveCommunityResource = mutation({
       communityId: community._id,
       moduleId,
     });
+    const lessonFields = hasOwnField(payload, "lesson") ? normalizeCommunityLessonFields(payload.lesson) : null;
 
     const id = await ctx.db.insert("communityResources" as any, {
       communityId: community._id,
@@ -10097,6 +10140,8 @@ export const saveCommunityResource = mutation({
           }
         : {}),
       pinned,
+      // "Add lesson" makes a lesson, so its buttons, checklists and quizzes work.
+      ...(role === "page" && lessonFields ? { lesson: lessonFields } : {}),
       sortOrder: nextSortOrder,
       createdAt: nowMs,
       updatedAt: nowMs,
