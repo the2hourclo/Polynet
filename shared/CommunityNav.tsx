@@ -38,6 +38,8 @@ type CommunityNavChannel = {
 
 type CommunityNavProps = {
   memberNextStep?: ReactNode;
+  /** Shown under the channels, like the owner's other communities. */
+  footer?: ReactNode;
   activeCommunity: CommunityNavCommunityLike;
   hideIdentity?: boolean;
   hideIdentitySettings?: boolean;
@@ -167,6 +169,7 @@ export const CommunityNav = memo(function CommunityNav({
   isLoadingAccess = false,
   onSelectTab,
   memberNextStep,
+  footer,
   onCopyCommunityJoinLink,
   lockedTabs = {},
   channels = [],
@@ -676,6 +679,7 @@ export const CommunityNav = memo(function CommunityNav({
           </button>
         </div>
       ) : null}
+      {footer}
       {isAddChannelOpen ? (
         <div
           className="community-channel-modal-backdrop"

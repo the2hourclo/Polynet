@@ -2807,6 +2807,15 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_membership_createdAt", ["membershipId", "createdAt"]),
 
+  // Who sent a member to a community: the `ref` on the join link they arrived
+  // by, kept first-touch. Affiliates and payouts build on this later.
+  communityReferrals: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    ref: v.string(),
+    capturedAt: v.number(),
+  }).index("by_community_user", ["communityId", "userId"]),
+
   // A member's own widget answers (community site embeds), kept on the server so
   // they follow the member across devices. Member data: only the member reads it.
   communityEmbedValues: defineTable({

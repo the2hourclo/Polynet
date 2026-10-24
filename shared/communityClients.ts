@@ -205,3 +205,9 @@ export function deriveCommunityClientStuck(args: {
   const days = args.days ?? COMMUNITY_CLIENT_STUCK_DEFAULT_DAYS;
   return args.nowMs - args.lastProgressAtMs >= days * DAY_MS;
 }
+
+/** A join-link ref: letters, digits, dash and underscore, up to 64. Anything else is ignored. */
+export function normalizeCommunityReferralRef(value: unknown): string | null {
+  const ref = typeof value === "string" ? value.trim() : "";
+  return /^[A-Za-z0-9_-]{1,64}$/.test(ref) ? ref : null;
+}

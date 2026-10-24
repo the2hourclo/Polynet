@@ -13,8 +13,10 @@ import { bootConvexProbe } from "../../../shared/convexRuntime";
 import { buildTelemetryRouteLabel } from "../../../shared/routePrivacy";
 import { CommunityVisualIdentityRegistryProvider } from "../../../shared/CommunityVisualIdentityRegistry";
 import { captureDistributionAttributionFromLocation } from '../../../shared/distributionAttribution';
+import { captureCommunityReferralFromLocation } from '../../../shared/communityReferralCapture';
 
 captureDistributionAttributionFromLocation();
+captureCommunityReferralFromLocation();
 
 type ErrorBoundaryState = {
   error: Error | null;

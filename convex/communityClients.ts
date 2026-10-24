@@ -378,7 +378,7 @@ async function listClients(ctx: any, args: any) {
 
   const clients = await Promise.all(page.page.map(async (membership: any) => {
     const active = communityMembershipRowIsActive(membership);
-    const [profile, subscription, progressRows, forms, facts, values, milestoneState, ownerEvents] = await Promise.all([
+    const [profile, subscription, progressRows, forms, facts, values, milestoneState, ownerEvents, referral] = await Promise.all([
       resolveUserProfileDisplayProjection(ctx, membership.userId),
       readLatestSubscription(ctx, membership._id),
       readProgressRows(ctx, args.communityId, membership.userId),
@@ -389,6 +389,8 @@ async function listClients(ctx: any, args: any) {
         .take(COMMUNITY_CLIENT_PROPERTY_LIMIT * 4),
       workflow && active ? getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id }) : Promise.resolve(null),
       readOwnerEvents(ctx, membership._id, 50),
+      ctx.db.query("communityReferrals")
+        .withIndex("by_community_user", (q: any) => q.eq("communityId", args.communityId).eq("userId", membership.userId)).first(),
     ]);
     const stage = workflow && active && workflow.milestones.length
       ? (() => { try { return resolveCurrentMilestone({ workflow, membership, state: milestoneState }); } catch { return null; } })()
@@ -429,6 +431,8 @@ async function listClients(ctx: any, args: any) {
       stuck: deriveCommunityClientStuck({ active, lastProgressAtMs, nowMs, days: stuckDays }),
       last_flagged_at: toIso(ownerEvents.find((row: any) => row.type === "flagged")?.createdAt),
       last_contacted_at: toIso(ownerEvents.find((row: any) => row.type === "contacted")?.createdAt),
+      // The ref on the join link this member arrived by, first touch.
+      referred_by: referral ? referral.ref : null,
       facts: facts.slice(0, FACTS_PER_CLIENT).map((fact: any) => ({ kind: fact.kind, body: fact.body, provenance: fact.provenance })),
       properties: Object.fromEntries(definitions.map((property: any) => [property.key, currentValue(property, valueByKey.get(property.key) ?? null)])),
     };

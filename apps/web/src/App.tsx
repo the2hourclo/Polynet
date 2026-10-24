@@ -8,6 +8,7 @@ import {
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
 import { WebCommunityWelcome } from "./components/WebCommunityWelcome";
+import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
   beginBrowserSignedOutState,
   getAuthPublicKey,
@@ -2923,6 +2924,8 @@ export default function App() {
     communityChannels: activeCommunityChannels,
     memberNextStep: session && activeCommunityId && canViewMembersActiveCommunity && !isPublicCommunityFunnel
       ? <WebCommunityNextStep key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId} session={session} ensureSession={ensureUsableAuthSession} /> : null,
+    communityNavFooter: activeCommunityId && !isPublicCommunityFunnel
+      ? <WebCommunitySiblings communityId={activeCommunityId} onOpen={(slug) => navigateTo(`/c/${encodeURIComponent(slug)}`)} /> : null,
     isLoadingCommunityChannels: isLoadingActiveCommunityChannels,
     selectedCommunityChannelSlug: activeCommunityChannelSlug,
     communityChannelIndicators,

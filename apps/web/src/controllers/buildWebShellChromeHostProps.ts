@@ -16,6 +16,7 @@ type CommunityLike = CommunityShellCommunity;
 export function buildWebShellChromeHostProps(params: {
   onOpenCommunityMembers: () => void;
   memberNextStep?: ReactNode;
+  communityNavFooter?: ReactNode;
   showMobileAppShell: boolean;
   showMobileSettingsShell: boolean;
   showMobilePublicFunnel: boolean;
@@ -243,6 +244,7 @@ export function buildWebShellChromeHostProps(params: {
       onSelectCommunityTabFromMobile: params.handleSelectCommunityTabFromMobile,
       onCopyCommunityJoinLink: params.onCopyCommunityJoinLink,
       memberNextStep: params.memberNextStep,
+      communityNavFooter: params.communityNavFooter,
       canOpenDirectMessages: params.canOpenDirectMessages,
       directMessagesUnreadCount: params.directMessagesUnreadCount,
       onOpenDiscover: () => {
