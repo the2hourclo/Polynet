@@ -429,6 +429,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
           <LessonEditor
             key={resource.id}
             initialMarkdown={editor.bodyInput}
+            followAlong={Boolean(resource.lesson)}
             onChange={editor.onChangeBody}
             onUploadImage={editor.onUploadImage ?? null}
             autoFocus={isBodyEditing}
