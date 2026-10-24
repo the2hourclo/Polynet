@@ -142,7 +142,43 @@ when the concept genuinely asks for it:
 If you remove the community's name and logo, a member should still recognize
 their community. If they wouldn't, it isn't done.
 
-## 8. Look at it, twice
+## 8. Clean in one shot
+
+The first version the founder sees should already feel finished. Working is
+not the bar; clean is. Don't show a functional draft and wait for them to
+point out the mess.
+
+Set the system before you style a single screen: the type scale (four or
+five sizes), two or three weights, the spacing scale, one radius, one border
+colour, one shadow or none, one accent. Then build every screen only from
+those. Most "unclean" UI is a dozen near-identical values that drifted.
+
+Then run this pass on every screen before anyone sees it:
+
+- **Remove before you add.** Count borders, dividers, badges, icons and
+  colours. Delete every one that doesn't carry meaning. Separate with space
+  first, a hairline second, a box last.
+- **One line of metadata, quiet.** Author, time, counts and category sit
+  together in one muted, smaller line, not as separate chips and badges.
+- **Three levels of text, no more,** on any component: title, body, meta.
+  Differ by size and weight or by colour, rarely all three.
+- **Padding you can feel:** at least 16px inside small components and 24px
+  inside cards and panels, the same value on every side unless there's a
+  reason.
+- **Everything on the grid:** left edges line up down the page, icons share
+  one size and sit on the text's centre line, gaps repeat exactly.
+- **Controls look like one family:** same height, radius and type for
+  buttons, inputs and selects; one primary action per view, the rest quiet.
+- **Real, trimmed content:** titles that fit, previews clamped to two lines,
+  no "Untitled", no test data, no lorem.
+- **Empty and edge states look intentional:** one item, a long name, no
+  avatar, nothing yet.
+
+Compare it side by side with the best product in the same category (the
+community app, course platform or forum members already admire). If yours
+looks busier, louder or less resolved, it isn't ready.
+
+## 9. Look at it, twice
 
 Never ship from the code alone. Look at the real thing at 390px and 1440px
 (the preview, a browser tool, or screenshots from the founder) and ask:
