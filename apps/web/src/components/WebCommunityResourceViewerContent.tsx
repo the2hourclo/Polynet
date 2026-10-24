@@ -388,7 +388,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     }
 
     if (hasBody) {
-      const prose = <LessonElementScopeContext.Provider value={lessonScope}>{renderedBodyMarkdown}</LessonElementScopeContext.Provider>;
+      const prose = renderedBodyMarkdown;
       if (canEdit) {
         return (
           <div
@@ -476,7 +476,8 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
             </div>
           ) : null}
 
-          {renderBodyContent()}
+          {/* Around every place the body shows, read view or editor fallback alike. */}
+          <LessonElementScopeContext.Provider value={lessonScope}>{renderBodyContent()}</LessonElementScopeContext.Provider>
 
           {verificationLink ? (
             <a
