@@ -102,6 +102,14 @@ export async function installGuide(dir) {
     await cp(join(GUIDE, name), join(dir, name));
     written.push(name);
   }
+  written.push(...await installSkills(dir));
+  return written;
+}
+
+// Put Polynet's skills in any folder (a site, or a community design from
+// `polynet init`), replacing older copies. Returns what it wrote.
+export async function installSkills(dir) {
+  const written = [];
   const skills = (await readdir(join(GUIDE, "skills"), { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name);
   for (const skillDir of SKILL_DIRS) {
     for (const skill of skills) {

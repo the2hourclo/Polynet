@@ -20,7 +20,7 @@ npx @polynet/cli deploy
   later deploys are just `npx @polynet/cli deploy`.
 - Only changed files upload. The site is live at `https://<slug>.polynet.page`.
 - There's no template: `create` puts `AGENTS.md`, `CLAUDE.md` and Polynet's
-  skills (build-site, design, sdk, accessibility, deploy-verify) in the
+  skills (build-site, design, ui-design, sdk, accessibility, deploy-verify) in the
   folder, under `.agents/skills` and `.claude/skills`. Your agent asks about
   your community, shows you three directions live, and builds the one you
   pick. `polynet skills` adds or updates the skills in any site folder.
@@ -79,6 +79,10 @@ npx @polynet/cli dev my-community       # saves theme.json to the draft on every
 npx @polynet/cli publish my-community   # makes it the theme members see
 ```
 
+- `polynet init` also puts Polynet's skills in the folder, including
+  `polynet-ui-design`: design taste and craft for your agent (type, colour,
+  space, polish, avoiding the generic AI look). It's guidance, not a style:
+  your community's look is still yours.
 - `polynet init` without `--template` lists the templates. A template is a
   design with no content: `template.json` and `theme.json` in `templates/<name>/`.
 - A layout template with `"apply": { "theme": "keep_existing" }` keeps your own

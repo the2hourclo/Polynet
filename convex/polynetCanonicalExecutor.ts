@@ -42,6 +42,7 @@ import { executePlatformOperation } from "./platformOperationExecutor.ts";
 import { checkSite, formatProblems, isCheckedFile } from "../packages/polynet-cli/checks.mjs";
 import type { CommunityCustomFunnelSlot } from "../shared/communityTypes.ts";
 import { describeCommunityDesignContract } from "../shared/communityDesignContract.ts";
+import { COMMUNITY_DESIGN_GUIDE_MARKDOWN } from "../shared/communityDesignGuide.ts";
 
 export type PolynetCanonicalExecutionResult =
   | { ok: true; value: Record<string, unknown> }
@@ -106,6 +107,9 @@ const DESIGN_OPERATIONS = DESIGN_KINDS.flatMap(kind => [designSaveOperation(kind
 const designKindOf = (operation: string) => DESIGN_KINDS.find(kind =>
   operation === designSaveOperation(kind) || operation === designPublishOperation(kind));
 const designKindAt = (localPath: string) => DESIGN_KINDS.find(kind => DESIGN_RECORDS[kind].path === localPath);
+// Design taste guidance (the polynet-ui-design skill the CLI ships), for agents
+// that design a community over the MCP without the CLI. Read-only.
+const DESIGN_GUIDE_PATH = "/builder/design-guide.md";
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
@@ -1235,6 +1239,7 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, WORKFLOW_MEMBERS_DIRECTORY), kind: "directory", type: "builder", name: "Member workflow context and form responses" },
           { path: mountedPath(target.communitySlug, BUILDER_PROGRESS_DIRECTORY), kind: "directory", type: "builder", name: "Member course progress" },
           ...DESIGN_KINDS.map(kind => ({ path: mountedPath(target.communitySlug, DESIGN_RECORDS[kind].path), kind: "document", type: "builder", name: DESIGN_RECORDS[kind].name })),
+          { path: mountedPath(target.communitySlug, DESIGN_GUIDE_PATH), kind: "document", type: "builder", name: "Design guide: taste and craft for this community's look" },
           {
             path: mountedPath(
               target.communitySlug,
@@ -1482,6 +1487,13 @@ async function executeCanonicalRead(args: {
       return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
         writable: false, searchable: false } };
     } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
+  }
+
+  if (target.localPath === DESIGN_GUIDE_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    return { ok: true, value: { path: mountedPath(target.communitySlug, DESIGN_GUIDE_PATH), body: COMMUNITY_DESIGN_GUIDE_MARKDOWN,
+      truncated: false, total_chars: COMMUNITY_DESIGN_GUIDE_MARKDOWN.length, next_offset: null, writable: false, searchable: false } };
   }
 
   if (target.localPath === SELF_PROGRESS_PATH) {
