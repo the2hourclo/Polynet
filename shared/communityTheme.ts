@@ -56,8 +56,8 @@ export type CommunityThemeResult =
   | { ok: true; theme: CommunityThemeV1 }
   | { ok: false; problems: CommunityThemeProblem[] };
 
-// Faces a theme may use. "polynet" faces ship with Polynet (Excalifont is
-// still to be added; the AIEB preview inlines it); "google" faces load
+// Faces a theme may use. "polynet" faces ship with Polynet (Excalifont from
+// apps/web/public/fonts/excalifont.woff2); "google" faces load
 // from Google Fonts; "system" faces are installed on the device. Display faces
 // are for headings only: long text set in them is hard to read.
 type CommunityThemeFont = {

@@ -86,7 +86,11 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     canViewPolynet: context.canViewGraph,
   });
   return (
-    <section className="community-knowledge-page" aria-label="Knowledge">
+    <section
+      className="community-knowledge-page"
+      aria-label="Knowledge"
+      data-reading={activeView === "resources" && resources.state.selectedModuleId ? "" : undefined}
+    >
       <div className="community-knowledge-header">
         <h1>Knowledge</h1>
         <WebPlatformTabList
