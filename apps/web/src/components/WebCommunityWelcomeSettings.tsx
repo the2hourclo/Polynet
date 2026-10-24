@@ -92,13 +92,27 @@ export function WebCommunityWelcomeSettings(props: Props) {
   const lessonLabel = (lessonId: string) => optionById.get(lessonId)?.title ?? (options ? "Lesson no longer published" : "Loading…");
 
   const edit = (patch: Partial<CloudCommunityWelcomePageDraft>) => { setSaved(false); setDraft((current) => ({ ...current, ...patch })); };
+  // Reordering moves the focused button in the DOM, and removing deletes it, so
+  // the browser drops focus to the page. Put it on the first of these that can take it.
+  const focusFirst = (ids: string[]) => requestAnimationFrame(() => {
+    for (const target of ids) {
+      const element = document.getElementById(target) as HTMLButtonElement | HTMLSelectElement | null;
+      if (element && !element.disabled) { element.focus(); return; }
+    }
+  });
   const moveLesson = (index: number, by: -1 | 1) => {
     const lessonIds = [...draft.lessonIds];
     const [moved] = lessonIds.splice(index, 1);
     lessonIds.splice(index + by, 0, moved);
     edit({ lessonIds });
-    // Keep focus on the moved lesson's same button so keyboard users can keep moving it.
-    requestAnimationFrame(() => document.getElementById(`${id}-lesson-${moved}-${by < 0 ? "up" : "down"}`)?.focus());
+    // The same button lets keyboard users keep moving it; at either end that one is disabled.
+    const [same, other] = by < 0 ? ["up", "down"] : ["down", "up"];
+    focusFirst([`${id}-lesson-${moved}-${same}`, `${id}-lesson-${moved}-${other}`, `${id}-lesson-${moved}-remove`]);
+  };
+  const removeLesson = (index: number) => {
+    const next = draft.lessonIds[index + 1] ?? draft.lessonIds[index - 1];
+    edit({ lessonIds: draft.lessonIds.filter((_, other) => other !== index) });
+    focusFirst([...(next ? [`${id}-lesson-${next}-remove`] : []), `${id}-add-lesson`, `${id}-steps`]);
   };
   const save = async () => {
     if (!props.onSaveWelcomePage) return;
@@ -168,7 +182,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
         </section>
 
         <section className="welcome-settings-section" aria-labelledby={`${id}-steps`}>
-          <h2 id={`${id}-steps`}>Steps</h2>
+          <h2 id={`${id}-steps`} tabIndex={-1}>Steps</h2>
           <p className="welcome-settings-help">Members do these in order: forms first, then lessons they mark done.</p>
           {stepCount ? (
             <ol className="welcome-settings-steps">
@@ -193,8 +207,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
                         aria-label={`Move ${name} earlier`} title="Move earlier" onClick={() => moveLesson(index, -1)}><ArrowUp size={15} aria-hidden="true" /></button>
                       <button type="button" id={`${id}-lesson-${lessonId}-down`} className="welcome-settings-icon-button" disabled={index === draft.lessonIds.length - 1}
                         aria-label={`Move ${name} later`} title="Move later" onClick={() => moveLesson(index, 1)}><ArrowDown size={15} aria-hidden="true" /></button>
-                      <button type="button" className="welcome-settings-icon-button" aria-label={`Remove ${name}`} title="Remove"
-                        onClick={() => edit({ lessonIds: draft.lessonIds.filter((other) => other !== lessonId) })}><X size={15} aria-hidden="true" /></button>
+                      <button type="button" id={`${id}-lesson-${lessonId}-remove`} className="welcome-settings-icon-button" aria-label={`Remove ${name}`} title="Remove"
+                        onClick={() => removeLesson(index)}><X size={15} aria-hidden="true" /></button>
                     </span>
                   </li>
                 );
