@@ -20,7 +20,7 @@ import { renderCommunityMemberSelfContext } from "../shared/communityMemberSelfC
 import { recordTrustedCommunitySourceTraceCore } from "./communityIntelligenceDirectory";
 import { settleCommunityIntelligenceFromDigestItemsCore } from "./communityCompilerCandidates";
 import { planContentPush, resolveCourses, stageChangeset } from "../packages/polynet-cli/content.mjs";
-import { publishTheme, readTheme, saveThemeDraft } from "../packages/polynet-cli/design.mjs";
+import { publishDesignDraft, publishTheme, readDesignRecord, readTheme, saveDesignDraft, saveThemeDraft } from "../packages/polynet-cli/design.mjs";
 
 const selfContextPath = "/communities/canonical-community/members/me/context.md";
 test.each(["deployment", "member", "community", "config", "expired", "disabled"])("pilot %s denial precedes remote initiation", async mode => {
@@ -649,6 +649,7 @@ const modules = import.meta.glob([
   "./communityResources.ts",
   "./communityResourceProgress.ts",
   "./communityThemes.ts",
+  "./communityLayouts.ts",
   "./polynetCanonicalReceipts.ts",
   "./_generated/**/*.*s",
 ]);
@@ -4101,4 +4102,46 @@ test("a founder's agent drafts and publishes the community theme through the MCP
   expect(JSON.stringify(listing)).not.toContain("community.theme");
   const ownerListing = await owner("polynet_list", { path: `/communities/${community}/capabilities/` });
   expect(JSON.stringify(ownerListing)).toContain("community.theme.save_draft");
+});
+
+test("the layout is its own design record over the MCP: publishing it never resets the theme", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+
+  await saveThemeDraft({ community, theme: { version: 1, radius: 0 }, expectedRevision: 0, call: owner });
+  await publishTheme({ community, expectedRevision: 1, call: owner });
+
+  expect(await readDesignRecord({ community, kind: "layout", call: owner })).toMatchObject({ contract: 1, draft_revision: 0, published: null });
+  const top = { version: 1, navigation: { position: "top" } };
+  expect(await saveDesignDraft({ community, kind: "layout", record: top, expectedRevision: 0, call: owner }))
+    .toMatchObject({ draft_revision: 1, published: null, has_unpublished_changes: true });
+  const refusal = await saveDesignDraft({ community, kind: "layout", record: { version: 1, pages: { chat: { aside: ["leaderboard"] } } },
+    expectedRevision: 1, call: owner }).catch((error: any) => error);
+  expect(refusal.message).toContain("layout_invalid");
+  await expect(saveDesignDraft({ community, kind: "layout", record: top, expectedRevision: 0, call: owner })).rejects.toThrow("layout_revision_conflict");
+  // The record key must match the operation: a theme can't be sent to the layout.
+  await expect(owner("polynet_call", { operation: "community.layout.save_draft", version: 1,
+    target: `/communities/${community}/capabilities/community.layout.save_draft.json`,
+    input: { theme: top, expected_draft_revision: 1 }, idempotency_key: "layout-wrong-key" })).rejects.toThrow("invalid_tool_args");
+
+  expect(await publishDesignDraft({ community, kind: "layout", expectedRevision: 1, call: owner })).toMatchObject({ has_unpublished_changes: false });
+  expect((await t.query(api.communityLayouts.getPublishedCommunityLayout, { communityId: fixture.communityId }) as any)?.navigation?.position).toBe("top");
+  expect((await t.query(api.communityThemes.getPublishedCommunityTheme, { communityId: fixture.communityId }))?.radius).toBe(0);
+
+  await expect(readDesignRecord({ community, kind: "layout", call: member })).rejects.toThrow("semantic_not_found");
+  const listing = await member("polynet_list", { path: `/communities/${community}/capabilities/` });
+  expect(JSON.stringify(listing)).not.toContain("community.layout");
+  const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
+  expect(JSON.stringify(builder)).toContain("/builder/layout.json");
 });

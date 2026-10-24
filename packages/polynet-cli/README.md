@@ -67,8 +67,11 @@ Limits: static files only, up to 50 MB and 2,000 files.
 
 ## The community's look
 
-Edit a community's theme like a website: files in a folder, a live preview,
-then publish. Members see nothing until you publish.
+Edit a community's look like a website: files in a folder, a live preview,
+then publish. Members see nothing until you publish. `theme.json` holds the
+colours, type and shape; `layout.json` (optional) holds where the navigation
+sits, which tabs show, and how the community page is arranged. They are
+separate records, so publishing one never resets the other.
 
 ```sh
 npx @polynet/cli init my-community --template stopwatch --community the-2-hour-club
@@ -82,13 +85,15 @@ npx @polynet/cli publish my-community   # makes it the theme members see
   colours and fonts: `init --community` writes the community's published theme
   into `theme.json` and takes only the template's layout. Its theme is used only
   when the community has none. Theme and layout never reset each other.
-- `polynet pull` copies the community's current draft into `theme.json`.
+- `polynet pull` copies the community's current drafts into `theme.json`, and
+  into `layout.json` when the community has a layout of its own.
 - `polynet dev` checks each save against the design contract first; a broken
-  theme shows its problems and never reaches the draft. The preview is the
+  theme or layout shows its problems and never reaches the draft. The preview is the
   real app at `/c/<slug>?design=draft`, which only the owner and admins can see.
 - A save or publish refuses if someone else changed the draft since your last
   save or pull. Run `polynet pull` and redo your change on top.
 
-Agents can do the same through the MCP: read `/communities/<slug>/builder/theme.json`,
-then call `community.theme.save_draft` and `community.theme.publish`. What a
+Agents can do the same through the MCP: read `/communities/<slug>/builder/theme.json`
+or `layout.json`, then call `community.theme.save_draft` and `community.theme.publish`
+(or the `community.layout.*` pair). What a
 theme may change is listed in `docs/community-design-contract.md`.

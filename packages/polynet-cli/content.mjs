@@ -17,6 +17,7 @@ import { basename, join } from "node:path";
 import { parseCommunityLessonMarkdown } from "./contracts/lesson.mjs";
 import { parseCommunityEmbedBlock, COMMUNITY_EMBED_LANGUAGE } from "./contracts/embed.mjs";
 import { normalizeCommunityTheme } from "./contracts/theme.mjs";
+import { normalizeCommunityLayout } from "./contracts/layout.mjs";
 
 // The server's limits (convex/communityResources.ts). Over them, the server
 // cuts text off silently, so check refuses first.
@@ -208,6 +209,16 @@ export function checkTheme(raw, path = "theme.json") {
     level: "error",
     path: problem.path ? `${path} → ${problem.path}` : path,
     message: problem.suggestion ? `${problem.message} Try ${problem.suggestion}.` : problem.message,
+  }));
+}
+
+export function checkLayout(raw, path = "layout.json") {
+  const result = normalizeCommunityLayout(raw);
+  if (result.ok) return [];
+  return result.problems.map((problem) => ({
+    level: "error",
+    path: problem.path ? `${path} → ${problem.path}` : path,
+    message: problem.message,
   }));
 }
 

@@ -86,11 +86,26 @@ const SELF_PROGRESS_PATH = "/members/me/progress.json";
 const LESSON_RESPONSE_OPERATION = "community.resource.response.set";
 const BUILDER_PROGRESS_DIRECTORY = "/builder/progress/";
 // A community's look (shared/communityDesignContract.ts): the founder's own agent
-// or `polynet dev` reads it, saves drafts and publishes, like the app's editor.
-const BUILDER_THEME_PATH = "/builder/theme.json";
-const THEME_SAVE_DRAFT_OPERATION = "community.theme.save_draft";
-const THEME_PUBLISH_OPERATION = "community.theme.publish";
-const THEME_OPERATIONS = [THEME_SAVE_DRAFT_OPERATION, THEME_PUBLISH_OPERATION];
+// or `polynet dev` reads each design record, saves drafts and publishes, like the
+// app's editor. Theme and layout are separate records, so one never resets the other.
+const DESIGN_RECORDS = {
+  theme: { path: "/builder/theme.json", module: "communityThemes", internal: "Theme", name: "Community theme (draft and published)",
+    record: "a community theme v1 record (docs/community-theme-v1.md); left-out settings keep Polynet's look",
+    invalid: "problems lists each setting that breaks the contract, with a passing colour for contrast",
+    forbidden: ["style_polynet_navigation"] },
+  layout: { path: "/builder/layout.json", module: "communityLayouts", internal: "Layout", name: "Community layout (draft and published)",
+    record: "a community layout v1 record (shared/communityLayout.ts): navigation, width and page blocks; {} is Polynet's default",
+    invalid: "problems lists each key, tab or block the contract doesn't allow",
+    forbidden: ["move_manager_tabs"] },
+} as const;
+type DesignRecordKind = keyof typeof DESIGN_RECORDS;
+const DESIGN_KINDS = Object.keys(DESIGN_RECORDS) as DesignRecordKind[];
+const designSaveOperation = (kind: DesignRecordKind) => `community.${kind}.save_draft`;
+const designPublishOperation = (kind: DesignRecordKind) => `community.${kind}.publish`;
+const DESIGN_OPERATIONS = DESIGN_KINDS.flatMap(kind => [designSaveOperation(kind), designPublishOperation(kind)]);
+const designKindOf = (operation: string) => DESIGN_KINDS.find(kind =>
+  operation === designSaveOperation(kind) || operation === designPublishOperation(kind));
+const designKindAt = (localPath: string) => DESIGN_KINDS.find(kind => DESIGN_RECORDS[kind].path === localPath);
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
@@ -699,10 +714,10 @@ function capabilityDocument(args: {
   const isSiteDeployCapability = args.operation === SITE_DEPLOY_OPERATION &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
-  const isThemeCapability = THEME_OPERATIONS.includes(args.operation) &&
+  const isDesignCapability = DESIGN_OPERATIONS.includes(args.operation) &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
-  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isProgressCapability && !isSiteDeployCapability && !isThemeCapability) {
+  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isProgressCapability && !isSiteDeployCapability && !isDesignCapability) {
     return null;
   }
   const operationDefinition: Record<string, unknown> = {
@@ -710,7 +725,7 @@ function capabilityDocument(args: {
     version: 1,
     tool: "polynet_call",
     target: `/communities/${args.target.communitySlug}/capabilities/${args.operation}.json`,
-    authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability || isThemeCapability ? "builder" : "member",
+    authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability || isDesignCapability ? "builder" : "member",
     idempotency_required: true,
   };
   if (isProgressCapability && args.operation === LESSON_RESPONSE_OPERATION) {
@@ -745,20 +760,21 @@ function capabilityDocument(args: {
       effects: ["publish_community_site"],
       forbidden_effects: ["server_code", "change_access", "deploy_other_community"],
     };
-  } else if (isThemeCapability && args.operation === THEME_SAVE_DRAFT_OPERATION) {
-    operationDefinition.input = { required: ["theme", "expected_draft_revision"],
-      theme: "a community theme v1 record (docs/community-theme-v1.md); left-out settings keep Polynet's look",
-      expected_draft_revision: `draft_revision from ${BUILDER_THEME_PATH}`,
-      result: "the saved draft and its new draft_revision. Only managers see a draft, in the app's draft preview",
-      refusals: { theme_invalid: "problems lists each setting that breaks the contract, with a passing colour for contrast",
-        theme_revision_conflict: "the draft changed since you read it" },
-      effects: ["replace_theme_draft"], forbidden_effects: ["publish", "change_other_communities", "style_polynet_navigation"] };
-  } else if (isThemeCapability) {
-    operationDefinition.input = { required: ["expected_draft_revision"],
-      expected_draft_revision: "the draft_revision you previewed; publishing refuses if the draft changed since",
-      result: "the published theme, now what members see",
-      refusals: { theme_revision_conflict: "the draft changed since you previewed it", theme_no_draft: "nothing saved yet" },
-      effects: ["publish_theme_draft"], forbidden_effects: ["change_access", "change_content"] };
+  } else if (isDesignCapability) {
+    const kind = designKindOf(args.operation)!;
+    const record = DESIGN_RECORDS[kind];
+    operationDefinition.input = args.operation === designSaveOperation(kind)
+      ? { required: [kind, "expected_draft_revision"],
+        [kind]: record.record,
+        expected_draft_revision: `draft_revision from ${record.path}`,
+        result: "the saved draft and its new draft_revision. Only managers see a draft, in the app's draft preview",
+        refusals: { [`${kind}_invalid`]: record.invalid, [`${kind}_revision_conflict`]: "the draft changed since you read it" },
+        effects: [`replace_${kind}_draft`], forbidden_effects: ["publish", "change_other_communities", ...record.forbidden] }
+      : { required: ["expected_draft_revision"],
+        expected_draft_revision: "the draft_revision you previewed; publishing refuses if the draft changed since",
+        result: `the published ${kind}, now what members see`,
+        refusals: { [`${kind}_revision_conflict`]: "the draft changed since you previewed it", [`${kind}_no_draft`]: "nothing saved yet" },
+        effects: [`publish_${kind}_draft`], forbidden_effects: ["change_access", "change_content"] };
   } else if (isWorkflowApprovalCapability) {
     operationDefinition.input = { required: ["membership_ref", "expected_activation_sequence", "review_ref"],
       review_ref: "exact current workflow.approval observation from the private builder dossier",
@@ -1162,7 +1178,7 @@ async function executeCanonicalList(args: {
       ...(args.evidenceSurface === "community_funnel_builder"
         ? []
         : MEMBER_CAPABILITIES),
-      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...THEME_OPERATIONS].filter(operation => capabilityDocument({ target, operation,
+      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...DESIGN_OPERATIONS].filter(operation => capabilityDocument({ target, operation,
         evidenceSurface: args.evidenceSurface, principalKind: args.principalKind })),
     ];
     return {
@@ -1218,7 +1234,7 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, POLYNET_JOIN_REQUESTS_DIRECTORY_PATH), kind: "directory", type: "builder", name: "Pending admission requests" },
           { path: mountedPath(target.communitySlug, WORKFLOW_MEMBERS_DIRECTORY), kind: "directory", type: "builder", name: "Member workflow context and form responses" },
           { path: mountedPath(target.communitySlug, BUILDER_PROGRESS_DIRECTORY), kind: "directory", type: "builder", name: "Member course progress" },
-          { path: mountedPath(target.communitySlug, BUILDER_THEME_PATH), kind: "document", type: "builder", name: "Community theme (draft and published)" },
+          ...DESIGN_KINDS.map(kind => ({ path: mountedPath(target.communitySlug, DESIGN_RECORDS[kind].path), kind: "document", type: "builder", name: DESIGN_RECORDS[kind].name })),
           {
             path: mountedPath(
               target.communitySlug,
@@ -1451,16 +1467,18 @@ async function executeCanonicalRead(args: {
     } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
   }
 
-  if (target.localPath === BUILDER_THEME_PATH) {
+  const designKind = designKindAt(target.localPath);
+  if (designKind) {
     if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     try {
-      const theme = await args.ctx.runQuery((internal as any).communityThemes.readBuilderThemeInternal,
+      const { module, internal: name } = DESIGN_RECORDS[designKind];
+      const record = await args.ctx.runQuery((internal as any)[module][`readBuilder${name}Internal`],
         { userId: args.userId, communityId: target.communityId });
-      const payload = { contract: describeCommunityDesignContract().version, draft: theme.draft, draft_revision: theme.draftRevision,
-        published: theme.published, published_draft_revision: theme.publishedDraftRevision,
-        published_at: theme.publishedAt ? new Date(theme.publishedAt).toISOString() : null,
-        has_unpublished_changes: theme.hasUnpublishedChanges };
+      const payload = { contract: describeCommunityDesignContract().version, draft: record.draft, draft_revision: record.draftRevision,
+        published: record.published, published_draft_revision: record.publishedDraftRevision,
+        published_at: record.publishedAt ? new Date(record.publishedAt).toISOString() : null,
+        has_unpublished_changes: record.hasUnpublishedChanges };
       return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
         writable: false, searchable: false } };
     } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
@@ -2426,27 +2444,31 @@ async function executeCanonicalCall(args: {
         : canonicalError("form_request_unavailable", "Form request not available or submission not authorized.");
     }
   }
-  if (THEME_OPERATIONS.includes(operation)) {
-    const allowed = operation === THEME_SAVE_DRAFT_OPERATION ? ["theme", "expected_draft_revision"] : ["expected_draft_revision"];
+  const designOperationKind = designKindOf(operation);
+  if (designOperationKind) {
+    const kind = designOperationKind;
+    const { path, module, internal: name } = DESIGN_RECORDS[kind];
+    const saving = operation === designSaveOperation(kind);
+    const allowed = saving ? [kind, "expected_draft_revision"] : ["expected_draft_revision"];
     const revision = rawInput.expected_draft_revision;
+    const record = rawInput[kind];
     if (args.principalKind !== "external_mcp" || target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json` ||
         !Number.isSafeInteger(revision) || (revision as number) < 0 ||
-        (operation === THEME_SAVE_DRAFT_OPERATION && (!rawInput.theme || typeof rawInput.theme !== "object" || Array.isArray(rawInput.theme))) ||
+        (saving && (!record || typeof record !== "object" || Array.isArray(record))) ||
         Object.keys(rawInput).some(key => !allowed.includes(key)))
-      return canonicalError("invalid_tool_args", `Send ${allowed.join(" and ")}; read ${BUILDER_THEME_PATH} for the current draft_revision.`);
+      return canonicalError("invalid_tool_args", `Send ${allowed.join(" and ")}; read ${path} for the current draft_revision.`);
     try {
-      const value = await args.ctx.runMutation(operation === THEME_SAVE_DRAFT_OPERATION
-        ? (internal as any).communityThemes.saveBuilderThemeDraftInternal
-        : (internal as any).communityThemes.publishBuilderThemeDraftInternal,
+      const value = await args.ctx.runMutation((internal as any)[module][`${saving ? "save" : "publish"}Builder${name}DraftInternal`],
         { userId: args.userId, communityId: target.communityId, expectedDraftRevision: revision,
-          ...(operation === THEME_SAVE_DRAFT_OPERATION ? { theme: rawInput.theme } : {}) });
+          ...(saving ? { [kind]: record } : {}) });
       if (value.ok === false) {
         const { ok: _ok, code, message, ...details } = value;
         return canonicalError(code, message, details);
       }
-      return { ok: true, value: { ok: true, operation, result: { draft: value.theme.draft, draft_revision: value.theme.draftRevision,
-        published: value.theme.published, has_unpublished_changes: value.theme.hasUnpublishedChanges } } };
-    } catch { return canonicalError("theme_unavailable", "The theme can't be changed for this community."); }
+      const saved = value[kind];
+      return { ok: true, value: { ok: true, operation, result: { draft: saved.draft, draft_revision: saved.draftRevision,
+        published: saved.published, has_unpublished_changes: saved.hasUnpublishedChanges } } };
+    } catch { return canonicalError(`${kind}_unavailable`, `The ${kind} can't be changed for this community.`); }
   }
   if (operation === SITE_DEPLOY_OPERATION) {
     return await executeSiteDeploy({ ...args, target, operation, rawInput, idempotencyKey });

@@ -77,10 +77,11 @@ test("the published package is exactly the command, its library and checks, READ
   expect(packed.name).toBe("@polynet/cli");
   expect(packed.files.map((file: { path: string }) => file.path).sort()).toEqual([
     "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
-    "contracts/embed.mjs", "contracts/lesson.mjs", "contracts/theme.mjs", "design.mjs",
+    "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md",
     ...["accessibility", "build-site", "deploy-verify", "design", "sdk"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
     "lib.mjs", "mcp.mjs", "package.json", "project.mjs",
+    "templates/skool/README.md", "templates/skool/layout.json", "templates/skool/template.json", "templates/skool/theme.json",
     "templates/stopwatch/template.json", "templates/stopwatch/theme.json",
   ]);
 });
@@ -152,7 +153,7 @@ test("skills install into both agent folders without overwriting the founder's g
   expect(existsSync(join(dir, ".claude/skills/polynet-sdk/old.md"))).toBe(false);
 });
 
-test("the CLI's copies of Polynet's lesson, embed and theme contracts match shared/", async () => {
+test("the CLI's copies of Polynet's lesson, embed, theme and layout contracts match shared/", async () => {
   for (const [file, source] of Object.entries(CONTRACTS as Record<string, string>)) {
     expect(readFileSync(join(__dirname, "../packages/polynet-cli/contracts", file), "utf8"), `${file}: run node packages/polynet-cli/tools/build-contracts.mjs`)
       .toBe(await buildContract(source));

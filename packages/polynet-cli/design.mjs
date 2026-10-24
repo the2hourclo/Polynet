@@ -7,17 +7,21 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { existsSync, watch } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const TEMPLATES_DIR = join(HERE, "templates");
 
-// .polynet/design.json remembers which draft the folder was last in step with,
+// .polynet/design.json remembers which draft each record was last in step with,
 // so a save or publish never overwrites someone else's newer change.
 const STATE_FILE = join(".polynet", "design.json");
 
-const themePath = (community) => `/communities/${community}/builder/theme.json`;
+// The design records a folder holds, each with its own draft and revision on
+// Polynet, so publishing a layout never resets the theme or the other way round.
+export const DESIGN_RECORDS = ["theme", "layout"];
+
+const recordPath = (community, kind) => `/communities/${community}/builder/${kind}.json`;
 const capability = (community, operation) => `/communities/${community}/capabilities/${operation}.json`;
 
 function parseDocument(document) {
@@ -29,19 +33,21 @@ function parseDocument(document) {
   }
 }
 
-/** The community's theme: draft, published, and the draft revision to build on. */
-export async function readTheme({ community, call }) {
-  const theme = parseDocument(await call("polynet_read", { path: themePath(community) }));
-  if (!theme) throw new Error("Polynet didn't return this community's theme.");
-  return theme;
+/** One design record: draft, published, and the draft revision to build on. */
+export async function readDesignRecord({ community, kind, call }) {
+  const record = parseDocument(await call("polynet_read", { path: recordPath(community, kind) }));
+  if (!record) throw new Error(`Polynet didn't return this community's ${kind}.`);
+  return record;
 }
+
+export const readTheme = ({ community, call }) => readDesignRecord({ community, kind: "theme", call });
 
 function idempotencyKey(community, operation, payload) {
   const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex").slice(0, 32);
   return `design:${community}:${operation}:${hash}`;
 }
 
-async function callTheme({ community, call, operation, input }) {
+async function callDesign({ community, call, operation, input }) {
   const value = await call("polynet_call", {
     operation,
     version: 1,
@@ -52,40 +58,64 @@ async function callTheme({ community, call, operation, input }) {
   return value?.result ?? value;
 }
 
-/** Saves the theme as the draft only managers see. Refuses if the draft moved past `expectedRevision`. */
-export async function saveThemeDraft({ community, theme, expectedRevision, call }) {
-  return await callTheme({ community, call, operation: "community.theme.save_draft",
-    input: { theme, expected_draft_revision: expectedRevision } });
+/** Saves a record as the draft only managers see. Refuses if the draft moved past `expectedRevision`. */
+export async function saveDesignDraft({ community, kind, record, expectedRevision, call }) {
+  return await callDesign({ community, call, operation: `community.${kind}.save_draft`,
+    input: { [kind]: record, expected_draft_revision: expectedRevision } });
 }
 
-/** Makes the draft live for members, if it is still the one at `expectedRevision`. */
-export async function publishTheme({ community, expectedRevision, call }) {
-  return await callTheme({ community, call, operation: "community.theme.publish",
+/** Makes a record's draft live for members, if it is still the one at `expectedRevision`. */
+export async function publishDesignDraft({ community, kind, expectedRevision, call }) {
+  return await callDesign({ community, call, operation: `community.${kind}.publish`,
     input: { expected_draft_revision: expectedRevision } });
 }
 
-async function readState(root) {
+export const saveThemeDraft = ({ community, theme, expectedRevision, call }) =>
+  saveDesignDraft({ community, kind: "theme", record: theme, expectedRevision, call });
+export const publishTheme = ({ community, expectedRevision, call }) =>
+  publishDesignDraft({ community, kind: "theme", expectedRevision, call });
+
+// State: { community, revisions: { theme, layout } }, the draft each record was last in step with.
+async function readState(root, community) {
   try {
-    return JSON.parse(await readFile(join(root, STATE_FILE), "utf8"));
+    const state = JSON.parse(await readFile(join(root, STATE_FILE), "utf8"));
+    return state?.community === community ? state.revisions ?? {} : {};
   } catch {
-    return null;
+    return {};
   }
 }
 
-async function writeState(root, state) {
+async function writeRevision(root, community, kind, revision) {
+  const revisions = { ...(await readState(root, community)), [kind]: revision };
   await mkdir(join(root, ".polynet"), { recursive: true });
-  await writeFile(join(root, STATE_FILE), `${JSON.stringify(state, null, 2)}\n`);
+  await writeFile(join(root, STATE_FILE), `${JSON.stringify({ community, revisions }, null, 2)}\n`);
 }
 
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
-/** Writes the community's current draft theme into the folder's theme file. */
-export async function pullDesign({ root, themeFile, community, call }) {
-  const theme = await readTheme({ community, call });
-  await mkdir(dirname(themeFile), { recursive: true });
-  await writeFile(themeFile, json(theme.draft));
-  await writeState(root, { community, draft_revision: theme.draft_revision });
-  return theme;
+/** The folder's design files: theme.json and layout.json unless polynet.json says otherwise. */
+export const designFiles = (root, config = {}) => ({
+  theme: resolve(root, config.theme ?? "theme.json"),
+  layout: resolve(root, config.layout ?? "layout.json"),
+});
+
+/**
+ * Writes the community's current drafts into the folder. The layout is written
+ * when the community has one of its own or the folder already has layout.json,
+ * so a theme-only folder stays theme-only.
+ */
+export async function pullDesign({ root, files, community, call, kinds = DESIGN_RECORDS }) {
+  const pulled = {};
+  for (const kind of kinds) {
+    const record = await readDesignRecord({ community, kind, call });
+    const own = kind === "theme" || record.published || record.draft_revision > 0 || existsSync(files[kind]);
+    if (!own) continue;
+    await mkdir(dirname(files[kind]), { recursive: true });
+    await writeFile(files[kind], json(record.draft));
+    await writeRevision(root, community, kind, record.draft_revision);
+    pulled[kind] = record;
+  }
+  return pulled;
 }
 
 export async function listTemplates({ templatesDir = TEMPLATES_DIR } = {}) {
@@ -118,15 +148,15 @@ export async function initFromTemplate({ root, template, community, call, templa
   }
   const chosen = JSON.parse(await readFile(join(source, "template.json"), "utf8"));
   const keepTheme = chosen.apply?.theme === "keep_existing";
-  const themeFile = join(root, "theme.json");
+  const files = designFiles(root);
   let theme = "template";
-  if (existsSync(themeFile)) {
+  if (existsSync(files.theme)) {
     if (!keepTheme) throw new Error("This folder already has a theme.json. Start a template in an empty folder.");
     theme = "kept";
   } else if (keepTheme && community && call) {
     const current = await readTheme({ community, call });
     if (current.published) {
-      await pullDesign({ root, themeFile, community, call });
+      await pullDesign({ root, files, community, call, kinds: ["theme"] });
       theme = "community";
     }
   }
@@ -139,49 +169,65 @@ export async function initFromTemplate({ root, template, community, call, templa
 }
 
 /**
- * Saves the folder's theme.json as the draft. `check(theme)` returns problems
- * (the CLI passes its contract check); errors stop the save before Polynet sees it.
+ * Saves each design file the folder has (theme.json, layout.json) as its
+ * record's draft. `check(kind, record, file)` returns problems (the CLI passes
+ * its contract checks); any error stops every save before Polynet sees one.
  */
-export async function saveFolderDraft({ root, themeFile, community, call, check }) {
-  let theme;
-  try {
-    theme = JSON.parse(await readFile(themeFile, "utf8"));
-  } catch (error) {
-    return { ok: false, problems: [{ level: "error", path: basename(themeFile), message: `Not valid JSON: ${error instanceof Error ? error.message : error}` }] };
+export async function saveFolderDraft({ root, files, community, call, check }) {
+  const records = {};
+  const problems = [];
+  for (const kind of DESIGN_RECORDS) {
+    if (!existsSync(files[kind])) continue;
+    try {
+      records[kind] = JSON.parse(await readFile(files[kind], "utf8"));
+    } catch (error) {
+      problems.push({ level: "error", path: basename(files[kind]), message: `Not valid JSON: ${error instanceof Error ? error.message : error}` });
+      continue;
+    }
+    if (check) problems.push(...check(kind, records[kind], files[kind]));
   }
-  const problems = check ? check(theme) : [];
   if (problems.some((problem) => problem.level === "error")) return { ok: false, problems };
-  const state = await readState(root);
-  const revision = state?.community === community ? state.draft_revision : (await readTheme({ community, call })).draft_revision;
-  const saved = await saveThemeDraft({ community, theme, expectedRevision: revision, call });
-  await writeState(root, { community, draft_revision: saved.draft_revision });
+  if (!Object.keys(records).length) return { ok: false, problems: [{ level: "error", path: "theme.json", message: "This folder has no theme.json or layout.json to save." }] };
+  const revisions = await readState(root, community);
+  const saved = {};
+  for (const [kind, record] of Object.entries(records)) {
+    const revision = revisions[kind] ?? (await readDesignRecord({ community, kind, call })).draft_revision;
+    saved[kind] = await saveDesignDraft({ community, kind, record, expectedRevision: revision, call });
+    await writeRevision(root, community, kind, saved[kind].draft_revision);
+  }
   return { ok: true, problems, saved };
 }
 
-/** Publishes the draft the folder last saved. */
+/** Publishes each draft the folder last saved. */
 export async function publishFolderDraft({ root, community, call }) {
-  const state = await readState(root);
-  if (!state || state.community !== community) throw new Error("Nothing saved from this folder yet. Run polynet dev or polynet design save first.");
-  return await publishTheme({ community, expectedRevision: state.draft_revision, call });
+  const revisions = await readState(root, community);
+  const kinds = DESIGN_RECORDS.filter((kind) => revisions[kind] !== undefined);
+  if (!kinds.length) throw new Error("Nothing saved from this folder yet. Run polynet dev first.");
+  const published = {};
+  for (const kind of kinds) published[kind] = await publishDesignDraft({ community, kind, expectedRevision: revisions[kind], call });
+  return published;
 }
 
-/** Calls `onChange` (debounced) whenever the theme file changes. Returns a function that stops watching. */
-export function watchDesign({ themeFile, onChange, delayMs = 300 }) {
+/** Calls `onChange` (debounced) whenever one of the design files changes. Returns a function that stops watching. */
+export function watchDesign({ files, onChange, delayMs = 300 }) {
+  const paths = Object.values(files);
+  const names = new Set(paths.map((path) => basename(path)));
   let timer = null;
   let last = null;
-  const watcher = watch(dirname(themeFile), (_event, file) => {
-    if (file !== basename(themeFile)) return;
+  const watchers = [...new Set(paths.map((path) => dirname(path)))].map((dir) => watch(dir, (_event, file) => {
+    if (!names.has(file)) return;
     clearTimeout(timer);
     timer = setTimeout(async () => {
-      const stamp = await stat(themeFile).then((info) => info.mtimeMs, () => null);
-      if (stamp === null || stamp === last) return;
+      const stamps = await Promise.all(paths.map((path) => stat(path).then((info) => info.mtimeMs, () => 0)));
+      const stamp = stamps.join(",");
+      if (stamp === last) return;
       last = stamp;
       onChange();
     }, delayMs);
-  });
+  }));
   return () => {
     clearTimeout(timer);
-    watcher.close();
+    for (const watcher of watchers) watcher.close();
   };
 }
 

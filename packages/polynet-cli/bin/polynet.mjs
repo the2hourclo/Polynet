@@ -16,14 +16,14 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import {
   CALLBACK_PORT, DEFAULT_API_URL, REDIRECT_URI, buildManifest, collectFiles, formatBytes, installGuide, isDirectory, pkce,
   readCheckedFiles, uploadBuckets,
 } from "../lib.mjs";
 import { checkSite, formatProblems } from "../checks.mjs";
-import { checkCourses, checkTheme, describeOperation, lessonEmbeds, planContentPush, readCourses, resolveCourses, stageChangeset } from "../content.mjs";
-import { draftPreviewUrl, initFromTemplate, listTemplates, publishFolderDraft, pullDesign, saveFolderDraft, watchDesign } from "../design.mjs";
+import { checkCourses, checkLayout, checkTheme, describeOperation, lessonEmbeds, planContentPush, readCourses, resolveCourses, stageChangeset } from "../content.mjs";
+import { designFiles, draftPreviewUrl, initFromTemplate, listTemplates, publishFolderDraft, pullDesign, saveFolderDraft, watchDesign } from "../design.mjs";
 import { createMcpClient, PolynetToolError } from "../mcp.mjs";
 import { readProject, siteFiles } from "../project.mjs";
 
@@ -254,11 +254,13 @@ async function checkProject(project) {
     }
   }
   let theme = null;
-  if (project.theme) {
-    const where = project.theme.slice(project.root.length + 1) || "theme.json";
+  for (const [kind, file, checkRecord] of [["theme", project.theme, checkTheme], ["layout", project.layout, checkLayout]]) {
+    if (!file) continue;
+    const where = file.slice(project.root.length + 1) || `${kind}.json`;
     try {
-      theme = JSON.parse(await readFile(project.theme, "utf8"));
-      problems.push(...checkTheme(theme, where));
+      const record = JSON.parse(await readFile(file, "utf8"));
+      if (kind === "theme") theme = record;
+      problems.push(...checkRecord(record, where));
     } catch (error) {
       problems.push({ level: "error", path: where, message: `Not valid JSON (${error.message}).` });
     }
@@ -286,7 +288,7 @@ async function check(args) {
     const lessons = courses.reduce((n, course) => n + course.lessons.length, 0);
     console.log(errors
       ? `\n${errors} problem${errors === 1 ? "" : "s"} to fix first.`
-      : `✓ Checked ${files.length} site files${courses.length ? `, ${courses.length} courses and ${lessons} lessons` : ""}${project.theme ? " and the theme" : ""}.`);
+      : `✓ Checked ${files.length} site files${courses.length ? `, ${courses.length} courses and ${lessons} lessons` : ""}${[project.theme && "the theme", project.layout && "the layout"].filter(Boolean).map((part) => ` and ${part}`).join("")}.`);
   }
   if (errors) process.exit(1);
 }
@@ -414,8 +416,7 @@ function designDir(args) {
 async function designProject(args) {
   const project = await readProject(designDir(args), { community: flagValue(args, "--community") });
   if (!project.community) fail("Which community? Add \"community\" to polynet.json or pass --community <slug>.");
-  const themeFile = project.theme ?? resolve(project.root, project.config.theme ?? "theme.json");
-  return { project, themeFile };
+  return { project, files: designFiles(project.root, project.config) };
 }
 
 async function init(args) {
@@ -441,20 +442,25 @@ async function init(args) {
 }
 
 async function pull(args) {
-  const { project, themeFile } = await designProject(args);
+  const { project, files } = await designProject(args);
   const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
-  const theme = await pullDesign({ root: project.root, themeFile, community: project.community, call: mcp.call });
-  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, draft_revision: theme.draft_revision, has_unpublished_changes: theme.has_unpublished_changes }, null, 2));
-  say(`✓ Wrote ${project.community}'s draft theme to ${themeFile}.`,
-    theme.has_unpublished_changes ? "  The draft has changes members don't see yet." : "  The draft matches what members see.");
+  const pulled = await pullDesign({ root: project.root, files, community: project.community, call: mcp.call });
+  if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, ...Object.fromEntries(Object.entries(pulled).map(([kind, record]) =>
+    [kind, { draft_revision: record.draft_revision, has_unpublished_changes: record.has_unpublished_changes }])) }, null, 2));
+  for (const [kind, record] of Object.entries(pulled)) {
+    say(`✓ Wrote ${project.community}'s draft ${kind} to ${files[kind]}.`,
+      record.has_unpublished_changes ? "  The draft has changes members don't see yet." : "  The draft matches what members see.");
+  }
 }
 
-async function saveDraftOnce({ project, themeFile, call }) {
-  const result = await saveFolderDraft({ root: project.root, themeFile, community: project.community, call,
-    check: (theme) => checkTheme(theme, themeFile.slice(project.root.length + 1) || "theme.json") });
+const DESIGN_CHECKS = { theme: checkTheme, layout: checkLayout };
+
+async function saveDraftOnce({ project, files, call }) {
+  const result = await saveFolderDraft({ root: project.root, files, community: project.community, call,
+    check: (kind, record, file) => DESIGN_CHECKS[kind](record, file.slice(project.root.length + 1) || `${kind}.json`) });
   if (!result.ok) {
     printProblems(result.problems);
-    say("  Not saved. Fix the theme and save the file again.");
+    say("  Not saved. Fix the problems and save the file again.");
     return null;
   }
   return result.saved;
@@ -470,35 +476,35 @@ function openInBrowser(url) {
 }
 
 async function dev(args) {
-  const { project, themeFile } = await designProject(args);
+  const { project, files } = await designProject(args);
   const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
   const call = mcp.call;
   const save = async () => {
     try {
-      const saved = await saveDraftOnce({ project, themeFile, call });
-      if (saved) say(`✓ ${new Date().toLocaleTimeString()} Draft saved (revision ${saved.draft_revision}). The preview updates in a moment.`);
+      const saved = await saveDraftOnce({ project, files, call });
+      if (saved) say(`✓ ${new Date().toLocaleTimeString()} Draft saved (${Object.entries(saved).map(([kind, record]) => `${kind} revision ${record.draft_revision}`).join(", ")}). The preview updates in a moment.`);
     } catch (error) {
       say(`✗ ${error instanceof Error ? error.message : error}`);
-      if (/theme_revision_conflict/.test(String(error))) say("  Someone else changed the draft. Run polynet pull to start from theirs.");
+      if (/_revision_conflict/.test(String(error))) say("  Someone else changed the draft. Run polynet pull to start from theirs.");
     }
   };
   await save();
   const url = draftPreviewUrl(APP_URL, project.community);
-  say(`  Preview (only managers see the draft): ${url}`, `  Watching ${themeFile}. Press Ctrl+C to stop; run polynet publish when it's ready.`);
+  say(`  Preview (only managers see the draft): ${url}`, `  Watching ${Object.values(files).map((file) => basename(file)).join(" and ")}. Press Ctrl+C to stop; run polynet publish when it's ready.`);
   if (!args.includes("--no-open")) openInBrowser(url);
-  const stop = watchDesign({ themeFile, onChange: save });
+  const stop = watchDesign({ files, onChange: save });
   await new Promise((done) => process.on("SIGINT", () => { stop(); done(); }));
 }
 
 async function publish(args) {
-  const { project, themeFile } = await designProject(args);
+  const { project, files } = await designProject(args);
   const mcp = createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() });
-  // Publish exactly what the folder has: save it first, so the draft can't be a stale one.
-  const saved = await saveDraftOnce({ project, themeFile, call: mcp.call });
+  // Publish exactly what the folder has: save it first, so a draft can't be a stale one.
+  const saved = await saveDraftOnce({ project, files, call: mcp.call });
   if (!saved) fail("Nothing was published.");
   const published = await publishFolderDraft({ root: project.root, community: project.community, call: mcp.call });
   if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, published }, null, 2));
-  say(`✓ ${project.community} now has this theme for everyone. Polynet keeps the earlier one until you change it again.`);
+  say(`✓ ${project.community} now has this ${Object.keys(published).join(" and ")} for everyone. Polynet keeps the earlier one until you change it again.`);
 }
 
 const [command, ...rest] = process.argv.slice(2);
@@ -522,7 +528,7 @@ try {
       "      AGENTS.md, CLAUDE.md and Polynet's skills. No template.",
       "  polynet check [folder]",
       "      Check the site (Polynet shell, accessibility), the courses (lesson front",
-      "      matter, embeds, images, Polynet's limits) and theme.json. Errors block.",
+      "      matter, embeds, images, Polynet's limits), theme.json and layout.json. Errors block.",
       "  polynet deploy [folder] [--community <slug>]",
       "      Check, then put the folder (default: this one) live at https://<slug>.polynet.page.",
       "      You must be the community's owner or an admin. The community is saved in",
@@ -533,15 +539,15 @@ try {
       "      pages arrive as drafts. --dry-run shows the changes and sends nothing;",
       "      --wait stays until each round is applied and stages the next.",
       "  polynet init [folder] --template <name> [--community <slug>]",
-      "      Start a community design from a template (theme.json, no content).",
+      "      Start a community design from a template (theme.json, layout.json, no content).",
       "      Without --template, lists the templates.",
       "  polynet pull [folder]",
-      "      Copy the community's draft theme into theme.json.",
+      "      Copy the community's draft theme (and layout, if it has one) into the folder.",
       "  polynet dev [folder] [--no-open]",
-      "      Save theme.json to the community's draft on every edit and open the",
+      "      Save theme.json and layout.json to the community's drafts on every edit and open the",
       "      draft preview in the real app. Members keep the published look.",
       "  polynet publish [folder]",
-      "      Save theme.json, then make it the theme members see.",
+      "      Save theme.json and layout.json, then make them what members see.",
       "  polynet skills [folder]",
       "      Add or update Polynet's skills for AI agents (.agents/skills, .claude/skills).",
       "  polynet login     Sign in with Polynet in the browser.",

@@ -16,6 +16,7 @@ returns the whole vocabulary as JSON, for the CLI and for agents.
 | Part | What a design can use | Defined in |
 | --- | --- | --- |
 | Theme | The colour, type, shape, density and course catalog tokens | `shared/communityTheme.ts`, [community-theme-v1.md](community-theme-v1.md) |
+| Layout | Navigation position and tabs, page width, the chat page's presentation and aside blocks. Only Polynet systems that exist; owner tools are pinned | `shared/communityLayout.ts` |
 | Surfaces | The parts of a community's area that the tokens reach: headings, cards, buttons, course catalog, images, the community area itself | `COMMUNITY_DESIGN_SURFACES` |
 | Lesson elements | `button`, `checklist`, `quiz` and `form` blocks, and the button actions | `shared/communityLessonContract.ts` |
 | Widgets | `polynet-embed` blocks and the messages a widget may send: `ready`, `resize`, `load`, `save` | `shared/communityEmbed.ts` |
@@ -23,6 +24,18 @@ returns the whole vocabulary as JSON, for the CLI and for agents.
 Surfaces never name Polynet's classes to founders. Each surface records which
 of Polynet's classes carry it today, so the styles in
 `apps/web/src/styles/community-theme-hooks.css` and the components stay in step.
+
+## Over the MCP
+
+Each record has a draft only managers see and a published version members see:
+
+| Record | Read | Save a draft | Publish |
+| --- | --- | --- | --- |
+| Theme | `/communities/<slug>/builder/theme.json` | `community.theme.save_draft` | `community.theme.publish` |
+| Layout | `/communities/<slug>/builder/layout.json` | `community.layout.save_draft` | `community.layout.publish` |
+
+Every save and publish sends the `draft_revision` it read and is refused if
+the draft has moved since. `polynet pull`, `dev` and `publish` use these.
 
 ## Checked from both sides
 
