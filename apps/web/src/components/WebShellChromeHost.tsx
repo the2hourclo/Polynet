@@ -22,7 +22,7 @@ import { WebCommunityTopNav } from "./WebCommunityTopNav";
 import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
 import type { AppTheme } from "../../../../shared/theme";
 import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
-import { useDraftLook } from "../controllers/useDraftLook";
+import { DRAFT_LOOKS_IN_DISPLAY_MENU, useDraftLook } from "../controllers/useDraftLook";
 import { courseCardLookWords } from "./ResourceCourseCatalog";
 import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
 import type {
@@ -85,6 +85,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     { draftSession: props.themeDraftSession ?? null },
   );
   const communityThemeAttribute = communityTheme.attribute;
+  // The owner's default from Customize, or this browser's Display menu pick.
+  const draftLookState = useDraftLook(communityTheme.theme);
+  const draftLook = draftLookState.look;
   // The community's layout applies wherever its own navigation shows, owner
   // tools included, so the tab bar doesn't jump between pages.
   const { layout: publishedCommunityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
@@ -162,7 +165,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     !welcome &&
     !isTopCommunityNav &&
     // Draft looks experiment: the menu always has the draft look choices.
-    hasDisplayChoices ? <WebCommunityDisplayMenu placement="bar" /> : null;
+    (hasDisplayChoices || DRAFT_LOOKS_IN_DISPLAY_MENU) ? <WebCommunityDisplayMenu placement="bar" look={draftLookState} /> : null;
   const shellHeader = props.showMobileAppShell ? (
     isMobileDedicatedRoot || isMobileDiscoverRoot ? null : (
       <WebMobileTopBar
@@ -197,10 +200,10 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       <WebCommunityOwnerBar
         communityShell={props.communityShell}
         homeTab={communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home}
-        trailing={<WebCommunityDisplayMenu placement="top" />}
+        trailing={<WebCommunityDisplayMenu placement="top" look={draftLookState} />}
       />
     ) : isTopCommunityNav ? (
-      <WebCommunityTopNav communityShell={props.communityShell} trailing={<WebCommunityDisplayMenu placement="top" />} />
+      <WebCommunityTopNav communityShell={props.communityShell} trailing={<WebCommunityDisplayMenu placement="top" look={draftLookState} />} />
     ) : (
       <WebCommunityNavSurface
         communityShell={props.communityShell}
@@ -208,9 +211,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       />
     )
   ) : null;
-  // Draft Substack-feel looks for Channels, set by the owner in Customize
-  // (see useDraftLook); off in Classroom.
-  const draftLook = useDraftLook(communityTheme.theme);
+  // Draft Substack-feel looks for Channels (see useDraftLook); off in Classroom.
   const channelsFeelAttribute = desktopCommunityNav && !isTopCommunityNav && draftLook.feel !== "current" ? draftLook.feel : undefined;
   // Draft rail looks, set on <html> so the rail and the frame around the
   // community both see them. The rail reads the community's colours, copied
