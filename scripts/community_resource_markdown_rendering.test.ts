@@ -123,6 +123,31 @@ describe("community resource markdown rendering", () => {
     expect(markup).not.toContain("<iframe");
   });
 
+  it("plays a lesson's video from its lesson fields when the page has no link", () => {
+    const resource: CommunityResource = {
+      id: "lesson-3",
+      module_id: "course-1",
+      directory_uri: "community://resources/lesson-3",
+      directory_path: "/lesson-3",
+      type: "post",
+      resource_role: "page",
+      resource_status: "published",
+      title: "Video from the board",
+      body_md: "Lesson body",
+      url: null,
+      lesson: { kind: "video", video_url: "https://www.youtube.com/watch?v=M7lc1UVf-VE" },
+      pinned: false,
+      sort_order: 0,
+      created_at: "2026-08-11T00:00:00.000Z",
+    };
+    const markup = renderToStaticMarkup(
+      createElement(WebCommunityResourceViewerContent, { resource }),
+    );
+
+    expect(markup).toContain('data-community-youtube-embed="M7lc1UVf-VE"');
+    expect(markup).toContain("Watch on YouTube");
+  });
+
   it("shows a lesson checklist inside a slide note as the checklist, not code", () => {
     const resource: CommunityResource = {
       id: "lesson-2",
