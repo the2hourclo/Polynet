@@ -226,7 +226,7 @@ const RESOURCE_CHANGESET_OPERATION_SCHEMA: PlatformOperationJsonSchema = {
       type: "object",
       additionalProperties: false,
       description:
-        "create_page / edit_page: board, library and wizard presentation. Send {} to clear. Platform versions (### In <Platform>), slides (## Slides) and fenced commands stay in body_md.",
+        "create_page / edit_page: board, library and wizard presentation. Send {} to clear. Platform versions (### In <Platform>), slides (## Slides), callouts (a quote starting > [!TIP], [!NOTE], [!IMPORTANT], [!ACTION] or [!WARNING]) and fenced commands stay in body_md.",
       properties: {
         kind: { type: "string", enum: ["lesson", "build", "checkpoint", "prompt", "skill", "video", "doc"] },
         stage: { type: "string", maxLength: 80 },

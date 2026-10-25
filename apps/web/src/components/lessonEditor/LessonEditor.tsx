@@ -14,7 +14,6 @@ import {
   ArrowUp,
   Bold,
   CheckSquare,
-  Check,
   ChevronDown,
   CircleHelp,
   ClipboardList,
@@ -31,6 +30,7 @@ import {
   Link2,
   List,
   ListOrdered,
+  MessageSquareText,
   Minus,
   MousePointerClick,
   Pilcrow,
@@ -49,6 +49,7 @@ import { COMMUNITY_EMBED_LANGUAGE } from "../../../../../shared/communityEmbed";
 import {
   LessonFencedBlock,
   LessonImage,
+  LessonBlockquote,
   LessonRawMarkdown,
   LessonSlideDeck,
   LessonVideo,
@@ -60,12 +61,14 @@ import {
   LessonEditorServicesContext,
   LessonFencedBlockView,
   LessonImageView,
+  LessonBlockquoteView,
   LessonRawMarkdownView,
   LessonSlideDeckView,
   LessonVideoView,
   focusNextBlock,
   type LessonEditorServices,
 } from "./LessonEditorNodeViews";
+import { ToolbarMenuList, type ToolbarMenu } from "./LessonEditorMenu";
 import "./lessonEditor.css";
 
 export type LessonEditorProps = {
@@ -78,6 +81,7 @@ export type LessonEditorProps = {
   onSaveNow: () => void;
   /** Take the caret on open: where the owner clicked the read view, or the end. */
   autoFocus?: boolean;
+  /** Where the owner clicked the read view, from the body's top-left corner. */
   focusAt?: { x: number; y: number } | null;
   onFocus?: () => void;
   /** Buttons, checklists, quizzes and forms work only in lessons; other pages don't offer them. */
@@ -128,6 +132,12 @@ function insertLessonBlock(language: string) {
   };
 }
 
+/** Makes the block at the cursor a callout, or changes the callout it is in. */
+function setCallout(chain: ReturnType<Editor["chain"]>, editor: Editor, callout: string) {
+  if (editor.isActive("blockquote")) return chain.updateAttributes("blockquote", { callout }).run();
+  return chain.wrapIn("blockquote", { callout }).run();
+}
+
 const SLASH_ITEMS: SlashItem[] = [
   { key: "text", group: "Text", title: "Text", hint: "Plain writing", keywords: "paragraph p", icon: <Pilcrow />,
     run: (e, r) => e.chain().focus().deleteRange(r).setParagraph().run() },
@@ -141,7 +151,9 @@ const SLASH_ITEMS: SlashItem[] = [
     run: (e, r) => e.chain().focus().deleteRange(r).toggleBulletList().run() },
   { key: "numbers", group: "Text", title: "Numbered list", hint: "Steps in order", keywords: "ol ordered 1. steps", icon: <ListOrdered />,
     run: (e, r) => e.chain().focus().deleteRange(r).toggleOrderedList().run() },
-  { key: "quote", group: "Text", title: "Callout", hint: "A quote or a tip that stands out", keywords: "quote blockquote tip note >", icon: <Quote />,
+  { key: "callout", group: "Text", title: "Callout", hint: "A tip, note, key idea, step or warning", keywords: "callout tip note key idea important do this action warning alert box", icon: <MessageSquareText />,
+    run: (e, r) => setCallout(e.chain().focus().deleteRange(r), e, "tip") },
+  { key: "quote", group: "Text", title: "Quote", hint: "Someone's words, set apart", keywords: "quote blockquote >", icon: <Quote />,
     run: (e, r) => e.chain().focus().deleteRange(r).toggleBlockquote().run() },
   { key: "code", group: "Text", title: "Code or prompt", hint: "Text members copy as is", keywords: "code prompt command ``` copy", icon: <Code2 />,
     run: (e, r) => e.chain().focus().deleteRange(r).toggleCodeBlock().run() },
@@ -319,7 +331,10 @@ const TURN_INTO: { key: string; label: string; icon: ReactNode; isActive: (e: Ed
   { key: "h3", label: "Heading 3", icon: <Heading3 />, isActive: (e) => e.isActive("heading", { level: 4 }), run: (e) => e.chain().focus().setHeading({ level: 4 }).run() },
   { key: "ul", label: "Bulleted list", icon: <List />, isActive: (e) => e.isActive("bulletList"), run: (e) => e.chain().focus().toggleBulletList().run() },
   { key: "ol", label: "Numbered list", icon: <ListOrdered />, isActive: (e) => e.isActive("orderedList"), run: (e) => e.chain().focus().toggleOrderedList().run() },
-  { key: "quote", label: "Callout", icon: <Quote />, isActive: (e) => e.isActive("blockquote"), run: (e) => e.chain().focus().toggleBlockquote().run() },
+  { key: "callout", label: "Callout", icon: <MessageSquareText />, isActive: (e) => e.isActive("blockquote") && Boolean(e.getAttributes("blockquote").callout),
+    run: (e) => setCallout(e.chain().focus(), e, "tip") },
+  { key: "quote", label: "Quote", icon: <Quote />, isActive: (e) => e.isActive("blockquote") && !e.getAttributes("blockquote").callout,
+    run: (e) => (e.isActive("blockquote") ? e.chain().focus().updateAttributes("blockquote", { callout: null }).run() : e.chain().focus().toggleBlockquote().run()) },
 ];
 
 function FormatBar({ editor, openLinkRef }: { editor: Editor; openLinkRef: { current: (() => void) | null } }) {
@@ -471,64 +486,7 @@ function toolbarRange(editor: Editor): Range {
 
 const slashItem = (key: string) => SLASH_ITEMS.find((item) => item.key === key)!;
 const TOOLBAR_LESSON_KEYS = ["button", "checklist", "quiz", "form"];
-const TOOLBAR_MORE_KEYS = ["divider", "code", "video", "table", "embed"];
-
-type ToolbarMenu = { key: string; rect: DOMRect } | null;
-
-function ToolbarMenuList(props: {
-  menu: NonNullable<ToolbarMenu>;
-  items: { key: string; title: string; hint?: string; icon: ReactNode; active?: boolean; run: () => void }[];
-  host: HTMLElement | null;
-  label: string;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const close = (event: Event) => {
-      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
-      if (event instanceof MouseEvent && ref.current?.contains(event.target as Node)) return;
-      props.onClose();
-    };
-    window.addEventListener("mousedown", close);
-    window.addEventListener("keydown", close);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("mousedown", close);
-      window.removeEventListener("keydown", close);
-      window.removeEventListener("resize", close);
-    };
-  });
-  const style = {
-    left: Math.max(8, Math.min(props.menu.rect.left, window.innerWidth - 268)),
-    top: props.menu.rect.bottom + 6,
-  };
-  return createPortal(
-    <div ref={ref} className="lesson-editor-menu lesson-editor-toolbar-menu" style={style} role="menu" aria-label={props.label}>
-      {props.items.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          role={item.active === undefined ? "menuitem" : "menuitemradio"}
-          aria-checked={item.active}
-          className={`lesson-editor-menu-item${item.hint ? "" : " is-compact"}`}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            item.run();
-            props.onClose();
-          }}
-        >
-          <span className="lesson-editor-menu-icon" aria-hidden="true">{item.icon}</span>
-          <span className="lesson-editor-menu-text">
-            <strong>{item.title}</strong>
-            {item.hint ? <small>{item.hint}</small> : null}
-          </span>
-          {item.active ? <Check className="lesson-editor-menu-check" aria-hidden="true" /> : null}
-        </button>
-      ))}
-    </div>,
-    props.host?.closest<HTMLElement>("[data-community-theme]") ?? document.body,
-  );
-}
+const TOOLBAR_MORE_KEYS = ["divider", "quote", "code", "video", "table", "embed"];
 
 function Toolbar({ editor, followAlong, openLinkRef }: {
   editor: Editor;
@@ -590,6 +548,7 @@ function Toolbar({ editor, followAlong, openLinkRef }: {
   );
   const style = TURN_INTO.slice(0, 4).find((item) => item.isActive(editor)) ?? null;
   const inCode = editor.isActive("codeBlock");
+  const inCallout = editor.isActive("blockquote") && Boolean(editor.getAttributes("blockquote").callout);
   const divider = (key: string) => <span key={key} className="lesson-editor-tool-divider" aria-hidden="true" />;
   const menuItems = !menu
     ? []
@@ -616,7 +575,7 @@ function Toolbar({ editor, followAlong, openLinkRef }: {
         {divider("d3")}
         {button("image", "Image", <ImagePlus />, () => run("image", true))}
         {button("slides", "Slides", <GalleryHorizontal />, () => run("slides", true), { active: editor.isActive("slideDeck") })}
-        {button("quote", "Callout", <Quote />, () => run("quote", false), { active: editor.isActive("blockquote") })}
+        {button("callout", "Callout", <MessageSquareText />, () => (inCallout ? editor.chain().focus().lift("blockquote").run() : run("callout", false)), { active: inCallout })}
         {button("bullets", "Bulleted list", <List />, () => run("bullets", false), { active: editor.isActive("bulletList") })}
         {button("numbers", "Numbered list", <ListOrdered />, () => run("numbers", false), { active: editor.isActive("orderedList") })}
         {divider("d4")}
@@ -846,6 +805,8 @@ export default function LessonEditor(props: LessonEditorProps) {
       if (extension === LessonVideo) return LessonVideo.extend({ addNodeView: () => ReactNodeViewRenderer(LessonVideoView) });
       if (extension === LessonFencedBlock) return LessonFencedBlock.extend({ addNodeView: () => ReactNodeViewRenderer(LessonFencedBlockView) });
       if (extension === LessonSlideDeck) return LessonSlideDeck.extend({ addNodeView: () => ReactNodeViewRenderer(LessonSlideDeckView) });
+      // Configured in the schema, so matched by name rather than by identity.
+      if (extension.name === LessonBlockquote.name) return extension.extend({ addNodeView: () => ReactNodeViewRenderer(LessonBlockquoteView) });
       if (extension === LessonRawMarkdown) return LessonRawMarkdown.extend({ addNodeView: () => ReactNodeViewRenderer(LessonRawMarkdownView) });
       return extension;
     }),
@@ -953,12 +914,20 @@ export default function LessonEditor(props: LessonEditorProps) {
     const onFocus = () => propsRef.current.onFocus?.();
     editor.on("focus", onFocus);
     if (!propsRef.current.autoFocus) return () => void editor.off("focus", onFocus);
-    const id = window.requestAnimationFrame(() => {
+    let id = 0;
+    const place = () => {
+      // Only once the lesson is in, or the caret would land in an empty page.
+      if (!lessonRef.current) {
+        id = window.requestAnimationFrame(place);
+        return;
+      }
       const at = propsRef.current.focusAt;
-      const hit = at ? editor.view.posAtCoords({ left: at.x, top: at.y }) : null;
+      const box = editor.view.dom.getBoundingClientRect();
+      const hit = at ? editor.view.posAtCoords({ left: box.left + at.x, top: box.top + at.y }) : null;
       if (hit) editor.chain().focus().setTextSelection(hit.pos).run();
       else editor.commands.focus("end");
-    });
+    };
+    id = window.requestAnimationFrame(place);
     return () => {
       window.cancelAnimationFrame(id);
       editor.off("focus", onFocus);

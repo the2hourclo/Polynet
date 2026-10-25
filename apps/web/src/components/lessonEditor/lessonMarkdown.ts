@@ -1,10 +1,11 @@
 import MarkdownIt from "markdown-it";
 import type Token from "markdown-it/lib/token.mjs";
 import { MarkdownParser, MarkdownSerializer, defaultMarkdownSerializer, type MarkdownSerializerState } from "prosemirror-markdown";
-import type { Node as PMNode, Schema } from "@tiptap/pm/model";
+import { Fragment, type Node as PMNode, type Schema } from "@tiptap/pm/model";
 
 import { COMMUNITY_LESSON_ELEMENT_TYPES } from "../../../../../shared/communityLessonContract";
 import { COMMUNITY_EMBED_LANGUAGE } from "../../../../../shared/communityEmbed";
+import { lessonCalloutMarker, lessonCalloutType, LESSON_CALLOUT_MARKER } from "../../../../../shared/lessonCallouts";
 
 // body_md <-> editor document, one top-level block at a time.
 //
@@ -136,7 +137,14 @@ const serializer = new MarkdownSerializer(
       state.closeBlock(node);
     },
     blockquote(state, node) {
-      state.wrapBlock("> ", null, node, () => state.renderContent(node));
+      const callout = lessonCalloutType(node.attrs.callout);
+      state.wrapBlock("> ", null, node, () => {
+        if (callout) {
+          state.write(lessonCalloutMarker(callout));
+          state.ensureNewLine();
+        }
+        state.renderContent(node);
+      });
     },
     bulletList(state, node) {
       (state as MarkdownSerializerState & { inTightList: boolean }).inTightList = node.attrs.tight;
@@ -213,9 +221,10 @@ const serializer = new MarkdownSerializer(
   { strict: false },
 );
 
-/** Blocks with nothing to save yet: empty paragraphs, images still uploading, a video with no link. */
+/** Blocks with nothing to save yet: empty paragraphs and callouts, images still uploading, a video with no link. */
 function isUnsaved(node: PMNode): boolean {
   if (node.type.name === "paragraph" && node.childCount === 0) return true;
+  if (node.type.name === "blockquote" && node.attrs.callout && !node.textContent.trim()) return true;
   if (node.type.name === "video") return !String(node.attrs.url ?? "").trim();
   if (node.type.name === "slideDeck") return !((node.attrs.slides ?? []) as LessonSlide[]).some((slide) => slide.src.trim());
   return node.type.name === "image" && (Boolean(node.attrs.uploadId) || !node.attrs.src);
@@ -286,6 +295,33 @@ function singleInline(chunk: Chunk): Token | null {
   return inline;
 }
 
+/** A quote that starts with "[!TIP]" becomes a callout, without the marker in its text. */
+function readCallout(schema: Schema, node: PMNode): PMNode {
+  if (node.type.name !== "blockquote") return node;
+  const paragraph = node.firstChild;
+  const first = paragraph?.type.name === "paragraph" ? paragraph.firstChild : null;
+  if (!paragraph || !first?.isText || first.marks.length) return node;
+  const match = LESSON_CALLOUT_MARKER.exec(first.text ?? "");
+  const callout = match ? lessonCalloutType(match[1]) : null;
+  if (!match || !callout) return node;
+  // The marker's line break reads as a space; it isn't part of the text.
+  const lead = /^\s*/.exec((first.text ?? "").slice(match[0].length))![0].length;
+  const rest = paragraph.content.cut(match[0].length + lead);
+  const children: PMNode[] = [];
+  if (rest.size) children.push(paragraph.copy(rest));
+  node.forEach((child, _offset, index) => {
+    if (index > 0) children.push(child);
+  });
+  return node.type.create({ ...node.attrs, callout }, children.length ? children : [schema.nodes.paragraph.create()]);
+}
+
+function parseBlocks(schema: Schema, parser: MarkdownParser, source: string): PMNode {
+  const parsed = parser.parse(source);
+  const blocks: PMNode[] = [];
+  parsed.forEach((node) => blocks.push(readCallout(schema, node)));
+  return parsed.copy(Fragment.from(blocks));
+}
+
 function rawBlock(schema: Schema, source: string): PMNode {
   return schema.nodes.rawMarkdown.create({ source });
 }
@@ -323,7 +359,7 @@ function blockFromChunk(schema: Schema, parser: MarkdownParser, chunk: Chunk, so
   }
   let nodes: PMNode[];
   try {
-    const parsed = parser.parse(source);
+    const parsed = parseBlocks(schema, parser, source);
     parsed.check();
     nodes = [];
     parsed.forEach((node) => nodes.push(node));
@@ -334,7 +370,7 @@ function blockFromChunk(schema: Schema, parser: MarkdownParser, chunk: Chunk, so
   // The block must come back the same from its fresh Markdown; if it
   // wouldn't, keep it as text rather than risk changing it on the next edit.
   try {
-    const again = parser.parse(serializeBlock(schema, nodes[0]));
+    const again = parseBlocks(schema, parser, serializeBlock(schema, nodes[0]));
     if (again.childCount !== 1 || !again.child(0).eq(nodes[0])) return [rawBlock(schema, source)];
   } catch {
     return [rawBlock(schema, source)];
