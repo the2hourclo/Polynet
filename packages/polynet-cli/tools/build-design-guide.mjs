@@ -15,10 +15,10 @@ const SKILL = "packages/polynet-cli/guide/skills/polynet-ui-design";
 export const DESIGN_GUIDE_TARGET = "shared/communityDesignGuide.ts";
 
 // Two documents, each inside the MCP's 24,000-character read budget: the
-// skill with its in-the-app reference, and the mistake ledger with the
+// skill with its in-the-app and owner-screens references, and the mistake ledger with the
 // reviewer's brief.
 const PARTS = {
-  COMMUNITY_DESIGN_GUIDE_MARKDOWN: ["SKILL.md", "references/in-the-app.md"],
+  COMMUNITY_DESIGN_GUIDE_MARKDOWN: ["SKILL.md", "references/in-the-app.md", "references/owner-screens.md"],
   COMMUNITY_DESIGN_REVIEW_MARKDOWN: ["references/mistakes.md", "references/reviewer.md"],
 };
 

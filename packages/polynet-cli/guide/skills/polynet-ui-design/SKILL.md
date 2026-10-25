@@ -242,6 +242,8 @@ Everything not listed here is the founder's to decide.
   class names. Unknown tokens are refused, not ignored. See
   [references/in-the-app.md](references/in-the-app.md) for what each lever
   does and how to apply this skill with it.
+- **Owner screens follow their own small system** (Settings, Members,
+  Workflows, editors): see [references/owner-screens.md](references/owner-screens.md).
 - **Everyone can use it**: keyboard, screen readers, zoom to 200%, motion
   only when the member allows it. On sites, `polynet-accessibility` is the
   final pass.

@@ -81,7 +81,7 @@ test("the published package is exactly the command, its library and checks, READ
     "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md", "guide/agents/polynet-ui-reviewer.md",
     ...["accessibility", "build-site", "deploy-verify", "design", "sdk", "ui-design"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
-    ...["in-the-app", "mistakes", "reviewer"].map((name) => `guide/skills/polynet-ui-design/references/${name}.md`),
+    ...["in-the-app", "mistakes", "owner-screens", "reviewer"].map((name) => `guide/skills/polynet-ui-design/references/${name}.md`),
     "lib.mjs", "mcp.mjs", "package.json", "project.mjs", "review.mjs",
     "templates/skool/README.md", "templates/skool/layout.json", "templates/skool/template.json", "templates/skool/theme.json",
     "templates/stopwatch/template.json", "templates/stopwatch/theme.json", "ui-audit.mjs",
