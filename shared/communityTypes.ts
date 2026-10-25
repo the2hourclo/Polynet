@@ -42,6 +42,7 @@ export type CommunityDirectoryMember = {
   avatar_focus_y?: number | null;
   avatar_zoom?: number | null;
   role: string;
+  co_creator?: boolean;
   created_at: string;
   last_active_at: string;
 };

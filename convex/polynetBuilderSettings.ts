@@ -310,7 +310,7 @@ BUILDER_SETTING_OPERATIONS.push(
   proposal({
     operation: "community.member.role.set", area: "members", name: "Change a member's role",
     calls: "communityAdmin:setCommunityMemberRole", ref: api.communityAdmin.setCommunityMemberRole, kind: "mutation",
-    fields: { target_membership_id: "the member", role: "admin, moderator or member" }, required: ["target_membership_id", "role"],
+    fields: { target_membership_id: "the member", role: "co_creator (shown as a creator; owner only), admin, moderator or member" }, required: ["target_membership_id", "role"],
     effects: ["change_member_role"],
   }),
   proposal({

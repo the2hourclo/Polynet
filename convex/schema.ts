@@ -1206,6 +1206,9 @@ export default defineSchema({
     serviceChannelId: v.optional(v.id("communityChannels")),
     serviceChannelRevision: v.optional(v.number()),
     role: v.union(v.literal("admin"), v.literal("moderator"), v.literal("member")),
+    // An admin the owner made a co-creator: builds the community with them and
+    // is shown publicly as one of its creators. No payouts.
+    coCreator: v.optional(v.boolean()),
     accessSource: v.optional(
       v.union(
         v.literal("free_grant"),
@@ -1226,7 +1229,8 @@ export default defineSchema({
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_community", ["communityId"])
     .index("by_community_user", ["communityId", "userId"])
-    .index("by_community_createdAt", ["communityId", "createdAt"]),
+    .index("by_community_createdAt", ["communityId", "createdAt"])
+    .index("by_community_coCreator", ["communityId", "coCreator"]),
 
   communityOnboardingConfigs: defineTable({
     communityId: v.id("communities"),

@@ -3,6 +3,7 @@ import { CalendarDays, Check, Link2, Users } from "lucide-react";
 import type { CommunityLayoutAsideBlock } from "../../../../shared/communityLayout";
 import { listCloudCommunityEvents, type CloudCommunityEvent } from "../../../../shared/cloudCommunityEventsGateway";
 import { UserAvatar } from "../../../../shared/UserAvatar";
+import { WebCommunityCreators } from "./WebCommunityCreators";
 import { communityJoinUrl, useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 // Blocks a layout can place beside the chat page. Each reads data Polynet
@@ -57,6 +58,7 @@ export function WebCommunityCard() {
           <h2 className="community-card-block-name">{community.name}</h2>
         </div>
         {community.one_liner ? <p className="community-card-block-description">{community.one_liner}</p> : null}
+        <WebCommunityCreators communityId={community.id} />
         {typeof frame.memberCount === "number" ? (
           <button type="button" className="community-card-block-stat" onClick={() => frame.onSelectTab("members")}>
             <Users size={16} aria-hidden="true" />

@@ -1367,7 +1367,7 @@ export async function setCloudCommunityMemberRole<SessionT>(
   params: CloudCommunityAdminGatewayParams<SessionT> & {
     communityId: string;
     membershipId: string;
-    role: "admin" | "moderator" | "member";
+    role: "co_creator" | "admin" | "moderator" | "member";
   },
 ): Promise<void> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);

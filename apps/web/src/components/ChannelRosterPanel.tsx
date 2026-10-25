@@ -3,6 +3,7 @@ import { MessageCircle, MoreHorizontal, Search, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useWebMemberDirectorySearch } from "../controllers/useWebMemberDirectorySearch";
 import { CommunityMemberSettingsDialog } from "./CommunityMemberSettingsDialog";
+import { WebCommunityCreators } from "./WebCommunityCreators";
 import { useMemberScrollPagination } from "./useMemberScrollPagination";
 import { CommunityJoinRequestReview } from "./CommunityJoinRequestReview";
 import { CommunityAutoJoinControl, type CommunityAdmissionControl } from "./CommunityAutoJoinControl";
@@ -211,7 +212,7 @@ function RosterSurface(props: RosterProps & {
   }, searching ? searchResult.progress : pages.length);
   const rosterMembers = [...new Map(pages.flatMap(page => page.page).map(member => [member.user_id, member])).values()];
   const members = searching ? searchResult.rows.map(member => ({
-    user_id: member.user_id, role: member.role,
+    user_id: member.user_id, role: member.role, co_creator: member.co_creator,
     membership_id: member.id.startsWith("owner:") ? undefined : member.id,
     membership_created_at: member.created_at,
     profile: member, last_seen_at: null, active_until: null,
@@ -231,7 +232,7 @@ function RosterSurface(props: RosterProps & {
   const ready = pages.length > 0;
   const firstPresenceGroup = (["online", "offline", "unknown"] as const).find(group => members.some(member => status(member) === group));
   const settings = <CommunityMemberSettingsDialog {...props.memberSettings}
-    member={selectedMember ? { ...selectedMember.profile, id: selectedMember.membership_id!, user_id: selectedMember.user_id, role: selectedMember.role, created_at: selectedMember.membership_created_at } : null}
+    member={selectedMember ? { ...selectedMember.profile, id: selectedMember.membership_id!, user_id: selectedMember.user_id, role: selectedMember.role, co_creator: selectedMember.co_creator, created_at: selectedMember.membership_created_at } : null}
     onClose={() => setSelectedMembershipId(null)} />;
   const content = <><aside className={props.page ? "members-directory-content members-page" : props.directory ? "members-directory-content" : "community-context-panel channel-roster-panel"} aria-label={props.directory ? "Community members" : "Channel people and agents"}
     style={!props.directory && props.memberDetailOpen ? { display: "none" } : undefined}
@@ -248,6 +249,7 @@ function RosterSurface(props: RosterProps & {
       </div> : null}
       <span className="community-context-rail-name">{props.communityName}</span>
     </div>
+    <WebCommunityCreators communityId={scope?.communityId} onOpenProfile={props.onOpenProfile} className="community-context-rail-creators" />
     <CommunityPresenceFacepile faces={props.presenceSummary?.online_faces} onlineCount={props.presenceSummary?.online_count}
       onlineCountCapped={Boolean(props.presenceSummary?.online_count_capped)} isLoading={props.isLoadingPresence} />
     <div className="community-context-memory">

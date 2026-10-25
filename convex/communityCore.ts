@@ -79,6 +79,7 @@ export type CommunityMembershipLike = {
   communityId: any;
   userId: any;
   role: string;
+  coCreator?: boolean;
   accessSource?: string;
   pricePointId?: any;
   active?: boolean;
@@ -742,6 +743,10 @@ export function normalizeOptionalFileKey(raw: unknown): string | undefined {
   return value.slice(0, 4096);
 }
 
+export function communityMembershipIsCoCreator(membership: CommunityMembershipLike | null | undefined): boolean {
+  return Boolean(membership) && normalizeCommunityRoleForOutput(membership!.role) === "admin" && membership!.coCreator === true;
+}
+
 export function normalizeRoleAssignment(raw: unknown): "admin" | "moderator" | "member" {
   const role = String(raw ?? "")
     .trim()
@@ -1376,6 +1381,7 @@ export async function resolveCommunityAccessBundle(args: {
   const isEntitled = isMembershipEntitled && builderAccess.operational;
   const isAdmin = !isOwner && isMembershipEntitled && role === "admin";
   const isModerator = !isOwner && isMembershipEntitled && role === "moderator";
+  const isCoCreator = isAdmin && communityMembershipIsCoCreator(args.membership);
   let joinRequestStatus: string | null = null;
   let joinRequestReapplyAt: number | null = null;
   if (!isEntitled && !isOwner && !isBlocked) {
@@ -1416,8 +1422,8 @@ export async function resolveCommunityAccessBundle(args: {
   const canReviewJoinRequests =
     builderAccess.operational && (isOwner || isAdmin || isModerator);
   const canManagePricing = builderAccess.operational && (isOwner || isAdmin);
-  const canManageBranding = builderAccess.operational && isOwner;
-  const canManagePublishing = builderAccess.operational && isOwner;
+  const canManageBranding = builderAccess.operational && (isOwner || isCoCreator);
+  const canManagePublishing = builderAccess.operational && (isOwner || isCoCreator);
   const canManagePayouts = builderAccess.operational && isOwner;
   const canPostMessage = isEntitled && !welcome.required;
   const primaryCta: CommunityPrimaryCta = !builderAccess.operational

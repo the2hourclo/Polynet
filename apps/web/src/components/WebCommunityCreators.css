@@ -1,0 +1,55 @@
+/* The community's creators: overlapping faces and names. Sizes in rem so the
+   community theme map doesn't rescale them; colours from the community. */
+.community-creators {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.community-creators-faces { display: inline-flex; flex: none; }
+.community-creators-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border: 2px solid var(--bg-card, var(--bg-app));
+  border-radius: 999px;
+  background: var(--bg-card-hover, var(--bg-card-alt));
+  color: var(--text-primary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.community-creators-avatar + .community-creators-avatar { margin-left: -0.5rem; }
+.community-creators-avatar-image { width: 100%; height: 100%; object-fit: cover; }
+.community-creators-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.community-creators-label {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.community-creators-names {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.community-creators-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+button.community-creators-name:hover { text-decoration: underline; }
+button.community-creators-name:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; border-radius: 0.125rem; }
+
+/* Channels: under the community's name at the top of the right panel. */
+.community-context-rail-creators { padding: 0 1rem 0.75rem; }
+/* Classroom card and About: between the description and the member count. */
+.community-card-block .community-creators { margin: 0.25rem 0; }
