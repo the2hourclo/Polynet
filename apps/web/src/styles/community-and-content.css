@@ -10719,6 +10719,9 @@ button.chat-reply-quote:hover {
 }
 
 .resource-viewer-prose-edit-trigger {
+  /* The -6px margin gives the hover outline room; the extra width keeps the
+     text on the same column edges as the editor and the member's view. */
+  width: calc(100% + 12px);
   border: 1px solid transparent;
   cursor: text;
   transition: border-color 140ms ease, background 140ms ease;

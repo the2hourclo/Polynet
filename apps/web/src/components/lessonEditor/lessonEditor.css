@@ -13,6 +13,12 @@
 }
 
 .lesson-editor {
+  /* The editor sits in the reader's column, so it takes the same measure
+     (--lesson-reading-measure), line height and block spacing; what the owner
+     edits lines up with what members read. */
+  width: 100%;
+  max-width: var(--lesson-reading-measure, none);
+  margin-inline: auto;
   --lesson-editor-surface: var(--bg-card-solid, var(--web-popover-surface, #fff));
   --lesson-editor-line: color-mix(in srgb, var(--border-default) 72%, transparent);
   --lesson-editor-soft: color-mix(in srgb, var(--bg-card-alt, #f4f4f2) 70%, transparent);
@@ -59,6 +65,18 @@
   border-top-color: var(--text-primary);
 }
 
+/* Pictures, videos and lesson blocks get the reader's 2em space above and
+   below, measured in the text size (the cards themselves use the UI size). */
+.lesson-editor-content > .react-renderer {
+  margin-block: 2em;
+}
+
+/* Media inside the editor's cards (thumbnails, previews) don't take the
+   reader's 2em media spacing; the cards themselves do. */
+.lesson-editor .lesson-editor-content.resource-viewer-prose.ProseMirror :is(img, figure, iframe, video, .md-media-embed, .md-video) {
+  margin-block: 0;
+}
+
 .lesson-editor-dropcursor {
   background: var(--accent-primary, var(--accent, #2f7d5b));
   border-radius: calc(2px * var(--pn-radius-scale, 1));
@@ -66,7 +84,7 @@
 
 /* Code and prompts */
 .lesson-editor-code {
-  margin: 0 0 16px;
+  margin: 16px 0;
   padding: 14px 16px;
   border: 1px solid var(--lesson-editor-line);
   border-radius: var(--lesson-editor-radius);
@@ -461,7 +479,7 @@ select.lesson-editor-field {
 .lesson-editor-block {
   display: grid;
   gap: 12px;
-  margin: 16px 0;
+  margin: 0;
   padding: 12px 14px 14px;
   border: var(--pn-border-width, 1px) solid var(--lesson-editor-line);
   border-radius: var(--lesson-editor-radius);
@@ -743,7 +761,7 @@ select.lesson-editor-field {
 /* Images */
 .lesson-editor-image {
   position: relative;
-  margin: 16px 0;
+  margin: 0;
 }
 
 .lesson-editor-image figure {
@@ -802,7 +820,7 @@ select.lesson-editor-field {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 16px 0;
+  margin: 0;
   padding: 16px;
   border: 1px dashed var(--lesson-editor-line);
   border-radius: var(--lesson-editor-radius);
