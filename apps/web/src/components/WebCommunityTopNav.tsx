@@ -12,7 +12,7 @@ import { WebCommunityNotificationsMenu } from "./WebCommunityNotificationsMenu";
 // as the side column (shared/CommunityNav.tsx); only the arrangement differs.
 // Channels show as category chips under the tabs on the chat tab.
 // The first row is the header: the community, a search across its posts, and
-// the member's tools (invite, messages, notifications), like Skool's header.
+// the member's tools (invite, messages, notifications).
 
 const OWNER_TABS: { tab: CommunityTab; label: string; allowed: (shell: WebCommunityShellProps) => boolean }[] = [
   { tab: "workflows", label: "Workflows", allowed: (shell) => shell.canManageMembersActiveCommunity },

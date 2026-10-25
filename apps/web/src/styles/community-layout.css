@@ -29,8 +29,8 @@
     overflow: hidden;
   }
 
-  /* The top bar is position: fixed, so it takes no grid cell; without this the
-     shell would land in the folded 0px row and the page would be blank. */
+  /* The top bar can be position: fixed and take no grid cell; pin the shell
+     to the last row either way. */
   .app-root.community-layout-top > .app-shell {
     grid-row: -2 / -1;
   }

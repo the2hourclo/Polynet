@@ -47,9 +47,9 @@ export type CommunityLayoutV1 = {
     };
     about: {
       // "page": the About tab shows the description, and visitors get
-      // Polynet's own public page. "funnel": one sales page for both, as
-      // Skool does it: media, stats, description and a join card with the
-      // price, served at the public link and inside the community.
+      // Polynet's own public page. "funnel": one sales page for both, with
+      // media, stats, description and a join card with the price, served at
+      // the public link and inside the community.
       presentation: "page" | "funnel";
     };
   };

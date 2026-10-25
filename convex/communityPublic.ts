@@ -346,7 +346,7 @@ export const resolvePublicFunnelBySlug = query({
           ? readCommunityExternalFunnelUrl(community.externalFunnelUrl)
           : null,
         funnel,
-        // "funnel": the community's About page is its public page (Skool style).
+        // "funnel": the community's About page is its public page.
         about_presentation: layout?.pages.about.presentation ?? "page",
       },
       active_plan: activePlan,
