@@ -238,6 +238,9 @@
 [data-community-theme] .appearance-frame {
   border-radius: calc(12px * var(--pn-radius-scale, 1));
 }
+[data-community-theme] .appearance-frame-fit {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .appearance-canvas.is-phone .appearance-frame {
   border-radius: calc(28px * var(--pn-radius-scale, 1));
 }
