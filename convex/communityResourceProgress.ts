@@ -110,7 +110,7 @@ function toIso(value: number | undefined) {
   return typeof value === "number" ? new Date(value).toISOString() : null;
 }
 
-async function lessonElements(ctx: any, page: CommunityResourceLike) {
+export async function lessonElements(ctx: any, page: CommunityResourceLike) {
   if (!page.lesson) return [];
   const hydrated = await hydrateCommunityResourceBody(ctx, page);
   return parseCommunityLessonElements(hydrated?.bodyMd);
@@ -281,7 +281,7 @@ const setOwnResourceProgressArgs = {
     status: v.union(v.literal("not_started"), v.literal("in_progress"), v.literal("done")),
 };
 
-async function setOwnResourceProgress(ctx: any, args: any) {
+export async function setOwnResourceProgress(ctx: any, args: any) {
   const welcomeIds = await communityWelcomeLessonIds(ctx, args.communityId);
   await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId,
     allowWelcome: welcomeIds.has(String(args.resourceId)) });
@@ -347,7 +347,7 @@ const setOwnLessonResponseArgs = {
     value: v.union(v.null(), v.boolean(), v.array(v.string())),
 };
 
-async function saveOwnLessonResponse(ctx: any, args: any) {
+export async function saveOwnLessonResponse(ctx: any, args: any) {
   const welcomeIds = await communityWelcomeLessonIds(ctx, args.communityId);
   await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId,
     allowWelcome: welcomeIds.has(String(args.resourceId)) });

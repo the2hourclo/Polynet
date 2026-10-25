@@ -58,6 +58,7 @@ import { validateProfileHandle } from "../shared/profileHandle";
 import { intakeCommunityAgentWorkflowAction } from "./communityAgentConciergeCore";
 import { resolveNotificationRecipientSource } from "./communityNotificationAccess";
 import { bindMemberServiceChannel } from "./communityMemberServiceChannelCore";
+import { testMemberAutoplayIsOn } from "./communityTestMemberCore";
 
 // Departed members' positions cleared per call; past this the call clears a
 // batch and asks the caller to call again (the gateway does), so any number clears.
@@ -1370,6 +1371,14 @@ async function executeWorkflowAutomation(args: {
       return { status: "client_property_set" as const, workflow_run_id: String(workflowRunId), key: result.key, replayed: false };
     }
     if (args.automation.action.type === "prompt_agent") {
+      // Autoplay tests the sequence without sending: the step is marked as a preview.
+      if (await testMemberAutoplayIsOn(args.ctx, args.membership.userId, nowMs)) {
+        await args.ctx.db.patch(workflowRunId, { status: "finished", actionResult: {
+          actionKey: args.automation.action.key, status: "complete", resultCode: "agent_previewed",
+        }, finishedAt: nowMs, updatedAt: nowMs });
+        await args.ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.reconcileCompletedWorkflowActionsInternal, { workflowRunId });
+        return { status: "agent_previewed" as const, workflow_run_id: String(workflowRunId), replayed: false };
+      }
       if (!args.workflowPreviousRunId && !args.workflowTimerId && !args.workflowFormRequestId && (!args.row || !args.objectType || args.automation.trigger.type !== "member_contributed")) {
         throw new Error("community_member_workflow_timer_action_invalid");
       }

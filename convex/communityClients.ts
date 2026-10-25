@@ -326,7 +326,8 @@ async function readTimeline(ctx: any, args: any) {
     const did = action.type === "request_form" ? `Workflow sent the ${formNames.get(action.formKey)} form`
       : action.type === "set_client_property" ? `Workflow set ${action.propertyKey}`
       : action.type === "create_service_channel" ? "Workflow opened a private channel"
-      : action.type === "prompt_agent" ? "Workflow asked the agent to act"
+      : action.type === "prompt_agent" ? row.actionResult?.resultCode === "agent_previewed"
+        ? "Workflow previewed an agent message (Autoplay, not sent)" : "Workflow asked the agent to act"
       : `Workflow ran ${String(action.type ?? "an action").replace(/_/g, " ")}`;
     entries.push({ at: row.finishedAt ?? row.updatedAt, type: row.status === "failed" ? "workflow_action_failed" : "workflow_action",
       summary: row.status === "failed" ? `${did}: failed (${String(row.errorCode ?? "unknown").replace(/_/g, " ")})` : `${did} (${row.milestoneName})` });

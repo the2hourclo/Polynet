@@ -20,6 +20,9 @@ export type TestMemberRow = {
   label: string;
   number: number;
   startMilestoneKey?: string;
+  autoplayUntil?: number;
+  autoplayDone?: string[];
+  autoplayLast?: { at: number; text: string; path?: string; target?: string };
   createdAt: number;
   endedAt?: number;
 };
@@ -68,4 +71,10 @@ export async function requireNotTestMemberOutsideCommunity(ctx: any, userId: any
   if (communityId === undefined || String(row.communityId) !== String(communityId)) {
     throw new Error("test_member_outside_community");
   }
+}
+
+/** A test member Autoplay is driving right now: agent messages a Workflow sends are previewed, not sent. */
+export async function testMemberAutoplayIsOn(ctx: any, userId: any, nowMs = Date.now()): Promise<boolean> {
+  const row = await findTestMemberByUserId(ctx, userId);
+  return !!row && row.endedAt === undefined && (row.autoplayUntil ?? 0) > nowMs;
 }

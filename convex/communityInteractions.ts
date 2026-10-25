@@ -1692,7 +1692,7 @@ const communityInteractionComposerArgs = {
 // One composer path. The public mutation verifies the signed-in caller; the
 // internal variant serves trusted server adapters (community apps) that have
 // already authenticated the member, and must never take a client-chosen user.
-async function createCommunityInteractionComposerMessageCore(
+export async function createCommunityInteractionComposerMessageCore(
   ctx: any,
   args: any,
   trustedUserId?: any,

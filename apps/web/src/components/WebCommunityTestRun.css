@@ -88,3 +88,16 @@
 }
 .test-run-steps button:disabled, .test-run-link:disabled { opacity: 0.5; cursor: not-allowed; }
 .test-run-workflow-button { margin-top: 8px; }
+
+/* In a test-run tab, what Autoplay just pressed. */
+.test-run-highlight {
+  outline: 3px solid #f59e0b !important;
+  outline-offset: 3px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.25) !important;
+  transition: outline-color 0.2s, box-shadow 0.2s;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .test-run-highlight { animation: test-run-highlight-pulse 0.8s ease-out 2; }
+}
+@keyframes test-run-highlight-pulse { from { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); } to { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); } }

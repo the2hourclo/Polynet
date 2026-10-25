@@ -17,7 +17,12 @@ export type CloudCommunityTestMember = {
 export type CloudCommunityTestMembers = { limit: number; test_members: CloudCommunityTestMember[] };
 export type CloudCommunityTestMemberStarted = { id: string; label: string; auth_subject: string; membership_id: string };
 export type CloudCommunityClientTimelineEntry = { at: string; type: string; summary: string; ref?: string; actor?: string };
-export type CloudMyTestRun = { label: string; community_id: string; community_slug: string | null; community_name: string | null };
+export type CloudMyTestRunAutoplay = { at: string; text: string; path: string | null; target: string | null };
+export type CloudMyTestRun = {
+  label: string; community_id: string; community_slug: string | null; community_name: string | null;
+  /** Autoplay's latest step while it plays. */
+  autoplay?: CloudMyTestRunAutoplay | null;
+};
 
 export async function listCloudCommunityTestMembers(session: unknown, communityId: string): Promise<CloudCommunityTestMembers> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
@@ -33,7 +38,7 @@ export async function startCloudCommunityTestMember(session: unknown, communityI
 }
 
 export type CloudTestRunStepStatus = "done" | "failed" | "running" | "scheduled" | "waiting" | "skipped" | "not_reached";
-export type CloudTestRunStep = { key: string; when: string; does: string; status: CloudTestRunStepStatus; at: string | null; due_at: string | null; error: string | null };
+export type CloudTestRunStep = { key: string; when: string; does: string; status: CloudTestRunStepStatus; at: string | null; due_at: string | null; error: string | null; note?: string | null };
 export type CloudTestRunStage = { key: string; name: string; is_current: boolean; reached: boolean; entered_at: string | null; steps: CloudTestRunStep[] };
 export type CloudTestRunSequence = { stages: CloudTestRunStage[]; completed_at: string | null };
 
@@ -70,6 +75,18 @@ export async function runCloudTestMemberTimedStepsNow(session: unknown, communit
   return result.ran;
 }
 
+export type CloudAutoplayBeat = { kind: "form" | "lesson_step" | "lesson_done" | "post" | "wait"; text: string; ok: boolean; detail?: string };
+export type CloudAutoplayStep = { status: "acted" | "idle" | "finished" | "stopped"; beat: CloudAutoplayBeat | null };
+
+/** Autoplay: the test member does its next step by itself. With stop, Autoplay ends and agent steps send again. */
+export async function autoplayCloudTestMemberStep(session: unknown, communityId: string, testMemberId: string, stop = false): Promise<CloudAutoplayStep> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, {
+    authSubject, communityId: communityId as Id<"communities">, testMemberId: testMemberId as Id<"communityTestMembers">,
+    ...(stop ? { stop } : {}),
+  });
+}
+
 export async function endCloudCommunityTestMember(session: unknown, communityId: string, testMemberId: string): Promise<void> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   await client.mutation(api.communityTestMembers.endTestMember, {
@@ -81,6 +98,26 @@ export async function endCloudCommunityTestMember(session: unknown, communityId:
 export async function getCloudMyTestRun(session: unknown): Promise<CloudMyTestRun | null> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return await client.query(api.communityTestMembers.getMyTestRun, { authSubject });
+}
+
+/** In a test-run tab, live: who it acts as (null once ended) and Autoplay's latest step. */
+export function subscribeCloudMyTestRun<S>(params: {
+  session: S; ensureSession: ConvexRealtimeEnsureSession<S>;
+  update: (run: CloudMyTestRun | null) => void; error: () => void;
+}): () => void {
+  const lease = acquireAuthenticatedConvexRealtimeClient({ session: params.session, convexUrl: requireConvexUrl(), ensureSession: params.ensureSession });
+  const watch = lease.client.watchQuery(api.communityTestMembers.getMyTestRun, { authSubject: lease.authSubject });
+  let closed = false;
+  const publish = () => {
+    if (closed) return;
+    try {
+      const value = watch.localQueryResult() as CloudMyTestRun | null | undefined;
+      if (value !== undefined) params.update(value);
+    } catch { params.error(); }
+  };
+  const stop = watch.onUpdate(publish);
+  publish();
+  return () => { closed = true; stop(); lease.close(); };
 }
 
 /** The test member's record as it changes: what they did and what Workflows did for them. */
