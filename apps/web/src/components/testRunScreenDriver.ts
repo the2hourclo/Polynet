@@ -108,7 +108,19 @@ function goTo(path: string | undefined) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
+/** The welcome page can open with screens of words before a step: read on past them, as a member would. */
+async function passWelcomeScreens(cursor: Cursor, pace: number) {
+  for (let turn = 0; turn < 20; turn += 1) {
+    const next = Array.from(document.querySelectorAll(".community-welcome-next button")).filter(shown)[0];
+    if (!next) return;
+    await sleep(pace / 2);
+    await cursor.click(next);
+    await waitFor(() => (next.isConnected ? null : true), 2_000);
+  }
+}
+
 async function fillForm(cursor: Cursor, step: Extract<CloudAutoplayScreenStep, { kind: "form" }>, pace: number) {
+  await passWelcomeScreens(cursor, pace);
   const name = step.formName.trim().toLowerCase();
   const formOpen = () => Array.from(document.querySelectorAll(".member-form-dialog")).filter(shown)
     .find((dialog) => words(dialog.querySelector("header h2") ?? dialog).startsWith(name)) ?? null;
@@ -147,8 +159,9 @@ async function fillForm(cursor: Cursor, step: Extract<CloudAutoplayScreenStep, {
 }
 
 /** Opens the lesson, unless it's already on screen (the welcome page shows it directly). */
-async function openLesson(cursor: Cursor, step: { lessonTitle: string; welcome: boolean }) {
+async function openLesson(cursor: Cursor, step: { lessonTitle: string; welcome: boolean }, pace: number) {
   if (step.welcome) {
+    await passWelcomeScreens(cursor, pace);
     need(await waitFor(() => document.querySelector(".community-welcome-lesson")), "the welcome lesson isn't showing");
     return;
   }
@@ -160,7 +173,7 @@ async function openLesson(cursor: Cursor, step: { lessonTitle: string; welcome: 
 }
 
 async function doLessonStep(cursor: Cursor, step: Extract<CloudAutoplayScreenStep, { kind: "lesson_step" }>, pace: number) {
-  await openLesson(cursor, step);
+  await openLesson(cursor, step, pace);
   const name = step.elementName.trim();
   const section = need(await waitFor(() => Array.from(document.querySelectorAll("section.lesson-element")).filter(shown)
     .find((node) => (node.getAttribute("aria-label") ?? "").trim() === name) ?? null), `couldn't find “${name}” in the lesson`);
@@ -185,7 +198,7 @@ async function doLessonStep(cursor: Cursor, step: Extract<CloudAutoplayScreenSte
 }
 
 async function markLessonDone(cursor: Cursor, step: Extract<CloudAutoplayScreenStep, { kind: "lesson_done" }>) {
-  await openLesson(cursor, step);
+  await openLesson(cursor, step, 600);
   const button = need(await waitFor(() => byText("button", "Mark done") ?? byText("button", "Mark as done") ?? byText("button", "Mark complete")),
     "no Mark done button");
   await cursor.click(button);

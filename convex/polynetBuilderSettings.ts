@@ -107,7 +107,8 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     operation: "community.welcome.save", area: "welcome", name: "Welcome page",
     calls: "communityMemberWorkflows:saveBuilderWelcomePage", ref: api.communityMemberWorkflows.saveBuilderWelcomePage, kind: "mutation",
     fields: { expected_revision: "workflow revision from /builder/settings.json", title: "heading", message: "welcome text (Markdown)",
-      media_url: "video or image URL, or empty", lesson_ids: "lesson resource ids new members start with" },
+      media_url: "video or image URL, or empty", lesson_ids: "lesson resource ids new members start with",
+      layout: 'optional: the page as blocks, in order: {"type":"text","markdown":"…"} (a link alone on a line plays as a video), {"type":"form","formKey":"…"}, {"type":"lesson","resourceId":"…"}, {"type":"next"} to start a new screen. With it, message, media_url and lesson_ids are ignored, and its forms become the forms new members answer on joining' },
     required: ["expected_revision", "title", "message", "media_url", "lesson_ids"], effects: ["update_welcome_page"],
   }),
   op({

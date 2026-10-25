@@ -1,3 +1,4 @@
+import type { WelcomeBlock } from "./communityWelcomeLayout";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import {
@@ -39,7 +40,7 @@ export type CloudCommunityMemberWorkflowBoard = {
   /** Lesson pages members mark done after the forms, in order. */
   welcome_lesson_ids?: string[];
   /** The builder's words on the welcome page; empty means Polynet's default. */
-  welcome_page?: { title: string; message: string; media_url: string };
+  welcome_page?: { title: string; message: string; media_url: string; layout?: WelcomeBlock[] | null };
   updated_at: string;
 };
 
@@ -275,7 +276,7 @@ export async function setCloudCommunityWelcomeGate<SessionT>(params: WorkflowGat
   });
 }
 
-export type CloudCommunityWelcomePageDraft = { title: string; message: string; mediaUrl: string; lessonIds: string[] };
+export type CloudCommunityWelcomePageDraft = { title: string; message: string; mediaUrl: string; lessonIds: string[]; layout?: WelcomeBlock[] };
 
 export async function saveCloudCommunityWelcomePage<SessionT>(params: WorkflowGatewayParams<SessionT> & {
   communityId: string; expectedRevision: number; page: CloudCommunityWelcomePageDraft;
@@ -284,6 +285,7 @@ export async function saveCloudCommunityWelcomePage<SessionT>(params: WorkflowGa
   return await client.mutation(api.communityMemberWorkflows.saveBuilderWelcomePage, {
     authSubject, communityId: params.communityId as Id<"communities">, expectedRevision: params.expectedRevision,
     title: params.page.title, message: params.page.message, mediaUrl: params.page.mediaUrl, lessonIds: params.page.lessonIds,
+    ...(params.page.layout ? { layout: params.page.layout } : {}),
   });
 }
 

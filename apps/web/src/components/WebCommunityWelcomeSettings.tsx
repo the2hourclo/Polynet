@@ -1,16 +1,23 @@
-import { ArrowDown, ArrowUp, Monitor, RefreshCw, Smartphone, X } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import { BookOpen, ClipboardList, Eye, GripVertical, Image as ImageIcon, Monitor, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
+import {
+  useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
+  type DragEvent, type KeyboardEvent, type MutableRefObject, type ReactNode, type TextareaHTMLAttributes,
+} from "react";
 import type { CloudCommunityMemberWorkflowBoard, CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
+import {
+  WELCOME_BLOCKS_MAX, WELCOME_FORMS_MAX, WELCOME_LESSONS_MAX, WELCOME_TEXT_MAX,
+  legacyWelcomeLayout, normalizeWelcomeLayout, welcomeLayoutSteps, welcomeLayoutWithForms, welcomeScreens,
+  type WelcomeBlock, type WelcomeStep,
+} from "../../../../shared/communityWelcomeLayout";
+import { renderMarkdown } from "../../../../shared/markdownUi";
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
 import type { CommunityFormDraft } from "../../../../shared/communityForms";
 import { MemberFormRunner } from "./WebCommunityNextStep";
-import { WelcomeIntro } from "./WebCommunityWelcome";
+import { WelcomeScreenView, welcomeMediaMarkdown } from "./WebCommunityWelcome";
 import "./WebCommunityWelcomeSettings.css";
 
 const TITLE_MAX = 120;
-const MESSAGE_MAX = 4_000;
-const LESSONS_MAX = 5;
 
 type Props = {
   board: CloudCommunityMemberWorkflowBoard | null;
@@ -26,33 +33,76 @@ type Props = {
   leaveGuard: MutableRefObject<(() => Promise<boolean>) | null>;
 };
 
-function draftFrom(board: CloudCommunityMemberWorkflowBoard | null): CloudCommunityWelcomePageDraft {
-  return {
-    title: board?.welcome_page?.title ?? "",
-    message: board?.welcome_page?.message ?? "",
-    mediaUrl: board?.welcome_page?.media_url ?? "",
-    lessonIds: board?.welcome_lesson_ids ?? [],
-  };
+type EditorBlock = WelcomeBlock & { uid: string };
+type Draft = { title: string; layout: EditorBlock[] };
+let nextUid = 0;
+const withUid = (block: WelcomeBlock): EditorBlock => ({ ...block, uid: `b${++nextUid}` });
+const stripUid = ({ uid: _uid, ...block }: EditorBlock): WelcomeBlock => block as WelcomeBlock;
+const isStep = (block: WelcomeBlock) => block.type === "form" || block.type === "lesson";
+const mediaLine = (url: string) => welcomeMediaMarkdown(url).replace(/^<(.*)>$/, "$1");
+const isLink = (value: string) => /^https:\/\/\S+$/i.test(value.trim());
+
+function joinFormKeys(board: CloudCommunityMemberWorkflowBoard | null): string[] {
+  return (board?.milestones[0]?.automations ?? [])
+    .filter((rule) => rule.trigger.type === "member_joined" && rule.action.type === "request_form")
+    .map((rule) => (rule.action.type === "request_form" ? rule.action.formKey : ""));
 }
 
-// What new members see first, and the steps they finish before the community
-// opens: the builder's words, the first milestone's join forms, then lessons.
+// The saved page, or the words, media and steps saved before the page was blocks.
+function savedLayout(board: CloudCommunityMemberWorkflowBoard | null): WelcomeBlock[] {
+  const page = board?.welcome_page;
+  const forms = joinFormKeys(board);
+  const layout = page?.layout ?? legacyWelcomeLayout({
+    message: page?.message ?? "", mediaUrl: page?.media_url ? mediaLine(page.media_url) : "",
+    formKeys: forms, lessonIds: board?.welcome_lesson_ids ?? [],
+  });
+  return withBreaks(welcomeLayoutWithForms(layout, forms));
+}
+
+/** Shows every screen split: a step that would start a screen of its own gets its "Next" break drawn. */
+function withBreaks<T extends WelcomeBlock>(layout: T[], make: (block: WelcomeBlock) => T = (block) => block as T): T[] {
+  const out: T[] = [];
+  let hasStep = false;
+  for (const block of layout) {
+    if (block.type === "next") hasStep = false;
+    else if (isStep(block)) {
+      if (hasStep) out.push(make({ type: "next" }));
+      hasStep = true;
+    }
+    out.push(block);
+  }
+  return out;
+}
+
+const draftKey = (title: string, layout: WelcomeBlock[]) =>
+  JSON.stringify({ title: title.replace(/\s+/g, " ").trim(), layout: normalizeWelcomeLayout(layout) });
+
+type MenuTarget = { uid: string; mode: "replace" | "after" } | { uid: null; mode: "end" };
+type MenuView = "root" | "form" | "lesson" | "link";
+type MenuItem = { key: string; label: string; hint: string; icon: ReactNode };
+
+// The welcome page, written like a page: the headline, then blocks of words,
+// videos, forms and lessons, split into screens by "Next" breaks. Members go
+// through it one screen at a time; Preview plays it the same way.
 export function WebCommunityWelcomeSettings(props: Props) {
   const id = useId();
-  const baseline = useMemo(() => draftFrom(props.board), [props.board]);
-  const baselineKey = JSON.stringify(baseline);
-  const [draft, setDraft] = useState(baseline);
+  const baseline = useMemo<Draft>(() => ({
+    title: props.board?.welcome_page?.title ?? "", layout: savedLayout(props.board).map(withUid),
+  }), [props.board]);
+  const baselineKey = draftKey(baseline.title, baseline.layout.map(stripUid));
+  const [draft, setDraft] = useState<Draft>(baseline);
   const [draftBase, setDraftBase] = useState(baselineKey);
   const [saved, setSaved] = useState(false);
   const adoptNext = useRef(false);
+  const currentKey = draftKey(draft.title, draft.layout.map(stripUid));
   // Take the server's copy when there are no edits here, or right after a save
   // (the server tidies spacing, so the saved draft may not match it exactly).
-  if (draftBase !== baselineKey && (adoptNext.current || JSON.stringify(draft) === draftBase)) {
+  if (draftBase !== baselineKey && (adoptNext.current || currentKey === draftBase)) {
     adoptNext.current = false;
     setDraft(baseline);
     setDraftBase(baselineKey);
   }
-  const dirty = JSON.stringify(draft) !== baselineKey;
+  const dirty = currentKey !== baselineKey;
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   useEffect(() => {
@@ -61,232 +111,440 @@ export function WebCommunityWelcomeSettings(props: Props) {
   }, [props.leaveGuard]);
 
   const [options, setOptions] = useState<WelcomeLessonOption[] | null>(null);
-  const [optionsError, setOptionsError] = useState(false);
-  const [optionsRetry, setOptionsRetry] = useState(0);
-  useEffect(() => {
-    let alive = true; setOptionsError(false);
-    if (!props.onLoadWelcomeLessonOptions) { setOptions([]); return; }
-    props.onLoadWelcomeLessonOptions().then((rows) => { if (alive) setOptions(rows); }).catch(() => { if (alive) setOptionsError(true); });
-    return () => { alive = false; };
-  }, [props.onLoadWelcomeLessonOptions, optionsRetry]);
-
-  const [formRows, setFormRows] = useState<Map<string, CommunityFormDraft>>(new Map());
-  const [formsLoaded, setFormsLoaded] = useState(false);
   useEffect(() => {
     let alive = true;
-    props.forms?.load().then((rows) => { if (alive) setFormRows(new Map(rows.map((row) => [row.key, row]))); }).catch(() => {})
-      .finally(() => { if (alive) setFormsLoaded(true); });
+    if (!props.onLoadWelcomeLessonOptions) { setOptions([]); return; }
+    props.onLoadWelcomeLessonOptions().then((rows) => { if (alive) setOptions(rows); }).catch(() => { if (alive) setOptions([]); });
+    return () => { alive = false; };
+  }, [props.onLoadWelcomeLessonOptions]);
+  const [formRows, setFormRows] = useState<Map<string, CommunityFormDraft> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!props.forms) { setFormRows(new Map()); return; }
+    props.forms.load().then((rows) => { if (alive) setFormRows(new Map(rows.map((row) => [row.key, row]))); })
+      .catch(() => { if (alive) setFormRows(new Map()); });
     return () => { alive = false; };
   }, [props.forms]);
-  const joinForms = useMemo(() => (props.board?.milestones[0]?.automations ?? [])
-    .filter((rule) => rule.trigger.type === "member_joined" && rule.action.type === "request_form")
-    .map((rule) => (rule.action.type === "request_form" ? rule.action.formKey : ""))
-    .map((key) => ({ key, name: formRows.get(key)?.name ?? "A form" })), [props.board, formRows]);
+  const lessonById = useMemo(() => new Map((options ?? []).map((option) => [option.id, option])), [options]);
 
-  const optionById = useMemo(() => new Map((options ?? []).map((option) => [option.id, option])), [options]);
-  const courses = useMemo(() => {
-    const grouped = new Map<string, WelcomeLessonOption[]>();
-    for (const option of options ?? []) {
-      if (draft.lessonIds.includes(option.id)) continue;
-      grouped.set(option.course, [...(grouped.get(option.course) ?? []), option]);
-    }
-    return [...grouped.entries()];
-  }, [options, draft.lessonIds]);
-  const lessonLabel = (lessonId: string) => optionById.get(lessonId)?.title ?? (options ? "Lesson no longer published" : "Loading…");
+  const setLayout = (update: (layout: EditorBlock[]) => EditorBlock[]) => {
+    setSaved(false);
+    setDraft((current) => ({ ...current, layout: withBreaks(update(current.layout), withUid) }));
+  };
+  const [editing, setEditing] = useState<string | null>(null);
+  const focusBlock = (uid: string) => requestAnimationFrame(() => document.getElementById(`${id}-block-${uid}`)?.focus());
+  const editText = (uid: string) => { setEditing(uid); focusBlock(uid); };
 
-  const edit = (patch: Partial<CloudCommunityWelcomePageDraft>) => { setSaved(false); setDraft((current) => ({ ...current, ...patch })); };
-  // Reordering moves the focused button in the DOM, and removing deletes it, so
-  // the browser drops focus to the page. Put it on the first of these that can take it.
-  const focusFirst = (ids: string[]) => requestAnimationFrame(() => {
-    for (const target of ids) {
-      const element = document.getElementById(target) as HTMLButtonElement | HTMLSelectElement | null;
-      if (element && !element.disabled) { element.focus(); return; }
+  // The block menu: opened by typing "/" on an empty line, by a block's +, or by "Add a block".
+  const [menu, setMenu] = useState<{ target: MenuTarget; view: MenuView; filter: string; active: number } | null>(null);
+  const [link, setLink] = useState("");
+  const placed = useMemo(() => welcomeLayoutSteps(draft.layout), [draft.layout]);
+  const publishedForms = useMemo(() => [...(formRows?.values() ?? [])].filter((row) => row.publishedRevision !== null), [formRows]);
+  const menuItems = useMemo<MenuItem[]>(() => {
+    if (!menu || menu.view === "link") return [];
+    if (menu.view === "form") return publishedForms.filter((row) => !placed.formKeys.includes(row.key))
+      .map((row) => ({ key: `form:${row.key}`, label: row.name || "Untitled form",
+        hint: `${row.questions.length} question${row.questions.length === 1 ? "" : "s"}`, icon: <ClipboardList size={16} aria-hidden="true" /> }));
+    if (menu.view === "lesson") return (options ?? []).filter((row) => !placed.lessonIds.includes(row.id))
+      .map((row) => ({ key: `lesson:${row.id}`, label: row.title, hint: row.course, icon: <BookOpen size={16} aria-hidden="true" /> }));
+    const filter = menu.filter.toLowerCase();
+    return [
+      { key: "text", label: "Text", hint: "Words, lists and links", icon: <Type size={16} aria-hidden="true" /> },
+      { key: "link", label: "Video or image", hint: "A YouTube, Loom, Vimeo, Wistia or image link", icon: <ImageIcon size={16} aria-hidden="true" /> },
+      ...(placed.formKeys.length < WELCOME_FORMS_MAX ? [{ key: "form", label: "Form", hint: "Questions every new member answers", icon: <ClipboardList size={16} aria-hidden="true" /> }] : []),
+      ...(placed.lessonIds.length < WELCOME_LESSONS_MAX ? [{ key: "lesson", label: "Lesson", hint: "A lesson they read and mark done", icon: <BookOpen size={16} aria-hidden="true" /> }] : []),
+      { key: "next", label: "Next page", hint: "Start a new screen", icon: <SplitSquareVertical size={16} aria-hidden="true" /> },
+    ].filter((item) => item.label.toLowerCase().includes(filter));
+  }, [menu, publishedForms, options, placed]);
+  const full = draft.layout.length >= WELCOME_BLOCKS_MAX;
+  const openMenu = (target: MenuTarget, view: MenuView = "root", filter = "") => { setLink(""); setMenu({ target, view, filter, active: 0 }); };
+  const closeMenu = () => {
+    const target = menu?.target;
+    setMenu(null);
+    if (target?.uid) focusBlock(target.uid); else document.getElementById(`${id}-add`)?.focus();
+  };
+  const insert = (blocks: WelcomeBlock[]) => {
+    if (!menu) return;
+    const added = blocks.map(withUid);
+    const target = menu.target;
+    setLayout((layout) => {
+      const at = target.uid ? layout.findIndex((block) => block.uid === target.uid) : -1;
+      if (at < 0) return [...layout, ...added];
+      return target.mode === "replace" ? [...layout.slice(0, at), ...added, ...layout.slice(at + 1)]
+        : [...layout.slice(0, at + 1), ...added, ...layout.slice(at + 1)];
+    });
+    setMenu(null);
+    const last = added[added.length - 1];
+    if (last.type === "text" && !last.markdown) editText(last.uid);
+    else { setEditing(null); focusBlock(last.uid); }
+  };
+  const choose = (key: string) => {
+    if (!menu) return;
+    if (key === "form" || key === "lesson" || key === "link") { setLink(""); setMenu({ ...menu, view: key, filter: "", active: 0 }); return; }
+    if (key === "text") return insert([{ type: "text", markdown: "" }]);
+    if (key === "next") return insert([{ type: "next" }, { type: "text", markdown: "" }]);
+    if (key.startsWith("form:")) return insert([{ type: "form", formKey: key.slice(5) }]);
+    if (key.startsWith("lesson:")) return insert([{ type: "lesson", resourceId: key.slice(7) }]);
+  };
+  const addLink = () => { if (isLink(link)) insert([{ type: "text", markdown: mediaLine(link.trim()) }]); };
+  const menuKeys = (event: KeyboardEvent) => {
+    if (!menu) return false;
+    if (event.key === "Escape") { event.preventDefault(); closeMenu(); return true; }
+    if (menu.view === "link") return false;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const count = Math.max(menuItems.length, 1);
+      setMenu({ ...menu, active: (menu.active + (event.key === "ArrowDown" ? 1 : count - 1)) % count });
+      return true;
     }
+    if (event.key === "Enter" && menuItems[menu.active]) { event.preventDefault(); choose(menuItems[menu.active].key); return true; }
+    return false;
+  };
+  const menuEmpty = menu?.view === "form" ? (formRows === null ? "Loading forms…" : publishedForms.length ? "Every published form is already on the page." : "Publish a form in Forms first.")
+    : menu?.view === "lesson" ? (options === null ? "Loading lessons…" : "No more published lessons to add.") : "No block matches.";
+  const renderMenu = (autoFocus: boolean) => menu ? <BlockMenu view={menu.view} items={menuItems} active={menu.active} link={link} onLink={setLink}
+    onAddLink={addLink} onChoose={choose} onClose={closeMenu} onBack={() => setMenu({ ...menu, view: "root", active: 0 })}
+    autoFocus={autoFocus} onKeys={menuKeys} emptyText={menuEmpty} /> : null;
+
+  const updateText = (uid: string, markdown: string) => {
+    setLayout((layout) => layout.map((block) => (block.uid === uid ? { ...block, markdown } : block)));
+    // "/" at the start of an empty line opens the block menu, filtered by what follows.
+    const slash = /^\/(\w*)$/.exec(markdown);
+    if (slash && !full) openMenu({ uid, mode: "replace" }, "root", slash[1]);
+    else if (menu?.target.uid === uid) setMenu(null);
+  };
+  const remove = (uid: string) => {
+    const at = draft.layout.findIndex((block) => block.uid === uid);
+    const neighbour = draft.layout[at - 1] ?? draft.layout[at + 1];
+    setLayout((layout) => layout.filter((block) => block.uid !== uid));
+    if (neighbour?.type === "text") editText(neighbour.uid);
+    else if (neighbour) focusBlock(neighbour.uid);
+    else requestAnimationFrame(() => document.getElementById(`${id}-add`)?.focus());
+  };
+  const move = (uid: string, to: number) => setLayout((layout) => {
+    const from = layout.findIndex((block) => block.uid === uid);
+    if (from < 0) return layout;
+    const next = [...layout];
+    const [moved] = next.splice(from, 1);
+    next.splice(Math.max(0, Math.min(next.length, to > from ? to - 1 : to)), 0, moved);
+    return next;
   });
-  const moveLesson = (index: number, by: -1 | 1) => {
-    const lessonIds = [...draft.lessonIds];
-    const [moved] = lessonIds.splice(index, 1);
-    lessonIds.splice(index + by, 0, moved);
-    edit({ lessonIds });
-    // The same button lets keyboard users keep moving it; at either end that one is disabled.
-    const [same, other] = by < 0 ? ["up", "down"] : ["down", "up"];
-    focusFirst([`${id}-lesson-${moved}-${same}`, `${id}-lesson-${moved}-${other}`, `${id}-lesson-${moved}-remove`]);
+
+  // Dragging a block by its handle; a line shows where it lands.
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<number | null>(null);
+  const dragOver = (event: DragEvent, index: number) => {
+    if (!dragging) return;
+    event.preventDefault();
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    setDropAt(event.clientY < box.top + box.height / 2 ? index : index + 1);
   };
-  const removeLesson = (index: number) => {
-    const next = draft.lessonIds[index + 1] ?? draft.lessonIds[index - 1];
-    edit({ lessonIds: draft.lessonIds.filter((_, other) => other !== index) });
-    focusFirst([...(next ? [`${id}-lesson-${next}-remove`] : []), `${id}-add-lesson`, `${id}-steps`]);
+  const drop = (event: DragEvent) => {
+    event.preventDefault();
+    if (dragging && dropAt !== null) move(dragging, dropAt);
+    setDragging(null); setDropAt(null);
   };
+
   const save = async () => {
     if (!props.onSaveWelcomePage) return;
     adoptNext.current = true;
-    const ok = await props.onSaveWelcomePage(draft);
+    const layout = normalizeWelcomeLayout(draft.layout.map(stripUid));
+    const ok = await props.onSaveWelcomePage({ title: draft.title, message: "", mediaUrl: "", lessonIds: welcomeLayoutSteps(layout).lessonIds, layout });
     if (!ok) adoptNext.current = false;
     setSaved(ok);
   };
 
   const gateOn = props.board?.welcome_gate === true;
-  const hasSteps = joinForms.length > 0 || (props.board?.welcome_lesson_ids?.length ?? 0) > 0;
-  const stepCount = joinForms.length + draft.lessonIds.length;
+  const hasSteps = joinFormKeys(props.board).length > 0 || (props.board?.welcome_lesson_ids?.length ?? 0) > 0;
   const headline = draft.title.trim() || `Welcome to ${props.communityName ?? "your community"}`;
-  const previewMedia = /^https?:\/\/\S+$/i.test(draft.mediaUrl.trim()) ? draft.mediaUrl.trim() : null;
-  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
-  // The preview is the member's page itself (the same intro and the same form
-  // runner), opened on the first step, so what the owner sees is what members get.
-  const firstForm = joinForms[0] ? formRows.get(joinForms[0].key) ?? null : null;
-  const firstLessonId = joinForms.length ? null : draft.lessonIds[0] ?? null;
-  const previewForm = useMemo(() => firstForm?.questions?.length
-    ? { id: `preview:${firstForm.key}`, name: firstForm.name, questions: firstForm.questions, answers: {}, revision: firstForm.revision }
-    : null, [firstForm]);
-  const [previewRun, setPreviewRun] = useState(0);
+  const [previewing, setPreviewing] = useState(false);
+  const previewButton = useRef<HTMLButtonElement>(null);
+  const plain = draft.layout.map(stripUid);
+  const screenCount = welcomeScreens(normalizeWelcomeLayout(plain)).length;
+  const lastStepAt = plain.map(isStep).lastIndexOf(true);
+  const afterLastStep = lastStepAt >= 0 && plain.slice(lastStepAt + 1).some((block) => block.type === "next");
 
   if (!props.board) return <div className="workflow-page welcome-settings"><p role="status">Loading the welcome page…</p></div>;
 
+  let screenNumber = 1;
   return (
     <div className="workflow-page welcome-settings">
-      <div className="welcome-settings-editor">
-        <header className="welcome-settings-header">
+      <header className="welcome-settings-bar">
+        <div className="welcome-settings-bar-title">
           <h1>Welcome page</h1>
-          <p>New members see this page first and finish its steps before the rest of the community opens. They can still use the left rail.</p>
-        </header>
-
-        <section className="welcome-settings-section" aria-labelledby={`${id}-status`}>
-          <h2 id={`${id}-status`}>Status</h2>
-          <label className="welcome-settings-switch">
-            <input type="checkbox" role="switch" checked={gateOn} aria-describedby={`${id}-status-help`}
-              disabled={props.isSaving || !props.onSetWelcomeGate || (!gateOn && !hasSteps)}
-              onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)} />
-            <span>
-              <strong>Show the welcome page to new members</strong>
-              <small id={`${id}-status-help`}>
-                {gateOn ? "On. Members who join from now on start here."
-                  : hasSteps ? "Off. New members go straight into the community."
-                  : "Add a form or a lesson below, and save, before you turn this on."}
-              </small>
-            </span>
-          </label>
-        </section>
-
-        <section className="welcome-settings-section" aria-labelledby={`${id}-words`}>
-          <h2 id={`${id}-words`}>What it says</h2>
-          <div className="welcome-settings-field">
-            <label htmlFor={`${id}-title`}>Headline</label>
-            <input id={`${id}-title`} value={draft.title} maxLength={TITLE_MAX} placeholder={`Welcome to ${props.communityName ?? "your community"}`}
-              aria-describedby={`${id}-title-help`} onChange={(event) => edit({ title: event.target.value })} />
-            <small id={`${id}-title-help`}>Leave empty to use “Welcome to {props.communityName ?? "your community"}”. {draft.title.length}/{TITLE_MAX}</small>
-          </div>
-          <div className="welcome-settings-field">
-            <label htmlFor={`${id}-message`}>Message</label>
-            <textarea id={`${id}-message`} value={draft.message} maxLength={MESSAGE_MAX} rows={6}
-              placeholder="Say hello, and tell them what to expect in their first week."
-              aria-describedby={`${id}-message-help`} onChange={(event) => edit({ message: event.target.value })} />
-            <small id={`${id}-message-help`}>You can use **bold**, lists and links. {draft.message.length}/{MESSAGE_MAX}</small>
-          </div>
-          <div className="welcome-settings-field">
-            <label htmlFor={`${id}-media`}>Video or image link</label>
-            <input id={`${id}-media`} type="url" inputMode="url" value={draft.mediaUrl} placeholder="https://www.youtube.com/watch?v=…"
-              aria-describedby={`${id}-media-help`} onChange={(event) => edit({ mediaUrl: event.target.value })} />
-            <small id={`${id}-media-help`}>A YouTube, Loom, Vimeo or Wistia link, or a link to an image. Optional.</small>
-          </div>
-        </section>
-
-        <section className="welcome-settings-section" aria-labelledby={`${id}-steps`}>
-          <h2 id={`${id}-steps`} tabIndex={-1}>Steps</h2>
-          <p className="welcome-settings-help">Members do these in order: forms first, then lessons they mark done.</p>
-          {stepCount ? (
-            <ol className="welcome-settings-steps">
-              {joinForms.map((form) => (
-                <li key={`form:${form.key}`}>
-                  <span className="welcome-settings-step-kind">Form</span>
-                  <span className="welcome-settings-step-name">{form.name}</span>
-                </li>
-              ))}
-              {draft.lessonIds.map((lessonId, index) => {
-                const name = lessonLabel(lessonId);
-                const unavailable = Boolean(options) && !optionById.has(lessonId);
-                return (
-                  <li key={`lesson:${lessonId}`} className={unavailable ? "is-unavailable" : undefined}>
-                    <span className="welcome-settings-step-kind">Lesson</span>
-                    <span className="welcome-settings-step-name">
-                      {name}
-                      {optionById.get(lessonId)?.course ? <small>{optionById.get(lessonId)!.course}</small> : null}
-                    </span>
-                    <span className="welcome-settings-step-actions">
-                      <button type="button" id={`${id}-lesson-${lessonId}-up`} className="welcome-settings-icon-button" disabled={index === 0}
-                        aria-label={`Move ${name} earlier`} title="Move earlier" onClick={() => moveLesson(index, -1)}><ArrowUp size={15} aria-hidden="true" /></button>
-                      <button type="button" id={`${id}-lesson-${lessonId}-down`} className="welcome-settings-icon-button" disabled={index === draft.lessonIds.length - 1}
-                        aria-label={`Move ${name} later`} title="Move later" onClick={() => moveLesson(index, 1)}><ArrowDown size={15} aria-hidden="true" /></button>
-                      <button type="button" id={`${id}-lesson-${lessonId}-remove`} className="welcome-settings-icon-button" aria-label={`Remove ${name}`} title="Remove"
-                        onClick={() => removeLesson(index)}><X size={15} aria-hidden="true" /></button>
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          ) : <p className="welcome-settings-empty">No steps yet.</p>}
-          <p className="welcome-settings-help">
-            {joinForms.length ? "Forms come from the first milestone’s “Member joins” rules." : "To ask new members questions, add a “Member joins → Request a form” rule to the first milestone."}
-            {" "}<button type="button" className="welcome-settings-link" onClick={props.onOpenWorkflows}>{joinForms.length ? "Change forms in Workflows" : "Open Workflows"}</button>
-          </p>
-          <div className="welcome-settings-field">
-            <label htmlFor={`${id}-add-lesson`}>Add a lesson</label>
-            {optionsError ? (
-              <p role="alert" className="workflow-error">Lessons could not be loaded.{" "}
-                <button type="button" className="workflow-secondary-button" onClick={() => setOptionsRetry((n) => n + 1)}><RefreshCw size={14} aria-hidden="true" /> Try again</button></p>
-            ) : (
-              <select id={`${id}-add-lesson`} value="" aria-describedby={`${id}-add-lesson-help`}
-                disabled={!options || draft.lessonIds.length >= LESSONS_MAX || courses.length === 0}
-                onChange={(event) => { if (event.target.value) edit({ lessonIds: [...draft.lessonIds, event.target.value] }); }}>
-                <option value="">{!options ? "Loading lessons…" : courses.length ? "Choose a lesson…" : "No published lessons to add"}</option>
-                {courses.map(([course, rows]) => (
-                  <optgroup key={course} label={course || "Lessons"}>
-                    {rows.map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}
-                  </optgroup>
-                ))}
-              </select>
-            )}
-            <small id={`${id}-add-lesson-help`}>
-              {draft.lessonIds.length >= LESSONS_MAX ? `That’s the most: ${LESSONS_MAX} lessons.` : `Up to ${LESSONS_MAX}, from published courses. Good for a welcome video or a setup step. They open even while an earlier board stage is locked.`}
+          <p>New members see this first, one screen at a time, and finish its steps before the community opens.</p>
+        </div>
+        <label className="welcome-settings-switch">
+          <input type="checkbox" role="switch" checked={gateOn} aria-describedby={`${id}-status-help`}
+            disabled={props.isSaving || !props.onSetWelcomeGate || (!gateOn && !hasSteps)}
+            onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)} />
+          <span>
+            <strong>Show to new members</strong>
+            <small id={`${id}-status-help`}>
+              {gateOn ? "On. New members start here." : hasSteps ? "Off. New members skip it." : "Add a form or a lesson, and save, to turn it on."}
             </small>
-          </div>
-        </section>
-
-        <footer className="welcome-settings-actions">
+          </span>
+        </label>
+        <div className="welcome-settings-bar-actions">
+          <button type="button" ref={previewButton} className="workflow-secondary-button" disabled={!screenCount} onClick={() => { setMenu(null); setPreviewing(true); }}>
+            <Eye size={15} aria-hidden="true" /> Preview
+          </button>
+          <button type="button" className="workflow-secondary-button" disabled={!dirty || props.isSaving}
+            onClick={() => { setSaved(false); setMenu(null); setEditing(null); setDraft(baseline); setDraftBase(baselineKey); }}>Discard</button>
           <button type="button" className={`platform-save-button${dirty ? " is-dirty" : ""}`} disabled={!dirty || props.isSaving || !props.onSaveWelcomePage}
             onClick={() => void save()}>{props.isSaving ? "Saving…" : "Save"}</button>
-          <button type="button" className="workflow-secondary-button" disabled={!dirty || props.isSaving}
-            onClick={() => { setSaved(false); setDraft(baseline); setDraftBase(baselineKey); }}>Discard changes</button>
-          <small role="status">{dirty ? "Unsaved changes" : saved ? "Saved" : ""}</small>
-        </footer>
-        {props.actionError ? <p className="workflow-error" role="alert">{props.actionError}</p> : null}
+          <small role="status" className="welcome-settings-saved">{dirty ? "Unsaved changes" : saved ? "Saved" : ""}</small>
+        </div>
+      </header>
+      {props.actionError ? <p className="workflow-error welcome-settings-error" role="alert">{props.actionError}</p> : null}
+
+      <div className="welcome-settings-canvas">
+        <article className="community-welcome welcome-settings-page" aria-label="Welcome page editor">
+          <div className="community-welcome-intro">
+            <small>Welcome</small>
+            <AutoSizeTextarea id={`${id}-title`} className="welcome-settings-headline" value={draft.title} maxLength={TITLE_MAX} rows={1} aria-label="Headline"
+              placeholder={`Welcome to ${props.communityName ?? "your community"}`}
+              onChange={(title) => { setSaved(false); setDraft((current) => ({ ...current, title: title.replace(/\n/g, " ") })); }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                const first = draft.layout[0];
+                if (first?.type === "text") editText(first.uid); else if (first) focusBlock(first.uid);
+              }} />
+          </div>
+
+          <ol className="welcome-settings-blocks" onDragOver={(event) => { if (dragging) event.preventDefault(); }} onDrop={drop}>
+            {draft.layout.map((block, index) => {
+              const label = block.type === "text" ? "text" : block.type === "next" ? "page break" : block.type;
+              if (block.type === "next") screenNumber += 1;
+              const menuHere = Boolean(menu && menu.target.uid === block.uid);
+              const classes = ["welcome-settings-block", `is-${block.type}`, dragging === block.uid ? "is-dragging" : "",
+                dropAt === index ? "drop-before" : "", dropAt === index + 1 && index === draft.layout.length - 1 ? "drop-after" : ""].filter(Boolean).join(" ");
+              return (
+                <li key={block.uid} className={classes} draggable={dragging === block.uid} onDragOver={(event) => dragOver(event, index)}
+                  onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", label); }}
+                  onDragEnd={() => { setDragging(null); setDropAt(null); }}>
+                  <div className="welcome-settings-gutter">
+                    <button type="button" className="welcome-settings-icon-button" aria-label={`Add a block after this ${label}`} title="Add a block"
+                      disabled={full} onClick={() => openMenu({ uid: block.uid, mode: "after" })}><Plus size={16} aria-hidden="true" /></button>
+                    <button type="button" className="welcome-settings-icon-button welcome-settings-handle" data-handle={block.uid}
+                      aria-label={`Move this ${label}. Use the up and down arrow keys.`} title="Drag to move"
+                      onPointerDown={() => setDragging(block.uid)} onPointerUp={() => setDragging(null)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                        event.preventDefault();
+                        move(block.uid, event.key === "ArrowUp" ? index - 1 : index + 2);
+                        requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-handle="${block.uid}"]`)?.focus());
+                      }}><GripVertical size={16} aria-hidden="true" /></button>
+                  </div>
+                  <div className="welcome-settings-block-body">
+                    {block.type === "text" ? (
+                      editing === block.uid || !block.markdown.trim() ? (
+                        <AutoSizeTextarea id={`${id}-block-${block.uid}`} value={block.markdown} maxLength={WELCOME_TEXT_MAX} rows={1}
+                          aria-label="Text. Type / to add a block." className="welcome-settings-text"
+                          placeholder={draft.layout.length === 1 ? "Say hello. Type / to add a video, a form, a lesson or a Next page." : "Type / to add a block"}
+                          onFocus={() => setEditing(block.uid)}
+                          onBlur={() => { if (!menuHere) setEditing((current) => (current === block.uid ? null : current)); }}
+                          onChange={(markdown) => updateText(block.uid, markdown)}
+                          onPaste={(event) => {
+                            // A link pasted on an empty line becomes the video or image it points to.
+                            const pasted = event.clipboardData.getData("text").trim();
+                            if (block.markdown.trim() || !isLink(pasted)) return;
+                            event.preventDefault();
+                            updateText(block.uid, mediaLine(pasted));
+                            setEditing(null);
+                          }}
+                          onKeyDown={(event) => {
+                            if (menuHere && menuKeys(event)) return;
+                            if (event.key === "Backspace" && !block.markdown && draft.layout.length > 1) { event.preventDefault(); remove(block.uid); }
+                            else if (event.key === "Escape") (event.target as HTMLElement).blur();
+                          }} />
+                      ) : <TextView id={`${id}-block-${block.uid}`} markdown={block.markdown} onEdit={() => editText(block.uid)} />
+                    ) : block.type === "next" ? (
+                      <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break" role="separator" aria-label={`Next page. Screen ${screenNumber} starts here.`}>
+                        <span>Next page</span><small>Screen {screenNumber}</small>
+                      </div>
+                    ) : block.type === "form" ? (
+                      <StepCard id={`${id}-block-${block.uid}`} kind="Form" icon={<ClipboardList size={18} aria-hidden="true" />}
+                        title={formRows?.get(block.formKey)?.name || (formRows ? "This form was removed" : "Loading…")}
+                        unavailable={Boolean(formRows) && !formRows?.get(block.formKey)?.publishedRevision}
+                        detail={(formRows?.get(block.formKey)?.questions ?? []).slice(0, 3).map((question) => question.title).filter(Boolean)}
+                        note="Every new member answers this when they join." />
+                    ) : (
+                      <StepCard id={`${id}-block-${block.uid}`} kind="Lesson" icon={<BookOpen size={18} aria-hidden="true" />}
+                        title={lessonById.get(block.resourceId)?.title ?? (options ? "This lesson is no longer published" : "Loading…")}
+                        unavailable={Boolean(options) && !lessonById.has(block.resourceId)}
+                        detail={lessonById.get(block.resourceId)?.course ? [lessonById.get(block.resourceId)!.course] : []}
+                        note="Members read it here and mark it done to go on." />
+                    )}
+                    {menuHere ? renderMenu(menu?.target.mode !== "replace") : null}
+                  </div>
+                  <div className="welcome-settings-block-end">
+                    <button type="button" className="welcome-settings-icon-button" aria-label={`Remove this ${label}`} title="Remove"
+                      onClick={() => remove(block.uid)}><Trash2 size={15} aria-hidden="true" /></button>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="welcome-settings-add">
+            <button type="button" id={`${id}-add`} className="welcome-settings-add-button" disabled={full} onClick={() => openMenu({ uid: null, mode: "end" })}>
+              <Plus size={16} aria-hidden="true" /> {full ? `That's the most: ${WELCOME_BLOCKS_MAX} blocks` : "Add a block"}
+            </button>
+            {menu && menu.target.uid === null ? renderMenu(true) : null}
+          </div>
+          <p className="welcome-settings-help">
+            {afterLastStep ? "Members go into the community right after the last step, so screens after it aren't shown. " : ""}
+            Forms on this page are the ones new members answer when they join. What happens after a form is set in{" "}
+            <button type="button" className="welcome-settings-link" onClick={props.onOpenWorkflows}>Workflows</button>.
+          </p>
+        </article>
       </div>
 
-      <aside className="welcome-settings-preview" aria-labelledby={`${id}-preview`}>
-        <div className="welcome-settings-preview-bar">
-          <h2 id={`${id}-preview`}>Preview</h2>
-          <div className="welcome-settings-device" role="group" aria-label="Preview size">
-            <button type="button" aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}><Monitor size={15} aria-hidden="true" /> Desktop</button>
-            <button type="button" aria-pressed={device === "phone"} onClick={() => setDevice("phone")}><Smartphone size={15} aria-hidden="true" /> Phone</button>
-          </div>
-        </div>
-        <p className="welcome-settings-help">Exactly what a new member sees first. You can click through the form; answers aren't saved.</p>
-        <ScaledPreview width={device === "desktop" ? 960 : 390}>
-          <section className="community-welcome community-welcome-preview" aria-label="Welcome page preview">
-            <WelcomeIntro title={headline} headingLevel={3} message={draft.message.trim() || null} mediaUrl={previewMedia} total={stepCount}
-              stepLine={stepCount > 1 ? `Step 1 of ${stepCount}${firstLessonId ? `: ${lessonLabel(firstLessonId)}` : ""}` : null} />
-            {previewForm ? <div className="member-form-dialog community-welcome-form">
-              <MemberFormRunner key={`${previewForm.id}:${previewRun}`} preview={previewForm} requestId={previewForm.id} communityId=""
-                session={null as never} ensureSession={async () => null} onClose={() => setPreviewRun((n) => n + 1)} />
-            </div> : firstLessonId ? <div className="community-welcome-lesson">
-              <p className="welcome-settings-preview-lesson">The lesson “{lessonLabel(firstLessonId)}” shows here, as it does in Knowledge.</p>
-              <footer aria-hidden="true"><button type="button" className="platform-save-button" tabIndex={-1}>{draft.lessonIds.length > 1 ? "Mark done and continue" : "Mark done and open the community"}</button></footer>
-            </div> : joinForms.length ? <p className="welcome-settings-preview-lesson" role="status">{formsLoaded || !props.forms
-              ? `The form “${joinForms[0].name}” shows here once it has a question.` : "Loading the form…"}</p> : null}
-          </section>
-        </ScaledPreview>
-      </aside>
+      {previewing ? <WelcomePreview title={headline} layout={plain} formRows={formRows} lessonById={lessonById}
+        onClose={() => { setPreviewing(false); requestAnimationFrame(() => previewButton.current?.focus()); }} /> : null}
     </div>
   );
+}
+
+function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & { value: string; onChange: (value: string) => void }) {
+  const { onChange, value, ...rest } = props;
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [value]);
+  return <textarea ref={ref} value={value} onChange={(event) => onChange(event.target.value)} {...rest} />;
+}
+
+// Words show as the member reads them (videos play inline); a click puts the cursor back in.
+function TextView(props: { id: string; markdown: string; onEdit: () => void }) {
+  const rendered = useMemo(() => renderMarkdown(props.markdown, { embedStandaloneMedia: true }), [props.markdown]);
+  return <div id={props.id} className="community-welcome-message welcome-settings-text-view" tabIndex={0} role="button" aria-label="Edit this text"
+    onClick={(event) => { if (!(event.target as HTMLElement).closest("a, button, iframe, video")) props.onEdit(); }}
+    onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); props.onEdit(); } }}>{rendered}</div>;
+}
+
+function StepCard(props: { id: string; kind: string; icon: ReactNode; title: string; detail: string[]; note: string; unavailable: boolean }) {
+  return <div id={props.id} tabIndex={-1} className={`welcome-settings-step${props.unavailable ? " is-unavailable" : ""}`}>
+    <span className="welcome-settings-step-icon">{props.icon}</span>
+    <span className="welcome-settings-step-copy">
+      <small>{props.kind}</small>
+      <strong>{props.title}</strong>
+      {props.detail.length ? <span className="welcome-settings-step-detail">{props.detail.join(" · ")}</span> : null}
+      <span className="welcome-settings-step-note">{props.note}</span>
+    </span>
+  </div>;
+}
+
+function BlockMenu(props: {
+  view: MenuView; items: MenuItem[]; active: number; link: string; emptyText: string; autoFocus: boolean;
+  onLink: (value: string) => void; onAddLink: () => void; onChoose: (key: string) => void; onClose: () => void; onBack: () => void;
+  onKeys: (event: KeyboardEvent) => boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (props.view === "link") ref.current?.querySelector("input")?.focus();
+    else if (props.autoFocus || props.view !== "root") ref.current?.focus();
+  }, [props.view, props.autoFocus]);
+  const onClose = useRef(props.onClose);
+  onClose.current = props.onClose;
+  useEffect(() => {
+    const away = (event: PointerEvent) => {
+      const target = event.target as HTMLElement;
+      if (ref.current && !ref.current.contains(target) && !target.closest(".welcome-settings-text")) onClose.current();
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, []);
+  const title = props.view === "form" ? "Choose a form" : props.view === "lesson" ? "Choose a lesson" : props.view === "link" ? "Video or image" : "Add a block";
+  return <div ref={ref} className="welcome-settings-menu" role="dialog" aria-label={title} tabIndex={-1} onKeyDown={(event) => { props.onKeys(event); }}>
+    <div className="welcome-settings-menu-head">
+      {props.view !== "root" ? <button type="button" className="welcome-settings-link" onClick={props.onBack}>Back</button> : null}
+      <strong>{title}</strong>
+      <button type="button" className="welcome-settings-icon-button" aria-label="Close" onClick={props.onClose}><X size={14} aria-hidden="true" /></button>
+    </div>
+    {props.view === "link" ? (
+      <form className="welcome-settings-menu-link" onSubmit={(event) => { event.preventDefault(); props.onAddLink(); }}>
+        <input type="url" inputMode="url" value={props.link} placeholder="https://www.youtube.com/watch?v=…" aria-label="Video or image link"
+          onChange={(event) => props.onLink(event.target.value)} />
+        <button type="submit" className="platform-save-button" disabled={!isLink(props.link)}>Add</button>
+      </form>
+    ) : props.items.length ? (
+      <ul role="listbox" aria-label={title}>
+        {props.items.map((item, index) => (
+          <li key={item.key} role="option" aria-selected={index === props.active}>
+            <button type="button" tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => props.onChoose(item.key)}>
+              <span className="welcome-settings-menu-icon">{item.icon}</span>
+              <span><strong>{item.label}</strong>{item.hint ? <small>{item.hint}</small> : null}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : <p className="welcome-settings-menu-empty">{props.emptyText}</p>}
+    {props.view !== "link" && props.items.length ? <p className="welcome-settings-menu-hint">↑ ↓ to choose · Enter to add · Esc to close</p> : null}
+  </div>;
+}
+
+// Plays the page the way a member goes through it: one screen at a time, the
+// real form runner (answers aren't saved), at a desktop or phone width.
+function WelcomePreview(props: {
+  title: string; layout: WelcomeBlock[]; formRows: Map<string, CommunityFormDraft> | null;
+  lessonById: Map<string, WelcomeLessonOption>; onClose: () => void;
+}) {
+  const screens = useMemo(() => welcomeScreens(normalizeWelcomeLayout(props.layout)), [props.layout]);
+  const [index, setIndex] = useState(0);
+  const [run, setRun] = useState(0);
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const close = useRef<HTMLButtonElement>(null);
+  useEffect(() => { close.current?.focus(); }, []);
+  const lastStep = screens.map((screen) => Boolean(screen.step)).lastIndexOf(true);
+  const finished = index >= screens.length || (lastStep >= 0 && index > lastStep);
+  const advance = () => setIndex((n) => n + 1);
+  const renderStep = (step: WelcomeStep) => {
+    if (step.type === "lesson") {
+      const lesson = props.lessonById.get(step.resourceId);
+      return <div className="community-welcome-lesson">
+        <p className="welcome-settings-preview-lesson">The lesson “{lesson?.title ?? "Lesson"}” shows here, as it does in Knowledge.</p>
+        <footer><button type="button" className="platform-save-button" onClick={advance}>
+          {index === lastStep ? "Mark done and open the community" : "Mark done and continue"}</button></footer>
+      </div>;
+    }
+    const form = props.formRows?.get(step.formKey);
+    const request = form?.questions.length ? { id: `preview:${form.key}`, name: form.name, questions: form.questions, answers: {}, revision: form.revision } : null;
+    return <div className="member-form-dialog community-welcome-form">
+      {request ? <MemberFormRunner key={`${request.id}:${run}`} preview={request} requestId={request.id} communityId=""
+        session={null as never} ensureSession={async () => null} onClose={advance} />
+        : <p className="welcome-settings-preview-lesson" role="status">{props.formRows ? `The form “${form?.name ?? "Form"}” shows here once it has a question.` : "Loading the form…"}</p>}
+    </div>;
+  };
+  return <div className="welcome-settings-preview-overlay" role="dialog" aria-modal="true" aria-label="Welcome page preview"
+    onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); props.onClose(); } }}>
+    <div className="welcome-settings-preview-panel">
+      <div className="welcome-settings-preview-bar">
+        <h2>Preview</h2>
+        <span className="welcome-settings-preview-where">{finished ? "Done" : `Screen ${index + 1} of ${screens.length}`}</span>
+        <div className="welcome-settings-device" role="group" aria-label="Preview size">
+          <button type="button" aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}><Monitor size={15} aria-hidden="true" /> Desktop</button>
+          <button type="button" aria-pressed={device === "phone"} onClick={() => setDevice("phone")}><Smartphone size={15} aria-hidden="true" /> Phone</button>
+        </div>
+        <button type="button" className="workflow-secondary-button" onClick={() => { setIndex(0); setRun((n) => n + 1); }}><RotateCcw size={14} aria-hidden="true" /> Start over</button>
+        <button type="button" ref={close} className="welcome-settings-icon-button" aria-label="Close preview" onClick={props.onClose}><X size={16} aria-hidden="true" /></button>
+      </div>
+      <p className="welcome-settings-help">Click through it as a new member would. Answers aren't saved.</p>
+      <div className="welcome-settings-preview-scroll">
+        <ScaledPreview width={device === "desktop" ? 960 : 390}>
+          <section className="community-welcome community-welcome-preview" aria-label="What a new member sees">
+            {finished ? <div className="community-welcome-intro"><small>Welcome</small><h1 tabIndex={-1} aria-level={3}>{props.title}</h1>
+              <p className="community-welcome-done">That was the last step. The community opens for the member now.</p></div>
+              : <WelcomeScreenView key={`${index}:${run}`} title={props.title} screens={screens} index={index} renderStep={renderStep} onNext={advance} headingLevel={3} />}
+          </section>
+        </ScaledPreview>
+      </div>
+    </div>
+  </div>;
 }
 
 // Lays the member page out at a real screen width, then scales it to fit the pane.

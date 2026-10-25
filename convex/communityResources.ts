@@ -6476,6 +6476,7 @@ export const getMyWelcomePage = query({
       title: workflow?.welcomePage?.title ?? null,
       message: workflow?.welcomePage?.message ?? null,
       media_url: workflow?.welcomePage?.mediaUrl ?? null,
+      layout: workflow?.welcomeGate ? workflow?.welcomePage?.layout ?? null : null,
       lessons,
     };
   },
