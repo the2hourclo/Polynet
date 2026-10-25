@@ -457,6 +457,9 @@
 [data-community-theme] .workflow-milestone-discard p {
   font-size: var(--pn-type-ui);
 }
+[data-community-theme] .workflow-nudge-toggle {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .lesson-slide-deck-stage {
   border-radius: calc(12px * var(--pn-radius-scale, 1));
 }
