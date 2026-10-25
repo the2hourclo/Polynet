@@ -1,10 +1,11 @@
-import { ArrowDown, ArrowUp, RefreshCw, X } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { renderMarkdown } from "../../../../shared/markdownUi";
+import { ArrowDown, ArrowUp, Monitor, RefreshCw, Smartphone, X } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import type { CloudCommunityMemberWorkflowBoard, CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
-import { welcomeMediaMarkdown } from "./WebCommunityWelcome";
+import type { CommunityFormDraft } from "../../../../shared/communityForms";
+import { MemberFormRunner } from "./WebCommunityNextStep";
+import { WelcomeIntro } from "./WebCommunityWelcome";
 import "./WebCommunityWelcomeSettings.css";
 
 const TITLE_MAX = 120;
@@ -69,16 +70,18 @@ export function WebCommunityWelcomeSettings(props: Props) {
     return () => { alive = false; };
   }, [props.onLoadWelcomeLessonOptions, optionsRetry]);
 
-  const [formNames, setFormNames] = useState<Map<string, string>>(new Map());
+  const [formRows, setFormRows] = useState<Map<string, CommunityFormDraft>>(new Map());
+  const [formsLoaded, setFormsLoaded] = useState(false);
   useEffect(() => {
     let alive = true;
-    props.forms?.load().then((rows) => { if (alive) setFormNames(new Map(rows.map((row) => [row.key, row.name]))); }).catch(() => {});
+    props.forms?.load().then((rows) => { if (alive) setFormRows(new Map(rows.map((row) => [row.key, row]))); }).catch(() => {})
+      .finally(() => { if (alive) setFormsLoaded(true); });
     return () => { alive = false; };
   }, [props.forms]);
   const joinForms = useMemo(() => (props.board?.milestones[0]?.automations ?? [])
     .filter((rule) => rule.trigger.type === "member_joined" && rule.action.type === "request_form")
     .map((rule) => (rule.action.type === "request_form" ? rule.action.formKey : ""))
-    .map((key) => ({ key, name: formNames.get(key) ?? "A form" })), [props.board, formNames]);
+    .map((key) => ({ key, name: formRows.get(key)?.name ?? "A form" })), [props.board, formRows]);
 
   const optionById = useMemo(() => new Map((options ?? []).map((option) => [option.id, option])), [options]);
   const courses = useMemo(() => {
@@ -126,10 +129,16 @@ export function WebCommunityWelcomeSettings(props: Props) {
   const hasSteps = joinForms.length > 0 || (props.board?.welcome_lesson_ids?.length ?? 0) > 0;
   const stepCount = joinForms.length + draft.lessonIds.length;
   const headline = draft.title.trim() || `Welcome to ${props.communityName ?? "your community"}`;
-  const preview = useMemo(() => ({
-    message: draft.message.trim() ? renderMarkdown(draft.message) : null,
-    media: /^https?:\/\/\S+$/i.test(draft.mediaUrl.trim()) ? renderMarkdown(welcomeMediaMarkdown(draft.mediaUrl.trim()), { embedStandaloneMedia: true }) : null,
-  }), [draft.message, draft.mediaUrl]);
+  const previewMedia = /^https?:\/\/\S+$/i.test(draft.mediaUrl.trim()) ? draft.mediaUrl.trim() : null;
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  // The preview is the member's page itself (the same intro and the same form
+  // runner), opened on the first step, so what the owner sees is what members get.
+  const firstForm = joinForms[0] ? formRows.get(joinForms[0].key) ?? null : null;
+  const firstLessonId = joinForms.length ? null : draft.lessonIds[0] ?? null;
+  const previewForm = useMemo(() => firstForm?.questions?.length
+    ? { id: `preview:${firstForm.key}`, name: firstForm.name, questions: firstForm.questions, answers: {}, revision: firstForm.revision }
+    : null, [firstForm]);
+  const [previewRun, setPreviewRun] = useState(0);
 
   if (!props.board) return <div className="workflow-page welcome-settings"><p role="status">Loading the welcome page…</p></div>;
 
@@ -253,21 +262,54 @@ export function WebCommunityWelcomeSettings(props: Props) {
       </div>
 
       <aside className="welcome-settings-preview" aria-labelledby={`${id}-preview`}>
-        <h2 id={`${id}-preview`}>Preview</h2>
-        <div className="welcome-settings-preview-page">
-          <small>Welcome</small>
-          <p className="welcome-settings-preview-title">{headline}</p>
-          {preview.message ? <div className="welcome-settings-preview-message">{preview.message}</div>
-            : <p>Finish {stepCount > 1 ? "these steps" : "this step"} to open the community.</p>}
-          {preview.media ? <div className="welcome-settings-preview-media">{preview.media}</div> : null}
-          {stepCount ? (
-            <ol className="welcome-settings-preview-steps">
-              {joinForms.map((form) => <li key={`form:${form.key}`}>{form.name}</li>)}
-              {draft.lessonIds.map((lessonId) => <li key={`lesson:${lessonId}`}>{lessonLabel(lessonId)}</li>)}
-            </ol>
-          ) : null}
+        <div className="welcome-settings-preview-bar">
+          <h2 id={`${id}-preview`}>Preview</h2>
+          <div className="welcome-settings-device" role="group" aria-label="Preview size">
+            <button type="button" aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}><Monitor size={15} aria-hidden="true" /> Desktop</button>
+            <button type="button" aria-pressed={device === "phone"} onClick={() => setDevice("phone")}><Smartphone size={15} aria-hidden="true" /> Phone</button>
+          </div>
         </div>
+        <p className="welcome-settings-help">Exactly what a new member sees first. You can click through the form; answers aren't saved.</p>
+        <ScaledPreview width={device === "desktop" ? 960 : 390}>
+          <section className="community-welcome community-welcome-preview" aria-label="Welcome page preview">
+            <WelcomeIntro title={headline} headingLevel={3} message={draft.message.trim() || null} mediaUrl={previewMedia} total={stepCount}
+              stepLine={stepCount > 1 ? `Step 1 of ${stepCount}${firstLessonId ? `: ${lessonLabel(firstLessonId)}` : ""}` : null} />
+            {previewForm ? <div className="member-form-dialog community-welcome-form">
+              <MemberFormRunner key={`${previewForm.id}:${previewRun}`} preview={previewForm} requestId={previewForm.id} communityId=""
+                session={null as never} ensureSession={async () => null} onClose={() => setPreviewRun((n) => n + 1)} />
+            </div> : firstLessonId ? <div className="community-welcome-lesson">
+              <p className="welcome-settings-preview-lesson">The lesson “{lessonLabel(firstLessonId)}” shows here, as it does in Knowledge.</p>
+              <footer aria-hidden="true"><button type="button" className="platform-save-button" tabIndex={-1}>{draft.lessonIds.length > 1 ? "Mark done and continue" : "Mark done and open the community"}</button></footer>
+            </div> : joinForms.length ? <p className="welcome-settings-preview-lesson" role="status">{formsLoaded || !props.forms
+              ? `The form “${joinForms[0].name}” shows here once it has a question.` : "Loading the form…"}</p> : null}
+          </section>
+        </ScaledPreview>
       </aside>
     </div>
   );
+}
+
+// Lays the member page out at a real screen width, then scales it to fit the pane.
+function ScaledPreview(props: { width: number; children: ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ scale: 1, height: 0 });
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (!outer.current || !inner.current) return;
+      const scale = Math.min(1, outer.current.clientWidth / props.width);
+      const height = inner.current.offsetHeight * scale;
+      setBox((box) => (box.scale === scale && box.height === height ? box : { scale, height }));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    if (outer.current) observer.observe(outer.current);
+    if (inner.current) observer.observe(inner.current);
+    return () => observer.disconnect();
+  }, [props.width]);
+  // A screen narrower than the pane (a phone) keeps its own width, centred, instead of a wide frame around it.
+  return <div ref={outer} className="welcome-settings-preview-frame" style={{ height: box.height || undefined, maxWidth: props.width + 2 }}>
+    <div ref={inner} className="welcome-settings-preview-screen" style={{ width: props.width, transform: `scale(${box.scale})` }}>{props.children}</div>
+  </div>;
 }

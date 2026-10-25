@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import type { AuthSession } from "../auth";
 import { getMemberWelcomePage, subscribeMemberForms, type MemberFormSummary, type MemberWelcomePage } from "../../../../shared/cloudCommunityFormRequestsGateway";
 import { setCloudOwnResourceProgress } from "../../../../shared/cloudCommunityResourceProgressGateway";
@@ -23,6 +23,28 @@ type Props = {
   /** Called when the page closes after the member finished, so lists read while held load again. */
   onReleased: () => void;
 };
+
+/** The top of the welcome page: the headline, the builder's words and media, and
+ * which step the member is on. The owner's preview renders this same block. */
+export function WelcomeIntro(props: {
+  title: string; message: string | null; mediaUrl: string | null; total: number; stepLine: string | null;
+  titleRef?: Ref<HTMLHeadingElement>; stepRef?: Ref<HTMLParagraphElement>;
+  // Inside Settings the page sits under the "Preview" heading, so its title reads as a level below.
+  headingLevel?: number;
+}) {
+  const intro = useMemo(() => ({
+    message: props.message ? renderMarkdown(props.message) : null,
+    media: props.mediaUrl ? renderMarkdown(welcomeMediaMarkdown(props.mediaUrl), { embedStandaloneMedia: true }) : null,
+  }), [props.message, props.mediaUrl]);
+  return <div className="community-welcome-intro">
+    <small>Welcome</small>
+    <h1 ref={props.titleRef} tabIndex={-1} aria-level={props.headingLevel}>{props.title}</h1>
+    {intro.message ? <div className="community-welcome-message">{intro.message}</div>
+      : <p>Finish {props.total > 1 ? "these steps" : "this step"} to open the community.</p>}
+    {intro.media ? <div className="community-welcome-media">{intro.media}</div> : null}
+    {props.stepLine ? <p ref={props.stepRef} tabIndex={-1} className="community-welcome-step">{props.stepLine}</p> : null}
+  </div>;
+}
 
 /** The builder's video or image link, shown the way lessons show media. */
 export function welcomeMediaMarkdown(url: string): string {
@@ -142,23 +164,12 @@ export function WebCommunityWelcome(props: Props) {
   const title = page?.title || `Welcome to ${props.communityName}`;
   const message = page?.message ?? null;
   const mediaUrl = page?.media_url ?? null;
-  const intro = useMemo(() => ({
-    message: message ? renderMarkdown(message) : null,
-    media: mediaUrl ? renderMarkdown(welcomeMediaMarkdown(mediaUrl), { embedStandaloneMedia: true }) : null,
-  }), [message, mediaUrl]);
   const status = preparing ? "Getting your first steps ready…"
     : formsOwed ? (rows ? "Opening your next step…" : "Loading…")
     : pageError ? null : page ? "Opening the community…" : "Loading…";
   return <section className="community-welcome" aria-label={`Welcome to ${props.communityName}`}>
-    <div className="community-welcome-intro">
-      <small>Welcome</small>
-      <h1 ref={titleRef} tabIndex={-1}>{title}</h1>
-      {intro.message ? <div className="community-welcome-message">{intro.message}</div>
-        : <p>Finish {total > 1 ? "these steps" : "this step"} to open the community.</p>}
-      {intro.media ? <div className="community-welcome-media">{intro.media}</div> : null}
-      {total > 1 && (next || lesson) ? <p ref={stepRef} tabIndex={-1} className="community-welcome-step">
-        Step {Math.min(done + 1, total)} of {total}{lesson ? `: ${lesson.title}` : ""}</p> : null}
-    </div>
+    <WelcomeIntro title={title} message={message} mediaUrl={mediaUrl} total={total} titleRef={titleRef} stepRef={stepRef}
+      stepLine={total > 1 && (next || lesson) ? `Step ${Math.min(done + 1, total)} of ${total}${lesson ? `: ${lesson.title}` : ""}` : null} />
     {lesson ? <div className="community-welcome-lesson">
       <WebCommunityResourceViewerContent resource={lesson} lessonActivity={lessonActivity} />
       <footer>
