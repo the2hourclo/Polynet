@@ -34,6 +34,9 @@ import "./WebCommunityAppearanceSettings.css";
 type Props = { communityId: string; communitySlug: string | null; hasBanner?: boolean; session: unknown; ensureSession: (session: any) => Promise<any | null> };
 
 const PREVIEW_SCOPE = "look-preview";
+// The width the Desktop preview lays the community out at before scaling it to fit.
+const DESKTOP_PREVIEW_WIDTH = 1280;
+const MIN_PREVIEW_SCALE = 0.6;
 const CUSTOMIZE_HASH = "#customize";
 const TEXT_FONTS = Object.entries(COMMUNITY_THEME_FONTS).filter(([, font]) => font.role === "text").map(([name]) => name);
 const HEADING_FONTS = Object.entries(COMMUNITY_THEME_FONTS).filter(([, font]) => font.role !== "mono").map(([name]) => name);
@@ -328,6 +331,8 @@ function AppearanceEditor(props: EditorProps) {
   const [page, setPage] = useState("resources");
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const frame = useRef<HTMLIFrameElement>(null);
+  const canvas = useRef<HTMLElement>(null);
+  const [canvasBox, setCanvasBox] = useState<{ width: number; height: number } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const lastGoodTheme = useRef<CommunityThemeV1 | null>(props.previewTheme);
   if (props.previewTheme) lastGoodTheme.current = props.previewTheme;
@@ -342,6 +347,21 @@ function AppearanceEditor(props: EditorProps) {
     window.addEventListener("keydown", onKey);
     return () => { root?.removeAttribute("inert"); window.removeEventListener("keydown", onKey); };
   }, []);
+
+  // Desktop shows the community at a real desktop width, scaled down to fit,
+  // so pages keep their wide layout instead of switching to the narrow one.
+  useEffect(() => {
+    const element = canvas.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setCanvasBox({ width: entry.contentRect.width, height: entry.contentRect.height }));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  // The fitted frame sits inside a 1px border on each side. On small screens
+  // it stops shrinking at MIN_PREVIEW_SCALE, so text stays readable.
+  const innerWidth = canvasBox ? canvasBox.width - 2 : 0;
+  const layoutWidth = Math.min(DESKTOP_PREVIEW_WIDTH, innerWidth / MIN_PREVIEW_SCALE);
+  const scale = device === "desktop" && canvasBox && innerWidth < layoutWidth ? innerWidth / layoutWidth : 1;
 
   // The preview frame asks for the draft when it loads; every change is sent again.
   const send = () => {
@@ -431,8 +451,12 @@ function AppearanceEditor(props: EditorProps) {
         })}
         <p className="appearance-hint">Members see this look only after you publish.</p>
       </nav>
-      <section className={`appearance-canvas is-${device}`} aria-label="Preview">
-        {src ? <iframe ref={frame} key={src} src={src} title="Your community with the draft look" className="appearance-frame" />
+      <section ref={canvas} className={`appearance-canvas is-${device}`} aria-label="Preview">
+        {src && scale < 1 && canvasBox ? <div className="appearance-frame-fit" style={{ width: canvasBox.width, height: canvasBox.height }}>
+          <iframe ref={frame} key={src} src={src} title="Your community with the draft look" className="appearance-frame is-scaled"
+            style={{ width: layoutWidth, height: (canvasBox.height - 2) / scale, transform: `scale(${scale})` }} />
+        </div>
+        : src ? <iframe ref={frame} key={src} src={src} title="Your community with the draft look" className="appearance-frame" />
           : <div className="community-look-preview" data-community-theme={PREVIEW_SCOPE}><SampleContent /></div>}
       </section>
       <aside className="appearance-inspector community-look" aria-label="Design settings">
