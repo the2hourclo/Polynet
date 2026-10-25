@@ -883,3 +883,224 @@ select.lesson-editor-field {
     transition: none !important;
   }
 }
+
+/* The toolbar above the page: centred, sticky while the lesson scrolls. */
+.lesson-editor-toolbar {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  margin: 0 0 20px;
+  pointer-events: none;
+}
+
+.lesson-editor-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--lesson-editor-line);
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  background: var(--lesson-editor-surface);
+  box-shadow: 0 6px 20px rgba(15, 23, 20, 0.07), 0 1px 3px rgba(15, 23, 20, 0.05);
+  pointer-events: auto;
+  scrollbar-width: none;
+}
+
+.lesson-editor-toolbar-row::-webkit-scrollbar {
+  display: none;
+}
+
+.lesson-editor-tool {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  background: transparent;
+  color: var(--text-secondary, var(--text-primary));
+  font: inherit;
+  font-size: var(--pn-type-small, 13px);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.lesson-editor-tool svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.9;
+}
+
+.lesson-editor-tool.is-labelled {
+  padding: 0 8px;
+}
+
+.lesson-editor-tool .lesson-editor-tool-caret {
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+
+.lesson-editor-tool:hover:not(:disabled),
+.lesson-editor-tool:focus-visible,
+.lesson-editor-tool.is-open {
+  outline: none;
+  background: var(--hover-overlay, color-mix(in srgb, var(--text-primary) 7%, transparent));
+  color: var(--text-primary);
+}
+
+.lesson-editor-tool.is-active {
+  background: color-mix(in srgb, var(--accent-primary, var(--accent, #2f7d5b)) 12%, transparent);
+  color: var(--accent-primary, var(--accent, #2f7d5b));
+}
+
+.lesson-editor-tool:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.lesson-editor-tool-label {
+  white-space: nowrap;
+}
+
+.lesson-editor-tool-divider {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--lesson-editor-line);
+}
+
+.lesson-editor-toolbar-menu {
+  position: fixed;
+  width: 260px;
+}
+
+.lesson-editor-menu-check {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--accent-primary, var(--accent, #2f7d5b));
+}
+
+/* "• Saved": the autosave state beside the editing actions. */
+.lesson-editor-save-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-secondary, var(--text-muted));
+  font-size: var(--pn-type-label, 12px);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.lesson-editor-save-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent-success, #147a4b);
+}
+
+.lesson-editor-save-pill.is-pending::before {
+  background: color-mix(in srgb, var(--text-muted) 70%, transparent);
+}
+
+.lesson-editor-save-pill.is-blocked {
+  color: #b64b3a;
+}
+
+.lesson-editor-save-pill.is-blocked::before {
+  background: #b64b3a;
+}
+
+.lesson-editor-header-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--pn-type-small, 13px);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.lesson-editor-header-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.lesson-editor-header-button:hover:not(:disabled) {
+  background: var(--hover-overlay, color-mix(in srgb, var(--text-primary) 7%, transparent));
+}
+
+.lesson-editor-header-button.is-primary {
+  border-color: transparent;
+  background: var(--bg-button, var(--accent-primary, #1f5c43));
+  color: var(--bg-button-text, #fff);
+}
+
+.lesson-editor-header-button.is-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-button, var(--accent-primary, #1f5c43)) 88%, #000);
+}
+
+.lesson-editor-header-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lesson-editor-preview-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  background: color-mix(in srgb, var(--accent-primary, var(--accent, #2f7d5b)) 9%, transparent);
+  color: var(--text-secondary, var(--text-primary));
+  font-size: var(--pn-type-small, 13px);
+}
+
+.lesson-editor-preview-note svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .lesson-editor-toolbar {
+    top: 4px;
+    justify-content: flex-start;
+  }
+
+  .lesson-editor-header-button .lesson-editor-header-label {
+    display: none;
+  }
+
+  /* While editing on a phone, the actions get their own line under the title. */
+  .resource-viewer-title-row:has(.resource-viewer-edit-actions) {
+    flex-wrap: wrap;
+  }
+
+  .resource-viewer-title-row:has(.resource-viewer-edit-actions) .resource-viewer-header-aside {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

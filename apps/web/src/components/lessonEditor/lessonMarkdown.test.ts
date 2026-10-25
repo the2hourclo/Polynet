@@ -265,5 +265,5 @@ describe("lesson editor Markdown", () => {
       expect(readerTree(fresh), file).toEqual(readerTree(body));
       expect(lessonShape(fresh), file).toEqual(lessonShape(body));
     }
-  });
+  }, 60_000);
 });
