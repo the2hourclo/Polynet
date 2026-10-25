@@ -485,6 +485,15 @@ body {
   z-index: 1;
 }
 
+.community-nav-identity.has-banner:not(.is-condensed)::before {
+  opacity: var(--pn-banner-scrim, 1);
+}
+
+/* A theme with banner_name "hide": the banner already shows the name. */
+.community-nav-identity.has-banner:not(.is-condensed) .community-nav-identity-name {
+  visibility: var(--pn-banner-name, visible);
+}
+
 .community-nav-identity.has-banner:not(.is-condensed):hover::after,
 .community-nav-identity.has-banner:not(.is-condensed):focus-within::after {
   opacity: 1;
