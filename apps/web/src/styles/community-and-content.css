@@ -9505,19 +9505,53 @@ button.chat-reply-quote:hover {
   font-size: clamp(30px, 3vw, 40px);
 }
 
+/* Lessons read like an article: one centred ~680px column with room on both
+   sides, the same measure the lesson editor uses (--pn-reading-measure), so
+   what the owner writes is what members read. */
+.knowledge-resource-reader {
+  --pn-reading-measure: 680px;
+}
+
+.knowledge-resource-reader .resource-viewer-content {
+  box-sizing: border-box;
+  padding-inline: clamp(16px, 5vw, 64px);
+}
+
 .knowledge-resource-reader .resource-viewer-column {
-  max-width: min(100%, 860px);
-  margin-inline: 0;
+  max-width: var(--pn-reading-measure);
+  margin-inline: auto;
+}
+
+/* On a phone the page already has its gutter; the text uses the full width. */
+@media (max-width: 640px) {
+  .knowledge-resource-reader .resource-viewer-content {
+    padding-inline: 0;
+  }
 }
 
 .knowledge-resource-reader .resource-viewer-prose {
   width: 100%;
-  max-width: 680px;
+  max-width: none;
+  line-height: 1.75;
 }
 
-/* Text keeps a readable measure; figures use the whole column. */
 .knowledge-resource-reader .resource-viewer-prose :is(.md-paragraph, .md-list, .md-blockquote) {
-  max-width: 66ch;
+  margin-block: 0 1.25em;
+}
+
+.knowledge-resource-reader .resource-viewer-prose :is(h2, h3).md-header {
+  margin-block: 2em 0.6em;
+}
+
+.knowledge-resource-reader .resource-viewer-prose :is(h2, h3).md-header:first-child {
+  margin-top: 0;
+}
+
+/* Pictures, videos and embeds get space above and below so text doesn't crowd them.
+   Not media inside a slide deck, an embed's frame or a lesson element: those
+   are sized by their box, and a margin would push them out of it. */
+.knowledge-resource-reader .resource-viewer-prose :is(img, figure, .md-media-embed, .md-video, iframe):not(.lesson-slide-deck *, .md-media-embed *, .lesson-element *) {
+  margin-block: 2em;
 }
 
 .knowledge-resource-reader .resource-viewer-header {
