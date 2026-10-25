@@ -582,6 +582,7 @@ function Toolbar({ editor, followAlong, openLinkRef }: {
       onMouseDown={(event) => event.preventDefault()}
       onClick={toggleMenu(key)}
       title={label}
+      aria-label={label}
     >
       {content}
       <ChevronDown className="lesson-editor-tool-caret" aria-hidden="true" />
@@ -619,7 +620,7 @@ function Toolbar({ editor, followAlong, openLinkRef }: {
         {button("bullets", "Bulleted list", <List />, () => run("bullets", false), { active: editor.isActive("bulletList") })}
         {button("numbers", "Numbered list", <ListOrdered />, () => run("numbers", false), { active: editor.isActive("orderedList") })}
         {divider("d4")}
-        {followAlong ? menuButton("lesson", "Add a lesson block", <><CircleHelp aria-hidden="true" /><span className="lesson-editor-tool-label">Lesson</span></>) : null}
+        {followAlong ? menuButton("lesson", "Add a lesson block", <CircleHelp aria-hidden="true" />) : null}
         {menuButton("more", "More blocks", <span className="lesson-editor-tool-label">More</span>)}
       </div>
       {menu ? (
