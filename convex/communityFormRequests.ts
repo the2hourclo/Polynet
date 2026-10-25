@@ -72,7 +72,7 @@ export const cancelVisitPendingInternal = internalMutation({ args: {
 } });
 // Questions as the member answers them: a short answer that fills a number, date
 // or link property says so, so the member is asked for that shape up front.
-async function memberFormQuestions(ctx: QueryCtx, communityId: Id<"communities">, questions: CommunityFormQuestion[]): Promise<CommunityFormQuestion[]> {
+export async function memberFormQuestions(ctx: QueryCtx, communityId: Id<"communities">, questions: CommunityFormQuestion[]): Promise<CommunityFormQuestion[]> {
   return await Promise.all(questions.map(async (question) => {
     if (!question.clientPropertyKey || question.type !== "short_text") return question;
     const property = await ctx.db.query("communityClientProperties")
@@ -88,7 +88,7 @@ export const getMyRequest = query({ args: { ...scope, requestId: v.id("community
   if (!version) throw new Error("form_version_missing");
   return { id: row._id, name: version.name, questions: await memberFormQuestions(ctx, row.communityId, version.questions), answers: row.answers, revision: row.revision };
 } });
-async function saveOwnAnswers(ctx: MutationCtx, args: { expectedRevision: number; answers: Record<string, string | string[]>; submit: boolean }, row: Doc<"communityFormRequests">) {
+export async function saveOwnAnswers(ctx: MutationCtx, args: { expectedRevision: number; answers: Record<string, string | string[]>; submit: boolean }, row: Doc<"communityFormRequests">) {
   // A lost submit response may safely retry, never overwrite completed answers.
   if (row.status === "submitted" && args.submit) {
     if (JSON.stringify(row.answers) !== JSON.stringify(args.answers)) throw new Error("form_already_submitted");

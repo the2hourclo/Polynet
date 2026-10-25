@@ -95,8 +95,14 @@ async function deleteTestMemberData(ctx: any, row: TestMemberRow, nowMs: number)
   await deleteCommunityReadCursorsForUserCommunity(ctx, communityId, userId);
   await deleteCommunityPresenceForUser({ ctx, communityId, userId });
   await deleteCommunityJoinRequestByPair({ ctx, communityId, userId });
+  // Autoplay's posts come down with the run, so members don't keep seeing them.
+  for (const entry of row.autoplayDone ?? []) {
+    const rootId = entry.startsWith("posted:") ? ctx.db.normalizeId("communityInteractionRoots", entry.slice(7)) : null;
+    const root = rootId ? await ctx.db.get(rootId) : null;
+    if (root && String(root.actorUserId) === String(userId) && root.status === "live") await ctx.db.patch(root._id, { status: "hidden", updatedAt: nowMs });
+  }
   // The user row stays (chat posts point at it) but can no longer sign in as anything.
-  await ctx.db.patch(row._id, { endedAt: nowMs });
+  await ctx.db.patch(row._id, { endedAt: nowMs, autoplayUntil: undefined });
 }
 
 function projectRow(row: TestMemberRow, membershipId: string | null, viewerUserId: any) {
@@ -208,11 +214,15 @@ export const getMyTestRun = query({
       community_id: String(row.communityId),
       community_slug: community?.slug ?? null,
       community_name: community?.name ?? null,
+      // Autoplay's latest step while it plays, so this tab can follow along.
+      autoplay: (row.autoplayUntil ?? 0) > Date.now() && row.autoplayLast
+        ? { at: new Date(row.autoplayLast.at).toISOString(), text: row.autoplayLast.text,
+          path: row.autoplayLast.path ?? null, target: row.autoplayLast.target ?? null } : null,
     };
   },
 });
 
-async function requireMyTestMember(ctx: any, args: { authSubject?: string; communityId: any; testMemberId: any }) {
+export async function requireMyTestMember(ctx: any, args: { authSubject?: string; communityId: any; testMemberId: any }) {
   const { userId } = await requireManagerNotTestMember(ctx, args);
   const row = (await ctx.db.get(args.testMemberId)) as TestMemberRow | null;
   if (!row || String(row.communityId) !== String(args.communityId) || row.endedAt !== undefined) throw new Error("test_member_not_found");
@@ -222,7 +232,7 @@ async function requireMyTestMember(ctx: any, args: { authSubject?: string; commu
   return { row, membership };
 }
 
-function durationText(minutes: number): string {
+export function durationText(minutes: number): string {
   const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   if (minutes % 1440 === 0) return unit(minutes / 1440, "day");
   if (minutes % 60 === 0) return unit(minutes / 60, "hour");
@@ -312,6 +322,7 @@ export const getTestRunSequence = query({
           at: run ? new Date(run.finishedAt ?? run.updatedAt ?? run.createdAt).toISOString() : null,
           due_at: timer ? new Date(timer.dueAt).toISOString() : null,
           error: run?.status === "failed" ? String(run.errorCode ?? "unknown").replace(/_/g, " ") : null,
+          note: run?.actionResult?.resultCode === "agent_previewed" ? "Previewed, not sent" : null,
         });
       }
       stages.push({

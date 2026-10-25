@@ -107,6 +107,9 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
           if (destination.status === "available" && result.serviceChannelId
             && destination.channel_id === String(result.serviceChannelId) && run.finishedAt !== undefined)
             evidence = { run_id: String(run._id), source_id: String(result.serviceChannelId), completed_at: run.finishedAt };
+        } else if (rule.action.type === "prompt_agent" && result.resultCode === "agent_previewed") {
+          // Only a test member's Autoplay previews an agent step; the preview stands in for the reply.
+          if (run.finishedAt !== undefined) evidence = { run_id: String(run._id), source_id: String(run._id), completed_at: run.finishedAt };
         } else if (rule.action.type === "prompt_agent") {
           const request = result.serveRequestId ? await ctx.db.get(result.serveRequestId) : null;
           if (request && request.communityId === workflow.communityId && request.workflowRunId === run._id

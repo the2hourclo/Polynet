@@ -1,13 +1,15 @@
-import { ExternalLink, FastForward, FlaskConical, RefreshCw, ShieldCheck } from "lucide-react";
-import { useCallback, useEffect, useId, useState } from "react";
+import { CheckCircle2, ExternalLink, FastForward, FlaskConical, MousePointerClick, Pause, Play, RefreshCw, ShieldCheck, SkipForward, XCircle } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { AuthSession } from "../auth";
 import {
+  autoplayCloudTestMemberStep,
   endCloudCommunityTestMember,
   listCloudCommunityTestMembers,
   runCloudTestMemberTimedStepsNow,
   startCloudCommunityTestMember,
   subscribeCloudCommunityClientTimeline,
   subscribeCloudTestRunSequence,
+  type CloudAutoplayBeat,
   type CloudCommunityClientTimelineEntry,
   type CloudCommunityTestMember,
   type CloudTestRunSequence,
@@ -152,7 +154,7 @@ export function WebCommunityTestRun(props: Props) {
       <span className="pn-wf-callout-text">
         <strong>Safe to try</strong>
         <small>The community opens in a new tab and your other tabs stay signed in as you. A test member is tagged Test on Clients
-          and can't pay, message anyone or chat with the agent. Agent messages a Workflow sends do run and use your credits.
+          and can't pay, message anyone or chat with the agent. Agent messages a Workflow sends do run and use your credits, except during Autoplay, which only previews them.
           Ending a run deletes everything it did.</small>
       </span>
     </div>
@@ -241,6 +243,7 @@ function TestRunSequence(props: Props & { member: CloudCommunityTestMember }) {
       {timed.length > 1 ? <button type="button" className="workflow-secondary-button" disabled={busy !== null} onClick={() => void skip()}>
         <FastForward size={14} aria-hidden="true" /> {busy === "all" ? "Running…" : `Skip all ${timed.length} waits`}</button> : null}
     </div>
+    <TestRunAutoplay {...props} sequence={sequence} />
     {error ? <p role="alert" className="test-run-error">{error}</p> : null}
     {failed ? <div role="alert" className="pn-wf-empty"><strong>The sequence could not be loaded</strong>
         <button type="button" className="workflow-secondary-button" onClick={() => setRetry((n) => n + 1)}>Retry</button></div>
@@ -257,9 +260,10 @@ function TestRunSequence(props: Props & { member: CloudCommunityTestMember }) {
                 <small>{step.when}
                   {step.status === "done" || step.status === "failed" ? ` · ${timeOf(step.at)}` : ""}
                   {step.status === "scheduled" ? ` · due ${timeOf(step.due_at)}` : ""}
-                  {step.error ? ` · ${step.error}` : ""}</small>
+                  {step.error ? ` · ${step.error}` : ""}
+                  {step.note ? ` · ${step.note}` : ""}</small>
               </span>
-              <span className={`pn-wf-badge test-run-step-status ${STATUS_BADGE[step.status] ?? ""}`}>{STATUS_LABEL[step.status]}</span>
+              <span className={`pn-wf-badge test-run-step-status ${STATUS_BADGE[step.status] ?? ""}`}>{step.note && step.status === "done" ? "Previewed" : STATUS_LABEL[step.status]}</span>
               {step.status === "scheduled" ? <button type="button" className="workflow-secondary-button" disabled={busy !== null} onClick={() => void skip(step.key)}>
                 <FastForward size={14} aria-hidden="true" /> {busy === step.key ? "Running…" : "Run now"}
               </button> : null}
@@ -270,6 +274,110 @@ function TestRunSequence(props: Props & { member: CloudCommunityTestMember }) {
           <em className="pn-wf-badge is-on">{timeOf(sequence.completed_at)}</em></h3></li> : null}
       </ol>}
   </section>;
+}
+
+const AUTOPLAY_SPEEDS = { normal: 2000, fast: 800, instant: 250 } as const;
+type AutoplaySpeed = keyof typeof AUTOPLAY_SPEEDS;
+/** Quiet steps in a row before Autoplay calls it done: rules still running get a moment to land. */
+const AUTOPLAY_SETTLE_STEPS = 3;
+type AutoplayLogEntry = CloudAutoplayBeat & { at: string };
+
+/** What the run came to: rules that ran, failed, or never fired in the stages it reached. */
+function autoplayResult(sequence: CloudTestRunSequence) {
+  const steps = sequence.stages.filter((stage) => stage.reached).flatMap((stage) => stage.steps);
+  const ran = steps.filter((step) => step.status === "done");
+  const failed = steps.filter((step) => step.status === "failed");
+  const waiting = steps.filter((step) => step.status === "waiting" || step.status === "scheduled" || step.status === "running");
+  return { total: ran.length + failed.length + waiting.length, ran, failed, waiting };
+}
+
+// Autoplay: the test member goes through the Workflow by itself, a step at a
+// time, while the sequence below fills in. The page keeps the clock (Play,
+// Pause, Step, speed); the server does one step per call.
+function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequence: CloudTestRunSequence | null }) {
+  const [phase, setPhase] = useState<"ready" | "playing" | "paused" | "finished">("ready");
+  const [speed, setSpeed] = useState<AutoplaySpeed>("normal");
+  const [log, setLog] = useState<AutoplayLogEntry[]>([]);
+  const [stepping, setStepping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const quiet = useRef(0);
+  const live = useRef({ props, phase });
+  live.current = { props, phase };
+  const speedId = useId();
+
+  const call = useCallback(async (stop = false) => {
+    const { session, ensureSession, communityId, member } = live.current.props;
+    const ready = await ensureSession(session, "community_test_run_autoplay");
+    if (!ready) throw new Error("session_unavailable");
+    return await autoplayCloudTestMemberStep(ready, communityId, member.id, stop);
+  }, []);
+
+  const step = useCallback(async () => {
+    setStepping(true); setError(null);
+    try {
+      const result = await call();
+      if (result.beat) { quiet.current = 0; setLog((rows) => [...rows, { ...result.beat!, at: new Date().toISOString() }]); }
+      else quiet.current += 1;
+      if (result.status === "finished" || quiet.current >= AUTOPLAY_SETTLE_STEPS) { setPhase("finished"); void call(true).catch(() => {}); }
+    } catch (caught) {
+      setError(testRunErrorMessage(caught)); setPhase("paused"); void call(true).catch(() => {});
+    } finally { setStepping(false); }
+  }, [call]);
+
+  useEffect(() => {
+    if (phase !== "playing" || stepping) return;
+    const timer = window.setTimeout(() => { void step(); }, log.length || quiet.current ? AUTOPLAY_SPEEDS[speed] : 0);
+    return () => window.clearTimeout(timer);
+  }, [phase, stepping, speed, step, log.length]);
+  // Leaving the page while it plays stops it, so agent steps send again.
+  useEffect(() => () => { if (live.current.phase === "playing") void call(true).catch(() => {}); }, [call]);
+
+  const play = () => { if (phase === "finished") { setLog([]); quiet.current = 0; } setPhase("playing"); };
+  const pause = () => { setPhase("paused"); void call(true).catch(() => {}); };
+  const result = phase === "finished" && props.sequence ? autoplayResult(props.sequence) : null;
+  const status = phase === "playing" ? <span className="pn-wf-badge is-edited">Playing · step {log.length + 1}</span>
+    : phase === "paused" ? <span className="pn-wf-badge">Paused</span>
+    : phase === "finished" ? <span className="pn-wf-badge is-on">Finished</span> : null;
+  return <div className="test-run-autoplay">
+    <div className="pn-wf-callout">
+      <span className="pn-wf-callout-icon" aria-hidden="true"><Play size={20} strokeWidth={2} /></span>
+      <span className="pn-wf-callout-text">
+        <strong>Autoplay {status}</strong>
+        <small>{props.member.label} goes through the Workflow by itself: fills in forms with sample answers, clicks through lessons,
+          posts, and skips the waits. Agent messages are previewed, not sent.</small>
+      </span>
+      <span className="pn-wf-callout-actions">
+        {phase === "playing"
+          ? <button type="button" className="workflow-secondary-button" onClick={pause}><Pause size={14} aria-hidden="true" /> Pause</button>
+          : <button type="button" className="pn-wf-primary" disabled={stepping} onClick={play}>
+            <Play size={14} aria-hidden="true" /> {phase === "finished" ? "Play again" : phase === "paused" ? "Resume" : "Play"}</button>}
+        <button type="button" className="workflow-secondary-button" disabled={phase === "playing" || stepping}
+          onClick={() => { if (phase === "finished") { setLog([]); quiet.current = 0; setPhase("paused"); } void step(); }}>
+          <SkipForward size={14} aria-hidden="true" /> Step</button>
+        <select id={speedId} aria-label="Autoplay speed" value={speed} onChange={(event) => setSpeed(event.target.value as AutoplaySpeed)}>
+          <option value="normal">Normal</option><option value="fast">Fast</option><option value="instant">Instant</option>
+        </select>
+      </span>
+    </div>
+    {error ? <p role="alert" className="test-run-error">{error}</p> : null}
+    {result ? <div className={`pn-wf-callout test-run-result${result.failed.length ? " is-failed" : ""}`} role="status">
+      <span className="pn-wf-callout-icon" aria-hidden="true">{result.failed.length || result.waiting.length
+        ? <XCircle size={20} strokeWidth={2} /> : <CheckCircle2 size={20} strokeWidth={2} />}</span>
+      <span className="pn-wf-callout-text">
+        <strong>{!result.total ? "No rules ran" : result.ran.length === result.total ? `All ${result.total} rules ran`
+          : `${result.ran.length} of ${result.total} rules ran`}{props.sequence?.completed_at ? " · Finished the Workflow" : ""}</strong>
+        {result.failed.length ? <small>Failed: {result.failed.map((s) => `${s.does}${s.error ? ` (${s.error})` : ""}`).join("; ")}</small> : null}
+        {result.waiting.length ? <small>Didn't fire: {result.waiting.map((s) => `${s.does} (${s.when.charAt(0).toLowerCase()}${s.when.slice(1)})`).join("; ")}</small> : null}
+      </span>
+    </div> : null}
+    {log.length ? <ol className="test-run-beats" aria-live="polite" aria-label={`What ${props.member.label} did`}>
+      {log.map((beat, index) => <li key={`${beat.at}:${index}`} className={beat.ok ? undefined : "is-failed"}>
+        <span className="pn-wf-row-icon" aria-hidden="true">{beat.kind === "wait" ? <FastForward size={14} /> : beat.ok ? <MousePointerClick size={14} /> : <XCircle size={14} />}</span>
+        <span className="test-run-step-text"><strong>{beat.text}</strong>{beat.detail ? <small>{beat.detail}</small> : null}</span>
+        <time dateTime={beat.at}>{timeOf(beat.at)}</time>
+      </li>)}
+    </ol> : null}
+  </div>;
 }
 
 function TestRunTimeline(props: Props & { member: CloudCommunityTestMember; membershipId: string }) {

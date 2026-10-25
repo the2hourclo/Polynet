@@ -2871,6 +2871,12 @@ export default defineSchema({
     number: v.number(),
     /** The stage the run started in, when not the first: no welcome flow then. */
     startMilestoneKey: v.optional(v.string()),
+    /** Autoplay is playing until then: agent messages a Workflow sends are previewed, not sent. */
+    autoplayUntil: v.optional(v.number()),
+    /** What autoplay already did, so a step whose rules are still running isn't done twice. */
+    autoplayDone: v.optional(v.array(v.string())),
+    /** Autoplay's latest step, so the test member's own tab can go there and show it. */
+    autoplayLast: v.optional(v.object({ at: v.number(), text: v.string(), path: v.optional(v.string()), target: v.optional(v.string()) })),
     createdAt: v.number(),
     endedAt: v.optional(v.number()),
   }).index("by_authSubject", ["authSubject"])

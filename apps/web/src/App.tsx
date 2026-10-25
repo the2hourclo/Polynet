@@ -10,7 +10,7 @@ import {
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
 import { WebCommunityWelcome } from "./components/WebCommunityWelcome";
-import { useTestMemberRunCheck } from "./components/WebTestRunBar";
+import { useTestMemberAutoplayFollow, useTestMemberRunCheck } from "./components/WebTestRunBar";
 import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
   beginBrowserSignedOutState,
@@ -1102,6 +1102,7 @@ export default function App() {
     handleSaveCommunityAgentConfig,
   } = communityAgentAndFunnel;
   useTestMemberRunCheck(session, ensureUsableAuthSession);
+  useTestMemberAutoplayFollow(session, ensureUsableAuthSession);
   const communityWorkflows = useWebCommunityWorkflowsController({
     activeCommunityId,
     activePage,
