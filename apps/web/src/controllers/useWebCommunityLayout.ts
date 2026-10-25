@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useWebCommunityFrame } from "./useWebCommunityFrame";
-import { DEFAULT_COMMUNITY_LAYOUT, type CommunityLayoutV1 } from "../../../../shared/communityLayout";
+import {
+  DEFAULT_COMMUNITY_LAYOUT,
+  layoutForMemberChoice,
+  type CommunityLayoutPosition,
+  type CommunityLayoutV1,
+} from "../../../../shared/communityLayout";
 import {
   fetchCloudCommunityLayoutDraft,
+  fetchCloudMyCommunityLayoutChoice,
   fetchCloudPublishedCommunityLayout,
+  setCloudMyCommunityLayoutChoice,
 } from "../../../../shared/cloudCommunityLayoutGateway";
 
 /** Fired after a manager publishes, so the open community picks up its new layout. */
@@ -86,4 +93,62 @@ export function useWebCommunityLayout(
 // The active community's layout for components below the shell.
 export function useActiveCommunityLayout(): CommunityLayoutV1 {
   return useWebCommunityFrame().layout;
+}
+
+export type WebCommunityLayoutChoice = {
+  allowed: CommunityLayoutPosition[];
+  // The owner's layout, which a member gets back by clearing their pick.
+  standard: CommunityLayoutPosition;
+  current: CommunityLayoutPosition;
+  preference: CommunityLayoutPosition | null;
+  onChoose: (position: CommunityLayoutPosition | null) => void;
+};
+
+/**
+ * The member's own arrangement, where the owner's layout offers a choice
+ * (navigation.member_choice). Returns the layout to render and the choice for
+ * the Display menu, or a null choice when there is nothing to pick. A pick
+ * shows at once and is saved in the background; a failed save goes back.
+ */
+export function useWebCommunityLayoutChoice(
+  communityId: string | null,
+  session: unknown | null,
+  layout: CommunityLayoutV1,
+): { layout: CommunityLayoutV1; choice: WebCommunityLayoutChoice | null } {
+  const [state, setState] = useState<{ communityId: string; preference: CommunityLayoutPosition | null } | null>(null);
+  const offered = layout.navigation.member_choice;
+  const canChoose = Boolean(communityId && session && offered.length > 1);
+
+  useEffect(() => {
+    if (!canChoose || !communityId) return;
+    let cancelled = false;
+    fetchCloudMyCommunityLayoutChoice({ session, communityId })
+      .then((result) => {
+        if (!cancelled) setState({ communityId, preference: result.position });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [canChoose, communityId, session]);
+
+  const onChoose = useCallback(
+    (position: CommunityLayoutPosition | null) => {
+      if (!communityId || !session) return;
+      const previous = state && state.communityId === communityId ? state.preference : null;
+      setState({ communityId, preference: position });
+      setCloudMyCommunityLayoutChoice({ session, communityId, position })
+        .then((result) => setState({ communityId, preference: result.position }))
+        .catch(() => setState({ communityId, preference: previous }));
+    },
+    [communityId, session, state],
+  );
+
+  if (!canChoose) return { layout, choice: null };
+  const preference = state && state.communityId === communityId ? state.preference : null;
+  const effective = layoutForMemberChoice(layout, preference);
+  return {
+    layout: effective,
+    choice: { allowed: offered, standard: layout.navigation.position, current: effective.navigation.position, preference, onChoose },
+  };
 }

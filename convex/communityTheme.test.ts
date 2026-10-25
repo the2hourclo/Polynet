@@ -178,17 +178,19 @@ describe("community theme compilation", () => {
     expect(normalizeCommunityTheme({ course_cover_fit: "stretch" }).ok).toBe(false);
   });
 
-  test("text roles all follow the one text-size setting", () => {
+  test("text roles all follow the one text-size setting, a reading step above Polynet's CSS", () => {
     const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
-    expect(defaults["--pn-type-body"]).toBe("15px");
-    expect(defaults["--pn-type-meta"]).toBe("11px");
-    expect(defaults["--pn-type-display"]).toBe("clamp(26px, 3vw, 32px)");
+    expect(defaults["--pn-type-body"]).toBe("16px");
+    expect(defaults["--pn-type-ui"]).toBe("16px");
+    expect(defaults["--pn-type-small"]).toBe("15px");
+    expect(defaults["--pn-type-meta"]).toBe("13px");
+    expect(defaults["--pn-type-display"]).toBe("clamp(26px, 3vw, 34px)");
     const larger = normalizeCommunityTheme({ ...DEFAULT_COMMUNITY_THEME, type_scale: 1.2 });
     if (!larger.ok) throw new Error("invalid");
     const vars = communityThemeVariables(larger.theme, "light");
-    expect(vars["--pn-type-body"]).toBe("18px");
-    expect(vars["--pn-type-title"]).toBe("28.8px");
-    expect(vars["--pn-type-display"]).toBe("clamp(31.2px, 3.6vw, 38.4px)");
+    expect(vars["--pn-type-body"]).toBe("19.2px");
+    expect(vars["--pn-type-title"]).toBe("31.2px");
+    expect(vars["--pn-type-display"]).toBe("clamp(31.2px, 3.6vw, 40.8px)");
   });
 
   test("only Google faces add a stylesheet", () => {

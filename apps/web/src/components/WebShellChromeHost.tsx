@@ -15,10 +15,12 @@ import { WebMobileGlobalShell } from "./WebMobileGlobalShell";
 import { WebCommunityNavSurface } from "./WebCommunityNavSurface";
 import { WebSettingsSidebar } from "./WebSettingsSidebar";
 import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
-import { useWebCommunityLayout } from "../controllers/useWebCommunityLayout";
+import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controllers/useWebCommunityLayout";
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityAside } from "./WebCommunityAside";
 import { WebCommunityTopNav } from "./WebCommunityTopNav";
+import type { AppTheme } from "../../../../shared/theme";
+import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
 import type {
   MobileOverlay,
   WebCommunityShellProps,
@@ -46,6 +48,12 @@ export type WebShellChromeHostProps = {
   // A manager's session, for the draft theme preview; null for everyone else.
   themeDraftSession?: unknown;
   memberSession?: unknown;
+  // The arrangement this member sees ("top" is Classroom). With it the
+  // community agent floats at the bottom right instead of being a tab.
+  onCommunityLayoutPositionChange?: (position: "top" | "side") => void;
+  onOpenCommunityAgent?: () => void;
+  appTheme?: AppTheme;
+  onChooseAppTheme?: (theme: AppTheme) => void;
 };
 
 // Every page inside a community takes its theme, its owner pages included, so
@@ -74,9 +82,16 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const communityThemeAttribute = communityTheme.attribute;
   // The community's layout applies wherever its own navigation shows, owner
   // tools included, so the tab bar doesn't jump between pages.
-  const { layout: communityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
+  const { layout: publishedCommunityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
     props.communityShell.activeCommunity?.id ?? null,
     { draftSession: props.themeDraftSession ?? null },
+  );
+  // What this member sees: their Classroom/Channels pick where the owner
+  // offers one, else the owner's layout.
+  const { layout: communityLayout, choice: communityLayoutChoice } = useWebCommunityLayoutChoice(
+    props.communityShell.activeCommunity?.id ?? null,
+    props.memberSession ?? null,
+    publishedCommunityLayout,
   );
   // Members and About are pages only where the community's layout shows them.
   // Elsewhere their links keep landing on chat, as before layouts existed.
@@ -106,6 +121,10 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     onCopyJoinLink: props.communityShell.onCopyCommunityJoinLink,
     postSearch,
     onPostSearch: setPostSearch,
+    layoutChoice: communityLayoutChoice,
+    displayMode: communityTheme.followsMemberMode && props.appTheme && props.onChooseAppTheme
+      ? { current: props.appTheme, onChoose: props.onChooseAppTheme }
+      : null,
   };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&
@@ -140,9 +159,22 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     props.communityShell.showDesktopCommunityNav &&
     !welcome &&
     communityLayout.navigation.position === "top";
+  const onLayoutPositionChange = props.onCommunityLayoutPositionChange;
+  useEffect(() => {
+    onLayoutPositionChange?.(isTopCommunityNav ? "top" : "side");
+  }, [isTopCommunityNav, onLayoutPositionChange]);
+  // Classroom has no agent page: an agent link opens the floating agent over
+  // the community's home tab.
+  const onOpenCommunityAgent = props.onOpenCommunityAgent;
+  const agentTabInTopLayout = isTopCommunityNav && activeCommunityTab === "agent";
+  useEffect(() => {
+    if (!agentTabInTopLayout) return;
+    onSelectCommunityTab(communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home);
+    onOpenCommunityAgent?.();
+  }, [agentTabInTopLayout, onSelectCommunityTab, onOpenCommunityAgent, communityLayout.navigation.home]);
   const desktopCommunityNav = props.communityShell.showDesktopCommunityNav && !welcome ? (
     isTopCommunityNav ? (
-      <WebCommunityTopNav communityShell={props.communityShell} />
+      <WebCommunityTopNav communityShell={props.communityShell} trailing={<WebCommunityDisplayMenu placement="top" />} />
     ) : (
       <WebCommunityNavSurface
         communityShell={props.communityShell}
@@ -267,7 +299,14 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
         )}
       </div>
 
-      {props.globalOverlays}
+      {isTopCommunityNav && communityThemeAttribute ? (
+        // The floating agent and other overlays take the community's look too.
+        <div className="community-theme-scope-overlays" data-community-theme={communityThemeAttribute} style={{ display: "contents" }}>
+          {props.globalOverlays}
+        </div>
+      ) : (
+        props.globalOverlays
+      )}
     </div>
     </WebCommunityFrameContext.Provider>
   );

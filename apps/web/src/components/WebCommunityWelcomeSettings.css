@@ -36,7 +36,10 @@
   content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px;
   background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: transform 0.15s ease;
 }
+/* The track's edge uses the faint text colour, so the off switch is visible (3:1) on any theme. */
+.welcome-settings-switch input:not(:checked) { box-shadow: inset 0 0 0 1px var(--text-faint, var(--text-secondary)); }
 .welcome-settings-switch input:checked { background: var(--accent-brand, var(--accent-primary)); }
+.welcome-settings-switch input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .welcome-settings-switch input:checked::after { transform: translateX(16px); }
 .welcome-settings-switch input:disabled { opacity: 0.5; cursor: not-allowed; }
 .welcome-settings-switch small, .welcome-settings-field small { color: var(--text-secondary); font-size: var(--pn-type-small, 13px); line-height: 1.45; }

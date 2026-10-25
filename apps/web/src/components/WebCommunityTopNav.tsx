@@ -30,10 +30,12 @@ export function WebCommunityTopNav({
 }) {
   const { layout, postSearch, onPostSearch } = useWebCommunityFrame();
   const [copied, setCopied] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const community = communityShell.activeCommunity;
   const activeTab = communityShell.communityTab;
+  // The agent floats at the bottom right in this layout, so it has no tab.
   const tabs = visibleCommunityLayoutTabs(layout).filter(
-    (entry) => entry.tab !== "members" || communityShell.canViewMembersActiveCommunity,
+    (entry) => entry.tab !== "agent" && (entry.tab !== "members" || communityShell.canViewMembersActiveCommunity),
   );
   const ownerTabs = communityShell.isLoadingCommunityAccess ? [] : OWNER_TABS.filter((entry) => entry.allowed(communityShell));
   const joinUrl = communityJoinUrl(community?.slug);
@@ -73,7 +75,7 @@ export function WebCommunityTopNav({
 
   return (
     <header className="community-top-nav">
-      <div className="community-top-nav-identity">
+      <div className={`community-top-nav-identity${searchOpen ? " is-search-open" : ""}`}>
         {community ? (
           <UserAvatar
             className="community-top-nav-avatar"
@@ -101,20 +103,40 @@ export function WebCommunityTopNav({
             maxLength={120}
             onChange={(event) => search(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Escape") search("");
+              if (event.key === "Escape") {
+                search("");
+                setSearchOpen(false);
+              }
             }}
+            autoFocus={searchOpen}
           />
-          {postSearch ? (
-            <button type="button" className="community-top-nav-search-clear" aria-label="Clear search" onClick={() => search("")}>
+          {postSearch || searchOpen ? (
+            <button
+              type="button"
+              className="community-top-nav-search-clear"
+              aria-label="Clear search"
+              onClick={() => {
+                search("");
+                setSearchOpen(false);
+              }}
+            >
               <X size={14} aria-hidden="true" />
             </button>
           ) : null}
         </label>
+        <button
+          type="button"
+          className="community-top-nav-icon community-top-nav-search-toggle"
+          aria-label="Search posts"
+          onClick={() => setSearchOpen(true)}
+        >
+          <Search size={20} aria-hidden="true" />
+        </button>
         <div className="community-top-nav-actions">
           {canInvite ? (
             <button type="button" className="community-top-nav-invite" onClick={() => void copyInvite()}>
               {copied ? <Check size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}
-              {copied ? "Copied" : "Invite"}
+              <span>{copied ? "Copied" : "Invite"}</span>
             </button>
           ) : null}
           {communityShell.directMessagesButton ?? null}
