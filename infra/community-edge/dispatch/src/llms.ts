@@ -228,6 +228,8 @@ own rather than avatar_url (which is the member's).
   lesson's follow-along buttons, checklists, quizzes and forms (fenced
   blocks named button, checklist, quiz or form in the body). Quiz answers
   are not included. Render each element where its block sits in the body.
+  A quote whose first line is [!TIP], [!NOTE], [!IMPORTANT] (key idea),
+  [!ACTION] (do this) or [!WARNING] is a callout: show that label above it.
   A button's action says what it does: "confirm" (answer(entry, id, true)),
   "mark_done" (setProgress(entry, "done")), "ask_agent" (askAgent(label))
   or "open_form" (show lessonForm(form_key)). A form element shows a

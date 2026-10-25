@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
+import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import {
   AppWindow,
   ArrowDown,
   ArrowUp,
+  ChevronDown,
   CheckSquare,
   CircleHelp,
   ClipboardList,
@@ -13,6 +14,7 @@ import {
   MousePointerClick,
   Play,
   Plus,
+  Quote,
   Trash2,
   Upload,
   X,
@@ -20,6 +22,9 @@ import {
 
 import { renderMarkdown } from "../../../../../shared/markdownUi";
 import { COMMUNITY_EMBED_LANGUAGE } from "../../../../../shared/communityEmbed";
+import { lessonCallout, lessonCalloutType, LESSON_CALLOUTS } from "../../../../../shared/lessonCallouts";
+import { LessonCalloutIcon } from "../../../../../shared/lessonCalloutUi";
+import { ToolbarMenuList, type ToolbarMenu } from "./LessonEditorMenu";
 import {
   choiceIdFor,
   lessonBlockProblem,
@@ -925,5 +930,51 @@ export function LessonFencedBlockView({ node, updateAttributes, deleteNode, sele
       )}
       {problem ? <p className="lesson-editor-block-problem" role="alert">{problem}</p> : null}
     </BlockChrome>
+  );
+}
+
+/* Quotes and callouts -------------------------------------------------------- */
+
+/** A quote, or a callout with its type on a label that switches it. */
+export function LessonBlockquoteView({ node, updateAttributes, editor }: NodeViewProps) {
+  const [menu, setMenu] = useState<ToolbarMenu>(null);
+  const callout = lessonCalloutType(node.attrs.callout);
+  const items = [
+    ...LESSON_CALLOUTS.map((item) => ({
+      key: item.type,
+      title: item.label,
+      hint: item.hint,
+      icon: <LessonCalloutIcon type={item.type} />,
+      active: item.type === callout,
+      run: () => updateAttributes({ callout: item.type }),
+    })),
+    { key: "quote", title: "Plain quote", hint: "No label or colour", icon: <Quote />, run: () => updateAttributes({ callout: null }) },
+  ];
+  // One shape for a quote and a callout, so switching keeps the text's element (and the caret).
+  return (
+    <NodeViewWrapper className={callout ? `md-callout is-${callout}` : "md-blockquote"} data-callout={callout ?? undefined}>
+      {callout ? <p className="md-callout-label" contentEditable={false}>
+        <button
+          type="button"
+          className="lesson-editor-callout-type"
+          aria-haspopup="menu"
+          aria-expanded={Boolean(menu)}
+          title="Change the callout type"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setMenu((current) => (current ? null : { key: "callout", rect }));
+          }}
+        >
+          <LessonCalloutIcon type={callout} />
+          <span>{lessonCallout(callout).label}</span>
+          <ChevronDown className="lesson-editor-callout-caret" aria-hidden="true" />
+        </button>
+      </p> : null}
+      <NodeViewContent className={callout ? "md-callout-body" : undefined} />
+      {menu && callout ? (
+        <ToolbarMenuList menu={menu} items={items} host={editor.view.dom as HTMLElement} label="Callout type" onClose={() => setMenu(null)} />
+      ) : null}
+    </NodeViewWrapper>
   );
 }

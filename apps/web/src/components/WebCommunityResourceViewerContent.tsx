@@ -364,7 +364,9 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     if (interactiveTarget && interactiveTarget !== event.currentTarget) {
       return;
     }
-    bodyFocusAtRef.current = { x: event.clientX, y: event.clientY };
+    // Measured from the body's corner: the editor's toolbar pushes the text down.
+    const body = event.currentTarget.getBoundingClientRect();
+    bodyFocusAtRef.current = { x: event.clientX - body.left, y: event.clientY - body.top };
     beginEdit("body");
   };
 

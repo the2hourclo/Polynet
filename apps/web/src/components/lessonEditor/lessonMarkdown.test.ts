@@ -279,3 +279,50 @@ describe("lesson editor Markdown", () => {
     }
   }, 60_000);
 });
+
+describe("callouts", () => {
+  const BODY = `Intro.
+
+> [!TIP]
+> Connect one tool first.
+>
+> Then the **rest**.
+
+> [!caution] Keys stay out of the chat.
+
+> A plain quote.`;
+
+  it("reads a typed quote as a callout without its marker, and keeps the source", () => {
+    const parsed = parseLessonMarkdown(schema, BODY);
+    const [, tip, caution, quote] = (() => { const out: PMNode[] = []; parsed.doc.forEach((n) => out.push(n)); return out; })();
+    expect(tip.type.name).toBe("blockquote");
+    expect(tip.attrs.callout).toBe("tip");
+    expect(tip.firstChild!.textContent).toBe("Connect one tool first.");
+    expect(tip.childCount).toBe(2);
+    expect(caution.attrs.callout).toBe("warning");
+    expect(caution.textContent).toBe("Keys stay out of the chat.");
+    expect(quote.attrs.callout).toBeNull();
+    expect(parsed.serialize(parsed.doc)).toBe(BODY);
+  });
+
+  it("writes a changed callout as a GitHub-style alert that reads back the same", () => {
+    const parsed = parseLessonMarkdown(schema, BODY);
+    const tip = parsed.doc.child(1);
+    const doc = replaceBlock(parsed.doc, 1, tip.type.create({ callout: "action" }, tip.content));
+    const out = parsed.serialize(doc);
+    expect(out).toContain("> [!ACTION]\n> Connect one tool first.\n>\n> Then the **rest**.");
+    const again = parseLessonMarkdown(schema, out).doc.child(1);
+    expect(again.eq(doc.child(1))).toBe(true);
+    // Members' reader sees a blockquote whose text starts with the marker.
+    expect(JSON.stringify(readerTree(out))).toContain("[!ACTION]");
+  });
+
+  it("drops an empty new callout and turns a plain quote into one", () => {
+    const parsed = parseLessonMarkdown(schema, "Intro.");
+    const empty = schema.nodes.blockquote.create({ callout: "tip" }, [schema.nodes.paragraph.create()]);
+    const withEmpty = parsed.doc.type.create(null, [parsed.doc.child(0), empty]);
+    expect(parsed.serialize(withEmpty)).toBe("Intro.");
+    const note = schema.nodes.blockquote.create({ callout: "note" }, [schema.nodes.paragraph.create(null, schema.text("Drive needs Workspace."))]);
+    expect(serializeLessonDocument(schema, parsed.doc.type.create(null, [note]))).toBe("> [!NOTE]\n> Drive needs Workspace.");
+  });
+});

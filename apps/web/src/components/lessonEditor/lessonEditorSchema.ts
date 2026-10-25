@@ -1,5 +1,6 @@
 import { Node, mergeAttributes, type AnyExtension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import Blockquote from "@tiptap/extension-blockquote";
 import Heading from "@tiptap/extension-heading";
 import { BulletList, OrderedList } from "@tiptap/extension-list";
 
@@ -35,6 +36,19 @@ const LessonBulletList = BulletList.extend({
 const LessonOrderedList = OrderedList.extend({
   addAttributes() {
     return { ...this.parent?.(), ...tightAttribute };
+  },
+});
+
+/** A quote, or a callout when its first line names a type: `> [!TIP]`. */
+export const LessonBlockquote = Blockquote.extend({
+  addAttributes() {
+    return {
+      callout: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-callout"),
+        renderHTML: (attributes: { callout?: string | null }) => (attributes.callout ? { "data-callout": attributes.callout } : {}),
+      },
+    };
   },
 });
 
@@ -184,7 +198,7 @@ export function lessonEditorBaseExtensions(): AnyExtension[] {
       orderedList: false,
       underline: false,
       paragraph: { HTMLAttributes: { class: "md-paragraph" } },
-      blockquote: { HTMLAttributes: { class: "md-blockquote" } },
+      blockquote: false,
       horizontalRule: { HTMLAttributes: { class: "md-hr" } },
       code: { HTMLAttributes: { class: "md-inline-code" } },
       link: {
@@ -199,6 +213,7 @@ export function lessonEditorBaseExtensions(): AnyExtension[] {
       dropcursor: { class: "lesson-editor-dropcursor", width: 3 },
     }),
     LessonHeading.configure({ HTMLAttributes: { class: "md-header" } }),
+    LessonBlockquote.configure({ HTMLAttributes: { class: "md-blockquote" } }),
     LessonBulletList.configure({ HTMLAttributes: { class: "md-list" } }),
     LessonOrderedList.configure({ HTMLAttributes: { class: "md-list" } }),
     LessonImage,

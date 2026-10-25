@@ -67,7 +67,7 @@
 
 /* Pictures, videos and lesson blocks get the reader's 2em space above and
    below, measured in the text size (the cards themselves use the UI size). */
-.lesson-editor-content > .react-renderer {
+.lesson-editor-content > .react-renderer:not(:has(> .md-blockquote)) {
   margin-block: 2em;
 }
 
@@ -1324,3 +1324,43 @@ select.lesson-editor-field {
 .lesson-editor-slide-note.is-empty {
   color: var(--text-muted);
 }
+
+/* Callouts: the label is a button that switches the type. */
+.lesson-editor-callout-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: -3px -8px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.lesson-editor-callout-type:hover,
+.lesson-editor-callout-type[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--md-callout-tone) 14%, transparent);
+}
+
+.lesson-editor-callout-type:focus-visible {
+  outline: 2px solid var(--lesson-editor-focus);
+  outline-offset: 1px;
+}
+
+.lesson-editor-callout-type svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.lesson-editor-callout-type .lesson-editor-callout-caret {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
