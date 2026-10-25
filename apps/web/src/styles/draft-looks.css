@@ -1,0 +1,701 @@
+/* DRAFT EXPERIMENT (2026-10-25), see controllers/useDraftLook.ts.
+   Rail looks and three Substack-feel looks for the Channels layout, to compare
+   with the current look before anything is kept. Sizes are in rem so the
+   community theme map leaves them alone. Nothing here applies unless the
+   member picked a draft look in the Display menu (or by URL). */
+
+/* The Display menu grew: let it scroll instead of running off short screens. */
+.community-display-panel {
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+}
+
+/* ───────── Left rail: bigger icons ───────── */
+@media (min-width: 721px) {
+  html:root[data-rail-size="large"] {
+    --web-rail-width: 5.25rem;
+    --web-rail-control-size: 3.25rem;
+  }
+  html:root[data-rail-size="large"] .rail .community-rail-button {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 0.75rem;
+  }
+  html:root[data-rail-size="large"] .rail .community-rail-icon {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+  html:root[data-rail-size="large"] .rail .community-rail-list {
+    gap: 0.5rem;
+  }
+}
+
+/* ───────── Left rail: community colours ─────────
+   --rail-feel-* are the community theme's colours, copied onto the root by
+   WebShellChromeHost onto <html> while a draft rail colour is on. */
+html:root[data-rail-color] {
+  --rail-feel-ink: var(--rail-feel-text-primary, var(--text-ink-primary));
+}
+html:root[data-rail-color="blend"] {
+  --surface-rail: var(--rail-feel-bg-workspace, var(--surface-rail));
+  --community-shell-stroke: color-mix(in srgb, var(--rail-feel-ink) 10%, transparent);
+}
+html:root[data-rail-color="tint"] {
+  --surface-rail: color-mix(in srgb, var(--rail-feel-pn-accent, transparent) 14%, var(--rail-feel-bg-workspace, var(--surface-rail)));
+  --community-shell-stroke: color-mix(in srgb, var(--rail-feel-pn-accent, var(--rail-feel-ink)) 22%, transparent);
+}
+html:root[data-rail-color="brand"] {
+  --surface-rail: var(--rail-feel-pn-accent, var(--surface-rail));
+  --rail-feel-ink: var(--rail-feel-pn-on-accent, #fff);
+  --community-shell-stroke: transparent;
+}
+html:root[data-rail-color] .rail {
+  --text-ink-primary: var(--rail-feel-ink);
+  --community-rail-control-bg: color-mix(in srgb, var(--rail-feel-ink) 8%, transparent);
+  --community-rail-button-border: 1px solid color-mix(in srgb, var(--rail-feel-ink) 12%, transparent);
+  --surface-card-hover: color-mix(in srgb, var(--rail-feel-ink) 14%, transparent);
+  color: var(--rail-feel-ink);
+}
+html:root[data-rail-color] .rail .community-rail-divider {
+  background: color-mix(in srgb, var(--rail-feel-ink) 16%, transparent);
+}
+/* On a page-coloured rail the community card needs its edge to stay visible. */
+html:root[data-rail-color="blend"] .product-shell-surface {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rail-feel-ink) 6%, transparent);
+}
+
+/* ═════════ Channels: Substack-feel looks (shared by all three) ═════════
+   Substack's discipline: one quiet nav with no panel of its own, 36px items,
+   grey fill for the active item, UPPERCASE group labels, hairlines instead of
+   boxes. The community's colours and fonts still apply. */
+.product-shell-surface[data-channels-feel] {
+  --feel-hairline: var(--border-default, color-mix(in srgb, var(--text-primary) 10%, transparent));
+  --feel-fill: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --feel-fill-hover: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+.product-shell-surface[data-channels-feel] > .community-nav {
+  background: var(--bg-workspace);
+  box-shadow: none;
+  border-right: 1px solid var(--feel-hairline);
+  padding: 0.75rem 0.75rem 0.75rem;
+}
+/* The banner moves out of the nav (Publication shows the mark in a masthead). */
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-header {
+  display: none;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-identity {
+  position: relative;
+  margin: -0.75rem -0.75rem 0.5rem;
+  padding: 0 0.75rem 0 1.375rem;
+  height: 3.5rem;
+  min-height: 3.5rem;
+  flex: 0 0 3.5rem;
+  background: transparent;
+  border-bottom: 1px solid var(--feel-hairline);
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-identity::before,
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-identity::after {
+  display: none;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-identity-name {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-shadow: none;
+  letter-spacing: 0;
+  text-transform: none;
+  font-family: var(--pn-font-body, inherit);
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-settings {
+  color: var(--text-secondary);
+  background: transparent;
+  border-radius: 0.5rem;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-settings:hover {
+  background: var(--feel-fill-hover);
+}
+.product-shell-surface[data-channels-feel] > .community-nav .nav-item {
+  min-height: 2.25rem;
+  padding: 0 0.625rem;
+  margin-bottom: 0.125rem;
+  border: 0;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  gap: 0.625rem;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .nav-item .nav-icon {
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .nav-item:hover {
+  background: var(--feel-fill-hover);
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel] > .community-nav .nav-item.active {
+  background: var(--feel-fill);
+  border: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: none;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .nav-item.active .nav-icon {
+  color: var(--text-primary);
+  opacity: 1;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-channel-add {
+  color: var(--text-muted);
+}
+/* Group labels drawn from the existing structure: channels, the community's
+   pages, then the owner's tools. */
+.product-shell-surface[data-channels-feel] > .community-nav .community-channel-list::before,
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-divider {
+  display: block;
+  height: auto;
+  background: none;
+  margin: 1rem 0.625rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--pn-font-body, inherit);
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-channel-list::before {
+  content: "Channels";
+  margin-top: 0.5rem;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-channel-list + .community-nav-divider::before {
+  content: "Community";
+}
+.product-shell-surface[data-channels-feel] > .community-nav .nav-item + .community-nav-divider::before {
+  content: "Manage";
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-invite {
+  justify-content: center;
+  min-height: 2.5rem;
+  border: 1px solid var(--feel-hairline);
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.product-shell-surface[data-channels-feel] > .community-nav .community-nav-invite .nav-icon {
+  color: var(--text-primary);
+}
+
+/* Shared page chrome: a plain title bar on a hairline. */
+.product-shell-surface[data-channels-feel] .community-channel-header {
+  height: 3.5rem;
+  min-height: 3.5rem;
+  border-bottom: 1px solid var(--feel-hairline);
+  box-shadow: none;
+  background: var(--bg-workspace);
+}
+.product-shell-surface[data-channels-feel] .community-channel-header h1 {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-day span {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel] .chat-input-bar {
+  border-radius: 0.75rem;
+  border: 1px solid var(--feel-hairline);
+  box-shadow: none;
+}
+/* The member panel: no panel colour of its own, hairline edge, plain labels. */
+.product-shell-surface[data-channels-feel] .community-context-panel {
+  background: var(--bg-workspace);
+  border-left: 1px solid var(--feel-hairline);
+  box-shadow: none;
+}
+.product-shell-surface[data-channels-feel] .community-context-panel :is(.community-context-section, .community-context-presence-heading, h2, h3) {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel] .community-context-rail-head {
+  height: 3.5rem;
+  border-bottom: 1px solid var(--feel-hairline);
+}
+.product-shell-surface[data-channels-feel] .community-context-rail-name {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+/* Buttons: Substack's 8px corners, 40px primary. */
+.product-shell-surface[data-channels-feel] :is(.community-events-new-btn, .community-events-state button, .settings-primary-action) {
+  border-radius: 0.5rem;
+  min-height: 2.5rem;
+  box-shadow: none;
+}
+.product-shell-surface[data-channels-feel] .platform-switcher {
+  border-radius: 0.5rem;
+  background: var(--feel-fill-hover);
+  border: 0;
+  padding: 0.1875rem;
+}
+.product-shell-surface[data-channels-feel] .platform-switcher-btn {
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+}
+.product-shell-surface[data-channels-feel] .platform-switcher-btn.is-active {
+  background: var(--bg-workspace);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 12%, transparent);
+}
+.product-shell-surface[data-channels-feel] .resources-preview-mode-label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ───────── Quiet: Substack's admin. One centred column, plain titles. ───────── */
+.product-shell-surface[data-channels-feel="quiet"] .community-interaction-feed,
+.product-shell-surface[data-channels-feel="quiet"] .community-interaction-main-composer .chat-input-bar {
+  max-width: 47.5rem;
+  margin-inline: auto;
+  width: calc(100% - 2rem);
+  box-sizing: border-box;
+}
+.product-shell-surface[data-channels-feel="quiet"] .community-knowledge-page,
+.product-shell-surface[data-channels-feel="quiet"] .community-events-panel {
+  max-width: 54.25rem;
+  margin-inline: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+.product-shell-surface[data-channels-feel="quiet"] .community-knowledge-header {
+  padding: 2rem 1.5rem 0.5rem;
+  border-bottom: 0;
+}
+.product-shell-surface[data-channels-feel="quiet"] :is(.community-knowledge-header h1) {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.product-shell-surface[data-channels-feel="quiet"] .resource-course-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.product-shell-surface[data-channels-feel="quiet"] .resource-course-card {
+  border: 1px solid var(--feel-hairline);
+  border-radius: 0.75rem;
+  box-shadow: none;
+  background: var(--bg-workspace);
+}
+.product-shell-surface[data-channels-feel="quiet"] .resource-course-card:hover {
+  border-color: color-mix(in srgb, var(--text-primary) 22%, transparent);
+}
+.product-shell-surface[data-channels-feel="quiet"] .resource-course-card-cover {
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+.product-shell-surface[data-channels-feel="quiet"] .resource-course-card-heading strong {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.product-shell-surface[data-channels-feel="quiet"] .resource-course-card-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+.product-shell-surface[data-channels-feel="quiet"] .resource-course-create-card {
+  border-radius: 0.75rem;
+  min-height: 6rem;
+}
+.product-shell-surface[data-channels-feel="quiet"] .community-events-panel {
+  padding-top: 2rem;
+}
+.product-shell-surface[data-channels-feel="quiet"] .community-events-panel .resources-header {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel="quiet"] .community-events-panel .feed-header-subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+.product-shell-surface[data-channels-feel] .community-events-month-nav {
+  border-color: var(--feel-hairline);
+}
+.product-shell-surface[data-channels-feel] .community-events-month-copy h2 {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ───────── Reader: Substack's reading view. Narrow column, post lists. ───────── */
+.product-shell-surface[data-channels-feel="reader"] .community-interaction-feed,
+.product-shell-surface[data-channels-feel="reader"] .community-interaction-main-composer .chat-input-bar {
+  max-width: 42.5rem;
+  margin-inline: auto;
+  width: calc(100% - 2rem);
+  box-sizing: border-box;
+}
+.product-shell-surface[data-channels-feel="reader"] .community-interaction-message {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+.product-shell-surface[data-channels-feel="reader"] .community-interaction-meta-row {
+  font-size: 0.8125rem;
+}
+.product-shell-surface[data-channels-feel="reader"] .community-interaction-group {
+  padding-block: 0.75rem;
+}
+.product-shell-surface[data-channels-feel="reader"] .community-interaction-main-composer .chat-input-bar {
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--text-primary) 3%, var(--bg-workspace));
+}
+.product-shell-surface[data-channels-feel="reader"] .community-channel-header h1 {
+  font-family: var(--pn-font-heading, inherit);
+  font-size: 1.25rem;
+  font-weight: var(--pn-heading-weight, 700);
+  text-transform: var(--pn-heading-case, none);
+}
+.product-shell-surface[data-channels-feel="reader"] .community-knowledge-page,
+.product-shell-surface[data-channels-feel="reader"] .community-events-panel {
+  max-width: 46rem;
+  margin-inline: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+.product-shell-surface[data-channels-feel="reader"] .community-knowledge-header {
+  padding: 2.5rem 1.5rem 0.25rem;
+}
+.product-shell-surface[data-channels-feel="reader"] .community-knowledge-header h1,
+.product-shell-surface[data-channels-feel="reader"] .community-events-panel .resources-header {
+  font-family: var(--pn-font-heading, inherit);
+  font-size: 2rem;
+  line-height: 2.25rem;
+  font-weight: var(--pn-heading-weight, 700);
+  text-transform: var(--pn-heading-case, none);
+  letter-spacing: var(--pn-heading-tracking, 0);
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel="reader"] .community-events-panel {
+  padding-top: 2.5rem;
+}
+.product-shell-surface[data-channels-feel="reader"] .community-events-panel .feed-header-subtitle {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+/* Courses as a post list: text on the left, a small cover on the right. */
+.product-shell-surface[data-channels-feel="reader"] .resource-course-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--feel-hairline);
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-grid::before {
+  content: "Courses";
+  display: block;
+  padding: 1rem 0 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card {
+  border: 0;
+  border-bottom: 1px solid var(--feel-hairline);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card,
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-main {
+  min-height: 0;
+  height: auto;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10rem;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 0;
+  background: transparent;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-cover {
+  grid-column: 2;
+  grid-row: 1;
+  width: 10rem;
+  height: 6.25rem;
+  aspect-ratio: auto;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+/* The small cover can't use the framed crop computed for a full card. */
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-cover img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  object-fit: cover;
+  transform: none !important;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-body {
+  grid-column: 1;
+  grid-row: 1;
+  padding: 0;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-heading strong {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1.1875rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-description {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-progress-track {
+  max-width: 10rem;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-progress {
+  justify-content: flex-start;
+  gap: 0.75rem;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-lock {
+  left: auto;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-drag {
+  left: -2.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card-menu {
+  right: 11rem;
+  top: 1rem;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-create-card {
+  min-height: 3.5rem;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* ───────── Publication: Substack's site. Masthead and editorial pages. ───────── */
+.product-shell-surface[data-channels-feel="publication"] > .channels-feel-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.product-shell-surface[data-channels-feel="publication"] > .channels-feel-body main.workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.channels-feel-masthead {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--feel-hairline);
+  background: var(--bg-workspace);
+  color: var(--text-primary);
+}
+.channels-feel-masthead-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem 1.75rem;
+  max-width: 46rem;
+  margin: 0 auto;
+}
+.channels-feel-masthead-mark {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.875rem;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--feel-fill);
+  flex: 0 0 auto;
+  position: relative;
+}
+.channels-feel-masthead-mark img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.channels-feel-masthead-mark-fallback {
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+.channels-feel-masthead-text p {
+  margin: 0;
+}
+.channels-feel-masthead-name {
+  font-family: var(--pn-font-heading, inherit);
+  font-weight: var(--pn-heading-weight, 700);
+  text-transform: var(--pn-heading-case, none);
+  letter-spacing: var(--pn-heading-tracking, 0);
+  font-size: 2rem;
+  line-height: 2.375rem;
+}
+.channels-feel-masthead-line {
+  margin-top: 0.375rem !important;
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  color: var(--text-secondary);
+}
+.channels-feel-masthead-meta {
+  margin-top: 0.375rem !important;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.channels-feel-masthead-invite {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0 1.125rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--pn-button, var(--pn-accent, var(--text-primary)));
+  color: var(--pn-on-button, var(--pn-on-accent, var(--bg-workspace)));
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.channels-feel-masthead.is-slim .channels-feel-masthead-inner {
+  flex-direction: row;
+  justify-content: center;
+  text-align: left;
+  gap: 0.75rem;
+  padding: 0.625rem 1.5rem;
+  max-width: none;
+}
+.channels-feel-masthead.is-slim .channels-feel-masthead-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+.channels-feel-masthead.is-slim .channels-feel-masthead-name {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+.channels-feel-masthead.is-slim .channels-feel-masthead-invite {
+  position: absolute;
+  /* Clear of the top bar's own icons at the far right. */
+  right: 6.5rem;
+  height: 2rem;
+  padding: 0 0.875rem;
+}
+.channels-feel-masthead.is-slim {
+  position: relative;
+}
+.product-shell-surface[data-channels-feel="publication"] .community-interaction-feed,
+.product-shell-surface[data-channels-feel="publication"] .community-interaction-main-composer .chat-input-bar {
+  max-width: 45rem;
+  margin-inline: auto;
+  width: calc(100% - 2rem);
+  box-sizing: border-box;
+}
+.product-shell-surface[data-channels-feel="publication"] .community-knowledge-page,
+.product-shell-surface[data-channels-feel="publication"] .community-events-panel {
+  max-width: 60rem;
+  margin-inline: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+.product-shell-surface[data-channels-feel="publication"] .community-knowledge-header {
+  padding: 1.75rem 1.5rem 0.75rem;
+  margin: 0 1.5rem;
+  border-bottom: 1px solid var(--feel-hairline);
+  padding-inline: 0;
+}
+.product-shell-surface[data-channels-feel="publication"] .community-knowledge-header h1,
+.product-shell-surface[data-channels-feel="publication"] .community-events-panel .resources-header {
+  font-family: var(--pn-font-heading, inherit);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: var(--pn-heading-weight, 700);
+  text-transform: var(--pn-heading-case, none);
+  letter-spacing: var(--pn-heading-tracking, 0);
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel="publication"] .community-events-panel {
+  padding-top: 1.75rem;
+  max-width: 46rem;
+}
+/* Courses as editorial cards: open covers, no boxes, heading-font titles. */
+.product-shell-surface[data-channels-feel="publication"] .resource-course-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem 1.75rem;
+}
+.product-shell-surface[data-channels-feel="publication"] .resource-course-card {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+.product-shell-surface[data-channels-feel="publication"] .resource-course-card-main {
+  background: transparent;
+}
+.product-shell-surface[data-channels-feel="publication"] .resource-course-card-cover {
+  border-radius: 0.625rem;
+  overflow: hidden;
+}
+.product-shell-surface[data-channels-feel="publication"] .resource-course-card-body {
+  padding: 0.875rem 0 0;
+}
+.product-shell-surface[data-channels-feel="publication"] .resource-course-card-heading strong {
+  font-family: var(--pn-font-heading, inherit);
+  font-weight: var(--pn-heading-weight, 700);
+  text-transform: var(--pn-heading-case, none);
+  letter-spacing: var(--pn-heading-tracking, 0);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+}
+.product-shell-surface[data-channels-feel="publication"] .resource-course-card-description {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+.product-shell-surface[data-channels-feel="publication"] .resource-course-create-card {
+  border-radius: 0.625rem;
+}
+.product-shell-surface[data-channels-feel]:is([data-channels-feel="reader"], [data-channels-feel="publication"]) .resource-course-card:is(:hover, :focus-within) {
+  transform: none;
+  box-shadow: none;
+}
+.product-shell-surface[data-channels-feel="reader"] .resource-course-card:hover .resource-course-card-heading strong,
+.product-shell-surface[data-channels-feel="publication"] .resource-course-card:hover .resource-course-card-heading strong {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}

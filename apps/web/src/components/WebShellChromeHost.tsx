@@ -22,6 +22,8 @@ import { WebCommunityTopNav } from "./WebCommunityTopNav";
 import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
 import type { AppTheme } from "../../../../shared/theme";
 import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
+import { DRAFT_LOOKS_IN_DISPLAY_MENU, useDraftLook } from "../controllers/useDraftLook";
+import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
 import type {
   MobileOverlay,
   WebCommunityShellProps,
@@ -157,7 +159,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     props.communityShell.showDesktopCommunityNav &&
     !welcome &&
     !isTopCommunityNav &&
-    hasDisplayChoices ? <WebCommunityDisplayMenu placement="bar" /> : null;
+    // Draft looks experiment: the menu always has the draft look choices.
+    (hasDisplayChoices || DRAFT_LOOKS_IN_DISPLAY_MENU) ? <WebCommunityDisplayMenu placement="bar" /> : null;
   const shellHeader = props.showMobileAppShell ? (
     isMobileDedicatedRoot || isMobileDiscoverRoot ? null : (
       <WebMobileTopBar
@@ -203,6 +206,48 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       />
     )
   ) : null;
+  // Draft Substack-feel looks for Channels (see useDraftLook); off in Classroom.
+  const draftLook = useDraftLook();
+  const channelsFeelAttribute = desktopCommunityNav && !isTopCommunityNav && draftLook.feel !== "current" ? draftLook.feel : undefined;
+  // Draft rail looks, set on <html> so the rail and the frame around the
+  // community both see them. The rail reads the community's colours, copied
+  // from the themed surface, so it never wears the theme's fonts.
+  const railColorAttribute = draftLook.railColor !== "polynet" && communityThemeAttribute ? draftLook.railColor : null;
+  const railSizeAttribute = draftLook.railSize === "large" ? "large" : null;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (railSizeAttribute) root.dataset.railSize = railSizeAttribute;
+    else delete root.dataset.railSize;
+  }, [railSizeAttribute]);
+  useEffect(() => {
+    const root = document.documentElement;
+    const names = ["--bg-workspace", "--pn-accent", "--pn-on-accent", "--text-primary"];
+    const clear = () => {
+      delete root.dataset.railColor;
+      names.forEach((name) => root.style.removeProperty(`--rail-feel-${name.slice(2)}`));
+    };
+    if (!railColorAttribute || !communityThemeAttribute) {
+      clear();
+      return;
+    }
+    let frame = 0;
+    let tries = 0;
+    const copy = () => {
+      const surface = document.querySelector<HTMLElement>(`[data-community-theme="${CSS.escape(communityThemeAttribute)}"]`);
+      const style = surface ? getComputedStyle(surface) : null;
+      if (!style || !style.getPropertyValue("--pn-accent").trim()) {
+        if (tries++ < 60) frame = window.requestAnimationFrame(copy);
+        return;
+      }
+      names.forEach((name) => root.style.setProperty(`--rail-feel-${name.slice(2)}`, style.getPropertyValue(name).trim()));
+      root.dataset.railColor = railColorAttribute;
+    };
+    copy();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      clear();
+    };
+  }, [railColorAttribute, communityThemeAttribute]);
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
   const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
@@ -246,6 +291,11 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     <div className={`community-top-body${communityAsideBlocks.length > 0 ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
       <div className="community-top-main">{themedMainSurface}</div>
       <WebCommunityAside blocks={communityAsideBlocks} />
+    </div>
+  ) : channelsFeelAttribute === "publication" ? (
+    <div className="channels-feel-body">
+      <WebChannelsFeelMasthead tab={activeCommunityTab} />
+      {themedMainSurface}
     </div>
   ) : themedMainSurface;
   const desktopSettingsSidebar = (
@@ -299,6 +349,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
           <div
             className={`product-shell-surface product-shell-surface--${desktopFrameMode}`}
             data-community-theme={desktopCommunityNav ? communityThemeAttribute ?? undefined : undefined}
+            data-channels-feel={channelsFeelAttribute}
           >
             {desktopFrameMode === "settings" ? desktopSettingsSidebar : null}
             {desktopCommunityNav}
@@ -308,6 +359,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
           <div
             className={`product-shell-surface product-shell-surface--${isTopCommunityNav ? "community-top" : "community"}`}
             data-community-theme={communityThemeAttribute ?? undefined}
+            data-channels-feel={channelsFeelAttribute}
           >
             {desktopCommunityNav}
             {mainSurface}
