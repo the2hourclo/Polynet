@@ -4330,7 +4330,9 @@
 .community-interaction-reaction.is-mine {
   background: color-mix(in srgb, var(--bg-card) 82%, var(--accent-attention) 18%);
   border-color: var(--accent-attention);
-  color: color-mix(in srgb, var(--accent-attention) 88%, var(--text-primary));
+  /* The tint and border mark it as yours; the count stays full-strength text,
+     since the accent as text measured 3.7:1 on dark themes. */
+  color: var(--text-primary);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-attention) 14%, transparent);
 }
 
