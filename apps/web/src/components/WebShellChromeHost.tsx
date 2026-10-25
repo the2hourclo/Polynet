@@ -46,6 +46,10 @@ export type WebShellChromeHostProps = {
   // A manager's session, for the draft theme preview; null for everyone else.
   themeDraftSession?: unknown;
   memberSession?: unknown;
+  // The arrangement this member sees ("top" is Classroom). With it the
+  // community agent floats at the bottom right instead of being a tab.
+  onCommunityLayoutPositionChange?: (position: "top" | "side") => void;
+  onOpenCommunityAgent?: () => void;
 };
 
 // Every page inside a community takes its theme, its owner pages included, so
@@ -148,6 +152,19 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     props.communityShell.showDesktopCommunityNav &&
     !welcome &&
     communityLayout.navigation.position === "top";
+  const onLayoutPositionChange = props.onCommunityLayoutPositionChange;
+  useEffect(() => {
+    onLayoutPositionChange?.(isTopCommunityNav ? "top" : "side");
+  }, [isTopCommunityNav, onLayoutPositionChange]);
+  // Classroom has no agent page: an agent link opens the floating agent over
+  // the community's home tab.
+  const onOpenCommunityAgent = props.onOpenCommunityAgent;
+  const agentTabInTopLayout = isTopCommunityNav && activeCommunityTab === "agent";
+  useEffect(() => {
+    if (!agentTabInTopLayout) return;
+    onSelectCommunityTab(communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home);
+    onOpenCommunityAgent?.();
+  }, [agentTabInTopLayout, onSelectCommunityTab, onOpenCommunityAgent, communityLayout.navigation.home]);
   const desktopCommunityNav = props.communityShell.showDesktopCommunityNav && !welcome ? (
     isTopCommunityNav ? (
       <WebCommunityTopNav communityShell={props.communityShell} />
@@ -275,7 +292,14 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
         )}
       </div>
 
-      {props.globalOverlays}
+      {isTopCommunityNav && communityThemeAttribute ? (
+        // The floating agent and other overlays take the community's look too.
+        <div className="community-theme-scope-overlays" data-community-theme={communityThemeAttribute} style={{ display: "contents" }}>
+          {props.globalOverlays}
+        </div>
+      ) : (
+        props.globalOverlays
+      )}
     </div>
     </WebCommunityFrameContext.Provider>
   );

@@ -33,8 +33,9 @@ export function WebCommunityTopNav({
   const [searchOpen, setSearchOpen] = useState(false);
   const community = communityShell.activeCommunity;
   const activeTab = communityShell.communityTab;
+  // The agent floats at the bottom right in this layout, so it has no tab.
   const tabs = visibleCommunityLayoutTabs(layout).filter(
-    (entry) => entry.tab !== "members" || communityShell.canViewMembersActiveCommunity,
+    (entry) => entry.tab !== "agent" && (entry.tab !== "members" || communityShell.canViewMembersActiveCommunity),
   );
   const ownerTabs = communityShell.isLoadingCommunityAccess ? [] : OWNER_TABS.filter((entry) => entry.allowed(communityShell));
   const joinUrl = communityJoinUrl(community?.slug);

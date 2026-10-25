@@ -478,3 +478,37 @@
     animation: none;
   }
 }
+
+/* Classroom layout: the agent waits behind a button at the bottom right and
+   opens as the floating panel above it. Escape and the header × close it. */
+.member-agent-launcher {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 71;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 18px 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pn-button, var(--accent-brand));
+  color: var(--pn-button-text, var(--text-on-accent, #fff));
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18), 0 1px 3px rgb(0 0 0 / 0.12);
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.member-agent-launcher:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.member-agent-launcher:focus-visible {
+  outline: 2px solid var(--accent-brand);
+  outline-offset: 3px;
+}
