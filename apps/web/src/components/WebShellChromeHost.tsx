@@ -13,7 +13,6 @@ import { WebCommunityRail } from "./WebCommunityRail";
 import { WebMobileCommunityShell } from "./WebMobileCommunityShell";
 import { WebMobileGlobalShell } from "./WebMobileGlobalShell";
 import { WebCommunityNavSurface } from "./WebCommunityNavSurface";
-import { WebSettingsSidebar } from "./WebSettingsSidebar";
 import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
 import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controllers/useWebCommunityLayout";
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
@@ -76,6 +75,9 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   "community_agent",
   "community_workflows",
   "community_funnels",
+  // Your settings take the look of the community you came from, so leaving
+  // a community for your own settings doesn't change colours (Rashid).
+  "global_settings",
 ]);
 
 export function WebShellChromeHost(props: WebShellChromeHostProps) {
@@ -311,14 +313,11 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       {themedMainSurface}
     </div>
   ) : themedMainSurface;
-  const desktopSettingsSidebar = (
-    <WebSettingsSidebar settingsSidebar={props.settingsSidebar} />
-  );
+  // Your settings bring their own menu (WebYourSettingsNav), so the frame
+  // has one column there too.
   const desktopFrameMode = desktopCommunityNav
     ? isTopCommunityNav ? "community-top" : "community"
-    : props.isGlobalSettings
-      ? "settings"
-      : "single";
+    : "single";
 
   const { rootClassName: chromeRootClassName, shellClassName } = buildWebShellChromeClassNames({
     showMobileAppShell: props.showMobileAppShell,
@@ -361,10 +360,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
         {props.communityShell.showDesktopCommunityRail ? (
           <div
             className={`product-shell-surface product-shell-surface--${desktopFrameMode}`}
-            data-community-theme={desktopCommunityNav ? communityThemeAttribute ?? undefined : undefined}
+            data-community-theme={desktopCommunityNav || props.isGlobalSettings ? communityThemeAttribute ?? undefined : undefined}
             data-channels-feel={channelsFeelAttribute}
           >
-            {desktopFrameMode === "settings" ? desktopSettingsSidebar : null}
             {desktopCommunityNav}
             {mainSurface}
           </div>
@@ -378,10 +376,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
             {mainSurface}
           </div>
         ) : (
-          <>
-            {desktopSettingsSidebar}
-            {mainSurface}
-          </>
+          mainSurface
         )}
       </div>
 

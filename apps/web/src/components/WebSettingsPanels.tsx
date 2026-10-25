@@ -20,6 +20,8 @@ import {
 } from "./WebBillingSettingsSection";
 import { WebPolynetMcpAccountSection } from "./WebPolynetMcpAccountSection";
 import { WebProfileSettingsSection } from "./WebProfileSettingsSection";
+import { WebProfileCommunityVisibility } from "./WebProfileCommunityVisibility";
+import { WebYourMembershipsSection } from "./WebYourMembershipsSection";
 
 type SessionLike = AuthSession | null;
 
@@ -44,6 +46,8 @@ export type WebSettingsPanelsProps = {
     appTheme: AppTheme;
     setAppTheme: (value: AppTheme) => void;
   };
+  // Opens an in-app path (a community's own Settings from Memberships).
+  onOpenPath?: (path: string) => void;
 };
 
 export function WebSettingsPanels(props: WebSettingsPanelsProps) {
@@ -92,24 +96,51 @@ export function WebSettingsPanels(props: WebSettingsPanelsProps) {
   };
 
   switch (props.settingsGroup) {
-    case "profile":
-      return <WebProfileSettingsSection {...profileSectionProps} />;
+    case "profile": {
+      const visibility = (props.profile.cloudProfile ?? {}) as { show_owned_communities?: boolean; show_joined_communities?: boolean };
+      return (
+        <>
+          <WebProfileSettingsSection {...profileSectionProps} />
+          <WebProfileCommunityVisibility
+            session={props.profile.session}
+            showOwned={visibility.show_owned_communities !== false}
+            showJoined={visibility.show_joined_communities !== false}
+          />
+        </>
+      );
+    }
     case "account":
       return (
         <>
           <WebAccountSettingsSection {...props.account} />
           <WebEmailPreferencesSection {...props.emailPreferences} />
-          <WebPolynetMcpAccountSection session={props.account.session} />
         </>
       );
+    case "memberships":
+      return (
+        <WebYourMembershipsSection
+          session={props.profile.session}
+          onOpenPath={(path) => (props.onOpenPath ? props.onOpenPath(path) : window.location.assign(path))}
+        />
+      );
+    case "apps":
+      return <WebPolynetMcpAccountSection session={props.account.session} />;
     case "billing":
       return <WebBillingSettingsSection {...props.billing} />;
     case "appearance":
       return (
-        <WebAppearanceSettingsSection
-          appTheme={props.appearance.appTheme}
-          setAppTheme={props.appearance.setAppTheme}
-        />
+        <section className="settings-section pn-settings-card pn-your-display" aria-labelledby="your-display-title">
+          <header className="pn-settings-card-header">
+            <h2 className="settings-section-title" id="your-display-title">Light or dark</h2>
+            <p className="settings-section-desc">How pages look for you on this device.</p>
+          </header>
+          <div className="pn-settings-card-body">
+            <WebAppearanceSettingsSection
+              appTheme={props.appearance.appTheme}
+              setAppTheme={props.appearance.setAppTheme}
+            />
+          </div>
+        </section>
       );
   }
 }

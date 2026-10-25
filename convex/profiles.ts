@@ -192,6 +192,8 @@ async function mapProfileDetail(ctx: any, user: UserRow, detail: ProfileDetailRo
     bio: detail?.bio ?? null,
     social_links: normalizeSocialProfileLinks(detail?.socialLinks ?? {}),
     timezone: (detail as any)?.timezone ?? null,
+    show_owned_communities: (detail as any)?.hideOwnedCommunities !== true,
+    show_joined_communities: (detail as any)?.hideJoinedCommunities !== true,
     onboarding_completed_at:
       typeof detail?.onboardingCompletedAt === "number"
         ? new Date(detail.onboardingCompletedAt).toISOString()
@@ -255,6 +257,39 @@ async function assertHandleAvailable(ctx: any, normalizedHandle: string, userId:
     throwProfileMutationError("profile_handle_taken");
   }
 }
+
+// Your settings > Profile: whether your profile lists the communities you
+// own or co-create, and the public ones you've joined.
+export const setMyProfileCommunityVisibility = mutation({
+  args: {
+    authSubject: v.optional(v.string()),
+    showOwned: v.optional(v.boolean()),
+    showJoined: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({
+      ctx,
+      authSubject: args.authSubject ?? null,
+    });
+    const nowMs = Date.now();
+    const patch: Record<string, unknown> = { updatedAt: nowMs };
+    if (args.showOwned !== undefined) patch.hideOwnedCommunities = args.showOwned ? undefined : true;
+    if (args.showJoined !== undefined) patch.hideJoinedCommunities = args.showJoined ? undefined : true;
+    const detail = await findProfileDetailByUserId(ctx, userId);
+    if (detail) {
+      await ctx.db.patch(detail._id, patch);
+    } else {
+      await ctx.db.insert("userProfileDetails", {
+        userId,
+        ...(args.showOwned === false ? { hideOwnedCommunities: true } : {}),
+        ...(args.showJoined === false ? { hideJoinedCommunities: true } : {}),
+        createdAt: nowMs,
+        updatedAt: nowMs,
+      });
+    }
+    return { ok: true };
+  },
+});
 
 export const checkHandleAvailability = query({
   args: {

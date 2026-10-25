@@ -176,7 +176,10 @@ export type CommunityAvatarSummary = {
 };
 
 export type ProfileCommunityContext = {
-  owned_communities: CommunityAvatarSummary[];
+  // Owned and co-created (co_creator: true), unless the person hides them.
+  owned_communities: Array<CommunityAvatarSummary & { co_creator?: boolean }>;
+  // Published communities they've joined that aren't mutual, unless hidden.
+  joined_communities?: CommunityAvatarSummary[];
   mutual_communities: CommunityAvatarSummary[];
   is_self: boolean;
   can_message: boolean;

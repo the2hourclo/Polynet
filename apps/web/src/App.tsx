@@ -2589,6 +2589,7 @@ export default function App() {
       appTheme,
       setAppTheme,
     },
+    onOpenPath: (path) => navigateTo(path),
   };
   const activeCommunityAttentionSummary = activeCommunityId
     ? (attentionByCommunityId[activeCommunityId] ?? { chat: false, resources: false, events: false, mentions: false, channels: [] })

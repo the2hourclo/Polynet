@@ -63,3 +63,57 @@ describe("co-creators", () => {
       .rejects.toThrow(/community_owner_required_for_admin_role/);
   });
 });
+
+describe("profile community lists", () => {
+  const profileModules = import.meta.glob([
+    "./communityAdmin.ts",
+    "./profiles.ts",
+    "./_generated/**/*.*s",
+  ]);
+
+  test("a profile lists owned, co-created and joined public communities, and each list can be hidden", async () => {
+    const t = convexTest(schema, profileModules);
+    const nowMs = Date.now();
+    await t.run(async (ctx) => {
+      const user = (subject: string, handle: string) => ctx.db.insert("users", {
+        authSubject: subject, displayName: handle, handle, normalizedHandle: handle, createdAt: nowMs, updatedAt: nowMs,
+      });
+      const janeId = await user("p-jane", "jane");
+      const otherOwner = await user("p-owner", "olive");
+      await user("p-viewer", "vic");
+      const community = (ownerId: any, slug: string, visibility: "published" | "unlisted") => ctx.db.insert("communities", {
+        ownerId, slug, name: slug, visibility, inferenceFundingPolicy: "managed_required", entryPolicy: "open", activeMemberCount: 1, createdAt: nowMs, updatedAt: nowMs,
+      });
+      await community(janeId, "janes-own", "published");
+      const coCreated = await community(otherOwner, "co-made", "published");
+      const joinedPublic = await community(otherOwner, "joined-public", "published");
+      const joinedPrivate = await community(otherOwner, "joined-private", "unlisted");
+      const member = (communityId: any, extra: Record<string, unknown> = {}) => ctx.db.insert("communityMemberships", {
+        communityId, userId: janeId, role: "member", accessSource: "free_grant", active: true, activationSequence: 1,
+        activatedAt: nowMs, createdAt: nowMs, updatedAt: nowMs, ...extra,
+      });
+      await member(coCreated, { role: "admin", coCreator: true });
+      await member(joinedPublic);
+      await member(joinedPrivate);
+    });
+    const asViewer = t.withIdentity({ subject: "p-viewer" });
+    const asJane = t.withIdentity({ subject: "p-jane" });
+    const read = async () => {
+      const context = await asViewer.query(api.profiles.getProfileCommunityContext, { targetUserId: "p-jane" });
+      return {
+        owned: context.owned_communities.map((c: any) => [c.slug, Boolean(c.co_creator)]),
+        joined: (context.joined_communities ?? []).map((c: any) => c.slug),
+      };
+    };
+    expect(await read()).toEqual({ owned: [["janes-own", false], ["co-made", true]], joined: ["joined-public"] });
+
+    await asJane.mutation(api.profiles.setMyProfileCommunityVisibility, { showJoined: false });
+    expect(await read()).toEqual({ owned: [["janes-own", false], ["co-made", true]], joined: [] });
+    await asJane.mutation(api.profiles.setMyProfileCommunityVisibility, { showOwned: false, showJoined: true });
+    expect(await read()).toEqual({ owned: [], joined: ["joined-public"] });
+
+    // Jane always sees her own lists.
+    const own = await asJane.query(api.profiles.getProfileCommunityContext, { targetUserId: "p-jane" });
+    expect(own.owned_communities.length).toBe(2);
+  });
+});
