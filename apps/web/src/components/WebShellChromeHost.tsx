@@ -73,6 +73,7 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   "community_about",
   "community_agent",
   "community_workflows",
+  "community_funnels",
 ]);
 
 export function WebShellChromeHost(props: WebShellChromeHostProps) {

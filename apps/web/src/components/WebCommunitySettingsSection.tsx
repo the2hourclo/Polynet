@@ -19,7 +19,6 @@ import { WebCommunityAiAgentSection } from "./WebCommunityAiAgentSection";
 import { WebCommunityAppearanceSettings } from "./WebCommunityAppearanceSettings";
 import { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
 import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
-import { WebCommunitySalesPageSettings } from "./WebCommunitySalesPageSettings";
 import { WebCommunitySettingProposals } from "./WebCommunitySettingProposals";
 import { buildCommunitySettingsNav, WebCommunitySettingsNav } from "./WebCommunitySettingsNav";
 import "./WebCommunitySettings.css";
@@ -907,9 +906,11 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
   });
   const resolvedActiveCommunity = activeCommunity as ActiveCommunity;
   const workflowsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "workflows");
+  // The sales page has its own section, Funnels; Settings links to it.
+  const funnelsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "funnels");
   const navGroups = useMemo(
-    () => buildCommunitySettingsNav({ panes: availableSettingsPanes, workflowsPath }),
-    [availableSettingsPaneKey, workflowsPath],
+    () => buildCommunitySettingsNav({ panes: availableSettingsPanes, workflowsPath, funnelsPath }),
+    [availableSettingsPaneKey, workflowsPath, funnelsPath],
   );
   const autosave = useCommunitySettingsAutosave({ state, actions });
   const accessGateway = useCommunityAccessGatewayForSession({
@@ -922,6 +923,13 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
       onSelectPane(availableSettingsPanes[0]!, { replace: true });
     }
   }, [activePane, availableSettingsPaneKey, onSelectPane]);
+
+  // Old Settings > Sales page links open Funnels.
+  useEffect(() => {
+    if (selectedSettingsPane !== "sales_page" || !funnelsPath) return;
+    window.history.replaceState(window.history.state, "", funnelsPath);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, [selectedSettingsPane, funnelsPath]);
 
   useEffect(() => {
     if (!state.communitySettingsAvatarUrl && state.isCommunityAvatarFocusModalOpen) {
@@ -1025,7 +1033,7 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
       <CommunityProfileCard
         state={state}
         actions={actions}
-        onOpenSalesPage={availableSettingsPanes.includes("sales_page") ? () => selectPane("sales_page") : null}
+        onOpenSalesPage={availableSettingsPanes.includes("sales_page") && funnelsPath ? () => openInAppPath(funnelsPath) : null}
       />
       <CommunityAccessAndPaymentsCards
         activeCommunity={resolvedActiveCommunity}
@@ -1063,16 +1071,6 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
             <WebCommunitySettingProposals communityId={resolvedActiveCommunity.id} session={props.session} />
           ) : null}
           {selectedSettingsPane === "community" ? generalBody : null}
-          {selectedSettingsPane === "sales_page" && resolvedActiveCommunity ? (
-            <WebCommunitySalesPageSettings
-              communityId={resolvedActiveCommunity.id}
-              communitySlug={resolvedActiveCommunity.slug}
-              session={props.session}
-              ensureSession={props.ensureSession}
-              funnel={props.funnel}
-              externalWebsite={externalWebsite}
-            />
-          ) : null}
           {selectedSettingsPane === "appearance" && resolvedActiveCommunity ? (
             <WebCommunityAppearanceSettings
               communityId={resolvedActiveCommunity.id}

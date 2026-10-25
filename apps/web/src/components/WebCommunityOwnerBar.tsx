@@ -4,14 +4,14 @@ import type { CommunityTab } from "../../../../shared/appShellNavigation";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
 
-// In the Classroom layout the owner's pages (Settings, Workflows) open full
+// In the Classroom layout the owner's pages (Settings, Workflows, Funnels) open full
 // screen, like Substack's dashboard: this slim bar replaces the community's
 // tab bar, with a way back to the community and the page's name.
 
-const PAGE_LABEL: Partial<Record<CommunityTab, string>> = { settings: "Settings", workflows: "Workflows" };
+const PAGE_LABEL: Partial<Record<CommunityTab, string>> = { settings: "Settings", workflows: "Workflows", funnels: "Funnels" };
 
 export function isCommunityOwnerPage(tab: CommunityTab | null | undefined): boolean {
-  return tab === "settings" || tab === "workflows";
+  return tab === "settings" || tab === "workflows" || tab === "funnels";
 }
 
 export function WebCommunityOwnerBar(props: {

@@ -47,16 +47,19 @@ export const GENERAL_ANCHORS: SettingsAnchor[] = [
 export function buildCommunitySettingsNav(params: {
   panes: CommunitySettingsPane[];
   workflowsPath: string | null;
+  funnelsPath?: string | null;
 }): SettingsNavGroup[] {
   const has = (pane: CommunitySettingsPane) => params.panes.includes(pane);
   const top: SettingsNavItem[] = [];
   if (has("community")) {
     top.push({ kind: "pane", pane: "community", label: "General", icon: <Settings2 {...ICON} />, anchors: GENERAL_ANCHORS });
   }
-  if (has("sales_page")) {
+  if (has("sales_page") && params.funnelsPath) {
+    // Edited in Funnels, the community's own section for it.
     top.push({
-      kind: "pane",
-      pane: "sales_page",
+      kind: "link",
+      id: "sales-page",
+      path: params.funnelsPath,
       label: "Sales page",
       icon: <Megaphone {...ICON} />,
       keywords: "public page about funnel landing classroom pitch video vsl website join",
@@ -183,7 +186,7 @@ export function WebCommunitySettingsNav(props: {
                 <button key={item.id} type="button" className="pn-settings-nav-item" onClick={() => props.onOpenLink(item.path)}>
                   {item.icon}
                   <span>{item.label}</span>
-                  <ArrowUpRight className="pn-settings-nav-out" size={14} strokeWidth={2} aria-label="Opens Workflows" />
+                  <ArrowUpRight className="pn-settings-nav-out" size={14} strokeWidth={2} aria-label="Opens in another section" />
                 </button>
               ) : (
                 <div key={item.pane} className="pn-settings-nav-entry">
