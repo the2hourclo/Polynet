@@ -60,6 +60,7 @@ export type CommunityThemeV1 = {
   course_card_pills: "hide" | "show";
   course_card_description: "show" | "hide";
   course_card_progress: "bar" | "ring" | "fraction";
+  course_card_edge: "border" | "shadow" | "none";
   // "tint" prints course covers onto a soft wash of the accent (light schemes),
   // so pale drawings and dark screenshots share one colour.
   course_cover_plate: "none" | "tint";
@@ -161,6 +162,7 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   course_card_pills: "hide",
   course_card_description: "show",
   course_card_progress: "bar",
+  course_card_edge: "border",
   course_cover_plate: "none",
   course_cover_fit: "crop",
   banner_name: "show",
@@ -201,6 +203,7 @@ const ENUMS = {
   course_card_pills: ["hide", "show"],
   course_card_description: ["show", "hide"],
   course_card_progress: ["bar", "ring", "fraction"],
+  course_card_edge: ["border", "shadow", "none"],
   course_cover_plate: ["none", "tint"],
   course_cover_fit: ["crop", "whole"],
   banner_name: ["show", "hide"],

@@ -26,6 +26,7 @@ export function courseCardLookWords(theme: CommunityThemeV1 | null): string | nu
     theme.course_card_pills === "show" ? "pills" : "",
     theme.course_card_description === "hide" ? "no-description" : "",
     theme.course_card_progress && theme.course_card_progress !== "bar" ? theme.course_card_progress : "",
+    `edge-${theme.course_card_edge ?? "border"}`,
   ].filter(Boolean);
   return words.length ? words.join(" ") : null;
 }

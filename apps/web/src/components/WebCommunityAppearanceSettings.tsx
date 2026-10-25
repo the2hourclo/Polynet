@@ -55,7 +55,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color" | "sibling_communities";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color" | "sibling_communities";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -72,6 +72,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   course_card_pills: ["Pills", [["hide", "Off"], ["show", "Lessons and status"]]],
   course_card_description: ["Description", [["show", "Show"], ["hide", "Hide"]]],
   course_card_progress: ["Progress", [["bar", "Bar"], ["ring", "Ring"], ["fraction", "3/6 lessons"]]],
+  course_card_edge: ["Card edge", [["border", "Border"], ["shadow", "Soft shadow"], ["none", "None (open)"]]],
   course_cover_plate: ["Cover background (light scheme)", [["none", "Plain"], ["tint", "Soft accent tint"]]],
   course_cover_fit: ["Cover pictures", [["crop", "Fill the box"], ["whole", "Show whole picture"]]],
   media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
@@ -766,6 +767,7 @@ function AppearanceEditor(props: EditorProps) {
         </Group>
         <Group title="Course cards">
           {choice("course_card_style")}
+          {theme.course_card_style === "list" || theme.course_card_style === "text" ? null : choice("course_card_edge")}
           {choice("course_card_pills")}
           {choice("course_card_description")}
           {choice("course_card_progress")}

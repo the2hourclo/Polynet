@@ -63,6 +63,7 @@ look; both follow the member's own Light/Dark choice.
 | `course_card_pills` | `hide` or `show` small pills: lesson count and In progress / Done / Locked |
 | `course_card_description` | `show` or `hide` each course's short description |
 | `course_card_progress` | `bar`, `ring` or `fraction` ("3/6 lessons") |
+| `course_card_edge` | `border` (a hairline frame, the default), `shadow` (a soft shadow that lifts on hover) or `none` (open cover and text, like a magazine). Applies to the cover and title-on-cover card styles |
 | `course_cover_plate` | `none`, `tint` (light schemes: covers are printed onto a soft wash of the accent, so pale drawings and screenshots match) |
 | `course_cover_fit` | `crop` (covers fill the box, framed by each course's focus and zoom), `whole` (each cover shows in full, centred in the box; for wide banners with words on them) |
 | `banner_name` | `show` (the name sits over the side column's banner), `hide` (the banner artwork already shows it) |

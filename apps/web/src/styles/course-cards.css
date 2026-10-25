@@ -93,6 +93,67 @@
   text-underline-offset: 0.2em;
 }
 
+/* ── Card edge: a hairline frame, a soft shadow, or open ─────
+   For the cover and title-on-cover styles (list rows and text entries
+   have their own hairlines). The Reader look keeps its post-list rows. */
+:root[data-course-cards~="edge-border"]:not([data-course-cards~="list"], [data-course-cards~="text"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) {
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-radius-card);
+  box-shadow: none;
+}
+:root[data-course-cards~="edge-border"]:not([data-course-cards~="list"], [data-course-cards~="text"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *):is(:hover, :focus-within) {
+  border-color: color-mix(in srgb, var(--text-primary) 28%, transparent);
+  box-shadow: none;
+  transform: none;
+}
+/* The hairline keeps the card's edge on dark pages, where shadows vanish. */
+:root[data-course-cards~="edge-shadow"]:not([data-course-cards~="list"], [data-course-cards~="text"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) {
+  border: 1px solid color-mix(in srgb, var(--text-primary) 7%, transparent);
+  border-radius: var(--pn-radius-card);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 6px 20px rgb(0 0 0 / 0.07);
+}
+:root[data-course-cards~="edge-shadow"]:not([data-course-cards~="list"], [data-course-cards~="text"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *):is(:hover, :focus-within) {
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.06), 0 14px 32px rgb(0 0 0 / 0.11);
+  transform: translateY(-2px);
+}
+/* A framed cover card: the picture runs to the frame, the words sit inside it. */
+:root:is([data-course-cards~="edge-border"], [data-course-cards~="edge-shadow"]):not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) {
+  background: var(--bg-card);
+}
+:root:is([data-course-cards~="edge-border"], [data-course-cards~="edge-shadow"]):not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-cover {
+  border-radius: 0;
+}
+:root:is([data-course-cards~="edge-border"], [data-course-cards~="edge-shadow"]):not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {
+  padding: 1rem 1.125rem 1.25rem;
+}
+/* Open: a rounded picture with the words under it, no box at all. */
+:root[data-course-cards~="edge-none"]:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-course-cards~="edge-none"]:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *):is(:hover, :focus-within) {
+  box-shadow: none;
+  transform: none;
+}
+:root[data-course-cards~="edge-none"]:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-main {
+  overflow: visible;
+  background: transparent;
+}
+:root[data-course-cards~="edge-none"]:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-cover {
+  overflow: hidden;
+  border-radius: min(var(--pn-radius), 0.75rem);
+}
+:root[data-course-cards~="edge-none"]:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {
+  padding: 0.875rem 0 0;
+}
+:root[data-course-cards~="edge-none"]:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *):hover .resource-course-card-heading > strong {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
 /* ── List: one row per course, small picture on the right ─ */
 /* A reading-width column whatever the card size, like an archive list. */
 :root[data-course-cards~="list"] [data-community-theme] .resource-course-grid {
