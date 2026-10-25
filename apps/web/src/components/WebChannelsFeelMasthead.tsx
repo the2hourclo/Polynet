@@ -7,8 +7,9 @@ import { communityJoinUrl, useWebCommunityFrame } from "../controllers/useWebCom
 // DRAFT EXPERIMENT: the "Publication" Channels look puts a masthead above each
 // community page, the way a Substack publication heads its site: the
 // community's mark and name side by side on one line, its one-liner, and one
-// invite action. Chat gets the slim version, one bar as tall as the side
-// column's title row, so the two line up and the conversation keeps its height.
+// invite action. Chat gets the slim version: one bar as tall as the side
+// column's title row, with the mark and name starting where the channel title
+// below them starts, so the rows line up and the conversation keeps its height.
 
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
@@ -59,7 +60,9 @@ export function WebChannelsFeelMasthead(props: { tab: CommunityTab }) {
             ) : null}
           </div>
         ) : null}
-        {canInvite ? (
+        {/* The slim bar shares its row with the top-right icons (messages,
+            docs, settings); the side column's "Invite people" covers chat. */}
+        {canInvite && !slim ? (
           <button type="button" className="channels-feel-masthead-invite" onClick={() => void invite()}>
             {copied ? <Check size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}
             {copied ? "Link copied" : "Invite"}

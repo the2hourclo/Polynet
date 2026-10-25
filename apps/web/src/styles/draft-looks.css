@@ -897,9 +897,11 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 }
 .channels-feel-masthead.is-slim .channels-feel-masthead-inner {
   flex-direction: row;
-  justify-content: center;
+  justify-content: flex-start;
   height: 100%;
-  padding: 0 1.5rem;
+  /* Left edge matches the channel header below; the right stays clear of the
+     top bar's own icons. */
+  padding: 0 var(--web-topbar-right-action-safe-inset, 9rem) 0 1.5rem;
   max-width: none;
 }
 .channels-feel-masthead.is-slim .channels-feel-masthead-title {
@@ -913,16 +915,6 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 .channels-feel-masthead.is-slim .channels-feel-masthead-name {
   font-size: 1.1875rem;
   line-height: 1.5rem;
-}
-.channels-feel-masthead.is-slim .channels-feel-masthead-invite {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  margin: 0;
-  /* Clear of the top bar's own icons at the far right. */
-  right: 6.5rem;
-  height: 2rem;
-  padding: 0 0.875rem;
 }
 .product-shell-surface[data-channels-feel="publication"] .community-interaction-feed,
 .product-shell-surface[data-channels-feel="publication"] .community-interaction-main-composer .chat-input-bar {
