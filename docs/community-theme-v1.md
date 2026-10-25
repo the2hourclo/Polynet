@@ -59,6 +59,9 @@ look; both follow the member's own Light/Dark choice.
 | `course_cover_plate` | `none`, `tint` (light schemes: covers are printed onto a soft wash of the accent, so pale drawings and screenshots match) |
 | `course_cover_fit` | `crop` (covers fill the box, framed by each course's focus and zoom), `whole` (each cover shows in full, centred in the box; for wide banners with words on them) |
 | `banner_name` | `show` (the name sits over the side column's banner), `hide` (the banner artwork already shows it) |
+| `channels_look` | Draft. `current` (Polynet's Channels look), `quiet` (plain side panel, one centred column), `reader` (reading column, courses as a post list), `publication` (masthead with logo, name and Invite; editorial course cards). Only the Channels layout uses it |
+| `rail_size` | Draft. `standard`, `large` (bigger community icons in the far-left rail while this community is open) |
+| `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
 
 ## Text roles
 

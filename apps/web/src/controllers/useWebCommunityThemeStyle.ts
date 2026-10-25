@@ -67,7 +67,7 @@ function removeHeadElement(id: string) {
 export function useWebCommunityThemeStyle(
   communityId: string | null,
   options: { draftSession?: unknown } = {},
-): { attribute: string | null; previewingDraft: boolean; followsMemberMode: boolean } {
+): { attribute: string | null; theme: CommunityThemeV1 | null; previewingDraft: boolean; followsMemberMode: boolean } {
   const [loaded, setLoaded] = useState<{ communityId: string; theme: CommunityThemeV1 | null; draft: boolean } | null>(null);
   const draftSession = options.draftSession ?? null;
   const wantsDraft = Boolean(draftSession) && draftPreviewRequested();
@@ -151,6 +151,9 @@ export function useWebCommunityThemeStyle(
 
   return {
     attribute: communityId && theme ? communityId : null,
+    // The look in force (published, draft or the editor's preview), for the
+    // settings the shell applies itself, such as the Channels look and rail.
+    theme: communityId ? theme : null,
     previewingDraft: Boolean(communityId && current?.draft),
     // Polynet's own look and two-scheme themes follow the member's Light/Dark;
     // a one-scheme theme always looks the same, so there is nothing to pick.

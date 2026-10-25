@@ -6,8 +6,9 @@ import { communityJoinUrl, useWebCommunityFrame } from "../controllers/useWebCom
 
 // DRAFT EXPERIMENT: the "Publication" Channels look puts a masthead above each
 // community page, the way a Substack publication heads its site: the
-// community's mark and name centred, its one-liner, and one invite action.
-// Chat gets the slim version so the conversation keeps its height.
+// community's mark and name side by side on one line, its one-liner, and one
+// invite action. Chat gets the slim version, one bar as tall as the side
+// column's title row, so the two line up and the conversation keeps its height.
 
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
@@ -31,29 +32,33 @@ export function WebChannelsFeelMasthead(props: { tab: CommunityTab }) {
   return (
     <header className={`channels-feel-masthead${slim ? " is-slim" : ""}`}>
       <div className="channels-feel-masthead-inner">
-        <UserAvatar
-          className="channels-feel-masthead-mark"
-          readyClassName="has-image"
-          imageClassName="channels-feel-masthead-mark-image"
-          fallbackClassName="channels-feel-masthead-mark-fallback"
-          name={community.name}
-          imageUrl={community.avatar_url}
-          focusX={community.avatar_focus_x ?? 0.5}
-          focusY={community.avatar_focus_y ?? 0.5}
-          zoom={community.avatar_zoom ?? 1}
-          fallback={<span>{initials(community.name)}</span>}
-          alt=""
-          aria-hidden={true}
-        />
-        <div className="channels-feel-masthead-text">
+        <div className="channels-feel-masthead-title">
+          <UserAvatar
+            className="channels-feel-masthead-mark"
+            readyClassName="has-image"
+            imageClassName="channels-feel-masthead-mark-image"
+            fallbackClassName="channels-feel-masthead-mark-fallback"
+            name={community.name}
+            imageUrl={community.avatar_url}
+            focusX={community.avatar_focus_x ?? 0.5}
+            focusY={community.avatar_focus_y ?? 0.5}
+            zoom={community.avatar_zoom ?? 1}
+            fallback={<span>{initials(community.name)}</span>}
+            alt=""
+            aria-hidden={true}
+          />
           <p className="channels-feel-masthead-name">{community.name}</p>
-          {!slim && community.one_liner ? <p className="channels-feel-masthead-line">{community.one_liner}</p> : null}
-          {!slim && typeof frame.memberCount === "number" ? (
-            <p className="channels-feel-masthead-meta">
-              {frame.memberCount.toLocaleString()} {frame.memberCount === 1 ? "member" : "members"}
-            </p>
-          ) : null}
         </div>
+        {!slim && (community.one_liner || typeof frame.memberCount === "number") ? (
+          <div className="channels-feel-masthead-text">
+            {community.one_liner ? <p className="channels-feel-masthead-line">{community.one_liner}</p> : null}
+            {typeof frame.memberCount === "number" ? (
+              <p className="channels-feel-masthead-meta">
+                {frame.memberCount.toLocaleString()} {frame.memberCount === 1 ? "member" : "members"}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {canInvite ? (
           <button type="button" className="channels-feel-masthead-invite" onClick={() => void invite()}>
             {copied ? <Check size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}

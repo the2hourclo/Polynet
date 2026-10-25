@@ -53,6 +53,16 @@ export type CommunityThemeV1 = {
   // "hide" when the banner artwork already carries the community's name, so
   // the side column doesn't print the name on top of it.
   banner_name: "show" | "hide";
+  // Draft options (2026-10-25), kept until a default is picked. How the
+  // Channels layout's pages are laid out: "current" is Polynet's look; the
+  // others take after Substack ("quiet" admin, "reader" reading view,
+  // "publication" site with a masthead). Classroom ignores it.
+  channels_look: "current" | "quiet" | "reader" | "publication";
+  // The far-left community rail while this community is open: its icon size,
+  // and "polynet" (Polynet's own rail), "blend" (the page colour), "tint" (a
+  // wash of the accent) or "brand" (solid accent).
+  rail_size: "standard" | "large";
+  rail_color: "polynet" | "blend" | "tint" | "brand";
 };
 
 export type CommunityThemeProblem = {
@@ -128,6 +138,9 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   course_cover_plate: "none",
   course_cover_fit: "crop",
   banner_name: "show",
+  channels_look: "current",
+  rail_size: "standard",
+  rail_color: "polynet",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -157,6 +170,9 @@ const ENUMS = {
   course_cover_plate: ["none", "tint"],
   course_cover_fit: ["crop", "whole"],
   banner_name: ["show", "hide"],
+  channels_look: ["current", "quiet", "reader", "publication"],
+  rail_size: ["standard", "large"],
+  rail_color: ["polynet", "blend", "tint", "brand"],
 } as const;
 
 const RANGES = {

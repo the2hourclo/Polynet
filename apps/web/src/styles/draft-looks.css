@@ -2,7 +2,8 @@
    Rail looks and three Substack-feel looks for the Channels layout, to compare
    with the current look before anything is kept. Sizes are in rem so the
    community theme map leaves them alone. Nothing here applies unless the
-   member picked a draft look in the Display menu (or by URL). */
+   owner picked a draft look in Settings → Appearance → Customize (or the
+   address sets one with ?feel=, ?rail_size=, ?rail_color=). */
 
 /* The Display menu grew: let it scroll instead of running off short screens. */
 .community-display-panel {
@@ -87,6 +88,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   position: relative;
   margin: -0.75rem -0.75rem 0.5rem;
   padding: 0 0.75rem 0 1.375rem;
+  box-sizing: border-box;
   height: 3.5rem;
   min-height: 3.5rem;
   flex: 0 0 3.5rem;
@@ -185,20 +187,99 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   color: var(--text-primary);
 }
 
-/* Shared page chrome: a plain title bar on a hairline. */
+/* Shared page chrome: a plain title bar on a hairline, as tall as the side
+   column's title row. One type scale across the page: 11px labels, 12px
+   times, 13px notes, 14px names and menu items, 15px messages, 16px titles. */
 .product-shell-surface[data-channels-feel] .community-channel-header {
+  box-sizing: border-box;
   height: 3.5rem;
   min-height: 3.5rem;
+  padding-inline: 1.5rem 1rem;
   border-bottom: 1px solid var(--feel-hairline);
   box-shadow: none;
   background: var(--bg-workspace);
 }
 .product-shell-surface[data-channels-feel] .community-channel-header h1 {
   font-family: var(--pn-font-body, inherit);
-  font-size: 1.0625rem;
-  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 650;
   letter-spacing: 0;
   text-transform: none;
+}
+.product-shell-surface[data-channels-feel] .community-channel-header-identity svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-muted);
+}
+
+/* Chat: one reading rhythm. 36px avatars, 15px messages at 1.6, a quiet name
+   line, and notices (joins, days) a step smaller and greyer than talk. */
+.product-shell-surface[data-channels-feel] .community-interaction-group {
+  padding-block: 0.625rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-group-gutter .community-interaction-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-meta-row {
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.125rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-author {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-meta-row > span:not(.community-interaction-author):not(.community-interaction-badge) {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-badge {
+  font-size: 0.625rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0 0.375rem;
+  border-radius: 0.25rem;
+  background: var(--feel-fill);
+  color: var(--text-secondary);
+  border: 0;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-body {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-day {
+  margin-block: 1rem 0.5rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-day::before,
+.product-shell-surface[data-channels-feel] .community-interaction-day::after {
+  background: var(--feel-hairline);
+  opacity: 1;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-member-arrivals {
+  min-height: 1.75rem;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-member-arrivals > span {
+  font-size: 0.8125rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-member-arrival-faces {
+  --member-avatar-stack-face-size: 1.25rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-member-arrival-faces .member-avatar-stack-face {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.5625rem;
 }
 .product-shell-surface[data-channels-feel] .community-interaction-day span {
   font-size: 0.6875rem;
@@ -207,33 +288,197 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   text-transform: uppercase;
   color: var(--text-muted);
 }
+.product-shell-surface[data-channels-feel] .community-interaction-main-composer {
+  padding: 0 1.5rem 1.25rem;
+}
 .product-shell-surface[data-channels-feel] .chat-input-bar {
   border-radius: 0.75rem;
   border: 1px solid var(--feel-hairline);
+  background: var(--surface-card, var(--bg-card));
   box-shadow: none;
 }
-/* The member panel: no panel colour of its own, hairline edge, plain labels. */
+.product-shell-surface[data-channels-feel] .chat-input {
+  font-size: 0.9375rem;
+}
+
+/* The member panel: Substack's subscriber list. No panel colour of its own,
+   a hairline edge, a "Members" title row level with the channel title, plain
+   rows with the last-seen date on the right, and no boxes. */
 .product-shell-surface[data-channels-feel] .community-context-panel {
   background: var(--bg-workspace);
   border-left: 1px solid var(--feel-hairline);
   box-shadow: none;
 }
-.product-shell-surface[data-channels-feel] .community-context-panel :is(.community-context-section, .community-context-presence-heading, h2, h3) {
+.product-shell-surface[data-channels-feel] .community-context-rail-head {
+  box-sizing: border-box;
+  height: 3.5rem;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid var(--feel-hairline);
+}
+/* The community's name is already in the masthead and the side column. */
+.product-shell-surface[data-channels-feel] .community-context-rail-name {
+  font-size: 0;
+}
+.product-shell-surface[data-channels-feel] .community-context-rail-name::before {
+  content: "Members";
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+/* The Online list below shows the same faces. */
+.product-shell-surface[data-channels-feel] .community-context-facepile {
+  display: none;
+}
+.product-shell-surface[data-channels-feel] .community-context-panel :is(.community-context-section, .community-context-presence-heading h4) {
   font-family: var(--pn-font-body, inherit);
   font-size: 0.6875rem;
+  line-height: 1rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.product-shell-surface[data-channels-feel] .community-context-rail-head {
-  height: 3.5rem;
+.product-shell-surface[data-channels-feel] .community-context-memory {
+  padding: 1rem 1.25rem 1.125rem;
   border-bottom: 1px solid var(--feel-hairline);
 }
-.product-shell-surface[data-channels-feel] .community-context-rail-name {
+.product-shell-surface[data-channels-feel] .community-context-memory-summary {
+  margin-top: 0.625rem;
+  gap: 0.5rem;
+}
+.product-shell-surface[data-channels-feel] .community-context-memory-preview {
+  height: 7.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--feel-hairline);
+  background: transparent;
+}
+.product-shell-surface[data-channels-feel] .community-context-memory-status {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel] .community-context-members {
+  padding: 0.5rem 0.75rem 1rem;
+}
+.product-shell-surface[data-channels-feel] .community-context-members .community-context-section,
+.product-shell-surface[data-channels-feel] .community-context-presence-heading {
+  margin: 1rem 0 0.375rem;
+  padding: 0 0.5rem;
+}
+.product-shell-surface[data-channels-feel] .community-context-members .community-context-presence-heading .community-context-section {
+  margin: 0;
+  padding: 0;
+}
+.product-shell-surface[data-channels-feel] .community-context-agent-list {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.product-shell-surface[data-channels-feel] .community-context-agent-list .community-context-member + .community-context-member {
+  border-top: 0;
+}
+.product-shell-surface[data-channels-feel] .community-context-member {
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  padding: 0.25rem 0.5rem;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+}
+.product-shell-surface[data-channels-feel] .community-context-member:hover {
+  background: var(--feel-fill-hover);
+}
+.product-shell-surface[data-channels-feel] .community-context-member-trigger {
+  gap: 0.75rem;
+}
+.product-shell-surface[data-channels-feel] .community-context-member-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.625rem;
+}
+.product-shell-surface[data-channels-feel] .community-context-member-name {
   font-family: var(--pn-font-body, inherit);
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel] .community-context-member-name.is-admin {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+.product-shell-surface[data-channels-feel] .community-context-member.is-offline .community-context-member-name {
+  color: var(--text-secondary);
+}
+/* The last-seen date sits on the right; the row's actions take its place
+   on hover, so names keep their width. */
+.product-shell-surface[data-channels-feel] .community-context-member-last-active {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 1;
+}
+.product-shell-surface[data-channels-feel] .community-context-member-action {
+  display: none;
+}
+.product-shell-surface[data-channels-feel] .community-context-member:is(:hover, :focus-within) .community-context-member-action {
+  display: grid;
+}
+.product-shell-surface[data-channels-feel] .community-context-member:is(:hover, :focus-within):has(.community-context-member-action) .community-context-member-last-active {
+  display: none;
+}
+.product-shell-surface[data-channels-feel] .members-view-all {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  color: var(--text-secondary);
+}
+.product-shell-surface[data-channels-feel] .members-view-all:hover {
+  background: var(--feel-fill-hover);
+}
+.product-shell-surface[data-channels-feel] .community-context-members-footer {
+  margin: 0.75rem 0.5rem 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel] .community-siblings {
+  margin: 0;
+  padding: 1rem 1.25rem 1.125rem;
+  border-top: 1px solid var(--feel-hairline);
+}
+.product-shell-surface[data-channels-feel] .community-siblings h2 {
+  margin: 0 0 0.375rem;
+  font-family: var(--pn-font-body, inherit);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.product-shell-surface[data-channels-feel] .community-sibling {
+  gap: 0.75rem;
+  padding: 0.375rem 0.5rem;
+  margin-inline: -0.5rem;
+  border-radius: 0.5rem;
+}
+.product-shell-surface[data-channels-feel] .community-sibling:hover {
+  background: var(--feel-fill-hover);
+}
+.product-shell-surface[data-channels-feel] .community-sibling :is(img, .community-sibling-initial) {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+.product-shell-surface[data-channels-feel] .community-sibling strong {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+.product-shell-surface[data-channels-feel] .community-sibling small {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--text-muted);
 }
 /* Buttons: Substack's 8px corners, 40px primary. */
 .product-shell-surface[data-channels-feel] :is(.community-events-new-btn, .community-events-state button, .settings-primary-action) {
@@ -520,24 +765,36 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 }
 .channels-feel-masthead {
   flex: 0 0 auto;
+  position: relative;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--feel-hairline);
   background: var(--bg-workspace);
   color: var(--text-primary);
+}
+.channels-feel-masthead p {
+  margin: 0;
 }
 .channels-feel-masthead-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.75rem;
-  padding: 2rem 1.5rem 1.75rem;
+  padding: 2.25rem 1.5rem 2rem;
   max-width: 46rem;
   margin: 0 auto;
 }
+/* The mark and the name share one line, centred on each other. */
+.channels-feel-masthead-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  min-width: 0;
+}
 .channels-feel-masthead-mark {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.875rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.75rem;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -556,26 +813,31 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   font-weight: 700;
   font-size: 1.125rem;
 }
-.channels-feel-masthead-text p {
-  margin: 0;
-}
 .channels-feel-masthead-name {
   font-family: var(--pn-font-heading, inherit);
   font-weight: var(--pn-heading-weight, 700);
   text-transform: var(--pn-heading-case, none);
   letter-spacing: var(--pn-heading-tracking, 0);
-  font-size: 2rem;
-  line-height: 2.375rem;
+  font-size: 2.125rem;
+  line-height: 2.5rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.channels-feel-masthead-text {
+  max-width: 36rem;
+  margin-top: 0.875rem;
 }
 .channels-feel-masthead-line {
-  margin-top: 0.375rem !important;
   font-size: 1.0625rem;
-  line-height: 1.5rem;
+  line-height: 1.625rem;
   color: var(--text-secondary);
 }
 .channels-feel-masthead-meta {
   margin-top: 0.375rem !important;
   font-size: 0.8125rem;
+  line-height: 1.25rem;
   color: var(--text-muted);
 }
 .channels-feel-masthead-invite {
@@ -583,6 +845,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   align-items: center;
   gap: 0.5rem;
   height: 2.5rem;
+  margin-top: 1.25rem;
   padding: 0 1.125rem;
   border: 0;
   border-radius: 0.5rem;
@@ -592,32 +855,39 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   font-size: 0.875rem;
   cursor: pointer;
 }
+/* Slim (chat): one bar exactly as tall as the side column's title row, so the
+   two titles and their hairlines line up across the top. */
+.channels-feel-masthead.is-slim {
+  height: 3.5rem;
+}
 .channels-feel-masthead.is-slim .channels-feel-masthead-inner {
   flex-direction: row;
   justify-content: center;
-  text-align: left;
-  gap: 0.75rem;
-  padding: 0.625rem 1.5rem;
+  height: 100%;
+  padding: 0 1.5rem;
   max-width: none;
 }
+.channels-feel-masthead.is-slim .channels-feel-masthead-title {
+  gap: 0.625rem;
+}
 .channels-feel-masthead.is-slim .channels-feel-masthead-mark {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.5rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.4375rem;
 }
 .channels-feel-masthead.is-slim .channels-feel-masthead-name {
-  font-size: 1.25rem;
-  line-height: 1.75rem;
+  font-size: 1.1875rem;
+  line-height: 1.5rem;
 }
 .channels-feel-masthead.is-slim .channels-feel-masthead-invite {
   position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
   /* Clear of the top bar's own icons at the far right. */
   right: 6.5rem;
   height: 2rem;
   padding: 0 0.875rem;
-}
-.channels-feel-masthead.is-slim {
-  position: relative;
 }
 .product-shell-surface[data-channels-feel="publication"] .community-interaction-feed,
 .product-shell-surface[data-channels-feel="publication"] .community-interaction-main-composer .chat-input-bar {

@@ -22,7 +22,7 @@ import { WebCommunityTopNav } from "./WebCommunityTopNav";
 import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
 import type { AppTheme } from "../../../../shared/theme";
 import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
-import { DRAFT_LOOKS_IN_DISPLAY_MENU, useDraftLook } from "../controllers/useDraftLook";
+import { useDraftLook } from "../controllers/useDraftLook";
 import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
 import type {
   MobileOverlay,
@@ -160,7 +160,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     !welcome &&
     !isTopCommunityNav &&
     // Draft looks experiment: the menu always has the draft look choices.
-    (hasDisplayChoices || DRAFT_LOOKS_IN_DISPLAY_MENU) ? <WebCommunityDisplayMenu placement="bar" /> : null;
+    hasDisplayChoices ? <WebCommunityDisplayMenu placement="bar" /> : null;
   const shellHeader = props.showMobileAppShell ? (
     isMobileDedicatedRoot || isMobileDiscoverRoot ? null : (
       <WebMobileTopBar
@@ -206,8 +206,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       />
     )
   ) : null;
-  // Draft Substack-feel looks for Channels (see useDraftLook); off in Classroom.
-  const draftLook = useDraftLook();
+  // Draft Substack-feel looks for Channels, set by the owner in Customize
+  // (see useDraftLook); off in Classroom.
+  const draftLook = useDraftLook(communityTheme.theme);
   const channelsFeelAttribute = desktopCommunityNav && !isTopCommunityNav && draftLook.feel !== "current" ? draftLook.feel : undefined;
   // Draft rail looks, set on <html> so the rail and the frame around the
   // community both see them. The rail reads the community's colours, copied
@@ -247,7 +248,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       window.cancelAnimationFrame(frame);
       clear();
     };
-  }, [railColorAttribute, communityThemeAttribute]);
+  }, [railColorAttribute, communityThemeAttribute, communityTheme.theme]);
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
   const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
