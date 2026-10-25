@@ -153,7 +153,8 @@ function ExternalArrowIcon() {
 
 export function WebCommunityResourceViewerContent(props: WebCommunityResourceViewerContentProps) {
   const { resource, editor = null } = props;
-  const currentUrl = resource.url;
+  // A lesson can carry its video in lesson.video_url (the board contract) instead of the resource link.
+  const currentUrl = resource.url || resource.lesson?.video_url || null;
   const embed = currentUrl ? parseEmbedUrl(currentUrl) : null;
   const sourceUrl = normalizeExternalUrl(currentUrl);
   const hostLabel = getHostLabel(currentUrl);
