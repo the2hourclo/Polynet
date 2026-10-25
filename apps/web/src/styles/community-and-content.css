@@ -3004,6 +3004,12 @@
     border-left: 0;
   }
   .people-panel-open .channel-people-back { display: flex; flex-shrink: 0; }
+  /* Phone app: the people page has its own "Back to channel", so the chat's
+     floating top bar (whose back leaves the community) steps aside. */
+  .app-root.mobile-shell:has(.community-interaction-projection.people-panel-open) .mobile-topbar { display: none; }
+  .app-root.mobile-shell .community-interaction-projection.people-panel-open > .channel-roster-panel {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--mobile-topbar-top-offset));
+  }
   .people-panel-open .community-context-rail-head { justify-content: flex-start; gap: 8px; }
   .channel-people-back .back-to-workspace { padding: 8px; }
   .channel-people-back .back-icon { width: 17px; height: 17px; }
@@ -4915,10 +4921,11 @@
   align-items: center;
   padding: 1px 6px;
   border-radius: 5px;
-  /* Agent purple, fixed across both themes — matches the mention-picker AGENT
-     badge rather than the active theme accent. */
+  /* Agent purple across both themes, matching the mention-picker AGENT badge
+     rather than the theme accent. The text leans toward the page's text
+     colour so it reads on light pages too (#c4b5fd was 1.5:1 on white). */
   background: rgba(167, 139, 250, 0.2);
-  color: #c4b5fd;
+  color: color-mix(in srgb, #a78bfa 55%, var(--text-primary));
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
