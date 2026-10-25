@@ -1,4 +1,8 @@
-:root {
+/* Community Settings (.pn-settings) re-declares Polynet's own colours, so
+   owner settings look the same in every community, whatever its theme. */
+:root,
+:root .pn-settings,
+:root .community-tab-scroll:has(.pn-settings) {
   --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   font-family: var(--font-sans);
   --font-mono: "IBM Plex Mono", "SF Mono", "Fira Code", monospace;
@@ -154,7 +158,9 @@
 }
 
 /* Light theme - "Paper Intelligence" */
-:root[data-theme="light"] {
+:root[data-theme="light"],
+:root[data-theme="light"] .pn-settings,
+:root[data-theme="light"] .community-tab-scroll:has(.pn-settings) {
   color-scheme: light;
 
   /*

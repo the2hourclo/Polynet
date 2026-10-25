@@ -110,7 +110,16 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
   } = props;
 
   const communityName = publicCommunity?.name ?? publicRouteSlug ?? "Community";
-  const asSalesPage = publicCommunity?.about_presentation === "funnel";
+  // Settings > Sales page previews a style before it's published, in a frame
+  // that drops the "Back to builder" link (?presentation=…&embed=1).
+  const previewParams = isPreviewMode && typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+  const previewPresentation = previewParams?.get("presentation");
+  const isEmbeddedPreview = previewParams?.get("embed") === "1";
+  const asSalesPage = previewPresentation === "funnel" || previewPresentation === "page"
+    ? previewPresentation === "funnel"
+    : publicCommunity?.about_presentation === "funnel";
   const salesTheme = useWebCommunityThemeStyle(asSalesPage ? publicCommunity?.id ?? null : null);
   const funnel = publicCommunity?.funnel ?? null;
   const memberCount =
@@ -253,7 +262,7 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
     />
   );
 
-  if (!isPreviewMode) return funnelSurface;
+  if (!isPreviewMode || isEmbeddedPreview) return funnelSurface;
 
   return (
     <div className="funnel-preview-presentation">

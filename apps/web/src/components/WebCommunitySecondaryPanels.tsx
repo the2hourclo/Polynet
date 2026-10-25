@@ -20,7 +20,7 @@ export type WebCommunitySecondaryPanelsProps = {
   communityTab: CommunityTab;
   settings: Omit<
     ComponentProps<typeof WebCommunitySettingsSection>,
-    "state" | "actions" | "aiAgentProps" | "externalWebsite"
+    "state" | "actions" | "aiAgentProps" | "externalWebsite" | "funnel"
   > & {
     state: ComponentProps<typeof WebCommunitySettingsSection>["state"];
     actions: Omit<
@@ -82,6 +82,7 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
   const settingsSectionProps: ComponentProps<typeof WebCommunitySettingsSection> = {
     ...props.settings,
     aiAgentProps: props.aiAgent,
+    funnel: props.funnel,
     externalWebsite: {
       isLoading: props.funnel.isLoadingCommunityFunnel || !props.funnel.isCommunityFunnelReady,
       error: props.funnel.communityFunnelError,

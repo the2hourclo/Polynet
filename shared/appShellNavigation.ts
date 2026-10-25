@@ -65,6 +65,7 @@ export function isCommunityChatBackedTab(tab: CommunityTab): boolean {
 
 export const COMMUNITY_SETTINGS_PANES = [
   "community",
+  "sales_page",
   "appearance",
   "agent",
   "danger",
@@ -166,6 +167,10 @@ export function parseCommunitySettingsPane(
       return "agent";
     case "danger":
       return "danger";
+    case "sales_page":
+    case "sales-page":
+    case "sales":
+      return "sales_page";
     // "look" is the pane's earlier name; old links still open it.
     case "appearance":
     case "look":
@@ -191,6 +196,9 @@ export function isCommunitySettingsPaneAllowedForAccess(
     case "community":
       return access.canViewSettings;
     case "agent":
+      return access.canManageMembers;
+    // The public page: its layout draft and funnel copy are managers' to edit.
+    case "sales_page":
       return access.canManageMembers;
     // Fonts, sizing and colours: the theme draft, which managers may edit.
     case "appearance":
