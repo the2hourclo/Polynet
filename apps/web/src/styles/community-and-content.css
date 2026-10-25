@@ -10583,8 +10583,8 @@ button.chat-reply-quote:hover {
 }
 
 .resource-viewer-title-edit-trigger:focus-visible {
-  outline: none;
-  border-color: color-mix(in srgb, var(--border-default) 72%, transparent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /* Only a real pointer previews the edit box; a tap would leave it stuck on. */
