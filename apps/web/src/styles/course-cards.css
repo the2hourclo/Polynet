@@ -155,40 +155,47 @@
 }
 
 /* ── Classroom: Polynet's default course card ──────────────
-   The card members know from course communities: the picture on top,
-   a bold title in the body font, two lines of description and a rounded
-   progress bar with the percent beside it. Its frame comes from Card edge. */
+   The card members know from course communities (the picture on top, the
+   title, two lines of description, progress) set like a Substack post card:
+   the title in the community's heading font, room to breathe, a quiet
+   frame from Card edge and a slim progress line. */
 :root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {
-  gap: 0.375rem;
+  gap: 0.5rem;
+  padding: 1.125rem 1.25rem 1.25rem;
 }
 :root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-heading > strong {
-  font-family: var(--pn-font-body);
-  font-size: 1.0625rem;
-  font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: 0;
-  text-transform: none;
+  font-family: var(--pn-font-heading);
+  font-size: 1.125rem;
+  font-weight: var(--pn-heading-weight);
+  line-height: 1.3;
+  letter-spacing: var(--pn-heading-tracking);
+  text-transform: var(--pn-heading-case);
 }
 :root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-description {
   min-height: 0;
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.45;
+  font-size: 0.9375rem;
+  line-height: 1.55;
   -webkit-line-clamp: 2;
 }
 :root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress {
   gap: 0.75rem;
-  padding-top: 0.875rem;
+  padding-top: 1rem;
 }
 :root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress-track {
-  height: 0.5rem;
+  height: 0.25rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
 }
 :root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress-label {
   color: var(--text-secondary);
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+/* A quieter hover than the plain frame: the edge darkens a little. */
+:root[data-course-cards~="classroom"][data-course-cards~="edge-border"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *):is(:hover, :focus-within) {
+  border-color: color-mix(in srgb, var(--text-primary) 18%, transparent);
 }
 
 /* ── List: one row per course, small picture on the right ─ */

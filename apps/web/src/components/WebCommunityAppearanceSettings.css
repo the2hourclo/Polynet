@@ -405,7 +405,7 @@
 .appearance-cardlook-sample.is-overlay em { position: relative; z-index: 1; background: #fff; opacity: 0.9; }
 .appearance-cardlook-sample.is-overlay em:first-of-type { margin-top: auto; }
 .appearance-cardlook-sample.is-overlay em:last-of-type { margin-bottom: 0.25rem; opacity: 0.6; }
-/* Classroom: a framed card whose bold title leads. */
+/* Classroom: a framed card whose title leads. */
 .appearance-cardlook-sample.is-classroom em:first-of-type { height: 0.1875rem; opacity: 0.85; }
 /* Text only: entries under hairlines, no pictures. */
 .appearance-cardlook-sample.is-text { gap: 0; }

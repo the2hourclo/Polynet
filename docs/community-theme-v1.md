@@ -59,7 +59,7 @@ look; both follow the member's own Light/Dark choice.
 | `course_columns` | `auto` (fit to screen by Card size), or `1`–`4` cards per row on desktop (rows wrap before a card is narrower than 160px). Overrides the page style's columns; picking a Card size in Customize sets it back to `auto` |
 | `course_columns_phone` | `1` or `2` cards per row on phones |
 | `course_gap` | `default` (the page style's own spacing), `tight`, `roomy` |
-| `course_card_style` | `classroom` (the default: a framed card with the picture on top, a bold title, two lines of description and a progress bar, as in course communities), `cover` (picture on top), `list` (a row with a small picture on the right, thin dividers), `overlay` (title on the picture), `text` (no picture, editorial) |
+| `course_card_style` | `classroom` (the default: the course-community card, picture on top, title in the heading font, two lines of description and a slim progress line, with a quiet frame and room to breathe), `cover` (picture on top), `list` (a row with a small picture on the right, thin dividers), `overlay` (title on the picture), `text` (no picture, editorial) |
 | `course_card_pills` | `hide` or `show` small pills: lesson count and In progress / Done / Locked |
 | `course_card_description` | `show` or `hide` each course's short description |
 | `course_card_progress` | `bar`, `ring` or `fraction` ("3/6 lessons") |
