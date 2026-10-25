@@ -10755,9 +10755,10 @@ button.chat-reply-quote:hover {
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: 16px;
-  border: 1px solid var(--border-default);
-  background: rgba(0, 0, 0, 0.32);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+  background: #111;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px -16px rgb(0 0 0 / 0.28);
 }
 
 .resource-viewer-embed iframe {
@@ -10769,6 +10770,7 @@ button.chat-reply-quote:hover {
 
 .resource-viewer-embed .deferred-youtube {
   height: 100%;
+  min-height: 0;
   border-radius: 0;
 }
 
@@ -10913,9 +10915,10 @@ button.chat-reply-quote:hover {
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border-default) 76%, transparent);
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+  border-radius: 12px;
+  background: #111;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px -16px rgb(0 0 0 / 0.28);
 }
 
 .resource-viewer-prose .md-media-embed-frame iframe {
@@ -10928,8 +10931,9 @@ button.chat-reply-quote:hover {
 .resource-viewer-prose .md-media-embed-caption {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
+  text-align: center;
 }
 
 .resource-viewer-prose .md-media-embed-link {
