@@ -11,6 +11,6 @@ test("every course card look is a valid theme and is recognised once applied", (
   }
 });
 
-test("Polynet's default cards match no look until the owner picks one", () => {
-  expect(matchingCourseCardLook(DEFAULT_COMMUNITY_THEME)).toBeNull();
+test("Polynet's default cards are the Classroom look", () => {
+  expect(matchingCourseCardLook(DEFAULT_COMMUNITY_THEME)?.id).toBe("classroom");
 });

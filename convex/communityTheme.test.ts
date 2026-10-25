@@ -153,10 +153,15 @@ describe("community theme compilation", () => {
     expect(vars["--pn-radius-button"]).toContain("255px");
   });
 
-  test("course cards: Polynet's two columns by default, or sized cards with a cover ratio", () => {
+  test("course cards: Classroom's medium cards by default, the page style's own columns on request, and a cover ratio", () => {
     const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
-    expect(defaults["--pn-course-columns"]).toBe("repeat(2, minmax(0, 1fr))");
-    expect(defaults["--pn-course-cover-ratio"]).toBe("auto");
+    expect(defaults["--pn-course-columns"]).toBe("repeat(auto-fill, minmax(min(100%, 260px), 1fr))");
+    expect(defaults["--pn-course-cover-ratio"]).toBe("16 / 9");
+    const own = normalizeCommunityTheme({ version: 1, course_card_size: "default", course_cover_ratio: "auto" });
+    if (!own.ok) throw new Error("invalid");
+    const ownVars = communityThemeVariables(own.theme, "light");
+    expect(ownVars["--pn-course-columns"]).toBe("repeat(2, minmax(0, 1fr))");
+    expect(ownVars["--pn-course-cover-ratio"]).toBe("auto");
     const stopwatch = normalizeCommunityTheme(STOPWATCH_THEME);
     if (!stopwatch.ok) throw new Error("invalid");
     const vars = communityThemeVariables(stopwatch.theme, "dark");
@@ -164,8 +169,8 @@ describe("community theme compilation", () => {
     // A picked size beats the page style's columns and lets the catalog fill the screen.
     expect(vars["--pn-course-columns-owner"]).toBe(vars["--pn-course-columns"]);
     expect(vars["--pn-course-catalog-max-owner"]).toBe("90rem");
-    expect(defaults["--pn-course-columns-owner"]).toBe("initial");
-    expect(defaults["--pn-course-catalog-max-owner"]).toBe("initial");
+    expect(ownVars["--pn-course-columns-owner"]).toBe("initial");
+    expect(ownVars["--pn-course-catalog-max-owner"]).toBe("initial");
     expect(vars["--pn-course-cover-ratio"]).toBe("16 / 9");
     expect(vars["--pn-course-cover-height"]).toBe("auto");
     expect(normalizeCommunityTheme({ course_cover_ratio: "2:1" }).ok).toBe(false);

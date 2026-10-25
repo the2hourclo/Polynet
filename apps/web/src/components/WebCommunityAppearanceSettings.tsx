@@ -70,7 +70,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   course_columns: ["Cards per row", [["auto", "Fit to screen"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]]],
   course_columns_phone: ["Cards per row on phones", [["1", "1"], ["2", "2"]]],
   course_gap: ["Space between cards", [["default", "Page style's own"], ["tight", "Tight"], ["roomy", "Roomy"]]],
-  course_card_style: ["Card style", [["cover", "Cover on top"], ["list", "List row"], ["overlay", "Title on cover"], ["text", "Text only"]]],
+  course_card_style: ["Card style", [["classroom", "Classroom card"], ["cover", "Cover on top"], ["list", "List row"], ["overlay", "Title on cover"], ["text", "Text only"]]],
   course_card_pills: ["Pills", [["hide", "Off"], ["show", "Lessons and status"]]],
   course_card_description: ["Description", [["show", "Show"], ["hide", "Hide"]]],
   course_card_progress: ["Progress", [["bar", "Bar"], ["ring", "Ring"], ["fraction", "3/6 lessons"]]],

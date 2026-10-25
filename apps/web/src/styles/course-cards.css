@@ -154,6 +154,43 @@
   text-underline-offset: 0.2em;
 }
 
+/* ── Classroom: Polynet's default course card ──────────────
+   The card members know from course communities: the picture on top,
+   a bold title in the body font, two lines of description and a rounded
+   progress bar with the percent beside it. Its frame comes from Card edge. */
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {
+  gap: 0.375rem;
+}
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-heading > strong {
+  font-family: var(--pn-font-body);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+}
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-description {
+  min-height: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  -webkit-line-clamp: 2;
+}
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress {
+  gap: 0.75rem;
+  padding-top: 0.875rem;
+}
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress-label {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 /* ── List: one row per course, small picture on the right ─ */
 /* A reading-width column whatever the card size, like an archive list. */
 :root[data-course-cards~="list"] [data-community-theme] .resource-course-grid {

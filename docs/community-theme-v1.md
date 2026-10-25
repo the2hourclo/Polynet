@@ -54,12 +54,12 @@ look; both follow the member's own Light/Dark choice.
 | `shadow` | `none`, `soft`, `hard` |
 | `density` | `compact`, `comfortable`, `roomy` |
 | `media_plate` | `none`, `light` (frames white-background images in dark schemes) |
-| `course_cover_ratio` | `auto` (Polynet's fixed height), `16:9`, `3:2`, `4:3`, `1:1`, `21:9` |
-| `course_card_size` | `default` (the page style's own columns), `small`, `medium`, `large` (cards at least 200, 260 or 360px wide; the catalog widens up to 90rem and each row fits as many as the screen has room for) |
+| `course_cover_ratio` | `16:9` (the default), `auto` (Polynet's fixed height), `3:2`, `4:3`, `1:1`, `21:9` |
+| `course_card_size` | `medium` is the default; `default` (the page style's own columns), `small`, `medium`, `large` (cards at least 200, 260 or 360px wide; the catalog widens up to 90rem and each row fits as many as the screen has room for) |
 | `course_columns` | `auto` (fit to screen by Card size), or `1`–`4` cards per row on desktop (rows wrap before a card is narrower than 160px). Overrides the page style's columns; picking a Card size in Customize sets it back to `auto` |
 | `course_columns_phone` | `1` or `2` cards per row on phones |
 | `course_gap` | `default` (the page style's own spacing), `tight`, `roomy` |
-| `course_card_style` | `cover` (picture on top), `list` (a row with a small picture on the right, thin dividers), `overlay` (title on the picture), `text` (no picture, editorial) |
+| `course_card_style` | `classroom` (the default: a framed card with the picture on top, a bold title, two lines of description and a progress bar, as in course communities), `cover` (picture on top), `list` (a row with a small picture on the right, thin dividers), `overlay` (title on the picture), `text` (no picture, editorial) |
 | `course_card_pills` | `hide` or `show` small pills: lesson count and In progress / Done / Locked |
 | `course_card_description` | `show` or `hide` each course's short description |
 | `course_card_progress` | `bar`, `ring` or `fraction` ("3/6 lessons") |
@@ -72,8 +72,8 @@ look; both follow the member's own Light/Dark choice.
 | `sibling_communities` | `hide` (default), `show` (lists the owner's other communities, "More from this creator", at the foot of the chat's members panel) |
 | `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
 
-Ready-made course card looks (Classic, Lifted, Magazine, Gallery, Archive,
-Compact) live in `shared/communityCourseCardLooks.ts`. Each one sets only the
+Ready-made course card looks (Classroom, the default, plus Classic, Lifted,
+Magazine, Gallery, Archive and Compact) live in `shared/communityCourseCardLooks.ts`. Each one sets only the
 `course_card_*`, `course_card_size`, `course_columns`, `course_cover_ratio`
 and `course_gap` tokens. To apply one, write its tokens through the theme
 draft save.

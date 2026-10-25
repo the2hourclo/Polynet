@@ -56,7 +56,7 @@ export type CommunityThemeV1 = {
   // right), "overlay" (the title on the picture), "text" (no picture). Pills
   // are small lesson-count and status labels; progress shows as a bar, a ring
   // or "3/6 lessons".
-  course_card_style: "cover" | "list" | "overlay" | "text";
+  course_card_style: "classroom" | "cover" | "list" | "overlay" | "text";
   course_card_pills: "hide" | "show";
   course_card_description: "show" | "hide";
   course_card_progress: "bar" | "ring" | "fraction";
@@ -153,12 +153,12 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   shadow: "none",
   density: "comfortable",
   media_plate: "none",
-  course_cover_ratio: "auto",
-  course_card_size: "default",
+  course_cover_ratio: "16:9",
+  course_card_size: "medium",
   course_columns: "auto",
   course_columns_phone: "1",
   course_gap: "default",
-  course_card_style: "cover",
+  course_card_style: "classroom",
   course_card_pills: "hide",
   course_card_description: "show",
   course_card_progress: "bar",
@@ -199,7 +199,7 @@ const ENUMS = {
   course_columns: ["auto", "1", "2", "3", "4"],
   course_columns_phone: ["1", "2"],
   course_gap: ["default", "tight", "roomy"],
-  course_card_style: ["cover", "list", "overlay", "text"],
+  course_card_style: ["classroom", "cover", "list", "overlay", "text"],
   course_card_pills: ["hide", "show"],
   course_card_description: ["show", "hide"],
   course_card_progress: ["bar", "ring", "fraction"],
