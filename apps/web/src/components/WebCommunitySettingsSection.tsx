@@ -1,5 +1,5 @@
 import { buildCommunityTabPath } from "../../../../shared/webAppRouteState";
-import { WebCommunityLookSettings } from "./WebCommunityLookSettings";
+import { WebCommunityAppearanceSettings } from "./WebCommunityAppearanceSettings";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { DragEvent } from "react";
 import type { CommunitySettingsLayer } from "../../../../shared/communityAccessViewModel";
@@ -151,7 +151,7 @@ type SharedSettingsProps = Pick<WebCommunitySettingsSectionProps, "state" | "act
 
 const COMMUNITY_SETTINGS_PANE_LABELS: Record<CommunitySettingsPane, string> = {
   community: "General",
-  look: "Look",
+  appearance: "Appearance",
   agent: "Agent",
   danger: "Danger",
 };
@@ -981,8 +981,8 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
                 ) : null}
               </div>
               ) : null}
-              {selectedSettingsPane === "look" && resolvedActiveCommunity ? (
-              <WebCommunityLookSettings communityId={resolvedActiveCommunity.id} session={props.session} ensureSession={props.ensureSession} />
+              {selectedSettingsPane === "appearance" && resolvedActiveCommunity ? (
+              <WebCommunityAppearanceSettings communityId={resolvedActiveCommunity.id} communitySlug={resolvedActiveCommunity.slug} session={props.session} ensureSession={props.ensureSession} />
               ) : null}
               {selectedSettingsPane === "agent" ? (
               <WebCommunityAiAgentSection {...aiAgentProps} embedded />
