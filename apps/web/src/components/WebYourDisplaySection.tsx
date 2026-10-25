@@ -3,6 +3,7 @@ import { Check, Moon, Sun, type LucideIcon } from "lucide-react";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { DEFAULT_COMMUNITY_THEME, type CommunityThemeColors, type CommunityThemeScheme, type CommunityThemeV1 } from "../../../../shared/communityTheme";
 import { fetchCloudPublishedCommunityTheme } from "../../../../shared/cloudCommunityThemeGateway";
+import { communityThemeWithBothSchemes } from "../../../../shared/communityThemePalettes";
 import { listCloudCommunityMembershipRows } from "../../../../shared/cloudCommunityMembershipGateway";
 import type { AppTheme } from "../../../../shared/theme";
 import { WebSettingsFold } from "./WebSettingsFold";
@@ -16,9 +17,9 @@ type Community = {
   avatar_zoom?: number | null;
 };
 
-// How a community's design meets the member's pick: both versions follow it,
-// one version is the owner's fixed look.
-type Look = { kind: "follows" | "fixed"; scheme?: CommunityThemeScheme; theme: CommunityThemeV1 | null };
+// How a community's design meets the member's pick: made in both versions, or
+// made in one (the owner's default), where the member sees its twin.
+type Look = { kind: "both" | "one"; scheme?: CommunityThemeScheme; theme: CommunityThemeV1 | null };
 
 const MODES: { scheme: CommunityThemeScheme; label: string; icon: LucideIcon }[] = [
   { scheme: "light", label: "Light", icon: Sun },
@@ -29,8 +30,8 @@ const MODES: { scheme: CommunityThemeScheme; label: string; icon: LucideIcon }[]
 const LOOK_CHECK_LIMIT = 40;
 
 function lookOf(theme: CommunityThemeV1 | null): Look {
-  if (!theme || (theme.schemes.light && theme.schemes.dark)) return { kind: "follows", theme };
-  return { kind: "fixed", scheme: theme.schemes.dark ? "dark" : "light", theme };
+  if (!theme || (theme.schemes.light && theme.schemes.dark)) return { kind: "both", theme };
+  return { kind: "one", scheme: theme.schemes.dark ? "dark" : "light", theme: communityThemeWithBothSchemes(theme) };
 }
 
 function colorsFor(theme: CommunityThemeV1 | null, scheme: CommunityThemeScheme): CommunityThemeColors {
@@ -61,7 +62,7 @@ function DesignSample(props: { colors: CommunityThemeColors; size?: "large" | "s
 // Your settings > Display: Light or Dark, shown in the design of the
 // community you came from, then how each of your communities takes the pick.
 // A design with both versions follows it; one with a single version is the
-// owner's fixed look, and stays that way.
+// owner's default; picking the other shows its twin, for this member only.
 export function WebYourDisplaySection<SessionT>(props: {
   session: SessionT | null;
   appTheme: AppTheme;
@@ -97,11 +98,9 @@ export function WebYourDisplaySection<SessionT>(props: {
 
   const shownTheme = activeId && activeTheme?.id === activeId ? activeTheme.theme : null;
   const activeLook = lookOf(shownTheme);
-  const fixedHere = props.community && activeLook.kind === "fixed" ? activeLook.scheme : null;
-  // A fixed look has nothing to pick between, so the samples fall back to Polynet's own design.
-  const sampleTheme = fixedHere ? null : shownTheme;
-  const designName = props.community && !fixedHere ? `${props.community.name}'s design` : "Polynet's design";
-  const fixedCount = (looks ?? []).filter((entry) => entry.look.kind === "fixed").length;
+  const designName = props.community ? `${props.community.name}'s design` : "Polynet's design";
+  const madeIn = props.community && activeLook.kind === "one" ? activeLook.scheme : null;
+  const oneCount = (looks ?? []).filter((entry) => entry.look.kind === "one").length;
 
   return (
     <>
@@ -125,7 +124,7 @@ export function WebYourDisplaySection<SessionT>(props: {
                 className={`pn-settings-mode pn-display-mode${selected ? " is-selected" : ""}`}
                 onClick={() => props.setAppTheme(mode.scheme)}
               >
-                <DesignSample colors={colorsFor(sampleTheme, mode.scheme)} />
+                <DesignSample colors={colorsFor(activeLook.theme, mode.scheme)} />
                 <span className="pn-display-mode-label">
                   <Icon size={16} aria-hidden="true" />
                   {mode.label}
@@ -136,8 +135,8 @@ export function WebYourDisplaySection<SessionT>(props: {
           })}
         </div>
         <p className="pn-settings-note pn-display-note">
-          {fixedHere
-            ? `Shown in ${designName}: ${props.community!.name} is always ${fixedHere}, set by its owner. Your pick applies in your other communities.`
+          {madeIn
+            ? `Shown in ${designName}. Its owner made it ${madeIn}; pick the other and you'll see its matching version. Only you see the change.`
             : `Shown in ${designName}.`}
         </p>
       </section>
@@ -145,9 +144,9 @@ export function WebYourDisplaySection<SessionT>(props: {
         <WebSettingsFold
           id="display-communities"
           title="In your communities"
-          summary={fixedCount === 0
+          summary={oneCount === 0
             ? "Every community follows your pick"
-            : `${looks.length - fixedCount} follow your pick, ${fixedCount} ${fixedCount === 1 ? "has" : "have"} a fixed look`}
+            : `All follow your pick; ${oneCount} with a matched version`}
         >
           {looks.map(({ community, look }) => (
             <div key={community.id} className="pn-your-membership pn-display-community">
@@ -167,12 +166,10 @@ export function WebYourDisplaySection<SessionT>(props: {
               />
               <span className="pn-your-membership-text">
                 <strong>{community.name}</strong>
-                <small>{look.kind === "follows" ? "Follows your pick" : `Always ${look.scheme}, set by the owner`}</small>
+                <small>{look.kind === "both" ? "Light and dark" : `Made ${look.scheme}, ${look.scheme === "light" ? "dark" : "light"} matched`}</small>
               </span>
               <span className="pn-display-community-samples">
-                {look.kind === "follows"
-                  ? MODES.map((mode) => <DesignSample key={mode.scheme} size="small" colors={colorsFor(look.theme, mode.scheme)} />)
-                  : <DesignSample size="small" colors={colorsFor(look.theme, look.scheme!)} />}
+                {MODES.map((mode) => <DesignSample key={mode.scheme} size="small" colors={colorsFor(look.theme, mode.scheme)} />)}
               </span>
             </div>
           ))}
