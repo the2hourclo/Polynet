@@ -71,9 +71,11 @@ export function WebCommunityWelcomeSettings(props: Props) {
   }, [props.onLoadWelcomeLessonOptions, optionsRetry]);
 
   const [formRows, setFormRows] = useState<Map<string, CommunityFormDraft>>(new Map());
+  const [formsLoaded, setFormsLoaded] = useState(false);
   useEffect(() => {
     let alive = true;
-    props.forms?.load().then((rows) => { if (alive) setFormRows(new Map(rows.map((row) => [row.key, row]))); }).catch(() => {});
+    props.forms?.load().then((rows) => { if (alive) setFormRows(new Map(rows.map((row) => [row.key, row]))); }).catch(() => {})
+      .finally(() => { if (alive) setFormsLoaded(true); });
     return () => { alive = false; };
   }, [props.forms]);
   const joinForms = useMemo(() => (props.board?.milestones[0]?.automations ?? [])
@@ -270,15 +272,16 @@ export function WebCommunityWelcomeSettings(props: Props) {
         <p className="welcome-settings-help">Exactly what a new member sees first. You can click through the form; answers aren't saved.</p>
         <ScaledPreview width={device === "desktop" ? 960 : 390}>
           <section className="community-welcome community-welcome-preview" aria-label="Welcome page preview">
-            <WelcomeIntro title={headline} message={draft.message.trim() || null} mediaUrl={previewMedia} total={stepCount}
+            <WelcomeIntro title={headline} headingLevel={3} message={draft.message.trim() || null} mediaUrl={previewMedia} total={stepCount}
               stepLine={stepCount > 1 ? `Step 1 of ${stepCount}${firstLessonId ? `: ${lessonLabel(firstLessonId)}` : ""}` : null} />
             {previewForm ? <div className="member-form-dialog community-welcome-form">
               <MemberFormRunner key={`${previewForm.id}:${previewRun}`} preview={previewForm} requestId={previewForm.id} communityId=""
                 session={null as never} ensureSession={async () => null} onClose={() => setPreviewRun((n) => n + 1)} />
             </div> : firstLessonId ? <div className="community-welcome-lesson">
               <p className="welcome-settings-preview-lesson">The lesson “{lessonLabel(firstLessonId)}” shows here, as it does in Knowledge.</p>
-              <footer><button type="button" className="platform-save-button" tabIndex={-1}>{draft.lessonIds.length > 1 ? "Mark done and continue" : "Mark done and open the community"}</button></footer>
-            </div> : joinForms.length ? <p role="status">Loading the form…</p> : null}
+              <footer aria-hidden="true"><button type="button" className="platform-save-button" tabIndex={-1}>{draft.lessonIds.length > 1 ? "Mark done and continue" : "Mark done and open the community"}</button></footer>
+            </div> : joinForms.length ? <p className="welcome-settings-preview-lesson" role="status">{formsLoaded || !props.forms
+              ? `The form “${joinForms[0].name}” shows here once it has a question.` : "Loading the form…"}</p> : null}
           </section>
         </ScaledPreview>
       </aside>
@@ -295,7 +298,8 @@ function ScaledPreview(props: { width: number; children: ReactNode }) {
     const measure = () => {
       if (!outer.current || !inner.current) return;
       const scale = Math.min(1, outer.current.clientWidth / props.width);
-      setBox({ scale, height: inner.current.offsetHeight * scale });
+      const height = inner.current.offsetHeight * scale;
+      setBox((box) => (box.scale === scale && box.height === height ? box : { scale, height }));
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
@@ -304,7 +308,8 @@ function ScaledPreview(props: { width: number; children: ReactNode }) {
     if (inner.current) observer.observe(inner.current);
     return () => observer.disconnect();
   }, [props.width]);
-  return <div ref={outer} className="welcome-settings-preview-frame" style={{ height: box.height || undefined }}>
+  // A screen narrower than the pane (a phone) keeps its own width, centred, instead of a wide frame around it.
+  return <div ref={outer} className="welcome-settings-preview-frame" style={{ height: box.height || undefined, maxWidth: props.width + 2 }}>
     <div ref={inner} className="welcome-settings-preview-screen" style={{ width: props.width, transform: `scale(${box.scale})` }}>{props.children}</div>
   </div>;
 }

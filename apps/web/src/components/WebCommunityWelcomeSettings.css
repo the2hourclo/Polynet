@@ -103,7 +103,7 @@
 .welcome-settings-device button[aria-pressed="true"] { background: var(--hover-overlay); color: var(--text-primary); }
 .welcome-settings-device button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 /* A screen-sized frame: the member page is laid out at the real width and scaled down to fit. */
-.welcome-settings-preview-frame { position: relative; overflow: hidden; border: 1px solid var(--border-default); border-radius: 12px; background: var(--surface-workspace); box-shadow: 0 12px 32px -20px rgb(0 0 0 / 0.3); }
+.welcome-settings-preview-frame { position: relative; width: 100%; margin-inline: auto; overflow: hidden; border: 1px solid var(--border-default); border-radius: 12px; background: var(--surface-workspace); box-shadow: 0 12px 32px -20px rgb(0 0 0 / 0.3); }
 .welcome-settings-preview-screen { transform-origin: top left; }
 .welcome-settings-preview-screen .community-welcome { min-height: 0; justify-content: flex-start; }
 .welcome-settings-preview-lesson { margin: 0; padding: 24px; border: 1px dashed var(--border-default); border-radius: 12px; color: var(--text-secondary); }

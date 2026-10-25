@@ -29,6 +29,8 @@ type Props = {
 export function WelcomeIntro(props: {
   title: string; message: string | null; mediaUrl: string | null; total: number; stepLine: string | null;
   titleRef?: Ref<HTMLHeadingElement>; stepRef?: Ref<HTMLParagraphElement>;
+  // Inside Settings the page sits under the "Preview" heading, so its title reads as a level below.
+  headingLevel?: number;
 }) {
   const intro = useMemo(() => ({
     message: props.message ? renderMarkdown(props.message) : null,
@@ -36,7 +38,7 @@ export function WelcomeIntro(props: {
   }), [props.message, props.mediaUrl]);
   return <div className="community-welcome-intro">
     <small>Welcome</small>
-    <h1 ref={props.titleRef} tabIndex={-1}>{props.title}</h1>
+    <h1 ref={props.titleRef} tabIndex={-1} aria-level={props.headingLevel}>{props.title}</h1>
     {intro.message ? <div className="community-welcome-message">{intro.message}</div>
       : <p>Finish {props.total > 1 ? "these steps" : "this step"} to open the community.</p>}
     {intro.media ? <div className="community-welcome-media">{intro.media}</div> : null}

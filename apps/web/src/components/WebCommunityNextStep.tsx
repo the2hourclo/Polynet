@@ -109,6 +109,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
       if (nextIntent === "autosave") return false;
       if (nextIntent === "close") { props.onClose(); return true; }
       const issue = formAnswersIssue(props.preview.questions, latest.current, nextIntent === "submit"); if (issue) { setValidation(issue); return false; }
+      setValidation(null);
       if (nextIntent === "submit") setDone(true); else setIndex(n => n + 1);
       return true;
     }
