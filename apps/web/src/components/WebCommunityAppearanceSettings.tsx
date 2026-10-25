@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, GraduationCap, MessagesSquare, Monitor, Palette, Smartphone, type LucideIcon } from "lucide-react";
 import {
@@ -92,6 +92,19 @@ function Swatches(props: { colors: CommunityThemeColors | undefined }) {
   return <span className="appearance-swatches" aria-hidden="true">{keys.map((key) => <span key={key} style={{ background: props.colors?.[key] }} />)}</span>;
 }
 
+// The starting point the theme still matches exactly, if any.
+function matchingPreset(theme: CommunityThemeV1): CommunityThemePreset | null {
+  return COMMUNITY_THEME_PRESETS.find((preset) => JSON.stringify(preset.theme) === JSON.stringify(theme)) ?? null;
+}
+
+// A label on the left with a muted line of help under it, Substack's settings row.
+function Fact(props: { label: string; help: string; children: ReactNode }) {
+  return <div className="appearance-fact">
+    <dt><span className="appearance-label">{props.label}</span><span className="appearance-help">{props.help}</span></dt>
+    <dd>{props.children}</dd>
+  </div>;
+}
+
 // The owner's fonts, sizing and colours, kept as a draft until published. The
 // pane sums up the look; Customize opens a full-screen editor beside the real
 // community, like a website builder. The same draft the CLI and agents edit.
@@ -104,6 +117,7 @@ export function WebCommunityAppearanceSettings(props: Props) {
   const [reload, setReload] = useState(0);
   const [customizing, setCustomizing] = useState(() => typeof window !== "undefined" && window.location.hash === CUSTOMIZE_HASH);
   const customizeButton = useRef<HTMLButtonElement>(null);
+  const pane = useRef<HTMLDivElement>(null);
   const uid = useId();
   const alive = useRef(true);
   // Set in the body too: StrictMode's dev double-mount runs the cleanup once,
@@ -175,46 +189,59 @@ export function WebCommunityAppearanceSettings(props: Props) {
   const undoOrDiscard = () => { if (dirty) setTheme(state.draft); else void discard(); };
   const problems = check && !check.ok ? check.problems : Array.isArray(error) ? error : [];
   const statusText = busy ? "Working…" : dirty ? "Unsaved changes" : state.hasUnpublishedChanges ? "Draft saved · not published" : state.published ? "Published" : "Polynet default";
+  // The dot beside the status: green once published, amber while members can't see the changes yet.
+  const statusTone = busy ? "busy" : dirty || state.hasUnpublishedChanges ? "draft" : state.published ? "live" : "default";
+  const status = <span className={`appearance-status is-${statusTone}`} role="status"><i aria-hidden="true" />{statusText}</span>;
 
   const problemList = <div role="status">{problems.length ? <ul className="auth-error community-look-problems">{problems.map((problem, i) => <li key={i} id={`${uid}-problem-${i}`}>{problem.message}{problem.suggestion ? ` Try ${problem.suggestion}.` : ""}</li>)}</ul> : null}</div>;
   const errorLine = typeof error === "string" ? <div className="auth-error" role="alert">{error}</div> : null;
   const actions = <>
-    <button className="secondary" type="button" disabled={busy || (!dirty && !state.hasUnpublishedChanges)} onClick={undoOrDiscard}>{dirty ? "Undo changes" : "Discard draft"}</button>
-    <button className="secondary" type="button" disabled={busy || !dirty || !check?.ok} onClick={() => void save()}>Save draft</button>
-    <button className="settings-primary-action" type="button" disabled={busy || !check?.ok || (!dirty && !state.hasUnpublishedChanges)} onClick={() => void publish()}>Publish</button>
+    <button className="appearance-button" type="button" disabled={busy || (!dirty && !state.hasUnpublishedChanges)} onClick={undoOrDiscard}>{dirty ? "Undo changes" : "Discard draft"}</button>
+    <button className="appearance-button" type="button" disabled={busy || !dirty || !check?.ok} onClick={() => void save()}>Save draft</button>
+    <button className="appearance-button is-primary" type="button" disabled={busy || !check?.ok || (!dirty && !state.hasUnpublishedChanges)} onClick={() => void publish()}>Publish</button>
   </>;
   const shown = check?.ok ? check.theme : theme;
+  const preset = matchingPreset(shown);
+  const mode = schemeMode(shown);
 
   const hasDraft = dirty || state.hasUnpublishedChanges;
   // Like Substack's Settings → Website: a card that sums up the look and links
   // out to the visual editor instead of repeating its controls here.
-  return <div className="settings-section community-look">
+  return <div ref={pane} className="settings-section community-look appearance-pane">
     <style>{previewCss}</style>
     {fontUrl ? <link rel="stylesheet" href={fontUrl} /> : null}
     <section className="appearance-card" aria-labelledby={`${uid}-title`}>
-      <header><h2 id={`${uid}-title`}>Appearance</h2></header>
+      <header className="appearance-card-header">
+        <h2 id={`${uid}-title`}>Look and feel</h2>
+        <p>The colours, fonts and shapes members see across your community.</p>
+      </header>
       <div className="appearance-callout">
         <span className="appearance-callout-icon" aria-hidden="true"><Palette size={20} /></span>
         <div className="appearance-callout-text">
-          <strong>Design your community</strong>
-          <p>Pick a starting point, then adjust colours, fonts and shapes beside your real community. Members only see what you publish.</p>
-          <button ref={customizeButton} className="settings-primary-action appearance-customize-button" type="button" onClick={() => openCustomize(true)}>
-            Customize <ArrowRight size={16} aria-hidden="true" /></button>
+          <strong>Customize your community</strong>
+          <small>Change the look beside a live preview. Members see it once you publish.</small>
         </div>
-        <div className="community-look-preview appearance-callout-preview" data-community-theme={PREVIEW_SCOPE}><SampleContent /></div>
+        <button ref={customizeButton} className="appearance-button is-primary" type="button" onClick={() => openCustomize(true)}>
+          Customize <ArrowRight size={16} aria-hidden="true" /></button>
       </div>
       <dl className="appearance-facts">
-        <div><dt>Colours</dt><dd>{(["light", "dark"] as const).filter((key) => shown.schemes[key]).map((key) => <span key={key} className="appearance-summary-scheme"><Swatches colors={shown.schemes[key]} />{key === "light" ? "Light" : "Dark"}</span>)}</dd></div>
-        <div><dt>Fonts</dt><dd>{shown.font_heading === shown.font_body ? shown.font_body : `${shown.font_heading} titles, ${shown.font_body} text`}</dd></div>
-        <div><dt>Status</dt><dd><span className="appearance-status" role="status"><i aria-hidden="true" />{statusText}</span></dd></div>
+        <Fact label="Theme" help="The starting point, until you change it">{preset ? preset.name : "Your own look"}</Fact>
+        <Fact label="Colours" help={SCHEME_MODES.find(([key]) => key === mode)?.[1] ?? ""}>
+          {(["light", "dark"] as const).filter((key) => shown.schemes[key]).map((key) => <span key={key} className="appearance-summary-scheme"><Swatches colors={shown.schemes[key]} />{key === "light" ? "Light" : "Dark"}</span>)}
+        </Fact>
+        <Fact label="Fonts" help="Headings and body text">{shown.font_heading === shown.font_body ? shown.font_body : `${shown.font_heading} and ${shown.font_body}`}</Fact>
+        <Fact label="Status" help="Members see only what you publish">{status}</Fact>
       </dl>
       {customizing ? null : <>{problemList}{errorLine}</>}
-      {!customizing && hasDraft ? <footer className="appearance-editor-actions">{actions}</footer> : null}
+      {!customizing && hasDraft ? <footer className="appearance-card-footer">
+        <span className="appearance-help">{dirty ? "You have changes that aren't saved." : "Members don't see your draft yet."}</span>
+        <div className="appearance-actions">{actions}</div>
+      </footer> : null}
     </section>
     {customizing ? <AppearanceEditor
       theme={theme} scheme={scheme} setScheme={setScheme} set={set} busy={busy} problems={problems} uid={uid}
-      previewTheme={previewTheme} communityId={props.communityId} communitySlug={props.communitySlug}
-      statusText={statusText} actions={actions} footer={<>{problemList}{errorLine}</>}
+      previewTheme={previewTheme} communityId={props.communityId} communitySlug={props.communitySlug} pane={pane}
+      status={status} actions={actions} footer={<>{problemList}{errorLine}</>}
       onClose={() => openCustomize(false)}
     /> : null}
   </div>;
@@ -241,7 +268,9 @@ type EditorProps = {
   previewTheme: CommunityThemeV1 | null;
   communityId: string;
   communitySlug: string | null;
-  statusText: string;
+  // The Settings pane the editor opened from: the editor wears the same community colours.
+  pane: { current: HTMLElement | null };
+  status: ReactNode;
   actions: ReactNode;
   footer: ReactNode;
   onClose: () => void;
@@ -290,7 +319,7 @@ function PresetPicker(props: { theme: CommunityThemeV1; disabled: boolean; onPic
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
   const id = useId();
-  const current = COMMUNITY_THEME_PRESETS.find((preset) => JSON.stringify(preset.theme) === JSON.stringify(props.theme)) ?? null;
+  const current = matchingPreset(props.theme);
   useEffect(() => { if (open) list.current?.focus(); }, [open]);
   const pick = (preset: CommunityThemePreset) => { props.onPick(preset); setOpen(false); button.current?.focus(); };
   return <div className="appearance-preset-picker">
@@ -334,6 +363,13 @@ function AppearanceEditor(props: EditorProps) {
   const lastGoodTheme = useRef<CommunityThemeV1 | null>(props.previewTheme);
   if (props.previewTheme) lastGoodTheme.current = props.previewTheme;
   const previewTheme = props.previewTheme ?? lastGoodTheme.current;
+  // The editor sits on document.body, outside the community's themed area, so
+  // it carries the theme over from the pane, as Settings has it. Read before
+  // the first paint, so it never flashes Polynet's own colours.
+  const [themeScope, setThemeScope] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    setThemeScope(props.pane.current?.closest("[data-community-theme]")?.getAttribute("data-community-theme") ?? null);
+  }, []);
 
   // The rest of the app sits behind the editor: keep focus and screen readers here.
   useEffect(() => {
@@ -431,16 +467,18 @@ function AppearanceEditor(props: EditorProps) {
     ? `${device === "phone" ? "/m" : ""}/c/${encodeURIComponent(props.communitySlug)}/${page}?${APPEARANCE_PREVIEW_PARAM}=1`
     : null;
 
-  return createPortal(<div className="appearance-editor" role="dialog" aria-modal="true" aria-labelledby={`${props.uid}-editor-title`}>
+  const editor = <div className="appearance-editor" role="dialog" aria-modal="true" aria-labelledby={`${props.uid}-editor-title`}>
     <header className="appearance-editor-bar">
-      <button className="appearance-icon-button" type="button" onClick={props.onClose} aria-label="Back to settings"><ChevronLeft size={20} aria-hidden="true" /></button>
-      <h2 id={`${props.uid}-editor-title`} ref={heading} tabIndex={-1}>Customize appearance</h2>
-      <span className="appearance-status" role="status"><i aria-hidden="true" />{props.statusText}</span>
-      <div className="appearance-device" role="group" aria-label="Screen size">
-        <button type="button" className="appearance-icon-button" aria-pressed={device === "desktop"} aria-label="Desktop" onClick={() => setDevice("desktop")}><Monitor size={20} aria-hidden="true" /></button>
-        <button type="button" className="appearance-icon-button" aria-pressed={device === "phone"} aria-label="Phone" onClick={() => setDevice("phone")}><Smartphone size={20} aria-hidden="true" /></button>
+      <div className="appearance-editor-bar-start">
+        <button className="appearance-icon-button" type="button" onClick={props.onClose} aria-label="Back to settings"><ChevronLeft size={20} aria-hidden="true" /></button>
+        <h2 id={`${props.uid}-editor-title`} ref={heading} tabIndex={-1}>Customize</h2>
+        {props.status}
       </div>
-      <div className="appearance-editor-actions">{props.actions}</div>
+      <div className="appearance-segmented" role="group" aria-label="Screen size">
+        <button type="button" className={`appearance-seg${device === "desktop" ? " is-active" : ""}`} aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}><Monitor size={16} aria-hidden="true" />Desktop</button>
+        <button type="button" className={`appearance-seg${device === "phone" ? " is-active" : ""}`} aria-pressed={device === "phone"} onClick={() => setDevice("phone")}><Smartphone size={16} aria-hidden="true" />Phone</button>
+      </div>
+      <div className="appearance-actions">{props.actions}</div>
     </header>
     <div className="appearance-editor-body">
       <nav className="appearance-pages" aria-label="Page to preview">
@@ -448,7 +486,7 @@ function AppearanceEditor(props: EditorProps) {
         {PREVIEW_PAGES.map(([key, label]) => {
           const Icon = PAGE_ICONS[key];
           return <button key={key} type="button" aria-current={key === page ? "page" : undefined} className={key === page ? "is-active" : ""} onClick={() => setPage(key)}>
-            <Icon size={16} aria-hidden="true" />{label}</button>;
+            <Icon size={16} aria-hidden="true" /><span>{label}</span></button>;
         })}
         <p className="appearance-hint">Members see this look only after you publish.</p>
       </nav>
@@ -511,5 +549,7 @@ function AppearanceEditor(props: EditorProps) {
         {props.footer}
       </aside>
     </div>
-  </div>, document.body);
+  </div>;
+  // The wrapper is always there, so finding the theme doesn't remount the editor.
+  return createPortal(<div className="community-theme-scope" data-community-theme={themeScope ?? undefined}>{editor}</div>, document.body);
 }
