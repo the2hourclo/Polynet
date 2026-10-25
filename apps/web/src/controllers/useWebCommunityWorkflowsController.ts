@@ -61,6 +61,13 @@ function workflowErrorMessage(error: unknown): string {
   if (message.includes("welcome_media_url_invalid")) return "Enter a full video or image link, starting with https://.";
   if (message.includes("welcome_title_too_long")) return "Keep the welcome headline to 120 characters.";
   if (message.includes("welcome_message_too_long")) return "Keep the welcome message to 4,000 characters.";
+  if (message.includes("welcome_layout_too_long")) return "The welcome page holds up to 40 blocks. Join some text together or remove a block.";
+  if (message.includes("welcome_text_too_long")) return "Keep each text block to 4,000 characters, and the whole page to 12,000.";
+  if (message.includes("welcome_forms_too_many")) return "The welcome page holds up to 5 forms.";
+  if (message.includes("welcome_step_duplicate")) return "Each form or lesson can be on the welcome page once.";
+  if (message.includes("welcome_step_invalid")) return "A form or lesson on the welcome page is missing. Remove it and add it again.";
+  if (message.includes("form_not_published")) return "Publish that form in Forms first.";
+  if (message.includes("workflow_previous_action_invalid")) return "A \"then\" rule in Workflows runs after a form that is no longer asked. Change that rule in Workflows first.";
   if (message.includes("milestone_cleanup_incomplete")) {
     return "This milestone is still clearing out members who left. Delete it again to finish.";
   }

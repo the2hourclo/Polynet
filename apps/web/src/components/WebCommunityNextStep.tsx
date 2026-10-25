@@ -148,7 +148,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
     "aria-describedby": [q.description ? `${fieldId}-help` : "", q.answerFormat ? `${fieldId}-format` : "", `${fieldId}-count`, validation ? `${fieldId}-issue` : ""].filter(Boolean).join(" "),
     "aria-invalid": validation ? true : undefined,
   } : {};
-  return <div onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); void close(); } }}>
+  return <div onKeyDown={e => { if (e.key === "Escape" && !props.preview) { e.stopPropagation(); void close(); } }}>
     <header><h2>{request?.name ?? "Your next step"}</h2><button disabled={busy} onClick={() => void close()} aria-label="Save and close form"><X size={20} /></button></header>
     {done ? <section ref={questionSection}><h2>Submitted</h2><p>You’re all set.</p><button onClick={props.onClose}>Done</button></section> : q ? <section ref={questionSection} onChange={() => setValidation(null)}>
       <div className="member-form-progress" aria-hidden="true"><span style={{ width: `${((index + 1) / request!.questions.length) * 100}%` }} /></div><small id={`${fieldId}-count`}>{index + 1} of {request!.questions.length}{q.required ? " · Required" : " · Optional"}</small><h2 id={`${fieldId}-title`}>{q.title}</h2>{q.description ? <p id={`${fieldId}-help`}>{q.description}</p> : null}

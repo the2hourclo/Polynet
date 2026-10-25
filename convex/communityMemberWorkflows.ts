@@ -55,6 +55,7 @@ import { resolveViewerProfileRelationship } from "./profileRelationshipCore";
 import { getUniqueUserProfileDetailByUserId } from "./profileCore";
 import { normalizeSocialProfileLinks } from "../shared/socialProfileLinks";
 import { validateProfileHandle } from "../shared/profileHandle";
+import { normalizeWelcomeLayout, welcomeLayoutIssue, welcomeLayoutSteps, WELCOME_LESSONS_MAX } from "../shared/communityWelcomeLayout";
 import { intakeCommunityAgentWorkflowAction } from "./communityAgentConciergeCore";
 import { resolveNotificationRecipientSource } from "./communityNotificationAccess";
 import { bindMemberServiceChannel } from "./communityMemberServiceChannelCore";
@@ -495,15 +496,23 @@ export const setBuilderWelcomeGate = mutation({
   },
 });
 
-const WELCOME_LESSONS_MAX = 5;
 const WELCOME_TITLE_MAX = 120;
 const WELCOME_MESSAGE_MAX = 4_000;
+const welcomeBlockValidator = v.union(
+  v.object({ type: v.literal("text"), markdown: v.string() }),
+  v.object({ type: v.literal("form"), formKey: v.string() }),
+  v.object({ type: v.literal("lesson"), resourceId: v.string() }),
+  v.object({ type: v.literal("next") }),
+);
 
-/** What the welcome page says and which lesson pages, in order, members mark done after its forms. */
+/** What the welcome page says and which steps members finish, in order. With a
+ * layout, its form blocks are the forms new members are asked on joining: the
+ * first stage's "member joins" form rules are added or removed to match. */
 export const saveBuilderWelcomePage = mutation({
   args: {
     ...managerIdentityArgs, communityId: v.id("communities"), expectedRevision: v.number(),
     title: v.string(), message: v.string(), mediaUrl: v.string(), lessonIds: v.array(v.string()),
+    layout: v.optional(v.array(welcomeBlockValidator)),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireWorkflowManager({ ctx, communityId: args.communityId, userId: args.userId, authSubject: args.authSubject });
@@ -516,7 +525,12 @@ export const saveBuilderWelcomePage = mutation({
     if (message.length > WELCOME_MESSAGE_MAX) throw new Error("welcome_message_too_long");
     let mediaUrl: string | undefined;
     try { mediaUrl = normalizeOptionalUrl(args.mediaUrl); } catch { throw new Error("welcome_media_url_invalid"); }
-    const ids = [...new Set(args.lessonIds.map(id => id.trim()).filter(Boolean))];
+    const layout = args.layout ? normalizeWelcomeLayout(args.layout) : null;
+    if (layout) {
+      const issue = welcomeLayoutIssue(layout);
+      if (issue) throw new Error(issue);
+    }
+    const ids = layout ? welcomeLayoutSteps(layout).lessonIds : [...new Set(args.lessonIds.map(id => id.trim()).filter(Boolean))];
     if (ids.length > WELCOME_LESSONS_MAX) throw new Error("welcome_lessons_too_many");
     const lessonIds = [];
     for (const raw of ids) {
@@ -524,15 +538,44 @@ export const saveBuilderWelcomePage = mutation({
       if (!resourceId || !(await welcomeLessonIsLive(ctx, args.communityId, resourceId))) throw new Error("welcome_lesson_unavailable");
       lessonIds.push(resourceId);
     }
-    if (!lessonIds.length && workflow.welcomeGate
-      && !(workflow.milestones[0]?.automations ?? []).some(a => a.trigger.type === "member_joined" && a.action.type === "request_form")) {
-      throw new Error("welcome_gate_requires_join_form");
+    let milestones = workflow.milestones;
+    if (layout) {
+      const first = workflow.milestones[0] as CommunityMemberWorkflowMilestone | undefined;
+      if (!first) throw new Error("community_member_workflow_milestone_invalid");
+      const wanted = welcomeLayoutSteps(layout).formKeys;
+      const isJoinForm = (a: CommunityMemberWorkflowAutomation) => a.trigger.type === "member_joined" && a.action.type === "request_form";
+      const joinFormKey = (a: CommunityMemberWorkflowAutomation) => (a.action.type === "request_form" ? a.action.formKey : "");
+      const current = first.automations.filter(isJoinForm).map(joinFormKey);
+      if (JSON.stringify([...current].sort()) !== JSON.stringify([...wanted].sort())) {
+        for (const formKey of wanted.filter(key => !current.includes(key))) {
+          const form = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", formKey)).unique();
+          if (!form?.publishedRevision) throw new Error("form_not_published");
+        }
+        const drafts = [
+          ...first.automations.filter(a => !isJoinForm(a) || wanted.includes(joinFormKey(a))),
+          ...wanted.filter(key => !current.includes(key))
+            .map(formKey => ({ trigger: { type: "member_joined" as const }, action: { type: "request_form" as const, formKey } })),
+        ];
+        // A rule chained after a removed form ("then…") would lose its start: Workflows has to change it first.
+        const automations = normalizeAutomations(drafts, first.automations, expectedRevision + 1);
+        milestones = [{ ...first, automations }, ...workflow.milestones.slice(1)];
+      }
     }
+    const hasJoinForm = (milestones[0]?.automations ?? []).some(a => a.trigger.type === "member_joined" && a.action.type === "request_form");
+    if (!lessonIds.length && workflow.welcomeGate && !hasJoinForm) throw new Error("welcome_gate_requires_join_form");
     const revision = expectedRevision + 1;
     await ctx.db.patch(workflow._id, {
-      welcomePage: { ...(title ? { title } : {}), ...(message ? { message } : {}), ...(mediaUrl ? { mediaUrl } : {}) },
-      welcomeLessonIds: lessonIds, revision, updatedByUserId: userId, updatedAt: Date.now(),
+      welcomePage: layout
+        ? { ...(title ? { title } : {}), layout }
+        : { ...(title ? { title } : {}), ...(message ? { message } : {}), ...(mediaUrl ? { mediaUrl } : {}) },
+      welcomeLessonIds: lessonIds, milestones, revision, updatedByUserId: userId, updatedAt: Date.now(),
     });
+    // Same as a Workflows save: a stage with timed rules re-reads them when its rules change.
+    const first = workflow.milestones[0];
+    if (first && milestones !== workflow.milestones && first.automations.some((a) => a.trigger.type === "milestone_elapsed")) {
+      await ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.refreshMilestoneTimersInternal,
+        { workflowId: workflow._id, milestoneKey: first.key, cursor: null });
+    }
     return { workflow_id: String(workflow._id), revision };
   },
 });
@@ -700,6 +743,7 @@ export const getBuilderWorkflowBoardPage = query({
           title: workflow.welcomePage?.title ?? "",
           message: workflow.welcomePage?.message ?? "",
           media_url: workflow.welcomePage?.mediaUrl ?? "",
+          layout: workflow.welcomePage?.layout ?? null,
         },
         updated_at: toIsoString(workflow.updatedAt),
       },

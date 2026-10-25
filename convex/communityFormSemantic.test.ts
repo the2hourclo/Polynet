@@ -332,6 +332,42 @@ test("welcome lessons hold the member after the forms, and only they open while 
   expect(released.courses).toHaveLength(1);
 });
 
+test("a welcome page saved as blocks keeps its order, and its forms become the join forms", async () => {
+  const f = await fixture("both");
+  const owner = f.t.withIdentity({ subject: "join-owner" });
+  const member = f.t.withIdentity({ subject: "join-member" });
+  const lesson = await f.t.run(async ctx => {
+    await ctx.db.insert("communityForms", { communityId: f.communityId, key: "goals", name: "Goals", questions: [], revision: 1, publishedRevision: 1, createdAt: f.now, updatedAt: f.now });
+    await ctx.db.insert("communityForms", { communityId: f.communityId, key: "draft", name: "Draft", questions: [], revision: 1, createdAt: f.now, updatedAt: f.now } as any);
+    const moduleId = await ctx.db.insert("communityResourceModules", { communityId: f.communityId, createdByUserId: f.ownerId, status: "live",
+      name: "Start here", sortOrder: 0, createdAt: f.now, updatedAt: f.now });
+    return await ctx.db.insert("communityResources", { communityId: f.communityId, moduleId, createdByUserId: f.ownerId,
+      type: "post", role: "page", title: "Install Claude Code", bodyMd: "Read this.", pinned: false, createdAt: f.now, updatedAt: f.now } as any);
+  });
+  const save = (layout: any[], expectedRevision: number) => owner.mutation(api.communityMemberWorkflows.saveBuilderWelcomePage, {
+    communityId: f.communityId, expectedRevision, title: "Welcome, builder", message: "", mediaUrl: "", lessonIds: [], layout });
+  await expect(save([{ type: "form", formKey: "draft" }], 1)).rejects.toThrow("form_not_published");
+  await expect(save([{ type: "form", formKey: "goals" }, { type: "next" }, { type: "form", formKey: "goals" }], 1)).rejects.toThrow("welcome_step_duplicate");
+  await save([
+    { type: "next" }, { type: "text", markdown: "  Hello  " }, { type: "text", markdown: "https://youtu.be/abc" }, { type: "next" }, { type: "next" },
+    { type: "lesson", resourceId: String(lesson) }, { type: "next" }, { type: "form", formKey: "goals" }, { type: "text", markdown: " " }, { type: "next" },
+  ], 1);
+  const workflow = (await f.t.run(ctx => ctx.db.get(f.workflowId)))!;
+  // Tidied: no breaks at the ends or twice in a row, no empty text.
+  expect(workflow.welcomePage).toEqual({ title: "Welcome, builder", layout: [
+    { type: "text", markdown: "Hello" }, { type: "text", markdown: "https://youtu.be/abc" }, { type: "next" },
+    { type: "lesson", resourceId: String(lesson) }, { type: "next" }, { type: "form", formKey: "goals" },
+  ] });
+  expect(workflow.welcomeLessonIds).toEqual([lesson]);
+  // The private-channel rule stays; the intake form left the page, so its join rule went, and goals joined.
+  expect(workflow.milestones[0].automations.map(a => [a.trigger.type, a.action.type, (a.action as any).formKey ?? null]))
+    .toEqual([["member_joined", "create_service_channel", null], ["member_joined", "request_form", "goals"]]);
+  await owner.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, { communityId: f.communityId, expectedRevision: 2, enabled: true });
+  const page = await member.query(api.communityResources.getMyWelcomePage, { communityId: f.communityId });
+  expect(page.layout).toEqual(workflow.welcomePage!.layout);
+  expect(page.lessons.map((row: any) => row.title)).toEqual(["Install Claude Code"]);
+});
+
 test("a lesson-done rule after the join form still runs, and the stage waits for that lesson", async () => {
   vi.useFakeTimers();
   const f = await fixture("form");
