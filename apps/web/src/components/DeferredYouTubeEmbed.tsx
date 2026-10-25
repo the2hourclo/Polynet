@@ -11,6 +11,15 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
   const frameRef = useRef<HTMLDivElement>(null);
   const [loadedVideoId, setLoadedVideoId] = useState<string | null>(null);
   const [hasPlayerRoom, setHasPlayerRoom] = useState(false);
+  // Offline, the player would show the browser's error page; keep the poster until the connection is back.
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
@@ -23,7 +32,7 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
   }, []);
   useEffect(() => {
     const frame = frameRef.current;
-    if (!frame || !hasPlayerRoom || loadedVideoId === embed.id) return;
+    if (!frame || !hasPlayerRoom || !online || loadedVideoId === embed.id) return;
     if (typeof IntersectionObserver === "undefined") {
       setLoadedVideoId(embed.id);
       return;
@@ -36,7 +45,7 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
     }, { rootMargin: "200px" });
     observer.observe(frame);
     return () => observer.disconnect();
-  }, [embed.id, loadedVideoId, hasPlayerRoom]);
+  }, [embed.id, loadedVideoId, hasPlayerRoom, online]);
 
   const source = new URL(embed.src);
   source.searchParams.set("playsinline", "1");
@@ -46,7 +55,7 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
   return <div ref={frameRef} className={`deferred-youtube${hasPlayerRoom ? "" : " is-too-narrow"}`}
     data-community-youtube-embed={embed.id} data-resource-media="true"
     onClick={(event) => event.stopPropagation()}>
-    {hasPlayerRoom && loadedVideoId === embed.id ? <iframe
+    {hasPlayerRoom && online && loadedVideoId === embed.id ? <iframe
       src={source.href}
       title={title}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -54,7 +63,11 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
       loading="lazy"
       referrerPolicy="strict-origin-when-cross-origin"
       sandbox="allow-popups allow-presentation allow-same-origin allow-scripts"
-    /> : hasPlayerRoom ? <span className="deferred-youtube-placeholder">{title}</span> : null}
+    /> : hasPlayerRoom ? <span className="deferred-youtube-placeholder"
+      style={{ backgroundImage: `url(https://i.ytimg.com/vi/${encodeURIComponent(embed.id)}/hqdefault.jpg)` }}>
+      <span className="deferred-youtube-play" aria-hidden="true" />
+      <span className="deferred-youtube-title">{online ? title : "The video plays when you're back online"}</span>
+    </span> : null}
     {!hasPlayerRoom ? <a href={watchUrl.href} target="_blank" rel="noopener noreferrer">Watch on YouTube</a> : null}
   </div>;
 }
