@@ -205,4 +205,18 @@ describe("community theme compilation", () => {
     const fixed = nearestPassingColor("#9BE59B", "#FFFFFF", 4.5);
     expect(contrastRatio(fixed ?? "", "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
   });
+
+  test("grey text on a dark scheme reads near-white, and light schemes keep their greys", () => {
+    const stopwatch = normalizeCommunityTheme(STOPWATCH_THEME);
+    const clo = normalizeCommunityTheme(CLO_THEME);
+    if (!stopwatch.ok || !clo.ok) throw new Error("invalid");
+    const dark = communityThemeVariables(stopwatch.theme, "dark");
+    const surface = stopwatch.theme.schemes.dark!.surface;
+    expect(contrastRatio(dark["--text-secondary"], surface)).toBeGreaterThanOrEqual(13);
+    expect(contrastRatio(dark["--text-muted"], surface)).toBeGreaterThanOrEqual(10);
+    expect(contrastRatio(dark["--text-faint"], surface)).toBeGreaterThanOrEqual(7.5);
+    const light = communityThemeVariables(clo.theme, "light");
+    expect(light["--text-muted"]).toBe("#6B6B63");
+    expect(contrastRatio(light["--text-faint"], "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
+  });
 });

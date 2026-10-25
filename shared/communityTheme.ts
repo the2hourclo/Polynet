@@ -217,6 +217,35 @@ export function nearestPassingColor(color: string, against: string, ratio: numbe
   return null;
 }
 
+// Grey text floors, measured against the card surface. Dark schemes get
+// higher floors: a grey that passes on paper still reads as grey-on-black.
+const TEXT_FLOORS: Record<CommunityThemeScheme, { secondary: number; muted: number; faint: number }> = {
+  light: { secondary: 7, muted: 4.5, faint: 4.5 },
+  dark: { secondary: 13, muted: 10, faint: 7.5 },
+};
+
+// Secondary, muted and faint text for a scheme, each lifted (toward the text
+// colour's end) until it meets its floor on both the page and the card.
+export function communityTextLevels(c: CommunityThemeColors, scheme: CommunityThemeScheme) {
+  const floors = TEXT_FLOORS[scheme];
+  const text = parseHex(c.text);
+  const muted = parseHex(c.muted);
+  const background = parseHex(c.background);
+  const lift = (start: Rgb | null, ratio: number) => {
+    if (!start || !text) return c.muted;
+    for (let step = 0; step <= 100; step += 1) {
+      const candidate = toHex(mix(start, text, step / 100));
+      if (contrastRatio(candidate, c.surface) >= ratio && contrastRatio(candidate, c.background) >= ratio) return candidate;
+    }
+    return c.text;
+  };
+  return {
+    secondary: lift(text && muted ? mix(muted, text, 0.7) : null, floors.secondary),
+    muted: lift(muted, floors.muted),
+    faint: lift(muted && background ? mix(muted, background, 0.25) : null, floors.faint),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Validation
 
@@ -436,12 +465,13 @@ export function communityThemeVariables(
   const upper = theme.heading_case === "upper";
   const plate = theme.media_plate === "light" && scheme === "dark";
   const coverTint = theme.course_cover_plate === "tint" && scheme === "light";
+  const grey = communityTextLevels(c, scheme);
 
   const pn: Record<string, string> = {
     "--pn-background": c.background,
     "--pn-surface": c.surface,
     "--pn-text": c.text,
-    "--pn-muted": c.muted,
+    "--pn-muted": grey.muted,
     "--pn-border": c.border,
     "--pn-accent": c.accent,
     "--pn-on-accent": c.on_accent,
@@ -506,13 +536,13 @@ export function communityThemeVariables(
     "--text-primary": c.text,
     "--text-ink-primary": c.text,
     "--text-selected": c.text,
-    "--text-secondary": mixed(c.text, 70, c.muted),
-    "--text-ink-secondary": mixed(c.text, 70, c.muted),
-    "--text-muted": c.muted,
-    "--text-ink-muted": c.muted,
-    "--text-faint": mixed(c.muted, 75, c.background),
-    "--text-ink-faint": mixed(c.muted, 75, c.background),
-    "--icon-default": c.muted,
+    "--text-secondary": grey.secondary,
+    "--text-ink-secondary": grey.secondary,
+    "--text-muted": grey.muted,
+    "--text-ink-muted": grey.muted,
+    "--text-faint": grey.faint,
+    "--text-ink-faint": grey.faint,
+    "--icon-default": grey.muted,
     "--icon-hover": c.text,
     "--border-default": c.border,
     "--stroke-default": c.border,
