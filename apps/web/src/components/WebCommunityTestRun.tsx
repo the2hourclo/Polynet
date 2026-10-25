@@ -154,7 +154,7 @@ export function WebCommunityTestRun(props: Props) {
       <span className="pn-wf-callout-text">
         <strong>Safe to try</strong>
         <small>The community opens in a new tab and your other tabs stay signed in as you. A test member is tagged Test on Clients
-          and can't pay, message anyone or chat with the agent. Agent messages a Workflow sends do run and use your credits, except during Autoplay, which only previews them.
+          and can't pay, message anyone or use Ask AI. Agent messages a Workflow sends, and the agent's replies when they write in its channel, do run and use your credits. Autoplay only previews them.
           Ending a run deletes everything it did.</small>
       </span>
     </div>

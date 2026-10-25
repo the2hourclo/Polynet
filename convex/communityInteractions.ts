@@ -1857,7 +1857,8 @@ export async function createCommunityInteractionComposerMessageCore(
         );
       }
 
-      if (actorType === "human") {
+      // Autoplay's test posts (a server caller only) never wake the agent.
+      if (actorType === "human" && args.skipAgentIntake !== true) {
         await intakeCommunityAgentTurn({
           ctx,
           communityId: args.communityId,
