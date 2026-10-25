@@ -53,7 +53,7 @@ test("an owner saves, renames, applies and deletes named themes; members can't",
   await expect(asMember.mutation(api.communitySavedThemes.saveCommunitySavedTheme, { communityId, name: "Mine", theme: look })).rejects.toThrow();
 
   const first = await asOwner.mutation(api.communitySavedThemes.saveCommunitySavedTheme, { communityId, name: "  Autumn   launch ", theme: look });
-  expect(first.savedThemes.map((saved) => saved.name)).toEqual(["Autumn launch"]);
+  expect(first.savedThemes.map((saved: { name: string }) => saved.name)).toEqual(["Autumn launch"]);
   await expect(asOwner.mutation(api.communitySavedThemes.saveCommunitySavedTheme, { communityId, name: "autumn LAUNCH", theme: look }))
     .rejects.toThrow(/saved_theme_name_taken/);
   await expect(asOwner.mutation(api.communitySavedThemes.saveCommunitySavedTheme, { communityId, name: "Bad", theme: { version: 1, radius: 99 } }))
