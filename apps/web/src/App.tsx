@@ -1,7 +1,9 @@
 import {
   lazy,
+  useCallback,
   useMemo,
   useRef,
+  useState,
   Suspense,
   type ChangeEvent,
 } from "react";
@@ -2841,12 +2843,18 @@ export default function App() {
           }
         : null,
   });
+  const [communityLayoutPosition, setCommunityLayoutPosition] = useState<"top" | "side">("side");
+  const [isFloatingCommunityAgentOpen, setIsFloatingCommunityAgentOpen] = useState(false);
+  const openFloatingCommunityAgent = useCallback(() => setIsFloatingCommunityAgentOpen(true), []);
+  // Under the Classroom layout the community agent floats at the bottom
+  // right; elsewhere on desktop it is the Agent page.
+  const floatingCommunityAgent = !showMobileShell && communityLayoutPosition === "top";
   const {
     community: memberAgentDockCommunity,
     surfaceContext: memberAgentSurfaceContext,
     isVisible: isMemberAgentDockVisible,
   } = useWebMemberAgentSurfaceController({
-    pageMode: !showMobileShell,
+    pageMode: !showMobileShell && !floatingCommunityAgent,
     activePage,
     communityTab,
     activeCommunity,
@@ -2993,6 +3001,8 @@ export default function App() {
     themeDraftSession: canViewActiveCommunitySettings ? session ?? null : null,
     // Layout blocks that read member data (upcoming events) use the viewer's own session.
     memberSession: session ?? null,
+    onCommunityLayoutPositionChange: setCommunityLayoutPosition,
+    onOpenCommunityAgent: openFloatingCommunityAgent,
   });
 
   if (shouldHoldRouteForAccess) {
@@ -3050,14 +3060,21 @@ export default function App() {
       globalOverlayHostProps={globalOverlayHostProps}
       memberAgentDockRef={memberAgentComposerApiRef}
       memberAgentDockProps={{
-        pageMode: !showMobileShell,
+        pageMode: !showMobileShell && !floatingCommunityAgent,
         pageActive: activePage === "community" && communityTab === "agent",
+        floating: floatingCommunityAgent
+          ? { open: isFloatingCommunityAgentOpen, onOpenChange: setIsFloatingCommunityAgentOpen }
+          : null,
         isVisible: isMemberAgentDockVisible,
         isSuppressed: false,
         canManageResources: canManageResourcesActiveCommunity,
         mobileShellActive: showMobileShell,
         mobileRoot: showMobileShell && mobileRootPage === "agent",
-        onRequestOpen: () => showMobileShell ? setMobileRootPage("agent") : handleSelectCommunityTab("agent"),
+        onRequestOpen: () => showMobileShell
+          ? setMobileRootPage("agent")
+          : floatingCommunityAgent
+            ? openFloatingCommunityAgent()
+            : handleSelectCommunityTab("agent"),
         community: memberAgentDockCommunity,
         surfaceContext: memberAgentSurfaceContext,
         session,

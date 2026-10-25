@@ -131,6 +131,8 @@ export type WebMemberAgentDockProps = {
   voiceButtonProps: ComponentProps<typeof VoiceInputButton>;
   finalizeVoiceInputForSubmit?: () => Promise<string>;
   onStartBuilder?: () => void;
+  // Classroom layout: a floating panel opened from a bottom-right button.
+  floating?: { open: boolean; onOpenChange: (open: boolean) => void } | null;
 };
 
 const MEMBER_AGENT_LIMIT_CODE = COMMUNITY_MEMBER_AGENT_LIMIT_REACHED_CODE;
@@ -190,7 +192,19 @@ function WebMemberAgentDock(props, ref) {
   const communityName = String(props.community?.name ?? "").trim();
   const isOpenSurface = props.pageMode
     ? Boolean(props.pageActive)
-    : Boolean(props.mobileShellActive && props.mobileRoot);
+    : props.floating
+      ? props.floating.open
+      : Boolean(props.mobileShellActive && props.mobileRoot);
+  const floatingOpen = Boolean(props.floating?.open);
+  const onFloatingOpenChange = props.floating?.onOpenChange;
+  useEffect(() => {
+    if (!floatingOpen || !onFloatingOpenChange) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onFloatingOpenChange(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [floatingOpen, onFloatingOpenChange]);
   const [threadKey, setThreadKey] = useState<string | null>(null);
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [, setThreadContext] = useState<ActiveThreadContext | null>(null);
@@ -1153,6 +1167,16 @@ function WebMemberAgentDock(props, ref) {
             >
               <MessageSquarePlus size={props.pageMode ? 18 : undefined} aria-hidden="true" />
             </button>
+            {props.floating ? (
+              <button
+                type="button"
+                onClick={() => props.floating?.onOpenChange(false)}
+                aria-label="Close the community agent"
+                title="Close"
+              >
+                <X aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -1379,6 +1403,19 @@ function WebMemberAgentDock(props, ref) {
         </div>
       </section>
     </aside>
+    {props.floating && !props.floating.open ? (
+      <button
+        type="button"
+        className="member-agent-launcher"
+        onClick={() => props.floating?.onOpenChange(true)}
+        aria-label={`Ask the ${communityName || "community"} agent`}
+        aria-controls="polynet-member-agent-surface"
+        aria-expanded={false}
+      >
+        <Sparkles size={20} strokeWidth={2} aria-hidden="true" />
+        <span>Ask AI</span>
+      </button>
+    ) : null}
     </>
   );
 });

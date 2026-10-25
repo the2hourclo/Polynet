@@ -103,6 +103,8 @@ export function buildWebShellChromeHostProps(params: {
   isGlobalSettings: boolean;
   themeDraftSession?: unknown;
   memberSession?: unknown;
+  onCommunityLayoutPositionChange?: WebShellChromeHostProps["onCommunityLayoutPositionChange"];
+  onOpenCommunityAgent?: WebShellChromeHostProps["onOpenCommunityAgent"];
 }): Omit<WebShellChromeHostProps, "mainSurface" | "globalOverlays"> {
   const isMobileCommunityHome =
     params.showMobileAppShell &&
@@ -295,5 +297,7 @@ export function buildWebShellChromeHostProps(params: {
     isGlobalSettings: params.isGlobalSettings,
     themeDraftSession: params.themeDraftSession ?? null,
     memberSession: params.memberSession ?? null,
+    onCommunityLayoutPositionChange: params.onCommunityLayoutPositionChange,
+    onOpenCommunityAgent: params.onOpenCommunityAgent,
   };
 }
