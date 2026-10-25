@@ -9,6 +9,9 @@
 
 .workflow-sections { flex-direction: column; overflow: hidden; container-type: inline-size; container-name: workflow-sections; }
 .workflow-section-tabs { flex-shrink: 0; margin: 16px 24px 12px; margin-right: var(--web-topbar-right-action-safe-inset, 62px); }
+/* Three sections read as one compact switcher, not a bar across the whole page. */
+.workflow-section-tabs { width: auto; max-width: 420px; }
+.workflow-page.workflow-sections .workflow-section-tabs .platform-switcher-btn { font-size: var(--pn-type-small, 13px); font-weight: 600; }
 .workflow-section-content { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
 .workflow-section-content > .community-forms-page { padding-top: 0; }
 @media (max-width: 600px) {
