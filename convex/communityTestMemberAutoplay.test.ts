@@ -123,7 +123,7 @@ test("autoplay walks a test member through the whole Workflow, previewing agent 
     "ok: Answered the quiz “Where do you run it?” in “Install Claude Code”",
     "ok: Marked “Install Claude Code” complete",
     "ok: Filled in the Checkpoint form with sample answers",
-    "ok: Posted an intro in #General",
+    "ok: Posted an intro in the general channel",
     "ok: Skipped the 1 day wait",
   ]);
 
@@ -145,4 +145,41 @@ test("autoplay walks a test member through the whole Workflow, previewing agent 
   await owner.mutation(api.communityTestMembers.endTestMember, args);
   const posts = await t.run(async (ctx) => (await ctx.db.query("communityInteractionRoots").collect()).map((row) => row.status));
   expect(posts).toEqual(["hidden"]);
+});
+
+test("on screen, the member tab does the step; one it doesn't take up is done in the background", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(nowMs);
+  const t = convexTest(schema, modules);
+  const f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER });
+  const started = await owner.mutation(api.communityTestMembers.startTestMember, { communityId: f.communityId });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const args = { communityId: f.communityId, testMemberId: started.id as any, onScreenPace: 300 };
+  const asTest = { authSubject: started.auth_subject };
+
+  // The owner's player hands the form to the member tab.
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args))
+    .resolves.toMatchObject({ status: "acting", beat: { text: "Filled in the Intake form with sample answers", on_screen: true } });
+  const step = (await owner.query(api.communityTestMembers.getMyTestRun, asTest) as any).autoplay_step;
+  expect(step).toMatchObject({ kind: "form", formName: "Intake", pace: 300, answers: { size: "0" } });
+  await owner.mutation(api.communityTestMemberAutoplay.reportAutoplayScreenStep, { ...asTest, stepId: step.id, phase: "seen" });
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args)).resolves.toMatchObject({ status: "acting" });
+
+  // The member tab fills it in through the member's own form, then says it's done.
+  const forms = await owner.query(api.communityFormRequests.listMyRequests, { ...asTest, communityId: f.communityId }) as any[];
+  await owner.mutation(api.communityFormRequests.saveMyAnswers, { ...asTest, communityId: f.communityId, requestId: forms[0].id,
+    expectedRevision: 0, answers: step.answers, submit: true });
+  await owner.mutation(api.communityTestMemberAutoplay.reportAutoplayScreenStep, { ...asTest, stepId: step.id, phase: "finished", ok: true });
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args))
+    .resolves.toMatchObject({ status: "acted", beat: { ok: true, on_screen: true, text: "Filled in the Intake form with sample answers" } });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+  // The next step nobody takes up: after a few seconds Autoplay does it itself.
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args)).resolves.toMatchObject({ status: "acting" });
+  vi.setSystemTime(nowMs + 6_000);
+  const fallback = await owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args);
+  expect(fallback.beat).toMatchObject({ ok: true, text: "Clicked “I installed Claude Code” in “Install Claude Code”" });
+  expect(fallback.beat?.on_screen).toBeUndefined();
+  expect(fallback.beat?.detail).toContain("member tab isn't open");
 });

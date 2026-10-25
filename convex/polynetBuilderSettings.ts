@@ -414,6 +414,7 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityTestMembers:endTestMember": "not a setting: the owner's test run",
   "communityTestMembers:runTestMemberTimedStepsNow": "not a setting: the owner's test run",
   "communityTestMemberAutoplay:autoplayTestMemberStep": "not a setting: the owner's test run (Autoplay)",
+  "communityTestMemberAutoplay:reportAutoplayScreenStep": "not a setting: a test run tab reporting an Autoplay step",
   "communityEvents:saveCommunityEvent": "not a setting: the Events page (and it isn't scoped to one community yet)",
   "communityEvents:cancelCommunityEvent": "not a setting: the Events page",
   "communityAccess:createMyCommunityLicenseKey": "not a setting: a member's own license key",

@@ -521,3 +521,8 @@
 .pn-wf-agent-led-icon { overflow: hidden; border-radius: 999px; }
 .pn-wf-agent-led-icon:has(.community-agent-face) { padding: 0; background: none; }
 .pn-wf-agent-led-icon .community-agent-face { width: 100%; height: 100%; }
+.pn-wf .test-run-beats li.is-acting { background: color-mix(in srgb, var(--accent-warning, #d97706) 8%, transparent); }
+.pn-wf .test-run-beats li.is-acting .pn-wf-row-icon { animation: test-run-acting 1.2s ease-in-out infinite; }
+@keyframes test-run-acting { 50% { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .pn-wf .test-run-beats li.is-acting .pn-wf-row-icon { animation: none; } }
+.pn-wf .test-run-autoplay .pn-wf-callout-text .test-run-link { font-size: 0.8125rem; min-height: 0; }
