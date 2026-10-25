@@ -39,6 +39,11 @@ function colorsFor(theme: CommunityThemeV1 | null, scheme: CommunityThemeScheme)
   return theme?.schemes[scheme] ?? (DEFAULT_COMMUNITY_THEME.schemes[scheme] as CommunityThemeColors);
 }
 
+// "Builders' design", "Club's design".
+function possessive(name: string): string {
+  return /s$/i.test(name.trim()) ? `${name.trim()}'` : `${name.trim()}'s`;
+}
+
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
 }
@@ -99,7 +104,7 @@ export function WebYourDisplaySection<SessionT>(props: {
 
   const shownTheme = activeId && activeTheme?.id === activeId ? activeTheme.theme : null;
   const activeLook = lookOf(shownTheme);
-  const designName = props.community ? `${props.community.name}'s design` : "Polynet's design";
+  const designName = props.community ? `${possessive(props.community.name)} design` : "Polynet's design";
   const everywhere = useMemberPickEverywhere();
   const madeIn = props.community && activeLook.kind === "one" ? activeLook.scheme : null;
   const oneCount = (looks ?? []).filter((entry) => entry.look.kind === "one").length;
