@@ -82,9 +82,15 @@ export function WebCommunityProfilePanel(props: WebCommunityProfilePanelProps) {
     ? mutualCommunities.filter((community) => !ownedCommunityIds.has(community.id))
     : mutualCommunities;
   const secondaryCommunityLabel = isSelfProfile ? "My communities" : "Mutual communities";
+  // Public communities they've joined, beyond any you share (they can hide these).
+  const listedIds = new Set([...ownedCommunityIds, ...secondaryCommunities.map((community) => community.id)]);
+  const joinedCommunities = (communityContext.joined_communities ?? []).filter((community) => !listedIds.has(community.id));
+  const ownedLabel = ownedCommunities.every((community) => community.co_creator) ? "Co-creates"
+    : ownedCommunities.some((community) => community.co_creator) ? "Creates" : "Owned communities";
   const hasOwnedCommunities = ownedCommunities.length > 0;
   const hasSecondaryCommunities = secondaryCommunities.length > 0;
-  const hasCommunitySections = hasOwnedCommunities || hasSecondaryCommunities;
+  const hasJoinedCommunities = joinedCommunities.length > 0;
+  const hasCommunitySections = hasOwnedCommunities || hasSecondaryCommunities || hasJoinedCommunities;
   const canMessageProfile = !isSelfProfile && communityContext.can_message && !isMessageDisabled && Boolean(onMessage);
 
   return (
@@ -154,7 +160,7 @@ export function WebCommunityProfilePanel(props: WebCommunityProfilePanelProps) {
 
       {hasOwnedCommunities ? (
         <section className="community-profile-panel-section">
-          <div className="community-profile-panel-section-label">Owned communities</div>
+          <div className="community-profile-panel-section-label">{ownedLabel}</div>
           <WebCommunityProfileCommunityStrip communities={ownedCommunities} />
         </section>
       ) : null}
@@ -163,6 +169,13 @@ export function WebCommunityProfilePanel(props: WebCommunityProfilePanelProps) {
         <section className="community-profile-panel-section">
           <div className="community-profile-panel-section-label">{secondaryCommunityLabel}</div>
           <WebCommunityProfileCommunityStrip communities={secondaryCommunities} />
+        </section>
+      ) : null}
+
+      {hasJoinedCommunities ? (
+        <section className="community-profile-panel-section">
+          <div className="community-profile-panel-section-label">{isSelfProfile ? "Also in" : "Member of"}</div>
+          <WebCommunityProfileCommunityStrip communities={joinedCommunities} />
         </section>
       ) : null}
     </aside>

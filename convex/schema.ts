@@ -908,6 +908,10 @@ export default defineSchema({
        (Intl.DateTimeFormat), refreshed when it drifts. Never asked. */
     timezone: v.optional(v.string()),
     timezoneCapturedAt: v.optional(v.number()),
+    // What their profile shows others: communities they own or co-create,
+    // and public ones they've joined. Both shown unless turned off.
+    hideOwnedCommunities: v.optional(v.boolean()),
+    hideJoinedCommunities: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

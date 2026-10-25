@@ -332,10 +332,15 @@ function parseSettingsPage(value: string | null | undefined): SettingsPage {
     case "partner":
     case "partners":
       return "billing";
+    case "memberships":
+    case "communities":
+      return "memberships";
+    case "apps":
     case "agent":
     case "integrations":
     case "skills":
-      return "account";
+      return "apps";
+    case "display":
     case "appearance":
       return "appearance";
     default:
