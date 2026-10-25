@@ -64,7 +64,8 @@ test("board actions remain discoverable without hover", () => {
   expect(css).not.toContain(".workflow-milestone-column:hover .workflow-milestone-edit-button");
   expect(component).toContain('<MoreHorizontal size={18} aria-hidden="true" />');
   expect(component).not.toContain("<Pencil");
-  expect(component).toMatch(/\}\)\}\s*<\/div>\s*<button\s+className="workflow-add-milestone-button"/);
+  // "Add milestone" is the last lane on the board, after the milestones.
+  expect(component).toMatch(/\}\)\}\s*<button\s+className="workflow-add-milestone-button"/);
   expect(css).toContain("border-bottom: 1px solid var(--stroke-divider-accent)");
   expect(css).toContain(".workflow-board-stage");
   expect(css).toContain("padding-inline: 8px");

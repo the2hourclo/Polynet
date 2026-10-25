@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
-import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, ChevronRight, ClipboardList, Plus, Trash2 } from "lucide-react";
 import { blankCommunityFormQuestion, communityFormIssue, communityFormValidationIssue, COMMUNITY_FORM_MAX_FORMS, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion, type CommunityFormValidationIssue } from "../../../../shared/communityForms";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
 import { communityClientPropertyAcceptsQuestion, type CommunityClientPropertyType } from "../../../../shared/communityClients";
@@ -35,14 +35,32 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
   }, [gateway, refresh]);
   if (selected) return <CommunityFormEditor key={selected.key} initial={selected} gateway={gateway} leaveGuard={leaveGuard}
     onBack={() => { setSelected(null); setRefresh(n => n + 1); }} />;
+  const newForm = () => setSelected({ key: crypto.randomUUID(), name: "Untitled form", questions: [blankCommunityFormQuestion()], revision: 0, publishedRevision: null });
+  const atLimit = forms.length >= COMMUNITY_FORM_MAX_FORMS;
   return <div className="workflow-page community-forms-page">
-    {loading ? <p role="status">Loading forms…</p> : error ? <p role="alert">Could not load forms. <button className="workflow-secondary-button" onClick={() => setRefresh(n => n + 1)}>Try again</button></p> : <>
-      <div className="community-form-list">{forms.map(form => <button key={form.key} onClick={() => setSelected(form)}>
-        <span>{form.name || "Untitled form"}</span><small>{form.questions.length} questions · {form.publishedRevision === form.revision ? "Published" : form.publishedRevision ? "Unpublished edits" : "Draft"}</small>
-      </button>)}</div>
-      <button className="workflow-secondary-button" disabled={forms.length >= COMMUNITY_FORM_MAX_FORMS} onClick={() => setSelected({ key: crypto.randomUUID(), name: "Untitled form", questions: [blankCommunityFormQuestion()], revision: 0, publishedRevision: null })}><Plus size={16} /> New form</button>
-      {!forms.length ? <p className="community-form-hint">Build a form, then preview it one question at a time.</p> : null}
-    </>}
+    <div className="pn-wf-section-head">
+      <div>
+        <h2>Forms</h2>
+        <p>Questions members answer when they join or reach a milestone. Their answers fill their client record.</p>
+      </div>
+      {!loading && !error && forms.length ? <button type="button" className="pn-wf-primary" disabled={atLimit} onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button> : null}
+    </div>
+    {loading ? <p role="status" className="pn-wf-muted">Loading forms…</p> : error ? <p role="alert">Could not load forms. <button className="workflow-secondary-button" onClick={() => setRefresh(n => n + 1)}>Try again</button></p>
+      : !forms.length ? <div className="pn-wf-empty">
+        <span className="pn-wf-empty-icon" aria-hidden="true"><ClipboardList size={20} strokeWidth={2} /></span>
+        <strong>No forms yet</strong>
+        <p>Build a form, then preview it one question at a time.</p>
+        <button type="button" className="pn-wf-primary" onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button>
+      </div>
+      : <div className="community-form-list pn-wf-list">{forms.map(form => {
+        const status = form.publishedRevision === form.revision ? "published" : form.publishedRevision ? "edited" : "draft";
+        return <button type="button" key={form.key} onClick={() => setSelected(form)}>
+          <span className="pn-wf-row-icon" aria-hidden="true"><ClipboardList size={16} strokeWidth={2} /></span>
+          <span className="pn-wf-row-text"><strong>{form.name || "Untitled form"}</strong><small>{form.questions.length} {form.questions.length === 1 ? "question" : "questions"}</small></span>
+          <span className={`pn-wf-badge is-${status}`}>{status === "published" ? "Published" : status === "edited" ? "Unpublished edits" : "Draft"}</span>
+          <ChevronRight className="pn-wf-row-chevron" size={16} strokeWidth={2} aria-hidden="true" />
+        </button>;
+      })}</div>}
   </div>;
 }
 
