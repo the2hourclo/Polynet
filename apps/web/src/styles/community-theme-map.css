@@ -196,6 +196,54 @@
 [data-community-theme] .community-welcome-media {
   border-radius: calc(12px * var(--pn-radius-scale, 1));
 }
+[data-community-theme] .community-sales-title {
+  font-size: var(--pn-type-title);
+}
+[data-community-theme] .community-sales-media {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-sales-facts {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-sales-host-avatar {
+  font-size: var(--pn-type-micro);
+}
+[data-community-theme] .community-sales-alerts p {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-sales-copy {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .community-sales-lead {
+  font-size: var(--pn-type-subheading);
+}
+[data-community-theme] .community-sales-card-avatar {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .community-sales-card-identity h2 {
+  font-size: var(--pn-type-subheading);
+}
+[data-community-theme] .community-sales-card-address {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-sales-card-description {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-sales-card-stats dd {
+  font-size: var(--pn-type-subheading);
+}
+[data-community-theme] .community-sales-card-stats dt {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .community-sales-join-button {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .community-sales-join-note {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .community-siblings h2 {
   font-size: var(--pn-type-label);
 }
@@ -2170,6 +2218,38 @@
 [data-community-theme] .community-top-nav-name {
   font-size: var(--pn-type-subheading);
 }
+[data-community-theme] .community-top-nav-search {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-top-nav-search input {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-top-nav-actions .direct-messages-topbar-button,
+[data-community-theme] .community-top-nav-icon {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-top-nav-icon-badge {
+  font-size: var(--pn-type-micro);
+}
+[data-community-theme] .community-notifications-panel {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-notifications-head {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .community-notifications-empty {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-notification {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-notification-time {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .community-posts-search-status {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .community-top-nav-invite {
   font-size: var(--pn-type-small);
 }
@@ -3751,17 +3831,10 @@
     font-size: var(--pn-type-label);
   }
 }
-@media (max-width: 600px) {
-  [data-community-theme] .workflow-section-tabs .platform-switcher-btn {
-    font-size: var(--pn-type-label);
-  }
-}
-@container workflow-sections (max-width: 380px) {
-  [data-community-theme] .workflow-section-tabs .platform-switcher-btn {
-    font-size: var(--pn-type-meta);
-  }
-}
 @media (max-width: 640px) {
+  [data-community-theme] .community-sales-title {
+    font-size: var(--pn-type-heading);
+  }
   [data-community-theme] .pn-landing .intro-kicker {
     font-size: var(--pn-type-micro);
   }
@@ -3818,6 +3891,16 @@
   }
   [data-community-theme] .community-events-date strong {
     font-size: var(--pn-type-heading);
+  }
+}
+@media (max-width: 600px) {
+  [data-community-theme] .workflow-section-tabs .platform-switcher-btn {
+    font-size: var(--pn-type-label);
+  }
+}
+@container workflow-sections (max-width: 380px) {
+  [data-community-theme] .workflow-section-tabs .platform-switcher-btn {
+    font-size: var(--pn-type-meta);
   }
 }
 @media (max-width: 720px) {
