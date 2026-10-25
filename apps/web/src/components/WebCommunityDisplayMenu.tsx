@@ -5,12 +5,13 @@ import type { CommunityLayoutPosition } from "../../../../shared/communityLayout
 import type { AppTheme } from "../../../../shared/theme";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
-// The member's Display menu in the community header, like the reader's
-// sun/moon toggle on Substack: Light or Dark where the community's look has
-// both, and Classroom or Channels where the owner offers both layouts. It
-// shows nothing when there is nothing to choose. The panel is drawn on the
-// page body so the side column's scrolling never clips it, and it carries the
-// community's theme with it.
+// The member's Display menu at the top right of a community, like the
+// reader's sun/moon toggle on Substack: Light or Dark where the community's
+// look has both, and Classroom or Channels where the owner offers both
+// layouts. Classroom puts it at the end of the tab bar's top row; Channels
+// puts it beside Messages in the bar above the page. It shows nothing when
+// there is nothing to choose. The panel is drawn on the page body so no
+// scrolling column clips it, and it carries the community's theme with it.
 
 type Option = {
   key: string;
@@ -34,7 +35,7 @@ const LAYOUT_OPTIONS: Record<CommunityLayoutPosition, { label: string; descripti
 const PANEL_WIDTH = 288;
 const VIEWPORT_MARGIN = 12;
 
-export function WebCommunityDisplayMenu(props: { placement: "top" | "side" }) {
+export function WebCommunityDisplayMenu(props: { placement: "top" | "bar" }) {
   const { community, layoutChoice, displayMode } = useWebCommunityFrame();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -50,10 +51,9 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "side" }) {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = Math.min(PANEL_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2);
-    const preferred = props.placement === "top" ? rect.right - width : rect.left;
-    const left = Math.max(VIEWPORT_MARGIN, Math.min(preferred, window.innerWidth - width - VIEWPORT_MARGIN));
+    const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.right - width, window.innerWidth - width - VIEWPORT_MARGIN));
     setPosition({ top: rect.bottom + 8, left });
-  }, [props.placement]);
+  }, []);
 
   useLayoutEffect(() => {
     if (open) place();
@@ -200,14 +200,14 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "side" }) {
         type="button"
         className={props.placement === "top"
           ? `community-top-nav-icon${open ? " is-open" : ""}`
-          : `community-nav-settings community-nav-display${open ? " active" : ""}`}
+          : `icon-button community-display-bar-button${open ? " active" : ""}`}
         aria-label="Display"
         title="Display"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => (open ? close(false) : setOpen(true))}
       >
-        <TriggerIcon size={20} strokeWidth={props.placement === "top" ? 2 : 1.8} aria-hidden="true" />
+        <TriggerIcon size={20} strokeWidth={2} aria-hidden="true" />
       </button>
       {panel}
     </>

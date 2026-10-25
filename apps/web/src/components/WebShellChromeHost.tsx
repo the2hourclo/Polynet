@@ -143,6 +143,21 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     props.showMobileAppShell &&
     showMobileGlobalShell &&
     props.communityShell.destination.kind === "discover";
+  const welcome = props.welcomeSurface ?? null;
+  const isTopCommunityNav =
+    !props.showMobileAppShell &&
+    props.communityShell.showDesktopCommunityNav &&
+    !welcome &&
+    communityLayout.navigation.position === "top";
+  // Channels keeps Polynet's bar above the page; the Display menu sits at its
+  // right, where Classroom's tab bar has it.
+  const hasDisplayChoices = Boolean(communityFrame.displayMode) || Boolean(communityLayoutChoice?.allowed.length);
+  const sideBarDisplayMenu =
+    !props.showMobileAppShell &&
+    props.communityShell.showDesktopCommunityNav &&
+    !welcome &&
+    !isTopCommunityNav &&
+    hasDisplayChoices ? <WebCommunityDisplayMenu placement="bar" /> : null;
   const shellHeader = props.showMobileAppShell ? (
     isMobileDedicatedRoot || isMobileDiscoverRoot ? null : (
       <WebMobileTopBar
@@ -151,15 +166,12 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       />
     )
   ) : (
-    <WebDesktopShellHeader {...props.desktopHeader} />
+    <WebDesktopShellHeader
+      {...props.desktopHeader}
+      trailing={sideBarDisplayMenu}
+      communityTheme={isTopCommunityNav ? null : communityThemeAttribute}
+    />
   );
-
-  const welcome = props.welcomeSurface ?? null;
-  const isTopCommunityNav =
-    !props.showMobileAppShell &&
-    props.communityShell.showDesktopCommunityNav &&
-    !welcome &&
-    communityLayout.navigation.position === "top";
   const onLayoutPositionChange = props.onCommunityLayoutPositionChange;
   useEffect(() => {
     onLayoutPositionChange?.(isTopCommunityNav ? "top" : "side");
@@ -308,8 +320,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
         )}
       </div>
 
-      {isTopCommunityNav && communityThemeAttribute ? (
-        // The floating agent and other overlays take the community's look too.
+      {communityThemeAttribute ? (
+        // Inside a community, Messages, the floating agent and other overlays
+        // take its look too, in either layout.
         <div className="community-theme-scope-overlays" data-community-theme={communityThemeAttribute} style={{ display: "contents" }}>
           {props.globalOverlays}
         </div>

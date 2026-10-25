@@ -41,8 +41,6 @@ type CommunityNavProps = {
   activeCommunity: CommunityNavCommunityLike;
   hideIdentity?: boolean;
   hideIdentitySettings?: boolean;
-  // Member tools beside the community's name, before the settings gear (the web's Display menu).
-  identityActions?: ReactNode;
   communityTab: CommunityTab;
   activeSelectionMode?: "route" | "none";
   tabIndicators?: Partial<Record<CommunityTab, boolean>> & { mentions?: boolean };
@@ -159,7 +157,6 @@ export const CommunityNav = memo(function CommunityNav({
   activeCommunity,
   hideIdentity = false,
   hideIdentitySettings = false,
-  identityActions = null,
   communityTab,
   activeSelectionMode = "route",
   tabIndicators = {},
@@ -399,7 +396,6 @@ export const CommunityNav = memo(function CommunityNav({
           <span className="community-nav-identity-name" title={activeCommunityName}>
             {activeCommunityName}
           </span>
-          {identityActions}
           {showSettingsButton ? (
             <button
               className={`community-nav-settings${showActiveSelection && communityTab === "settings" ? " active" : ""}`}

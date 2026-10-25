@@ -1486,3 +1486,23 @@
   .community-owner-bar { padding: 0 0.75rem; gap: 0.5rem; }
   .community-owner-bar-back span, .community-owner-bar-community { display: none; }
 }
+
+/* Channels: the Display menu sits after Messages in the bar above the page,
+   so surfaces under that bar keep clear of both buttons. */
+.app-root:has(.app-topbar .community-display-bar-button) {
+  --web-topbar-right-action-safe-inset: 106px;
+}
+
+.app-topbar .icon-button.community-display-bar-button {
+  width: 34px;
+  height: 34px;
+}
+
+.app-topbar .icon-button.community-display-bar-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.app-root:not(.mobile-shell) .app-topbar .community-display-bar-button {
+  transform: translate(-4px, 4px);
+}
