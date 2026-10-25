@@ -5,7 +5,8 @@
 // the schemes the theme already uses (light only, dark only, or both).
 // Agents and the CLI name them by id. Unlike the UI design skill, which
 // derives colours from a founder's brand, this is a menu people pick from.
-import { normalizeCommunityTheme, type CommunityThemeColors, type CommunityThemeScheme, type CommunityThemeV1 } from "./communityTheme";
+import { DEFAULT_COMMUNITY_THEME, contrastRatio, nearestPassingColor, normalizeCommunityTheme, type CommunityThemeColors, type CommunityThemeScheme, type CommunityThemeV1 } from "./communityTheme";
+import { COMMUNITY_THEME_PRESETS } from "./communityThemePresets";
 
 export type CommunityThemePalette = {
   id: string;
@@ -105,4 +106,39 @@ export function matchingCommunityThemePalette(theme: CommunityThemeV1): Communit
   if (!schemes.length) return null;
   return COMMUNITY_THEME_PALETTES.find((palette) =>
     schemes.every(([scheme, c]) => JSON.stringify(c) === JSON.stringify(palette.schemes[scheme]))) ?? null;
+}
+
+function readableOn(fill: string): string {
+  return contrastRatio("#FFFFFF", fill) >= contrastRatio("#0B0B0B", fill) ? "#FFFFFF" : "#0B0B0B";
+}
+
+// The other version of a one-version look: the twin from the starting design
+// or palette it matches, else Polynet's own with the look's accent (darkened
+// or lightened until it reads on the new page).
+export function communityThemeTwinColors(theme: CommunityThemeV1, scheme: CommunityThemeScheme): CommunityThemeColors {
+  const base = DEFAULT_COMMUNITY_THEME.schemes[scheme] as CommunityThemeColors;
+  const otherKey: CommunityThemeScheme = scheme === "light" ? "dark" : "light";
+  const other = theme.schemes[otherKey];
+  if (!other) return { ...base };
+  const same = (colors: CommunityThemeColors | undefined) => JSON.stringify(colors) === JSON.stringify(other);
+  const twin =
+    COMMUNITY_THEME_PRESETS.find((preset) => same(preset.theme.schemes[otherKey]) && preset.theme.schemes[scheme])?.theme.schemes[scheme] ??
+    COMMUNITY_THEME_PALETTES.find((palette) => same(palette.schemes[otherKey]))?.schemes[scheme];
+  if (twin) return { ...twin };
+  const onSurface = nearestPassingColor(other.accent, base.surface, 3);
+  const accent = (onSurface && nearestPassingColor(onSurface, base.background, 3)) ?? base.accent;
+  return { ...base, accent, on_accent: readableOn(accent), button: accent, on_button: readableOn(accent) };
+}
+
+// The look with both versions, so a member's Light or Dark pick always has
+// one to show. Only what that member sees changes; the saved look doesn't.
+export function communityThemeWithBothSchemes(theme: CommunityThemeV1): CommunityThemeV1 {
+  if (theme.schemes.light && theme.schemes.dark) return theme;
+  return {
+    ...theme,
+    schemes: {
+      light: theme.schemes.light ?? communityThemeTwinColors(theme, "light"),
+      dark: theme.schemes.dark ?? communityThemeTwinColors(theme, "dark"),
+    },
+  };
 }

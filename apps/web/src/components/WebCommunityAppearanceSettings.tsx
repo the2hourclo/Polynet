@@ -19,6 +19,7 @@ import { COURSE_CARD_LOOKS, matchingCourseCardLook, type CourseCardLook } from "
 import {
   applyCommunityThemePalette,
   COMMUNITY_THEME_PALETTES,
+  communityThemeTwinColors,
   matchingCommunityThemePalette,
   type CommunityThemePalette,
 } from "../../../../shared/communityThemePalettes";
@@ -687,19 +688,8 @@ function AppearanceEditor(props: EditorProps) {
   };
   const setMode = (mode: SchemeMode) => {
     const current = theme.schemes;
-    // A missing version comes from the design or palette the other one
-    // matches; failing that, Polynet's own with the same accent.
-    const fallback = (key: CommunityThemeScheme): CommunityThemeColors => {
-      const base = DEFAULT_COMMUNITY_THEME.schemes[key] as CommunityThemeColors;
-      const otherKey = key === "light" ? "dark" : "light";
-      const other = current[otherKey];
-      if (!other) return base;
-      const same = (colors: CommunityThemeColors | undefined) => JSON.stringify(colors) === JSON.stringify(other);
-      const twin =
-        COMMUNITY_THEME_PRESETS.find((preset) => same(preset.theme.schemes[otherKey]) && preset.theme.schemes[key])?.theme.schemes[key] ??
-        COMMUNITY_THEME_PALETTES.find((palette) => same(palette.schemes[otherKey]))?.schemes[key];
-      return twin ? { ...twin } : { ...base, accent: other.accent, on_accent: readableOn(other.accent) };
-    };
+    // A missing version is the matching twin, as members who pick the other mode see it.
+    const fallback = (key: CommunityThemeScheme): CommunityThemeColors => communityThemeTwinColors(theme, key);
     const schemes = mode === "both"
       ? { light: current.light ?? fallback("light"), dark: current.dark ?? fallback("dark") }
       : { [mode]: current[mode] ?? fallback(mode) };

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { communityThemeWithBothSchemes } from "../../../../shared/communityThemePalettes";
 import {
   compileCommunityThemeCss,
   communityThemeFontStylesheetUrl,
@@ -136,7 +137,10 @@ export function useWebCommunityThemeStyle(
   useEffect(() => {
     if (!communityId || !theme) return;
     const style = upsertHeadElement<HTMLStyleElement>(STYLE_ELEMENT_ID, "style");
-    style.textContent = compileCommunityThemeCss(theme, `[data-community-theme="${CSS.escape(communityId)}"]`);
+    // A member's Light or Dark pick wins over a one-version look: they see its
+    // twin. The Customize preview shows exactly the version being edited.
+    const shown = IS_APPEARANCE_PREVIEW_FRAME ? theme : communityThemeWithBothSchemes(theme);
+    style.textContent = compileCommunityThemeCss(shown, `[data-community-theme="${CSS.escape(communityId)}"]`);
     const fontUrl = communityThemeFontStylesheetUrl(theme);
     if (fontUrl) {
       const link = upsertHeadElement<HTMLLinkElement>(FONT_ELEMENT_ID, "link");
@@ -155,9 +159,8 @@ export function useWebCommunityThemeStyle(
     // settings the shell applies itself, such as the Channels look and rail.
     theme: communityId ? theme : null,
     previewingDraft: Boolean(communityId && current?.draft),
-    // Polynet's own look and two-scheme themes follow the member's Light/Dark;
-    // a one-scheme theme always looks the same, so there is nothing to pick.
-    // False until the theme is read, so the choice doesn't flash and vanish.
-    followsMemberMode: Boolean(communityId && (current || theme)) && (!theme || Boolean(theme.schemes.light && theme.schemes.dark)),
+    // Every look follows the member's Light/Dark (a one-version look shows its
+    // twin). False until the theme is read, so the choice doesn't flash.
+    followsMemberMode: Boolean(communityId && (current || theme)),
   };
 }
