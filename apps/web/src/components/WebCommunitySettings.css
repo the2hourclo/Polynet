@@ -561,15 +561,9 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
   background: var(--hover-overlay);
   border-radius: 0 0 var(--pn-set-r) var(--pn-set-r);
 }
-.pn-sales-frame {
-  display: block;
-  width: 100%;
-  height: 45rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--pn-set-r-frame);
-  background: var(--bg-workspace, #fff);
-}
-.pn-sales-frame-wrap.is-phone .pn-sales-frame { width: 24.375rem; max-width: 100%; height: 46rem; }
+.pn-sales-frame-box { flex: none; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--pn-set-r-frame); background: var(--bg-workspace, #fff); }
+/* Laid out at its real width (set inline) and scaled down from the corner. */
+.pn-sales-frame { display: block; border: 0; transform-origin: 0 0; }
 
 /* The funnel editor keeps its own panel; inside Settings it reads as a card. */
 .pn-settings-subpage > .settings-panel {
@@ -622,7 +616,6 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
   .pn-settings-callout .pn-settings-button { width: 100%; }
   .pn-settings-card-footer { padding: 0.75rem 1rem; }
   .pn-sales-frame-wrap { padding: 0.5rem; }
-  .pn-sales-frame { height: 36rem; }
 }
 
 /* Settings never take the community theme, so Stripe keeps its own indigo. */

@@ -57,6 +57,45 @@ function layoutWithPresentation(layout: CommunityLayoutV1, presentation: Present
   return { ...layout, pages: { ...layout.pages, about: { ...layout.pages.about, presentation } } };
 }
 
+// The page is laid out at a real screen width and shrunk to fit the pane, as
+// Substack's editor does: a desktop page in a 700px frame would otherwise
+// switch to its narrow, stacked layout.
+const FRAME_WIDTH = { desktop: 1280, phone: 390 } as const;
+const FRAME_HEIGHT = { desktop: 800, phone: 844 } as const;
+
+function SalesPreviewFrame(props: { device: "desktop" | "phone"; src: string; title: string }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const [available, setAvailable] = useState<number | null>(null);
+  useEffect(() => {
+    const element = wrap.current;
+    if (!element) return;
+    const measure = () => {
+      const style = getComputedStyle(element);
+      // Inside the padding, less the frame box's 1px border on each side.
+      setAvailable(element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 2);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const width = FRAME_WIDTH[props.device];
+  const height = FRAME_HEIGHT[props.device];
+  const scale = available ? Math.min(1, available / width) : 1;
+  return (
+    <div ref={wrap} className={`pn-sales-frame-wrap is-${props.device}`}>
+      <div className="pn-sales-frame-box" style={{ width: width * scale, height: height * scale }}>
+        <iframe
+          className="pn-sales-frame"
+          src={props.src}
+          title={props.title}
+          style={{ width, height, transform: `scale(${scale})` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 type Props = {
   communityId: string;
   communitySlug: string;
@@ -262,9 +301,12 @@ export function WebCommunitySalesPageSettings(props: Props) {
           </div>
         </header>
         {previewSrc ? (
-          <div className={`pn-sales-frame-wrap is-${device}`}>
-            <iframe key={`${frameKey}-${draftStyle}`} className="pn-sales-frame" src={previewSrc} title={`Preview of the ${styleName(draftStyle)}`} />
-          </div>
+          <SalesPreviewFrame
+            key={`${frameKey}-${draftStyle}`}
+            device={device}
+            src={previewSrc}
+            title={`Preview of the ${styleName(draftStyle)}`}
+          />
         ) : null}
       </section>
 
