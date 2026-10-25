@@ -14,10 +14,11 @@ import { WebCommunityNotificationsMenu } from "./WebCommunityNotificationsMenu";
 // The first row is the header: the community, a search across its posts, and
 // the member's tools (invite, messages, notifications).
 
-const OWNER_TABS: { tab: CommunityTab; label: string; allowed: (shell: WebCommunityShellProps) => boolean }[] = [
-  { tab: "workflows", label: "Workflows", allowed: (shell) => shell.canManageMembersActiveCommunity },
-  { tab: "analytics", label: "Analytics", allowed: (shell) => shell.canViewActiveCommunityAnalytics },
-  { tab: "settings", label: "Settings", allowed: (shell) => shell.canViewActiveCommunitySettings },
+// Members' own Settings (their access, mute, leave) reads as Membership.
+const OWNER_TABS: { tab: CommunityTab; label: (shell: WebCommunityShellProps) => string; allowed: (shell: WebCommunityShellProps) => boolean }[] = [
+  { tab: "workflows", label: () => "Workflows", allowed: (shell) => shell.canManageMembersActiveCommunity },
+  { tab: "analytics", label: () => "Analytics", allowed: (shell) => shell.canViewActiveCommunityAnalytics },
+  { tab: "settings", label: (shell) => (shell.canManageMembersActiveCommunity ? "Settings" : "Membership"), allowed: (shell) => shell.canViewActiveCommunitySettings },
 ];
 
 export function WebCommunityTopNav({
@@ -158,7 +159,7 @@ export function WebCommunityTopNav({
       <nav className="community-top-nav-tabs" role="tablist" aria-label={`${community?.name ?? "Community"} sections`}>
         {tabs.map((entry) => renderTab(entry.tab, communityLayoutTabLabel(layout, entry.tab)))}
         {ownerTabs.length > 0 ? <span className="community-top-nav-divider" aria-hidden="true" /> : null}
-        {ownerTabs.map((entry) => renderTab(entry.tab, entry.label))}
+        {ownerTabs.map((entry) => renderTab(entry.tab, entry.label(communityShell)))}
       </nav>
       {showChips ? (
         <div className="community-top-nav-chips" role="group" aria-label="Categories">
