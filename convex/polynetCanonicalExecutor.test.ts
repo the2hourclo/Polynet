@@ -4145,6 +4145,23 @@ test("the layout is its own design record over the MCP: publishing it never rese
   expect(JSON.stringify(listing)).not.toContain("community.layout");
   const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
   expect(JSON.stringify(builder)).toContain("/builder/layout.json");
+
+  // A top layout lets each member pick Classroom (top) or Channels (side) for themselves.
+  const asMember = t.withIdentity({ subject: fixture.memberSubject });
+  const memberArgs = { authSubject: fixture.memberSubject, communityId: fixture.communityId };
+  expect(await asMember.query(api.communityLayouts.getMyCommunityLayoutChoice, memberArgs))
+    .toEqual({ allowed: ["top", "side"], position: null });
+  expect(await asMember.mutation(api.communityLayouts.setMyCommunityLayoutChoice, { ...memberArgs, position: "side" }))
+    .toEqual({ allowed: ["top", "side"], position: "side" });
+  expect((await asMember.query(api.communityLayouts.getMyCommunityLayoutChoice, memberArgs)).position).toBe("side");
+  expect((await asMember.mutation(api.communityLayouts.setMyCommunityLayoutChoice, { ...memberArgs, position: null })).position).toBeNull();
+  // An owner who takes the choice away: members see the owner's layout, and can't pick.
+  await asMember.mutation(api.communityLayouts.setMyCommunityLayoutChoice, { ...memberArgs, position: "side" });
+  await saveDesignDraft({ community, kind: "layout", record: { version: 1, navigation: { position: "top", member_choice: [] } }, expectedRevision: 1, call: owner });
+  await publishDesignDraft({ community, kind: "layout", expectedRevision: 2, call: owner });
+  expect(await asMember.query(api.communityLayouts.getMyCommunityLayoutChoice, memberArgs)).toEqual({ allowed: [], position: null });
+  await expect(asMember.mutation(api.communityLayouts.setMyCommunityLayoutChoice, { ...memberArgs, position: "side" }))
+    .rejects.toThrow();
 });
 
 test("the community brand is a design record with no publish step, for managers only", async () => {

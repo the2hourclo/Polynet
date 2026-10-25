@@ -1552,6 +1552,16 @@ export default defineSchema({
   })
     .index("by_community", ["communityId"]),
 
+  // A member's own pick of the community's arrangement, where the owner's
+  // layout allows one (navigation.member_choice). No row: the owner's layout.
+  communityMemberLayoutPreferences: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    position: v.union(v.literal("top"), v.literal("side")),
+    updatedAt: v.number(),
+  })
+    .index("by_community_user", ["communityId", "userId"]),
+
   communityAnalyticsEvents: defineTable({
     communityId: v.id("communities"),
     eventType: v.union(v.literal("funnel_visit")),
