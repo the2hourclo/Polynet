@@ -7,6 +7,7 @@ import { useMemberScrollPagination } from "./useMemberScrollPagination";
 import { CommunityJoinRequestReview } from "./CommunityJoinRequestReview";
 import { CommunityAutoJoinControl, type CommunityAdmissionControl } from "./CommunityAutoJoinControl";
 import { ActorAvatar } from "./communityInteractionFeed";
+import { AVATAR_INITIALS_INK } from "../../../../shared/chatUi";
 import type { FunctionReturnType } from "convex/server";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
@@ -299,7 +300,7 @@ function RosterSurface(props: RosterProps & {
                   : `Last active: ${formatRelativeTimeFromIso(new Date(member.last_seen_at).toISOString())}`;
                 return <div key={member.user_id} className={`community-context-member${group === "offline" ? " is-offline" : ""}`}>
                   <button type="button" className="community-context-member-trigger" aria-label={`Open ${name}'s profile`} aria-description={lastActive} onClick={() => props.onOpenProfile?.(member.user_id)}>
-                    <span className="community-context-member-avatar" style={!member.profile.avatar_url ? { color: props.getAvatarColor(member.user_id) } : undefined}>
+                    <span className="community-context-member-avatar" style={!member.profile.avatar_url ? { backgroundColor: props.getAvatarColor(member.user_id), color: AVATAR_INITIALS_INK } : undefined}>
                       <UserAvatar className="community-context-member-avatar-media" readyClassName="has-image"
                         name={name} imageUrl={member.profile.avatar_url}
                         focusX={member.profile.avatar_focus_x} focusY={member.profile.avatar_focus_y} zoom={member.profile.avatar_zoom}

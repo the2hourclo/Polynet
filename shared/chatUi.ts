@@ -15,6 +15,10 @@ function hashCode(str: string): number {
   return hash;
 }
 
+// The avatar tints below are light pastels, so initials on them use dark ink
+// (4.6:1 or better on every tint; white measured under 3:1).
+export const AVATAR_INITIALS_INK = "#1c1c1e";
+
 export function getAvatarColor(id: string): string {
   const colors = [
     "#e57373",
