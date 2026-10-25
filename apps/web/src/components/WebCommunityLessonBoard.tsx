@@ -114,7 +114,7 @@ export function WebCommunityLessonBoard(props: {
             <strong>{percent}%</strong>
             <span>{doneRefs.size} of {lessons.length} lessons done</span>
           </div>
-          <div className="lesson-board-progress-bar" role="progressbar" aria-label="Roadmap progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+          <div className="lesson-board-progress-bar" role="progressbar" aria-label="Roadmap progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${doneRefs.size} of ${lessons.length} lessons done`}>
             {stages.map((stage) => (
               <span key={stage.name} title={`${stage.name}: ${stage.done_count}/${stage.lesson_count}`}>
                 <i style={{ width: `${stage.lesson_count ? (stage.done_count / stage.lesson_count) * 100 : 0}%` }} />
@@ -136,7 +136,7 @@ export function WebCommunityLessonBoard(props: {
               <section className={`workflow-milestone-column${stage.locked ? " is-locked" : ""}${complete ? " is-done" : ""}${stage.name === currentStage ? " is-current" : ""}`} key={stage.name}>
                 <header className="workflow-milestone-column-header">
                   <div>
-                    <span className="workflow-milestone-position">{complete ? <Check size={13} aria-label="Done" /> : index + 1}</span>
+                    <span className="workflow-milestone-position">{complete ? <Check size={13} role="img" aria-label="Done" /> : index + 1}</span>
                     <h2>{stage.name}</h2>
                   </div>
                   <div className="workflow-milestone-column-actions">

@@ -24,7 +24,7 @@
 .lesson-board .workflow-milestone-column.is-current { border-color: var(--accent-brand); box-shadow: 0 0 0 1px var(--accent-brand); }
 .lesson-board .is-done .workflow-milestone-position, .lesson-board .is-current .workflow-milestone-position { width: 24px; height: 24px; font-size: 12px; font-weight: 700; }
 .lesson-board .is-done .workflow-milestone-position { color: var(--text-on-accent, #fff); background: var(--accent-brand); }
-.lesson-board .is-current .workflow-milestone-position { color: var(--accent-brand); background: color-mix(in srgb, var(--accent-brand) 14%, transparent); }
+.lesson-board .is-current .workflow-milestone-position { color: var(--text-link, var(--accent-brand)); background: color-mix(in srgb, var(--accent-brand) 14%, transparent); }
 .lesson-board .workflow-member-stub { min-height: 56px; border-color: transparent; box-shadow: none; background: transparent; }
 .lesson-board .workflow-member-stub:hover:not(:disabled) { background: var(--hover-overlay); }
 .lesson-board-lesson-stub.is-next { border-color: color-mix(in srgb, var(--accent-brand) 45%, transparent); background: color-mix(in srgb, var(--accent-brand) 7%, transparent); }
@@ -44,12 +44,11 @@
   display: inline-flex; align-items: center; gap: 12px; min-height: 48px; max-width: 360px; padding: 6px 16px; border: 0; border-radius: 8px;
   font: inherit; text-align: left; cursor: pointer; color: var(--pn-on-accent, var(--text-on-accent, #fff)); background: var(--pn-accent, var(--accent-brand));
 }
-.lesson-board-next > span { display: grid; min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
-.lesson-board-next > span { overflow: hidden; }
+.lesson-board-next > span { display: grid; min-width: 0; overflow: hidden; font-size: 15px; font-weight: 600; line-height: 1.3; }
 .lesson-board-next small { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; }
 .lesson-board-next:hover { filter: brightness(1.05); }
 .lesson-board-next:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.lesson-board-complete { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; color: var(--accent-brand); }
+.lesson-board-complete { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; color: var(--text-link, var(--accent-brand)); }
 @media (prefers-reduced-motion: reduce) { .lesson-board-progress-bar i { transition: none; } }
 .lesson-board-lesson-stub:disabled { cursor: not-allowed; opacity: 0.7; }
 .lesson-board-lesson-stub.is-gate { border-color: var(--border-strong); }
@@ -58,7 +57,7 @@
   border-radius: 999px; color: var(--text-secondary); background: var(--hover-overlay);
 }
 .lesson-board-lesson-stub[data-status="done"] .lesson-board-lesson-status { color: var(--text-on-accent, #fff); background: var(--accent-brand); }
-.lesson-board-lesson-stub[data-status="in_progress"] .lesson-board-lesson-status { color: var(--accent-brand); background: color-mix(in srgb, var(--accent-brand) 14%, transparent); }
+.lesson-board-lesson-stub[data-status="in_progress"] .lesson-board-lesson-status { color: var(--text-link, var(--accent-brand)); background: color-mix(in srgb, var(--accent-brand) 14%, transparent); }
 
 
 .lesson-board-primary-button {
