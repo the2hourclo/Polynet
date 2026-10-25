@@ -46,7 +46,14 @@ export const listChannelRoster = query({
       if (seen.has(String(candidateId))) return;
       const authorization = await resolveCommunityPresenceAuthorization({ ctx, community, userId: candidateId });
       if (!authorization.authorized || (expectedMembershipId && String(authorization.membership?._id) !== expectedMembershipId)) return;
-      const candidate = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId: candidateId });
+      let candidate;
+      try {
+        candidate = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId: candidateId });
+      } catch (error) {
+        // A member still finishing the welcome flow can't read channels yet, so they aren't listed.
+        if (String((error as Error)?.message ?? "").includes("community_welcome_required")) return;
+        throw error;
+      }
       if (!(await getCommunityChannelCapabilities({ ctx, channel, actor: candidate })).canRead) return;
       const presence = await ctx.db.query("communityPresence")
         .withIndex("by_community_user", q => q.eq("communityId", args.communityId).eq("userId", candidateId)).first();
