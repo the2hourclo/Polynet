@@ -13057,3 +13057,19 @@ button.chat-reply-quote:hover {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Draft preview (?design=draft): a manager is looking at unpublished changes. */
+.community-theme-draft-banner {
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  color: var(--bg-workspace);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}

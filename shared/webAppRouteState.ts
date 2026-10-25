@@ -73,6 +73,8 @@ export type WebDestination =
   | { kind: "community_chat"; slug: string; channelSlug: string | null }
   | { kind: "community_resources"; slug: string; moduleId: string | null }
   | { kind: "community_events"; slug: string }
+  | { kind: "community_members"; slug: string }
+  | { kind: "community_about"; slug: string }
   | { kind: "community_agent"; slug: string }
   | { kind: "community_settings"; slug: string; pane: CommunitySettingsPane }
   | { kind: "community_workflows"; slug: string }
@@ -485,21 +487,6 @@ export function parseAppRouteFromPathname(pathname: string): AppRoutePathState |
     };
   }
 
-  if (segments[0] === "c" && segments.length === 3 && segments[2] === "members") {
-    const slug = String(segments[1] ?? "").trim() || null;
-    if (!slug) return null;
-    return {
-      page: "community",
-      view: "home",
-      settingsPage: "profile",
-      communitySlug: slug,
-      communityTab: "chat",
-      communityChannelSlug: null,
-      communityResourceModuleId: null,
-      communitySettingsPane: null,
-    };
-  }
-
   if (segments[0] === "c" && segments.length >= 3) {
     const slug = String(segments[1] ?? "").trim() || null;
     if (!slug) return null;
@@ -580,6 +567,10 @@ export function deriveWebDestinationFromAppRoute(
           };
         case "events":
           return { kind: "community_events", slug };
+        case "members":
+          return { kind: "community_members", slug };
+        case "about":
+          return { kind: "community_about", slug };
         case "agent":
           return { kind: "community_agent", slug };
         case "settings":
@@ -640,6 +631,8 @@ export function isWebCommunityDetailDestination(
     case "community_chat":
     case "community_resources":
     case "community_events":
+    case "community_members":
+    case "community_about":
     case "community_agent":
     case "community_settings":
     case "community_workflows":
@@ -668,6 +661,8 @@ export function webDestinationHasCommunityNavSelection(
     case "community_chat":
     case "community_resources":
     case "community_events":
+    case "community_members":
+    case "community_about":
     case "community_agent":
     case "community_settings":
     case "community_workflows":

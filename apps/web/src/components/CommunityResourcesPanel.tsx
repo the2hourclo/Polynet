@@ -977,7 +977,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
         ) : (
           <div className="knowledge-workspace resource-course-workspace" aria-busy={isRefreshingResources}>
             <aside
-              className={`knowledge-resource-rail resource-course-outline${isCourseOutlineOpen ? " is-open" : ""}`}
+              className={["knowledge-resource-rail", "resource-course-outline", isCourseOutlineOpen && "is-open"].filter(Boolean).join(" ")}
               aria-label={`${selectedModule.name} lessons`}
             >
               <button

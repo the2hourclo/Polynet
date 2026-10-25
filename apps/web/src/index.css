@@ -5,6 +5,7 @@
 @import "./styles/settings-runtime-and-theme-overrides.css";
 @import "./styles/message-media.css";
 @import "./styles/community-theme-map.css";
+@import "./styles/community-layout.css";
 @import "./styles/community-theme-hooks.css";
 
 :root {

@@ -202,6 +202,13 @@ function mix(a: Rgb, b: Rgb, t: number): Rgb {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
+// `a` moved toward `b` by t (0..1), as hex; null for a malformed colour.
+export function mixHex(a: string, b: string, t: number): string | null {
+  const ra = parseHex(a);
+  const rb = parseHex(b);
+  return ra && rb ? toHex(mix(ra, rb, t)) : null;
+}
+
 // The closest colour to `color` (moving toward black or white) that reaches
 // `ratio` against `against`; null when even black or white can't.
 export function nearestPassingColor(color: string, against: string, ratio: number): string | null {
@@ -459,6 +466,7 @@ export function communityThemeVariables(
     "--pn-numerals": theme.numerals === "tabular" ? "tabular-nums" : "normal",
     // Polynet's own corners scale with the theme's radius (16px is Polynet's default).
     "--pn-radius-scale": String(Math.round((theme.radius / DEFAULT_COMMUNITY_THEME.radius) * 1000) / 1000),
+    "--pn-radius": `${theme.radius}px`,
     "--pn-radius-card": cardRadius(theme),
     "--pn-radius-card-top": cardTopRadius(theme),
     "--pn-radius-button": buttonRadius(theme),
@@ -528,6 +536,7 @@ export function communityThemeVariables(
     "--accent-brand": c.accent,
     "--accent-selection": c.accent,
     "--accent-agent": c.accent,
+    "--accent-attention": c.accent,
     "--accent-agent-foreground": link,
     "--accent-success": c.accent,
     "--border-active": c.accent,

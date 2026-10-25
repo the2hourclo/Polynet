@@ -19,6 +19,8 @@ import { buildCommunityFunnelContentTestFixture } from "../scripts/community_fun
 import { renderCommunityMemberSelfContext } from "../shared/communityMemberSelfContext";
 import { recordTrustedCommunitySourceTraceCore } from "./communityIntelligenceDirectory";
 import { settleCommunityIntelligenceFromDigestItemsCore } from "./communityCompilerCandidates";
+import { planContentPush, resolveCourses, stageChangeset } from "../packages/polynet-cli/content.mjs";
+import { publishDesignDraft, publishTheme, readDesignRecord, readTheme, saveDesignDraft, saveThemeDraft } from "../packages/polynet-cli/design.mjs";
 
 const selfContextPath = "/communities/canonical-community/members/me/context.md";
 test.each(["deployment", "member", "community", "config", "expired", "disabled"])("pilot %s denial precedes remote initiation", async mode => {
@@ -647,6 +649,9 @@ const modules = import.meta.glob([
   "./communityResources.ts",
   "./communityResourceProgress.ts",
   "./communityClients.ts",
+  "./communityThemes.ts",
+  "./communityLayouts.ts",
+  "./communityBrands.ts",
   "./polynetCanonicalReceipts.ts",
   "./_generated/**/*.*s",
 ]);
@@ -4039,4 +4044,215 @@ test("owners and their external agent read clients and set their own client prop
     .resolves.toMatchObject({ ok: false });
   await expect(member.run("polynet_read", { path: row.path })).resolves.toMatchObject({ ok: false });
   await expect(communityAgent.run("polynet_read", { path: row.path })).resolves.toMatchObject({ ok: false });
+});
+
+test("polynet push stages a courses folder through the MCP tools, and a second push after Apply changes nothing", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  // The CLI's MCP client, replaced by the executor the MCP runs.
+  const call = async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(asOwner), authSubject: fixture.ownerSubject, userId: fixture.ownerId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+    return result.value;
+  };
+  const community = "canonical-community";
+  const folder = (welcome: string, lesson: Record<string, unknown>) => resolveCourses([{
+    key: "01-start-here", folder: "01-start-here", name: "Start here", description: "Begin with the map.", status: "live",
+    lessons: [
+      { path: "01-start-here/01-welcome.md", title: "Welcome", lesson, source_md: welcome },
+      { path: "01-start-here/02-map.md", title: "Map the business", lesson: { kind: "build", stage: "Map", order: 2 },
+        source_md: "```polynet-embed\nsrc: embeds/xray/business-map.html\nheight: 900\n```" },
+    ],
+  }], "https://canonical-community.polynet.page");
+  const apply = async (changesetId: string) =>
+    await asOwner.mutation(api.communityResources.applyCommunityResourceBuilderChangeset, {
+      communityId: fixture.communityId, changesetId: changesetId as any,
+    });
+
+  const first = await planContentPush({ community, courses: folder("Hello ![Slide](../media/a.png)", { stage: "Map", order: 1 }), call });
+  expect(first.changesets).toHaveLength(1);
+  expect(first.changesets[0].operations.map((op: any) => op.op)).toEqual(["create_module", "create_page", "create_page"]);
+  const staged = await stageChangeset({ community, changeset: first.changesets[0], call });
+  expect(staged).toMatchObject({ ok: true, deduped: false });
+  // Running push again before Apply finds the same changeset, not a second one.
+  const again = await planContentPush({ community, courses: folder("Hello ![Slide](../media/a.png)", { stage: "Map", order: 1 }), call });
+  expect(await stageChangeset({ community, changeset: again.changesets[0], call })).toMatchObject({ ok: true, ref: staged.ref, deduped: true });
+  await apply(staged.ref);
+
+  const pages = await t.run(async (ctx) => await ctx.db.query("communityResources").collect());
+  const body = async (resourceId: any) => await t.run(async (ctx) =>
+    (await ctx.db.query("communityResourceContents").collect()).find((row: any) => row.resourceId === resourceId)?.bodyMd);
+  const welcome = pages.find((row: any) => row.title === "Welcome")!;
+  expect(welcome).toMatchObject({ status: "draft", lesson: { stage: "Map", order: 1 } });
+  expect(await body(welcome._id)).toBe("Hello ![Slide](https://canonical-community.polynet.page/media/a.png)");
+  expect(await body(pages.find((row: any) => row.title === "Map the business")!._id)).toContain("src: embeds/xray/business-map.html");
+  expect((await planContentPush({ community, courses: folder("Hello ![Slide](../media/a.png)", { stage: "Map", order: 1 }), call })).changesets).toEqual([]);
+
+  // An edited lesson becomes one edit_page with only what changed.
+  const edited = await planContentPush({ community, courses: folder("Hello again", { stage: "Map", order: 1, minutes: 5 }), call });
+  expect(edited.changesets).toHaveLength(1);
+  expect(edited.changesets[0].operations).toEqual([
+    { op: "edit_page", resource_id: String(welcome._id), expected_updated_at: welcome.updatedAt, body_md: "Hello again", lesson: { stage: "Map", order: 1, minutes: 5 } },
+  ]);
+  await apply((await stageChangeset({ community, changeset: edited.changesets[0], call })).ref);
+  expect((await t.run(async (ctx) => await ctx.db.get(welcome._id)))).toMatchObject({ lesson: { minutes: 5 } });
+  expect(await body(welcome._id)).toBe("Hello again");
+  expect((await planContentPush({ community, courses: folder("Hello again", { stage: "Map", order: 1, minutes: 5 }), call })).changesets).toEqual([]);
+});
+
+test("builder/resources/ pages through every resource with the cursor it returns", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  await t.run(async (ctx) => {
+    const now = Date.now();
+    for (let i = 0; i < 60; i += 1) {
+      await ctx.db.insert("communityResources", {
+        communityId: fixture.communityId, createdByUserId: fixture.ownerId, type: "post", role: "page",
+        status: "draft", title: `Lesson ${i}`, pinned: false, sortOrder: i, createdAt: now, updatedAt: now,
+      });
+    }
+  });
+  const list = async (cursor?: string) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject: fixture.ownerSubject })), authSubject: fixture.ownerSubject,
+      userId: fixture.ownerId, principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: "polynet_list",
+      input: { path: "/communities/canonical-community/builder/resources/", limit: 50, ...(cursor ? { cursor } : {}) },
+    });
+    if (!result.ok) throw new Error(result.message);
+    return result.value as any;
+  };
+  const first = await list();
+  expect(first).toMatchObject({ truncated: true, next_cursor: "builder-resources:50" });
+  const second = await list(first.next_cursor);
+  expect(second).toMatchObject({ truncated: false, next_cursor: null });
+  const titles = [...first.entries, ...second.entries].filter((row: any) => row.resource_role === "page").map((row: any) => row.title);
+  expect(new Set(titles).size).toBe(60);
+});
+
+test("a founder's agent drafts and publishes the community theme through the MCP, and members never see a draft", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const published = async () => await t.query(api.communityThemes.getPublishedCommunityTheme, { communityId: fixture.communityId });
+
+  const start = await readTheme({ community, call: owner });
+  expect(start).toMatchObject({ contract: 1, draft_revision: 0, published: null, has_unpublished_changes: false });
+  const stopwatch = { version: 1, schemes: { dark: { background: "#0B0B0B", surface: "#151515", text: "#F2F2EF", muted: "#9C9C96",
+    border: "#2B2B2B", accent: "#3FD15A", on_accent: "#0B0B0B", button: "#3FD15A", on_button: "#0B0B0B" } }, heading_case: "upper" };
+
+  const saved = await saveThemeDraft({ community, theme: stopwatch, expectedRevision: 0, call: owner });
+  expect(saved).toMatchObject({ draft_revision: 1, published: null, has_unpublished_changes: true });
+  expect(saved.draft.heading_case).toBe("upper");
+  expect(await published()).toBeNull();
+
+  // Saving the same theme again is not a new revision.
+  expect(await saveThemeDraft({ community, theme: stopwatch, expectedRevision: 1, call: owner })).toMatchObject({ draft_revision: 1 });
+  // A stale folder can't overwrite a newer draft.
+  await expect(saveThemeDraft({ community, theme: { ...stopwatch, heading_case: "none" }, expectedRevision: 0, call: owner }))
+    .rejects.toThrow("theme_revision_conflict");
+  // A theme that breaks the contract comes back with the problems to fix.
+  const unreadable = { version: 1, schemes: { light: { ...stopwatch.schemes.dark, background: "#FFFFFF", surface: "#FFFFFF", text: "#EEEEEE" } } };
+  const refusal = await saveThemeDraft({ community, theme: unreadable, expectedRevision: 1, call: owner }).catch((error: any) => error);
+  expect(refusal.message).toContain("theme_invalid");
+  expect(JSON.stringify(refusal.value)).toContain("schemes.light.text");
+
+  expect(await publishTheme({ community, expectedRevision: 1, call: owner })).toMatchObject({ has_unpublished_changes: false });
+  expect((await published())?.heading_case).toBe("upper");
+
+  // Members can't read the builder theme or call the theme operations.
+  await expect(readTheme({ community, call: member })).rejects.toThrow("semantic_not_found");
+  await expect(publishTheme({ community, expectedRevision: 1, call: member })).rejects.toThrow();
+  const listing = await member("polynet_list", { path: `/communities/${community}/capabilities/` });
+  expect(JSON.stringify(listing)).not.toContain("community.theme");
+  const ownerListing = await owner("polynet_list", { path: `/communities/${community}/capabilities/` });
+  expect(JSON.stringify(ownerListing)).toContain("community.theme.save_draft");
+});
+
+test("the layout is its own design record over the MCP: publishing it never resets the theme", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+
+  await saveThemeDraft({ community, theme: { version: 1, radius: 0 }, expectedRevision: 0, call: owner });
+  await publishTheme({ community, expectedRevision: 1, call: owner });
+
+  expect(await readDesignRecord({ community, kind: "layout", call: owner })).toMatchObject({ contract: 1, draft_revision: 0, published: null });
+  const top = { version: 1, navigation: { position: "top" } };
+  expect(await saveDesignDraft({ community, kind: "layout", record: top, expectedRevision: 0, call: owner }))
+    .toMatchObject({ draft_revision: 1, published: null, has_unpublished_changes: true });
+  const refusal = await saveDesignDraft({ community, kind: "layout", record: { version: 1, pages: { chat: { aside: ["leaderboard"] } } },
+    expectedRevision: 1, call: owner }).catch((error: any) => error);
+  expect(refusal.message).toContain("layout_invalid");
+  await expect(saveDesignDraft({ community, kind: "layout", record: top, expectedRevision: 0, call: owner })).rejects.toThrow("layout_revision_conflict");
+  // The record key must match the operation: a theme can't be sent to the layout.
+  await expect(owner("polynet_call", { operation: "community.layout.save_draft", version: 1,
+    target: `/communities/${community}/capabilities/community.layout.save_draft.json`,
+    input: { theme: top, expected_draft_revision: 1 }, idempotency_key: "layout-wrong-key" })).rejects.toThrow("invalid_tool_args");
+
+  expect(await publishDesignDraft({ community, kind: "layout", expectedRevision: 1, call: owner })).toMatchObject({ has_unpublished_changes: false });
+  expect((await t.query(api.communityLayouts.getPublishedCommunityLayout, { communityId: fixture.communityId }) as any)?.navigation?.position).toBe("top");
+  expect((await t.query(api.communityThemes.getPublishedCommunityTheme, { communityId: fixture.communityId }))?.radius).toBe(0);
+
+  await expect(readDesignRecord({ community, kind: "layout", call: member })).rejects.toThrow("semantic_not_found");
+  const listing = await member("polynet_list", { path: `/communities/${community}/capabilities/` });
+  expect(JSON.stringify(listing)).not.toContain("community.layout");
+  const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
+  expect(JSON.stringify(builder)).toContain("/builder/layout.json");
+});
+
+test("the community brand is a design record with no publish step, for managers only", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const read = (call: typeof owner) => readDesignRecord({ community, kind: "brand", call });
+  const save = (brand: unknown, expected: number, key: string) => owner("polynet_call", { operation: "community.brand.save", version: 1,
+    target: `/communities/${community}/capabilities/community.brand.save.json`,
+    input: { brand, expected_draft_revision: expected }, idempotency_key: key });
+
+  expect(await read(owner)).toMatchObject({ draft: { version: 1 }, draft_revision: 0 });
+  const brand = { version: 1, words: ["calm", "premium", "practical"], colours: [{ hex: "#2b863a", role: "primary", note: "CLO green" }] };
+  expect((await save(brand, 0, "brand-1")).result).toMatchObject({ draft_revision: 1, draft: { colours: [{ hex: "#2B863A" }] } });
+  await expect(save({ version: 1, colour: "#2B863A" }, 1, "brand-2")).rejects.toThrow("brand_invalid");
+  await expect(save(brand, 0, "brand-3")).rejects.toThrow("brand_revision_conflict");
+  await expect(owner("polynet_call", { operation: "community.brand.publish", version: 1,
+    target: `/communities/${community}/capabilities/community.brand.publish.json`,
+    input: { expected_draft_revision: 1 }, idempotency_key: "brand-publish" })).rejects.toThrow();
+
+  await expect(read(member)).rejects.toThrow("semantic_not_found");
+  const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
+  expect(JSON.stringify(builder)).toContain("/builder/brand.json");
 });
