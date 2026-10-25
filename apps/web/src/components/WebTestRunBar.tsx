@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { AuthSession } from "../auth";
-import { getCloudMyTestRun, subscribeCloudMyTestRun, type CloudMyTestRunAutoplay } from "../../../../shared/cloudCommunityTestMembersGateway";
+import {
+  getCloudMyTestRun,
+  reportCloudAutoplayScreenStep,
+  subscribeCloudMyTestRun,
+  type CloudAutoplayScreenStep,
+  type CloudMyTestRunAutoplay,
+} from "../../../../shared/cloudCommunityTestMembersGateway";
+import { runScreenStep } from "./testRunScreenDriver";
 import { clearTestMemberRun, readTestMemberRun } from "../../../../shared/testMemberRun";
 import "./WebCommunityTestRun.css";
 
@@ -40,16 +47,47 @@ export function useTestMemberRunCheck(session: AuthSession | null, ensureSession
   }, [active, session]);
 }
 
-/** While Autoplay plays, this tab follows it: the bar says each step as it happens. */
+const DRIVING_EVENT = "polynet:test-run-driving";
+/** Steps this tab did on screen, so the bar doesn't replay them when they come back as done. */
+const drivenSteps = new Set<string>();
+
+/**
+ * While Autoplay plays, this tab follows it. On screen, it does each step it's
+ * handed in the real member screens and tells the server how that went; in the
+ * background, the bar says each step and the page goes there.
+ */
 export function useTestMemberAutoplayFollow(session: AuthSession | null, ensureSession: (session?: AuthSession | null, source?: string) => Promise<AuthSession | null>) {
   const active = Boolean(readTestMemberRun());
   const ensureRef = useRef(ensureSession);
   ensureRef.current = ensureSession;
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+  const driving = useRef<string | null>(null);
   useEffect(() => {
     if (!active || !session) return;
+    const report = async (id: string, phase: "seen" | "finished", ok?: boolean, detail?: string) => {
+      try {
+        const ready = await ensureRef.current(sessionRef.current, "test_run_autoplay_report");
+        if (ready) await reportCloudAutoplayScreenStep(ready, id, phase, ok, detail);
+      } catch { /* The owner's page does the step itself when no report comes. */ }
+    };
+    const drive = async (step: CloudAutoplayScreenStep) => {
+      driving.current = step.id;
+      drivenSteps.add(step.text);
+      window.dispatchEvent(new CustomEvent(DRIVING_EVENT, { detail: step.text }));
+      void report(step.id, "seen");
+      const problem = await runScreenStep(step, readTestMemberRun()?.label ?? "Test member");
+      await report(step.id, "finished", problem === null, problem ?? undefined);
+      window.dispatchEvent(new CustomEvent(DRIVING_EVENT, { detail: null }));
+      driving.current = null;
+    };
     return subscribeCloudMyTestRun({
       session, ensureSession: (current, source) => ensureRef.current(current, source),
-      update: (run) => window.dispatchEvent(new CustomEvent(AUTOPLAY_EVENT, { detail: run?.autoplay ?? null })),
+      update: (run) => {
+        window.dispatchEvent(new CustomEvent(AUTOPLAY_EVENT, { detail: run?.autoplay ?? null }));
+        const step = run?.autoplay_step;
+        if (step && !driving.current && !drivenSteps.has(`id:${step.id}`)) { drivenSteps.add(`id:${step.id}`); void drive(step); }
+      },
       error: () => {},
     });
   }, [active, session]);
@@ -94,21 +132,30 @@ export function WebTestRunBar() {
   const [run] = useState(readTestMemberRun);
   const [ended, setEnded] = useState(false);
   const [beat, setBeat] = useState<CloudMyTestRunAutoplay | null>(null);
+  const [doing, setDoing] = useState<string | null>(null);
   useEffect(() => {
     const onEnded = () => setEnded(true);
     const onAutoplay = (event: Event) => setBeat((event as CustomEvent<CloudMyTestRunAutoplay | null>).detail);
+    const onDriving = (event: Event) => setDoing((event as CustomEvent<string | null>).detail);
     window.addEventListener(ENDED_EVENT, onEnded);
     window.addEventListener(AUTOPLAY_EVENT, onAutoplay);
-    return () => { window.removeEventListener(ENDED_EVENT, onEnded); window.removeEventListener(AUTOPLAY_EVENT, onAutoplay); };
+    window.addEventListener(DRIVING_EVENT, onDriving);
+    return () => {
+      window.removeEventListener(ENDED_EVENT, onEnded);
+      window.removeEventListener(AUTOPLAY_EVENT, onAutoplay);
+      window.removeEventListener(DRIVING_EVENT, onDriving);
+    };
   }, []);
   useEffect(() => {
-    if (!beat) return;
+    // A step this tab did on screen was already shown; a background one is shown now.
+    if (!beat || drivenSteps.has(beat.text)) return;
     followTo(beat.path);
     return highlightTarget(beat.target);
   }, [beat?.at]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!run) return null;
   return <div className={`test-run-bar${ended ? " is-ended" : ""}`} role="region" aria-label="Test run">
     <span>{ended ? <>This test run has ended.</>
+      : doing ? <><strong>Autoplay is doing:</strong> {doing}</>
       : beat ? <><strong>Autoplay:</strong> {beat.text}</>
       : <>Testing as <strong>{run.label}</strong>. Nothing here is a real member.</>}</span>
     <button type="button" onClick={exitTestRun}>Exit test</button>

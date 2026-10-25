@@ -102,7 +102,7 @@ async function deleteTestMemberData(ctx: any, row: TestMemberRow, nowMs: number)
     if (root && String(root.actorUserId) === String(userId) && root.status === "live") await ctx.db.patch(root._id, { status: "hidden", updatedAt: nowMs });
   }
   // The user row stays (chat posts point at it) but can no longer sign in as anything.
-  await ctx.db.patch(row._id, { endedAt: nowMs, autoplayUntil: undefined });
+  await ctx.db.patch(row._id, { endedAt: nowMs, autoplayUntil: undefined, autoplayPending: undefined });
 }
 
 function projectRow(row: TestMemberRow, membershipId: string | null, viewerUserId: any) {
@@ -218,6 +218,9 @@ export const getMyTestRun = query({
       autoplay: (row.autoplayUntil ?? 0) > Date.now() && row.autoplayLast
         ? { at: new Date(row.autoplayLast.at).toISOString(), text: row.autoplayLast.text,
           path: row.autoplayLast.path ?? null, target: row.autoplayLast.target ?? null } : null,
+      // On screen: the step this tab should do now, in the real member screens.
+      autoplay_step: (row.autoplayUntil ?? 0) > Date.now() && row.autoplayPending && !row.autoplayPending.reportedAt
+        ? { id: row.autoplayPending.id, pace: row.autoplayPending.pace, ...row.autoplayPending.plan } : null,
     };
   },
 });

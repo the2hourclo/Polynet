@@ -277,7 +277,12 @@ function TestRunSequence(props: Props & { member: CloudCommunityTestMember }) {
 }
 
 const AUTOPLAY_SPEEDS = { normal: 2000, fast: 800, instant: 250 } as const;
+/** On screen: how long each cursor move takes in the member tab. */
+const AUTOPLAY_SCREEN_PACE = { normal: 450, fast: 220, instant: 70 } as const;
+/** On screen: how often to look in while the member tab is doing a step. */
+const AUTOPLAY_ACTING_POLL_MS = 700;
 type AutoplaySpeed = keyof typeof AUTOPLAY_SPEEDS;
+type AutoplayWhere = "screen" | "background";
 /** Quiet steps in a row before Autoplay calls it done: rules still running get a moment to land. */
 const AUTOPLAY_SETTLE_STEPS = 3;
 type AutoplayLogEntry = CloudAutoplayBeat & { at: string };
@@ -293,49 +298,67 @@ function autoplayResult(sequence: CloudTestRunSequence) {
 
 // Autoplay: the test member goes through the Workflow by itself, a step at a
 // time, while the sequence below fills in. The page keeps the clock (Play,
-// Pause, Step, speed); the server does one step per call.
+// Pause, Step, speed); the server does one step per call. On screen, the
+// member's own tab does each step in the real member screens while this page
+// waits for it; in the background, the server does it straight away.
 function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequence: CloudTestRunSequence | null }) {
-  const [phase, setPhase] = useState<"ready" | "playing" | "paused" | "finished">("ready");
+  // "step" plays until one step is done, then pauses.
+  const [phase, setPhase] = useState<"ready" | "playing" | "step" | "paused" | "finished">("ready");
   const [speed, setSpeed] = useState<AutoplaySpeed>("normal");
+  const [where, setWhere] = useState<AutoplayWhere>("screen");
   const [log, setLog] = useState<AutoplayLogEntry[]>([]);
+  const [acting, setActing] = useState<CloudAutoplayBeat | null>(null);
   const [stepping, setStepping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const quiet = useRef(0);
-  const live = useRef({ props, phase });
-  live.current = { props, phase };
+  const live = useRef({ props, phase, speed, where });
+  live.current = { props, phase, speed, where };
   const speedId = useId();
+  const whereId = useId();
 
   const call = useCallback(async (stop = false) => {
-    const { session, ensureSession, communityId, member } = live.current.props;
-    const ready = await ensureSession(session, "community_test_run_autoplay");
+    const { props: current, speed: pace, where: place } = live.current;
+    const ready = await current.ensureSession(current.session, "community_test_run_autoplay");
     if (!ready) throw new Error("session_unavailable");
-    return await autoplayCloudTestMemberStep(ready, communityId, member.id, stop);
+    return await autoplayCloudTestMemberStep(ready, current.communityId, current.member.id,
+      stop ? { stop: true } : place === "screen" ? { onScreenPace: AUTOPLAY_SCREEN_PACE[pace] } : {});
   }, []);
 
   const step = useCallback(async () => {
     setStepping(true); setError(null);
     try {
       const result = await call();
-      if (result.beat) { quiet.current = 0; setLog((rows) => [...rows, { ...result.beat!, at: new Date().toISOString() }]); }
-      else quiet.current += 1;
+      if (result.status === "acting") { setActing(result.beat); return; }
+      setActing(null);
+      if (result.beat) {
+        quiet.current = 0;
+        setLog((rows) => [...rows, { ...result.beat!, at: new Date().toISOString() }]);
+        if (live.current.phase === "step") setPhase("paused");
+      } else quiet.current += 1;
       if (result.status === "finished" || quiet.current >= AUTOPLAY_SETTLE_STEPS) { setPhase("finished"); void call(true).catch(() => {}); }
     } catch (caught) {
-      setError(testRunErrorMessage(caught)); setPhase("paused"); void call(true).catch(() => {});
+      setError(testRunErrorMessage(caught)); setPhase("paused"); setActing(null); void call(true).catch(() => {});
     } finally { setStepping(false); }
   }, [call]);
 
   useEffect(() => {
-    if (phase !== "playing" || stepping) return;
-    const timer = window.setTimeout(() => { void step(); }, log.length || quiet.current ? AUTOPLAY_SPEEDS[speed] : 0);
+    if ((phase !== "playing" && phase !== "step") || stepping) return;
+    const delay = acting ? AUTOPLAY_ACTING_POLL_MS : phase === "step" || !(log.length || quiet.current) ? 0 : AUTOPLAY_SPEEDS[speed];
+    const timer = window.setTimeout(() => { void step(); }, delay);
     return () => window.clearTimeout(timer);
-  }, [phase, stepping, speed, step, log.length]);
+  }, [phase, stepping, speed, step, log.length, acting]);
   // Leaving the page while it plays stops it, so agent steps send again.
   useEffect(() => () => { if (live.current.phase === "playing") void call(true).catch(() => {}); }, [call]);
 
-  const play = () => { if (phase === "finished") { setLog([]); quiet.current = 0; } setPhase("playing"); };
-  const pause = () => { setPhase("paused"); void call(true).catch(() => {}); };
+  const restart = () => { setLog([]); quiet.current = 0; };
+  const play = () => { if (phase === "finished") restart(); setPhase("playing"); };
+  const pause = () => { setPhase("paused"); setActing(null); void call(true).catch(() => {}); };
+  const openMemberTab = () => {
+    if (props.member.auth_subject) openTestTab(null, props.communitySlug, { auth_subject: props.member.auth_subject, label: props.member.label });
+  };
+  const running = phase === "playing" || phase === "step";
   const result = phase === "finished" && props.sequence ? autoplayResult(props.sequence) : null;
-  const status = phase === "playing" ? <span className="pn-wf-badge is-edited">Playing · step {log.length + 1}</span>
+  const status = running ? <span className="pn-wf-badge is-edited">Playing · step {log.length + 1}</span>
     : phase === "paused" ? <span className="pn-wf-badge">Paused</span>
     : phase === "finished" ? <span className="pn-wf-badge is-on">Finished</span> : null;
   return <div className="test-run-autoplay">
@@ -345,15 +368,20 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
         <strong>Autoplay {status}</strong>
         <small>{props.member.label} goes through the Workflow by itself: fills in forms with sample answers, clicks through lessons,
           posts, and skips the waits. Agent messages are previewed, not sent.</small>
+        {where === "screen" ? <small>On screen: keep {props.member.label}'s tab open next to this one to watch each click.{" "}
+          {props.member.auth_subject ? <button type="button" className="test-run-link" onClick={openMemberTab}>Open their tab</button> : null}</small> : null}
       </span>
       <span className="pn-wf-callout-actions">
-        {phase === "playing"
+        {running
           ? <button type="button" className="workflow-secondary-button" onClick={pause}><Pause size={14} aria-hidden="true" /> Pause</button>
           : <button type="button" className="pn-wf-primary" disabled={stepping} onClick={play}>
             <Play size={14} aria-hidden="true" /> {phase === "finished" ? "Play again" : phase === "paused" ? "Resume" : "Play"}</button>}
-        <button type="button" className="workflow-secondary-button" disabled={phase === "playing" || stepping}
-          onClick={() => { if (phase === "finished") { setLog([]); quiet.current = 0; setPhase("paused"); } void step(); }}>
+        <button type="button" className="workflow-secondary-button" disabled={running || stepping}
+          onClick={() => { if (phase === "finished") restart(); setPhase("step"); }}>
           <SkipForward size={14} aria-hidden="true" /> Step</button>
+        <select id={whereId} aria-label="Where Autoplay acts" value={where} disabled={running} onChange={(event) => setWhere(event.target.value as AutoplayWhere)}>
+          <option value="screen">On screen</option><option value="background">In the background</option>
+        </select>
         <select id={speedId} aria-label="Autoplay speed" value={speed} onChange={(event) => setSpeed(event.target.value as AutoplaySpeed)}>
           <option value="normal">Normal</option><option value="fast">Fast</option><option value="instant">Instant</option>
         </select>
@@ -370,12 +398,18 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
         {result.waiting.length ? <small>Didn't fire: {result.waiting.map((s) => `${s.does} (${s.when.charAt(0).toLowerCase()}${s.when.slice(1)})`).join("; ")}</small> : null}
       </span>
     </div> : null}
-    {log.length ? <ol className="test-run-beats" aria-live="polite" aria-label={`What ${props.member.label} did`}>
+    {log.length || acting ? <ol className="test-run-beats" aria-live="polite" aria-label={`What ${props.member.label} did`}>
       {log.map((beat, index) => <li key={`${beat.at}:${index}`} className={beat.ok ? undefined : "is-failed"}>
         <span className="pn-wf-row-icon" aria-hidden="true">{beat.kind === "wait" ? <FastForward size={14} /> : beat.ok ? <MousePointerClick size={14} /> : <XCircle size={14} />}</span>
         <span className="test-run-step-text"><strong>{beat.text}</strong>{beat.detail ? <small>{beat.detail}</small> : null}</span>
+        {beat.on_screen ? <span className="pn-wf-badge is-on">On screen</span> : null}
         <time dateTime={beat.at}>{timeOf(beat.at)}</time>
       </li>)}
+      {acting && running ? <li className="is-acting">
+        <span className="pn-wf-row-icon" aria-hidden="true"><MousePointerClick size={14} /></span>
+        <span className="test-run-step-text"><strong>{acting.text}</strong><small>Doing it now in {props.member.label}'s tab…</small></span>
+        <span className="pn-wf-badge is-edited">On screen</span>
+      </li> : null}
     </ol> : null}
   </div>;
 }

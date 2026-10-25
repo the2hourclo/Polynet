@@ -23,6 +23,7 @@ export type TestMemberRow = {
   autoplayUntil?: number;
   autoplayDone?: string[];
   autoplayLast?: { at: number; text: string; path?: string; target?: string };
+  autoplayPending?: { id: string; plan: any; pace: number; issuedAt: number; seenAt?: number; reportedAt?: number; reportOk?: boolean; reportDetail?: string };
   createdAt: number;
   endedAt?: number;
 };

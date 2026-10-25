@@ -18,10 +18,17 @@ export type CloudCommunityTestMembers = { limit: number; test_members: CloudComm
 export type CloudCommunityTestMemberStarted = { id: string; label: string; auth_subject: string; membership_id: string };
 export type CloudCommunityClientTimelineEntry = { at: string; type: string; summary: string; ref?: string; actor?: string };
 export type CloudMyTestRunAutoplay = { at: string; text: string; path: string | null; target: string | null };
+/** On screen: the step a test member's own tab should do now, in the real member screens. */
+export type CloudAutoplayScreenStep = { id: string; pace: number; text: string; path?: string; target?: string } & (
+  | { kind: "form"; formName: string; questions: Array<{ key: string; title: string; type: string; options: string[] }>; answers: Record<string, string | string[]> }
+  | { kind: "lesson_step"; lessonTitle: string; welcome: boolean; elementType: "button" | "checklist" | "quiz"; elementName: string; choiceLabels: string[] }
+  | { kind: "lesson_done"; lessonTitle: string; welcome: boolean }
+  | { kind: "post"; message: string });
 export type CloudMyTestRun = {
   label: string; community_id: string; community_slug: string | null; community_name: string | null;
   /** Autoplay's latest step while it plays. */
   autoplay?: CloudMyTestRunAutoplay | null;
+  autoplay_step?: CloudAutoplayScreenStep | null;
 };
 
 export async function listCloudCommunityTestMembers(session: unknown, communityId: string): Promise<CloudCommunityTestMembers> {
@@ -75,15 +82,24 @@ export async function runCloudTestMemberTimedStepsNow(session: unknown, communit
   return result.ran;
 }
 
-export type CloudAutoplayBeat = { kind: "form" | "lesson_step" | "lesson_done" | "post" | "wait"; text: string; ok: boolean; detail?: string };
-export type CloudAutoplayStep = { status: "acted" | "idle" | "finished" | "stopped"; beat: CloudAutoplayBeat | null };
+export type CloudAutoplayBeat = { kind: "form" | "lesson_step" | "lesson_done" | "post" | "wait"; text: string; ok: boolean; detail?: string; on_screen?: boolean };
+export type CloudAutoplayStep = { status: "acted" | "acting" | "idle" | "finished" | "stopped"; beat: CloudAutoplayBeat | null };
 
 /** Autoplay: the test member does its next step by itself. With stop, Autoplay ends and agent steps send again. */
-export async function autoplayCloudTestMemberStep(session: unknown, communityId: string, testMemberId: string, stop = false): Promise<CloudAutoplayStep> {
+export async function autoplayCloudTestMemberStep(session: unknown, communityId: string, testMemberId: string,
+  options: { stop?: boolean; onScreenPace?: number } = {}): Promise<CloudAutoplayStep> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return await client.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, {
     authSubject, communityId: communityId as Id<"communities">, testMemberId: testMemberId as Id<"communityTestMembers">,
-    ...(stop ? { stop } : {}),
+    ...(options.stop ? { stop: true } : {}), ...(options.onScreenPace !== undefined ? { onScreenPace: options.onScreenPace } : {}),
+  });
+}
+
+/** From a test-run tab: it took up Autoplay's on-screen step, or finished (or gave up on) it. */
+export async function reportCloudAutoplayScreenStep(session: unknown, stepId: string, phase: "seen" | "finished", ok?: boolean, detail?: string): Promise<void> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  await client.mutation(api.communityTestMemberAutoplay.reportAutoplayScreenStep, {
+    authSubject, stepId, phase, ...(ok !== undefined ? { ok } : {}), ...(detail ? { detail } : {}),
   });
 }
 

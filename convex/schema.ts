@@ -2902,6 +2902,11 @@ export default defineSchema({
     autoplayDone: v.optional(v.array(v.string())),
     /** Autoplay's latest step, so the test member's own tab can go there and show it. */
     autoplayLast: v.optional(v.object({ at: v.number(), text: v.string(), path: v.optional(v.string()), target: v.optional(v.string()) })),
+    /** On screen: the step the test member's own tab is doing now, and whether it saw and finished it. */
+    autoplayPending: v.optional(v.object({
+      id: v.string(), plan: v.any(), pace: v.number(), issuedAt: v.number(),
+      seenAt: v.optional(v.number()), reportedAt: v.optional(v.number()), reportOk: v.optional(v.boolean()), reportDetail: v.optional(v.string()),
+    })),
     createdAt: v.number(),
     endedAt: v.optional(v.number()),
   }).index("by_authSubject", ["authSubject"])
