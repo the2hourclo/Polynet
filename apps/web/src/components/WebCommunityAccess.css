@@ -96,7 +96,14 @@
 
 /* Settings → Access */
 .access-settings { display: grid; gap: 24px; }
-.access-settings .settings-section > .workflow-secondary-button { align-self: flex-start; }
+.access-card h2.settings-section-title { margin: 0; }
+.access-card .pn-settings-card-header { display: grid; gap: 4px; }
+.access-card .pn-settings-card-header p { margin: 0; }
+.access-card-body { display: grid; gap: 12px; }
+.access-card-body > .workflow-secondary-button { justify-self: start; }
+/* The Substack-style settings page draws each card with its own padding. */
+.pn-settings .access-card-body { padding: 1rem 1.25rem 1.25rem; }
+.pn-settings .access-settings { gap: 1rem; }
 .access-integration { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border-default); border-radius: 12px; }
 .access-integration header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .access-integration header strong { font-size: 15px; }
@@ -108,7 +115,6 @@
 .access-copy-field { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 12px; }
 .access-copy-field > span { color: var(--text-secondary); font-weight: 600; }
 .access-copy-field code { overflow-wrap: anywhere; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: var(--hover-overlay); }
-.access-my-card { display: grid; gap: 12px; }
 .access-key-block { display: grid; gap: 10px; }
 .access-key-block p { margin: 0; font-size: 13px; }
 

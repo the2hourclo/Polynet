@@ -95,6 +95,17 @@ function CopyField({ label, value }: { label: string; value: string }) {
   </div>;
 }
 
+/** A settings card: plain in the classic settings page, a card in the Substack-style one. */
+function AccessCard(props: { title: string; description?: ReactNode; className?: string; children: ReactNode }) {
+  return <section className={`settings-section pn-settings-card access-card${props.className ? ` ${props.className}` : ""}`}>
+    <header className="pn-settings-card-header">
+      <h2 className="settings-section-title">{props.title}</h2>
+      {props.description ? <p className="settings-section-desc">{props.description}</p> : null}
+    </header>
+    <div className="pn-settings-card-body access-card-body">{props.children}</div>
+  </section>;
+}
+
 /** End date (or none) and a reason; with an email when the person isn't picked yet. */
 function GrantForm(props: {
   withEmail?: boolean;
@@ -427,8 +438,7 @@ export function WebCommunityMyAccessCard({ gateway, title = "Your access" }: { g
   if (failed) return null;
   if (!mine) return null;
   const { access } = mine;
-  return <div className="settings-section access-my-card">
-    <div className="settings-section-title">{title}</div>
+  return <AccessCard title={title} className="access-my-card">
     <div className="access-panel-summary">
       <AccessBadge access={access} />
       <dl className="access-facts">
@@ -456,7 +466,7 @@ export function WebCommunityMyAccessCard({ gateway, title = "Your access" }: { g
       {mine.license_key || newKey ? <p className="access-muted">Replacing it stops the old key working everywhere.</p> : null}
       {error ? <p role="alert" className="workflow-error">{error}</p> : null}
     </div> : null}
-  </div>;
+  </AccessCard>;
 }
 
 // ---------------------------------------------------------------------------
@@ -621,13 +631,11 @@ export function WebCommunityAccessSettings({ gateway }: { gateway: CommunityAcce
     gateway.integrations().then((loaded) => { if (alive) setLists(loaded); }).catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [gateway, reload]);
-  return <div className="access-settings">
-    <div className="settings-section">
-      <div className="settings-section-title">Connected services</div>
-      <div className="settings-section-desc">
-        An outside tool, such as the AIEB MCP, checks here who can use it. Polynet tells it the moment someone's access starts or stops,
-        and it can look anyone up by email, member id or license key.
-      </div>
+  return <div className="access-settings pn-settings-stack">
+    <AccessCard title="Connected services" description={<>
+      An outside tool, such as the AIEB MCP, checks here who can use it. Polynet tells it the moment someone's access starts or stops,
+      and it can look anyone up by email, member id or license key.
+    </>}>
       {failed ? <p className="workflow-error" role="alert">Couldn't load connected services. <button type="button" className="workflow-secondary-button" onClick={() => setReload((n) => n + 1)}>Try again</button></p>
         : !lists ? <p className="access-muted" role="status">Loading…</p>
         : <>
@@ -648,13 +656,11 @@ export function WebCommunityAccessSettings({ gateway }: { gateway: CommunityAcce
             : lists.integrations.length < 5 ? <button type="button" className="workflow-secondary-button" onClick={() => setCreating(true)}><Plus size={14} aria-hidden="true" />Connect a service</button> : null}
           {error ? <p role="alert" className="workflow-error">{error}</p> : null}
         </>}
-    </div>
-    <div className="settings-section">
-      <div className="settings-section-title">Give someone access</div>
-      <div className="settings-section-desc">
-        For a trial, a comp or a partner. They need a Polynet account with a verified email. Access ends on the date you pick and
-        connected services hear about it. Change or end it later from their row in Workflows → Clients.
-      </div>
+    </AccessCard>
+    <AccessCard title="Give someone access" description={<>
+      For a trial, a comp or a partner. They need a Polynet account with a verified email. Access ends on the date you pick and
+      connected services hear about it. Change or end it later from their row in Workflows → Clients.
+    </>}>
       <GrantForm withEmail submitLabel="Give access" busy={granting} onSubmit={async (input) => {
         setGranting(true); setGrantError(null); setGrantNotice(null);
         try {
@@ -665,7 +671,7 @@ export function WebCommunityAccessSettings({ gateway }: { gateway: CommunityAcce
       }} />
       {grantNotice ? <p role="status" className="access-notice">{grantNotice}</p> : null}
       {grantError ? <p role="alert" className="workflow-error">{grantError}</p> : null}
-    </div>
+    </AccessCard>
     <WebCommunityMyAccessCard gateway={gateway} title="Your own key" />
   </div>;
 }
