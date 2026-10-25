@@ -1297,7 +1297,7 @@ export default defineSchema({
             v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
             v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
             v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
-            v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number() }),
+            v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
           ),
           action: v.union(
             v.object({ key: v.string(), type: v.literal("create_service_channel") }),
@@ -1384,7 +1384,7 @@ export default defineSchema({
       v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
       v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
       v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
-      v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number() }),
+      v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
     )),
     triggerReceiptRef: v.string(),
     predecessorRunId: v.optional(v.id("communityMemberWorkflowRuns")),

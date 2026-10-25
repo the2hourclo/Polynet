@@ -128,7 +128,7 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     calls: "communityMemberWorkflows:updateBuilderWorkflowMilestone", ref: api.communityMemberWorkflows.updateBuilderWorkflowMilestone, kind: "mutation",
     fields: { expected_revision: "workflow revision", milestone_key: "the stage's key", name: "stage name", goal: "what finishing it means",
       instructions: "notes for the agent", require_human_approval: "true or false",
-      automations: "the stage's full list of automations, as /builder/settings.json shows them" },
+      automations: "the stage's full list of automations, as /builder/settings.json shows them; a milestone_elapsed trigger with nudge: true is an agent check-in that runs only if they're still in the stage and never holds it" },
     required: ["expected_revision", "milestone_key", "name", "automations"], effects: ["update_workflow_stage"],
   }),
   op({

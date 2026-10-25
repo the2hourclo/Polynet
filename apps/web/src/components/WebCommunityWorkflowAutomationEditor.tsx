@@ -70,6 +70,8 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
     ? `Request ${props.forms?.find(f => props.previousAction?.action.type === "request_form" && f.key === props.previousAction.action.formKey)?.name ?? "form"}`
     : props.previousAction?.action.type === "prompt_agent" ? `Ask agent: ${props.previousAction.action.prompt.slice(0, 80)}` : "Create private channel";
   const isTimed = automation.trigger.type === "milestone_elapsed";
+  const nudge = automation.trigger.type === "milestone_elapsed" && automation.trigger.nudge === true;
+  const nudgeFlag = nudge ? { nudge: true } : {};
   const isForm = automation.trigger.type === "form_submitted";
   const isJoin = automation.trigger.type === "member_joined";
   const isLesson = automation.trigger.type === "lesson_completed";
@@ -94,7 +96,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const triggerIssue = triggerSelected ? workflowTriggerIssue(automation, props.channels, props.channelsUnavailable) : null;
   const triggerReady = triggerSelected && !triggerIssue;
   const triggerLabel = isSequence ? "Previous action completed" : isJoin ? "Member joins for the first time"
-    : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? `After ${durationLabel} in this milestone` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
+    : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this milestone` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "create_service_channel" ? "Create private channel" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
 
@@ -162,13 +164,18 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
             <div className="workflow-action-choice-row">
               <input id={`${id}-duration`} type="number" min={1} max={Math.floor(525600 / timeUnit)} step={1}
                 value={Number.isFinite(delayMinutes) ? delayMinutes / timeUnit : ""} disabled={props.disabled}
-                onChange={event => props.onChange({ ...automation, trigger: { type: "milestone_elapsed", delayMinutes: event.target.valueAsNumber * timeUnit } })} />
+                onChange={event => props.onChange({ ...automation, trigger: { type: "milestone_elapsed", delayMinutes: event.target.valueAsNumber * timeUnit, ...nudgeFlag } })} />
               <select aria-label="Duration unit" value={timeUnit} disabled={props.disabled} onChange={event => {
                 const unit = Number(event.target.value);
                 setTimeUnit(unit);
-                props.onChange({ ...automation, trigger: { type: "milestone_elapsed", delayMinutes: delayMinutes / timeUnit * unit } });
+                props.onChange({ ...automation, trigger: { type: "milestone_elapsed", delayMinutes: delayMinutes / timeUnit * unit, ...nudgeFlag } });
               }}><option value={1}>minutes</option><option value={60}>hours</option><option value={1440}>days</option></select>
             </div>
+            <label className="workflow-nudge-toggle">
+              <input type="checkbox" checked={nudge} disabled={props.disabled || !isPrompt}
+                onChange={event => props.onChange({ ...automation, trigger: { type: "milestone_elapsed", delayMinutes, ...(event.target.checked ? { nudge: true } : {}) } })} />
+              <span>Only a nudge<small>Runs only if they're still in this stage then, and doesn't hold them here: they can move on before it fires.{isPrompt ? "" : " Needs Ask community agent."}</small></span>
+            </label>
             <small className="workflow-field-hint">Applies to future milestone entries. Runs once, at or after the due time. Activity does not reset the timer. Duration edits update pending timers.</small>
           </div> : (
           <div className="workflow-automation-field">

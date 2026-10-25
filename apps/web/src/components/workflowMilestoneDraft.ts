@@ -31,6 +31,7 @@ export function workflowTriggerIssue(automation: CommunityMemberWorkflowAutomati
   if (automation.trigger.type === "milestone_elapsed") {
     try { normalizeWorkflowDelayMinutes(automation.trigger.delayMinutes); }
     catch { return "Choose a duration from 1 minute to 365 days"; }
+    if (automation.trigger.nudge && automation.action.type !== "prompt_agent") return "A nudge can only ask the agent";
   }
   const channelId = automation.trigger.type === "member_contributed" ? automation.trigger.channelId : undefined;
   if (channelId !== undefined) {

@@ -1065,6 +1065,45 @@ test("a stage rule writes a client property when a lesson is done; an archived p
   expect(await t.run(ctx => ctx.db.query("communityResourceProgress").collect())).toHaveLength(2);
 });
 
+test("a nudge only asks the agent and never holds the stage open", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Journey", type: "select", options: ["Finished first lesson"] });
+  const lesson = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: f.communityId, createdByUserId: f.ownerId, status: "live", name: "Start", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    return ctx.db.insert("communityResources", {
+      communityId: f.communityId, moduleId, createdByUserId: f.ownerId, type: "post", role: "page", status: "published",
+      title: "One", bodyMd: "Go.", bodyChars: 3, pinned: false, sortOrder: 1, createdAt: now, updatedAt: now,
+    } as any);
+  });
+  const configured = await configureAutomations(t, f.communityId, []);
+  const lessonRule = { key: "", trigger: { type: "lesson_completed" as const }, action: { key: "", type: "set_client_property" as const, propertyKey: "journey", value: "Finished first lesson" } };
+  const save = (nudgeAction: any) => owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "First win",
+    automations: [lessonRule, { key: "", trigger: { type: "milestone_elapsed" as const, delayMinutes: 4320, nudge: true }, action: nudgeAction }],
+  });
+  await expect(save({ key: "", type: "request_form", formKey: "intake" })).rejects.toThrow("workflow_nudge_action_invalid");
+  const saved = await save({ key: "", type: "prompt_agent", prompt: "Check in kindly." });
+  expect(saved.milestone.automations[1].trigger).toEqual({ type: "milestone_elapsed", delayMinutes: 4320, nudge: true });
+  await t.run(async (ctx) => {
+    const now = Date.now();
+    await ctx.db.insert("communityResourceProgress", { communityId: f.communityId, userId: f.memberId, resourceId: lesson, status: "done", startedAt: now, completedAt: now, updatedAt: now });
+  });
+  await t.mutation(internalApi.communityMemberWorkflows.handleLessonCompletedInternal, { communityId: f.communityId, userId: f.memberId, resourceId: lesson });
+  // The lesson is the stage's only work; the three-day nudge hasn't fired and doesn't count.
+  const progress = await t.run(async (ctx) => {
+    const { readWorkflowActionProgress } = await import("./communityWorkflowCompletionCore");
+    const workflow = (await ctx.db.query("communityMemberWorkflows").first())!;
+    const run = (await ctx.db.query("communityMemberWorkflowRuns").first())!;
+    return readWorkflowActionProgress(ctx as any, { workflow, membership: (await ctx.db.get(f.membershipId))!,
+      milestone: workflow.milestones[0] as any, milestoneEnteredAt: run.milestoneEnteredAt ?? 0, transitionSeq: run.transitionSeq ?? 0 });
+  });
+  expect(progress).toMatchObject({ all_actions_complete: true, actions: [{ action_type: "set_client_property", status: "complete" }] });
+});
+
 test("a stage only members who left ever reached can be deleted; a current member still holds it", async () => {
   const t = convexTest(schema, modules), f = await fixture(t);
   const owner = t.withIdentity({ subject: OWNER_SUBJECT });

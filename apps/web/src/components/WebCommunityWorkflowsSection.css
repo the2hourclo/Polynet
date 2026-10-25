@@ -990,3 +990,9 @@
 .workflow-welcome-gate { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px 16px; margin:0 0 12px; color:var(--text-primary); }
 .workflow-welcome-gate span { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .workflow-welcome-gate small { color:var(--text-secondary); }
+
+/* Time in milestone → "Only a nudge". */
+.workflow-nudge-toggle { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.workflow-nudge-toggle input { margin-top: 2px; }
+.workflow-nudge-toggle span { display: flex; flex-direction: column; gap: 2px; }
+.workflow-nudge-toggle small { font-weight: 400; color: var(--text-secondary); line-height: 1.4; }

@@ -39,3 +39,10 @@ test("the Journey property key replaces the placeholder", () => {
   expect(JSON.stringify(rules)).not.toContain(AGENT_LED_JOURNEY_PROPERTY_PLACEHOLDER);
   expect(rules.find((r) => r.action.type === "set_client_property")?.action).toMatchObject({ propertyKey: "journey", value: "Finished first lesson" });
 });
+
+test("stalled-member check-ins are nudges, so they never hold a stage", () => {
+  const plan = buildAgentLedJourneyPlan({ hasWorkflow: false, onboardingFormKey: "intake" });
+  const nudges = plan.stages.flatMap((s) => s.automations).filter((r) => r.trigger.type === "milestone_elapsed" && r.trigger.nudge);
+  expect(nudges.map((r) => r.trigger.type === "milestone_elapsed" && r.trigger.delayMinutes)).toEqual([3 * 1440, 7 * 1440]);
+  expect(nudges.every((r) => r.action.type === "prompt_agent")).toBe(true);
+});

@@ -19,7 +19,9 @@ export type CommunityMemberWorkflowTrigger =
   | { type: "member_joined" }
   | CommunityMemberWorkflowMemberContributedTrigger
   | { type: "form_submitted"; formKey: string }
-  | { type: "milestone_elapsed"; delayMinutes: number }
+  /** With `nudge`, it only runs if they're still in the stage then, and never
+   * holds the stage open: the goal review can move them on before it fires. */
+  | { type: "milestone_elapsed"; delayMinutes: number; nudge?: boolean }
   /** A lesson page marked done. Absent resourceId means any lesson. */
   | { type: "lesson_completed"; resourceId?: string }
   /** Every lesson in a course done. Absent moduleId means any course. */
@@ -96,7 +98,8 @@ export function workflowTriggerIdentity(trigger: CommunityMemberWorkflowTrigger)
     : trigger.type === "previous_action_completed" ? [trigger.type, trigger.predecessorActionKey]
     : trigger.type === "lesson_completed" ? [trigger.type, trigger.resourceId ?? null]
     : trigger.type === "course_completed" ? [trigger.type, trigger.moduleId ?? null]
-    : trigger.type === "member_joined" ? [trigger.type] : [trigger.type, trigger.delayMinutes]);
+    : trigger.type === "member_joined" ? [trigger.type]
+    : trigger.nudge ? [trigger.type, trigger.delayMinutes, "nudge"] : [trigger.type, trigger.delayMinutes]);
 }
 
 function normalizeInlineText(value: unknown, maxLength: number): string {
@@ -228,4 +231,9 @@ export function workflowSequenceCompletionIsNew(rule: CommunityMemberWorkflowAut
   sourceRevision: number): boolean {
   return rule.sequenceEnabledAt !== undefined && (completedAt > rule.sequenceEnabledAt
     || (completedAt === rule.sequenceEnabledAt && sourceRevision >= (rule.sequenceEnabledRevision ?? Infinity)));
+}
+
+/** A nudge: an agent check-in that never holds the stage open. */
+export function workflowRuleIsNudge(rule: { trigger: CommunityMemberWorkflowTrigger }): boolean {
+  return rule.trigger.type === "milestone_elapsed" && rule.trigger.nudge === true;
 }

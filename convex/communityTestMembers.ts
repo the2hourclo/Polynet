@@ -262,7 +262,9 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : trigger.type === "previous_action_completed" ? `After “${predecessor ? await actionText(predecessor.action) : "the previous step"}”`
     : trigger.type === "member_contributed" ? `When they post${trigger.channelId ? ` in #${(await nameOf(ctx, "communityChannels", trigger.channelId, "name")) ?? "a channel"}` : ""}`
     : trigger.type === "form_submitted" ? `When they submit the ${await formName(trigger.formKey)} form`
-    : trigger.type === "milestone_elapsed" ? `${durationText(trigger.delayMinutes)} after they reach this stage`
+    : trigger.type === "milestone_elapsed" ? trigger.nudge
+      ? `If they're still in this stage ${durationText(trigger.delayMinutes)} after reaching it (a nudge; doesn't hold them here)`
+      : `${durationText(trigger.delayMinutes)} after they reach this stage`
     : trigger.type === "lesson_completed" ? `When they finish ${trigger.resourceId ? `“${(await nameOf(ctx, "communityResources", trigger.resourceId, "title")) ?? "a lesson"}”` : "any lesson"}`
     : trigger.type === "course_completed" ? `When they finish ${trigger.moduleId ? `the ${(await nameOf(ctx, "communityResourceModules", trigger.moduleId, "name")) ?? ""} course` : "any course"}`
     : "When its trigger happens";

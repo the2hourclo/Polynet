@@ -7,7 +7,8 @@ import type { CommunityMemberWorkflowAutomation } from "./communityMemberWorkflo
 // change any of it afterwards like any other stage.
 //
 // How the engine shapes it: every rule in a stage is a step the member's visit
-// must finish before the goal review moves them on, and a lesson or course can
+// must finish before the goal review moves them on (nudges excepted: they only
+// run if the member is still in the stage), and a lesson or course can
 // only trigger a Form or a client-property write. So a finished lesson writes
 // the "Journey" property, and the agent's follow-up runs right after that write.
 //
@@ -47,6 +48,7 @@ export type AgentLedJourneyPlan = {
 };
 
 const ON_ENTRY_MINUTES = 1;
+const DAY = 24 * 60;
 
 const GUIDE_ROLE = "You are this member's guide. Lead, don't wait to be asked: one clear next step at a time, in plain words, tied to what they told us about their business. Keep messages short. Never invent progress; read it.";
 
@@ -108,6 +110,8 @@ export function buildAgentLedJourneyPlan(args: {
         { trigger: { type: "lesson_completed" }, action: setJourney("draft-first-lesson", "Finished first lesson") },
         { trigger: { type: "previous_action_completed", predecessorActionKey: "draft-first-lesson" }, action: { key: "draft-first-follow-up", type: "prompt_agent",
           prompt: "The member just finished a lesson. Name what they finished, ask what happened when they tried it on their business, and give the next lesson with one line on why it's next." } },
+        { trigger: { type: "milestone_elapsed", delayMinutes: 3 * DAY, nudge: true }, action: { key: "draft-first-nudge", type: "prompt_agent",
+          prompt: "The member has been on their first lesson for three days. Read their progress, then check in kindly: ask where they got stuck and offer a 10-minute version of the step." } },
       ],
     },
     {
@@ -121,6 +125,8 @@ export function buildAgentLedJourneyPlan(args: {
         { trigger: { type: "course_completed" }, action: setJourney("draft-course-done", "Finished a course") },
         { trigger: { type: "previous_action_completed", predecessorActionKey: "draft-course-done" }, action: { key: "draft-course-follow-up", type: "prompt_agent",
           prompt: "The member finished a course. Congratulate them in one line, then ask them to show the result they built with it here: what it does and one example run on real data." } },
+        { trigger: { type: "milestone_elapsed", delayMinutes: 7 * DAY, nudge: true }, action: { key: "draft-build-nudge", type: "prompt_agent",
+          prompt: "The member has been building for a week. Read their progress and messages. Ask one question that unblocks the next step, and offer to break it into something they can finish today." } },
       ],
     },
     {

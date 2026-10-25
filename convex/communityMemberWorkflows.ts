@@ -110,7 +110,7 @@ const automationInputValidator = v.object({
     v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string() }),
     v.object({ type: v.literal("form_submitted"), formKey: v.string() }),
     v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
-    v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number() }),
+    v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
     v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
     v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
   ),
@@ -258,6 +258,10 @@ function normalizeAutomations(
       && action.type !== "request_form" && action.type !== "set_client_property") {
       throw new Error("lesson_trigger_action_invalid");
     }
+    // A nudge is an agent check-in; nothing else may skip holding the stage.
+    if (input.trigger.type === "milestone_elapsed" && input.trigger.nudge === true && action.type !== "prompt_agent") {
+      throw new Error("workflow_nudge_action_invalid");
+    }
     if (input.trigger.type === "form_submitted") {
       if (action.type === "request_form") throw new Error("form_submission_action_invalid");
       const submissionLane = action.type === "set_client_property"
@@ -286,7 +290,7 @@ function normalizeAutomations(
         : input.trigger.type === "lesson_completed" ? { type: "lesson_completed", ...(input.trigger.resourceId ? { resourceId: input.trigger.resourceId } : {}) }
         : input.trigger.type === "course_completed" ? { type: "course_completed", ...(input.trigger.moduleId ? { moduleId: input.trigger.moduleId } : {}) }
         : input.trigger.type === "milestone_elapsed"
-        ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowDelayMinutes(input.trigger.delayMinutes) }
+        ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowDelayMinutes(input.trigger.delayMinutes), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
         : { type: "member_contributed", ...(input.trigger.channelId !== undefined ? { channelId: input.trigger.channelId } : {}) },
       action,
     };

@@ -4,7 +4,7 @@ import type { QueryCtx } from "./_generated/server";
 import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, requireCommunityChatAccess } from "./communityCore";
 import { readSubmittedFormRecord, readSubmittedFormRecords, projectSubmittedFormEvidence } from "./communityFormEvidenceCore";
 import { resolveMemberServiceChannel } from "./communityMemberServiceChannelCore";
-import { workflowTriggerIdentity, type CommunityMemberWorkflowMilestone } from "../shared/communityMemberWorkflow";
+import { workflowRuleIsNudge, workflowTriggerIdentity, type CommunityMemberWorkflowMilestone } from "../shared/communityMemberWorkflow";
 import { getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
 import type { WorkflowMilestoneApproval, WorkflowActionProgress } from "../shared/communityMembershipContext";
 import { buildCommunityInteractionEvidenceRef } from "../shared/communityEvidenceContract";
@@ -28,7 +28,9 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   // open, unless finishing a lesson or course sets it: then that is the work.
   const finishes = (rule: CommunityMemberWorkflowMilestone["automations"][number]) =>
     rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed";
-  const work = milestone.automations.filter(rule => rule.action.type !== "set_client_property" || finishes(rule));
+  // A nudge only runs while they're still here, so waiting on it would keep them here.
+  const work = milestone.automations.filter(rule => !workflowRuleIsNudge(rule)
+    && (rule.action.type !== "set_client_property" || finishes(rule)));
   if (!work.length) return { actions: [], all_actions_complete: false, scan_truncated: false };
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
     .withIndex("by_workflow_membership_createdAt", q => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
