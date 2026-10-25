@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { CommunityAgentIcon } from "../../../../shared/CommunityAgentIcon";
 import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext";
 import { downloadCloudCommunityChatAttachment } from "../../../../shared/cloudCommunityChatGateway";
 import {
@@ -8,7 +9,6 @@ import {
   Pencil,
   Pin,
   PinOff,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { EmojiPickerButton, QUICK_REACTIONS, ReactionSummary } from "./communityInteractionRowParts";
@@ -350,8 +350,8 @@ export function ActorAvatar(props: {
   className?: string;
   online?: boolean;
 }) {
-  // The community agent (seed is its canonical agent key) wears the hollow
-  // purple Sparkles everywhere an avatar renders — feed root, replies, thread —
+  // The community agent (seed is its canonical agent key) wears its
+  // community's icon (Sparkles when it has none) everywhere an avatar renders —
   // never person initials. One chokepoint so no render path is missed.
   if (props.seed === "community_agent") {
     return (
@@ -359,7 +359,7 @@ export function ActorAvatar(props: {
         className={`${props.className ?? "community-interaction-avatar"} is-agent-avatar`}
         aria-hidden="true"
       >
-        <Sparkles aria-hidden="true" />
+        <CommunityAgentIcon />
       </span>
     );
   }

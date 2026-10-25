@@ -205,6 +205,7 @@ import {
   WEB_IMAGE_DATA_URL_CHAR_LIMIT,
 } from "./webAppRuntime";
 import { useWebCommunityVisualIdentityRegistryLifecycle } from "./controllers/useWebCommunityVisualIdentityRegistryLifecycle";
+import { AgentCommunityProvider } from "../../../shared/CommunityAgentIcon";
 import {
   useWebBuilderKnowledgeCompletionController,
   useWebBuilderKnowledgeHydrationController,
@@ -3092,6 +3093,7 @@ export default function App() {
   }
 
   return (
+    <AgentCommunityProvider communityId={activeCommunityId}>
     <WebAppCompositionRoot
       globalOverlayHostProps={globalOverlayHostProps}
       memberAgentDockRef={memberAgentComposerApiRef}
@@ -3156,5 +3158,6 @@ export default function App() {
       mainSurfaceHostProps={mainSurfaceHostProps}
       shellChromeHostProps={shellChromeHostProps}
     />
+    </AgentCommunityProvider>
   );
 }

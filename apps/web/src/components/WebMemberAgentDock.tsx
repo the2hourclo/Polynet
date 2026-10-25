@@ -15,10 +15,10 @@ import {
 import {
   LoaderCircle,
   MessageSquarePlus,
-  Sparkles,
   Square,
   X,
 } from "lucide-react";
+import { CommunityAgentIcon } from "../../../../shared/CommunityAgentIcon";
 import { getAuthUrl, type AuthSession } from "../auth";
 import { CommunityComposerControls } from "./CommunityComposerControls";
 import { renderMarkdown } from "../../../../shared/markdownUi";
@@ -1136,9 +1136,9 @@ function WebMemberAgentDock(props, ref) {
 
       <section className="member-agent-dock-panel" aria-label={presentation.title}>
         <header className={props.pageMode ? "community-channel-header community-agent-page-header" : "member-agent-dock-header"}>
-          {props.pageMode ? <div className="community-channel-header-identity"><Sparkles size={18} aria-hidden="true" /><h1>{presentation.title}</h1></div> : <div className="member-agent-dock-identity">
+          {props.pageMode ? <div className="community-channel-header-identity"><CommunityAgentIcon size={18} /><h1>{presentation.title}</h1></div> : <div className="member-agent-dock-identity">
             {!props.pageMode && <span className="member-agent-dock-avatar" aria-hidden="true">
-              <Sparkles />
+              <CommunityAgentIcon />
             </span>}
             <span>
               <strong>{presentation.title}</strong>
@@ -1186,7 +1186,7 @@ function WebMemberAgentDock(props, ref) {
           !isPreparing &&
           !isStartingNewChat ? (
             <div className="member-agent-dock-empty">
-              <Sparkles aria-hidden="true" />
+              <CommunityAgentIcon />
               <p>
                 {presentation.emptyLabel}
               </p>
@@ -1412,7 +1412,7 @@ function WebMemberAgentDock(props, ref) {
         aria-controls="polynet-member-agent-surface"
         aria-expanded={false}
       >
-        <Sparkles size={20} strokeWidth={2} aria-hidden="true" />
+        <CommunityAgentIcon size={20} strokeWidth={2} />
         <span>Ask AI</span>
       </button>
     ) : null}
