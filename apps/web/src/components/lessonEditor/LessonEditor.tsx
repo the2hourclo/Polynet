@@ -530,13 +530,14 @@ function ToolbarMenuList(props: {
   );
 }
 
-function Toolbar({ editor, followAlong, openLinkRef, host }: {
+function Toolbar({ editor, followAlong, openLinkRef }: {
   editor: Editor;
   followAlong: boolean;
   openLinkRef: { current: (() => void) | null };
-  host: HTMLElement | null;
 }) {
   const [menu, setMenu] = useState<ToolbarMenu>(null);
+  // Menus open inside the community's theme scope, found from the editor itself.
+  const host = editor.view.dom as HTMLElement;
   const [, setTick] = useState(0);
   useEffect(() => {
     const rerender = () => setTick((tick) => tick + 1);
@@ -989,14 +990,14 @@ export default function LessonEditor(props: LessonEditorProps) {
           if (!(event.relatedTarget instanceof Node) || !wrapperRef.current?.contains(event.relatedTarget)) setHover(null);
         }}
       >
-        <Toolbar editor={editor} followAlong={props.followAlong ?? true} openLinkRef={openLinkRef} host={wrapperRef.current} />
+        <Toolbar editor={editor} followAlong={props.followAlong ?? true} openLinkRef={openLinkRef} />
         {hover ? <BlockHandle editor={editor} hover={hover} onClose={() => setHover(null)} /> : null}
         <EditorContent editor={editor} />
         <FormatBar editor={editor} openLinkRef={openLinkRef} />
         {slash ? (
           <SlashMenu
             state={slash}
-            host={wrapperRef.current}
+            host={editor.view.dom}
             onPick={(index) => {
               const item = bridge.current.props?.items[index];
               if (item) bridge.current.props?.command(item);
