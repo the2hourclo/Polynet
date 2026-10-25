@@ -81,8 +81,8 @@ type WebPublicCommunityFunnelProps = {
 
 // Settings > Sales page previews a style before it's published, in a frame
 // that drops the "Back to builder" link (?presentation=…&embed=1). Read once
-// when the page loads: the app rewrites the address to its canonical form
-// before this page first renders, which drops these extra parameters.
+// when the page loads: the app rewrites /c/<slug>/preview?… to the canonical
+// /c/<slug> before this page first renders, which drops these parameters.
 const SALES_PREVIEW_PARAMS = (() => {
   if (typeof window === "undefined" || !/\/preview\/?$/.test(window.location.pathname)) {
     return { presentation: null, embed: false };
@@ -126,8 +126,10 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
   } = props;
 
   const communityName = publicCommunity?.name ?? publicRouteSlug ?? "Community";
-  const previewPresentation = isPreviewMode ? SALES_PREVIEW_PARAMS.presentation : null;
-  const isEmbeddedPreview = isPreviewMode && SALES_PREVIEW_PARAMS.embed;
+  // /preview itself resolves to the public page now, so the frame is told
+  // apart by its parameters, not by isPreviewMode.
+  const previewPresentation = SALES_PREVIEW_PARAMS.presentation;
+  const isEmbeddedPreview = SALES_PREVIEW_PARAMS.embed;
   const asSalesPage = previewPresentation === "funnel" || previewPresentation === "page"
     ? previewPresentation === "funnel"
     : publicCommunity?.about_presentation === "funnel";
