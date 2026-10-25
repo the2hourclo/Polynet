@@ -1,24 +1,16 @@
 /* Workflows → Test run, and the bar a test-run tab shows. Sizes and corners
    read the community theme's tokens, with Polynet's defaults outside one. */
 .test-run { overflow: auto; display: flex; flex-direction: column; gap: 24px; padding: 8px 24px 32px; max-width: 760px; box-sizing: border-box; }
-.test-run-header { display: flex; flex-direction: column; gap: 8px; }
-.test-run-header h1 { margin: 0; font-size: var(--pn-type-title, 24px); }
-.test-run-header p, .test-run-help, .test-run-empty { margin: 0; color: var(--text-secondary); font-size: var(--pn-type-ui, 14px); line-height: 1.5; }
+.test-run-help { margin: 0; color: var(--text-secondary); font-size: var(--pn-type-ui, 14px); line-height: 1.5; }
 .test-run-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .test-run-actions [role="alert"] { margin: 0; color: var(--accent-error); font-size: var(--pn-type-ui, 14px); }
-.test-run-members ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.test-run-members li {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px;
-  border: 1px solid var(--border-default); border-radius: calc(10px * var(--pn-radius-scale, 1));
-}
-.test-run-members li.is-selected { border-color: var(--accent-primary, var(--text-primary)); }
 .test-run-member-name {
   flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; text-align: left;
   color: var(--text-primary); background: none; border: 0; font: inherit; font-size: var(--pn-type-ui, 14px); cursor: pointer;
 }
 .test-run-member-name small { color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
 .test-run-member-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.test-run-member-actions button, .test-run-empty button, .test-run-timeline [role="alert"] button {
+.test-run-member-actions button {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font: inherit; font-size: var(--pn-type-small, 13px);
   color: var(--text-primary); background: transparent; border: 1px solid var(--border-default);
   border-radius: calc(8px * var(--pn-radius-scale, 1)); cursor: pointer;
@@ -71,7 +63,7 @@
 .test-run-stages > li:not(.is-current):not(.is-reached) { opacity: 0.7; }
 .test-run-stages > li.is-current { border-color: var(--accent-primary, var(--text-primary)); }
 .test-run-stages h3 { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--pn-type-body, 15px); }
-.test-run-stages h3 > span {
+.test-run-stages h3 > .test-run-stage-number {
   display: inline-flex; align-items: center; justify-content: center; min-width: 1.6em; height: 1.6em; border-radius: 999px;
   background: var(--hover-overlay); font-size: var(--pn-type-small, 13px); font-variant-numeric: tabular-nums;
 }
