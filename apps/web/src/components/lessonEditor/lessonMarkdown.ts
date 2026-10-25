@@ -24,6 +24,48 @@ export type LessonMarkdownOptions = {
   isVideoUrl?: (url: string) => boolean;
 };
 
+export type LessonSlide = { src: string; alt: string; note: string };
+
+// encodeURIComponent leaves ( and ) alone, and either would end a Markdown link.
+const encodeUrlChar = (c: string) => (c === "(" ? "%28" : c === ")" ? "%29" : encodeURIComponent(c));
+
+// The deck's own reading of a slides section (shared/communityLessonContract.ts
+// parseSlides): an image alone on a line starts a slide, and the lines under it
+// are its note. Lines before the first image are kept as the deck's lead.
+const SLIDE_IMAGE = /^!\[([^\]]*)\]\(([^)\s]+)\)\s*$/;
+export const SLIDES_HEADING = "## Slides";
+
+/** The slides in the text under a "## Slides" heading; null when it holds no image lines. */
+export function readSlidesSection(text: string): { lead: string; slides: LessonSlide[] } | null {
+  const lead: string[] = [];
+  const slides: { src: string; alt: string; note: string[] }[] = [];
+  for (const line of text.split("\n")) {
+    const image = SLIDE_IMAGE.exec(line.trim());
+    if (image) slides.push({ src: image[2], alt: image[1], note: [] });
+    else if (slides.length) slides[slides.length - 1].note.push(line);
+    else lead.push(line);
+  }
+  if (!slides.length) return null;
+  return {
+    lead: lead.join("\n").trim(),
+    slides: slides.map((slide) => ({ src: slide.src, alt: slide.alt, note: slide.note.join("\n").trim() })),
+  };
+}
+
+/** The Markdown for a deck, in the shape the reader, the server and the CLI read. */
+export function slidesSectionMarkdown(lead: string, slides: readonly LessonSlide[]): string {
+  const parts = [SLIDES_HEADING];
+  if (lead.trim()) parts.push(lead.trim());
+  for (const slide of slides) {
+    const src = slide.src.trim().replace(/[()\s]/g, encodeUrlChar);
+    if (!src) continue;
+    // One line, no brackets: anything else would stop the line reading as a slide.
+    parts.push(`![${slide.alt.replace(/[[\]\n]/g, " ").replace(/\s+/g, " ").trim()}](${src})`);
+    if (slide.note.trim()) parts.push(slide.note.trim());
+  }
+  return parts.join("\n\n");
+}
+
 export type LessonDocument = {
   doc: PMNode;
   /** Writes the document back to Markdown, reusing the source of untouched blocks. */
@@ -139,7 +181,7 @@ const serializer = new MarkdownSerializer(
     image(state, node) {
       // No brackets in alt text: the slide deck reads image lines with a strict pattern.
       const alt = state.esc(String(node.attrs.alt ?? "").replace(/[[\]]/g, ""));
-      const src = String(node.attrs.src ?? "").replace(/[()\s]/g, (c) => encodeURIComponent(c));
+      const src = String(node.attrs.src ?? "").replace(/[()\s]/g, encodeUrlChar);
       const title = node.attrs.title ? ` "${String(node.attrs.title).replace(/"/g, '\\"')}"` : "";
       state.write(`![${alt}](${src}${title})`);
       state.closeBlock(node);
@@ -150,6 +192,10 @@ const serializer = new MarkdownSerializer(
     },
     lessonBlock(state, node) {
       state.text(fencedBlockMarkdown(node.attrs.language, node.attrs.info ?? "", node.attrs.body ?? ""), false);
+      state.closeBlock(node);
+    },
+    slideDeck(state, node) {
+      state.text(slidesSectionMarkdown(String(node.attrs.lead ?? ""), (node.attrs.slides ?? []) as LessonSlide[]), false);
       state.closeBlock(node);
     },
     rawMarkdown(state, node) {
@@ -171,6 +217,7 @@ const serializer = new MarkdownSerializer(
 function isUnsaved(node: PMNode): boolean {
   if (node.type.name === "paragraph" && node.childCount === 0) return true;
   if (node.type.name === "video") return !String(node.attrs.url ?? "").trim();
+  if (node.type.name === "slideDeck") return !((node.attrs.slides ?? []) as LessonSlide[]).some((slide) => slide.src.trim());
   return node.type.name === "image" && (Boolean(node.attrs.uploadId) || !node.attrs.src);
 }
 
@@ -182,7 +229,21 @@ const URL_LINE = /^https?:\/\/\S+$/;
 const TASK_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\](?:\s|$)/m;
 const MATH = /\$\$|\\\[|\\\(/;
 
-type Chunk = { start: number; end: number; tokens: Token[] };
+type Chunk = { start: number; end: number; tokens: Token[]; deck?: { lead: string; slides: LessonSlide[] } };
+
+const isH2 = (chunk: Chunk) => chunk.tokens[0]?.type === "heading_open" && chunk.tokens[0].tag === "h2";
+
+/** The first "## Slides" section, up to the next "## " heading, becomes one deck chunk. */
+function groupSlides(lines: string[], chunks: Chunk[]): Chunk[] {
+  const at = chunks.findIndex((chunk) => isH2(chunk) && /^## Slides[ \t]*$/.test(lines[chunk.start]));
+  if (at < 0) return chunks;
+  let end = at + 1;
+  while (end < chunks.length && !isH2(chunks[end])) end += 1;
+  const last = chunks[end - 1];
+  const deck = readSlidesSection(lines.slice(chunks[at].start + 1, last.end).join("\n"));
+  if (!deck) return chunks;
+  return [...chunks.slice(0, at), { start: chunks[at].start, end: last.end, tokens: [], deck }, ...chunks.slice(end)];
+}
 
 /** Top-level blocks with their line ranges; lines no block claims become their own chunk. */
 function chunkSource(lines: string[], tokens: Token[]): Chunk[] {
@@ -290,10 +351,12 @@ export function parseLessonMarkdown(schema: Schema, markdown: string, options: L
   const sources = new WeakMap<PMNode, SourceRecord>();
   const gaps: string[] = [];
   const blocks: PMNode[] = [];
-  const chunks = chunkSource(lines, tokenizer.parse(text, {}));
+  const chunks = groupSlides(lines, chunkSource(lines, tokenizer.parse(text, {})));
   chunks.forEach((chunk, index) => {
     const source = lines.slice(chunk.start, chunk.end).join("\n");
-    const nodes = blockFromChunk(schema, parser, chunk, source, options);
+    const nodes = chunk.deck
+      ? [schema.nodes.slideDeck.create(chunk.deck)]
+      : blockFromChunk(schema, parser, chunk, source, options);
     if (nodes.length === 1) sources.set(nodes[0], { index, source });
     blocks.push(...nodes);
     const next = chunks[index + 1];

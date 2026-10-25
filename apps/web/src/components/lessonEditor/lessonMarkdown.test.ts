@@ -156,31 +156,43 @@ describe("lesson editor Markdown", () => {
     expect(lessonShape(fresh)).toEqual(lessonShape(LESSON));
   });
 
-  it("keeps a slides section a deck when its notes and pictures are edited", () => {
-    const deck = "Intro.\n\n## Slides\n\n![One](media/x/01.png)\n\nFirst note.\n\n![Two](media/x/02.png)\n\nSecond note.\n\n## Next\n\nAfter.";
+  it("reads a slides section as one deck and writes edits back as a deck", () => {
+    const deck = "Intro.\n\n## Slides\n\nLead line.\n\n![One](media/x/01.png)\n\nFirst note.\n\n![Two](media/x/02.png)\n\nSecond note, **bold**.\n\n## Next\n\nAfter.";
     const { doc, serialize } = parseLessonMarkdown(schema, deck, { isVideoUrl });
-    let noteIndex = -1;
+    const names: string[] = [];
+    doc.forEach((node) => names.push(node.type.name));
+    expect(names).toEqual(["paragraph", "slideDeck", "heading", "paragraph"]);
+    expect(serialize(doc)).toBe(deck);
+    let deckIndex = -1;
     doc.forEach((node, _offset, index) => {
-      if (node.textContent === "First note.") noteIndex = index;
+      if (node.type.name === "slideDeck") deckIndex = index;
     });
-    const note = doc.child(noteIndex);
-    let edited = replaceBlock(doc, noteIndex, note.type.create(note.attrs, schema.text("First note, longer.")));
-    // A picture added from the editor, with brackets in its alt text.
-    const blocks: PMNode[] = [];
-    edited.forEach((node, _offset, index) => {
-      blocks.push(node);
-      if (index === noteIndex) {
-        blocks.push(schema.nodes.image.create({ src: "https://cdn.example/03.png", alt: "Step [3]" }));
-        blocks.push(schema.nodes.paragraph.create(null, schema.text("Third note.")));
-      }
-    });
-    edited = doc.type.create(doc.attrs, blocks);
-    const slides = projectCommunityLessonBody(serialize(edited)).slides;
-    expect(slides.map((slide) => [slide.image, slide.note_md])).toEqual([
-      ["media/x/01.png", "First note, longer."],
-      ["https://cdn.example/03.png", "Third note."],
-      ["media/x/02.png", "Second note."],
+    const node = doc.child(deckIndex);
+    const slides = [...node.attrs.slides];
+    slides[0] = { ...slides[0], note: "First note, longer." };
+    slides.splice(1, 0, { src: "https://cdn.example/03 (b).png", alt: "Step [3]", note: "Third note." });
+    const out = serialize(replaceBlock(doc, deckIndex, node.type.create({ ...node.attrs, slides })));
+    expect(out.startsWith("Intro.\n\n## Slides\n\nLead line.\n\n![One](media/x/01.png)\n\nFirst note, longer.")).toBe(true);
+    expect(out.endsWith("\n\n## Next\n\nAfter.")).toBe(true);
+    expect(projectCommunityLessonBody(out).slides.map((slide) => [slide.image, slide.alt, slide.note_md])).toEqual([
+      ["media/x/01.png", "One", "First note, longer."],
+      ["https://cdn.example/03%20%28b%29.png", "Step 3", "Third note."],
+      ["media/x/02.png", "Two", "Second note, **bold**."],
     ]);
+    // Reading it again gives the same deck.
+    const again = parseLessonMarkdown(schema, out, { isVideoUrl }).doc;
+    let reread: unknown = null;
+    again.forEach((child) => {
+      if (child.type.name === "slideDeck") reread = child.attrs.slides;
+    });
+    expect((reread as { note: string }[]).map((slide) => slide.note)).toEqual(["First note, longer.", "Third note.", "Second note, **bold**."]);
+  });
+
+  it("leaves a slides heading with no pictures as ordinary text", () => {
+    const body = "## Slides\n\nNothing here yet.";
+    const { doc, serialize } = parseLessonMarkdown(schema, body, { isVideoUrl });
+    expect(doc.child(0).type.name).toBe("heading");
+    expect(serialize(doc)).toBe(body);
   });
 
   it("rewrites only the block that changed", () => {
