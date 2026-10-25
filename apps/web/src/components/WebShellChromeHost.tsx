@@ -22,6 +22,7 @@ import { WebCommunityTopNav } from "./WebCommunityTopNav";
 import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
 import type { AppTheme } from "../../../../shared/theme";
 import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
+import { WebAccountSettingsButton } from "./WebAccountSettingsButton";
 import { DRAFT_LOOKS_IN_DISPLAY_MENU, useDraftLook } from "../controllers/useDraftLook";
 import { courseCardLookWords } from "./ResourceCourseCatalog";
 import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
@@ -176,7 +177,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   ) : (
     <WebDesktopShellHeader
       {...props.desktopHeader}
-      trailing={sideBarDisplayMenu}
+      trailing={<>{sideBarDisplayMenu}<WebAccountSettingsButton communityShell={props.communityShell} placement="bar" /></>}
       communityTheme={isTopCommunityNav ? null : communityThemeAttribute}
     />
   );
@@ -200,10 +201,10 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       <WebCommunityOwnerBar
         communityShell={props.communityShell}
         homeTab={communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home}
-        trailing={<WebCommunityDisplayMenu placement="top" look={draftLookState} />}
+        trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>}
       />
     ) : isTopCommunityNav ? (
-      <WebCommunityTopNav communityShell={props.communityShell} trailing={<WebCommunityDisplayMenu placement="top" look={draftLookState} />} />
+      <WebCommunityTopNav communityShell={props.communityShell} trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>} />
     ) : (
       <WebCommunityNavSurface
         communityShell={props.communityShell}

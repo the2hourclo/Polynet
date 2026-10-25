@@ -1656,3 +1656,15 @@
 .app-root:not(.mobile-shell) .app-topbar .community-display-bar-button {
   transform: translate(-4px, 4px);
 }
+
+/* Settings sits at the far right of that bar (WebAccountSettingsButton), in
+   place of the rail's bottom gear; one more button of clearance. */
+.app-root:has(.app-topbar .account-settings-bar-button) {
+  --web-topbar-right-action-safe-inset: 106px;
+}
+.app-root:has(.app-topbar .account-settings-bar-button):has(.app-topbar .community-display-bar-button) {
+  --web-topbar-right-action-safe-inset: 146px;
+}
+.app-topbar .icon-button.account-settings-bar-button { width: 34px; height: 34px; }
+.app-topbar .icon-button.account-settings-bar-button svg { width: 20px; height: 20px; }
+.app-root:not(.mobile-shell) .app-topbar .account-settings-bar-button { transform: translate(-4px, 4px); }
