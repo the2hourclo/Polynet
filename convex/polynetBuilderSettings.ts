@@ -13,6 +13,7 @@
 // holds the web app to: every write the app makes is either an operation here or
 // has a stated reason not to be one.
 import { api, internal } from "./_generated/api";
+import { buildAgentLedJourneyPlan } from "../shared/agentLedJourneyTemplate";
 
 export type BuilderSettingOperation = {
   operation: string;
@@ -298,6 +299,8 @@ BUILDER_SETTING_OPERATIONS.push(
 // "human only:" or "not a setting:".
 export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   // Other MCP paths already do these.
+  "communityClients:createClientProperty": "agent path: community.client.property.define",
+  "communityClients:updateClientProperty": "agent path: community.client.property.define (with key)",
   "communityThemes:saveCommunityThemeDraft": "agent path: community.theme.save_draft",
   "communityThemes:publishCommunityThemeDraft": "agent path: community.theme.publish",
   "communityThemes:discardCommunityThemeDraft": "agent path: save the published theme as the draft",
@@ -466,6 +469,19 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
       ...(spec.review ? { review: spec.review } : {}) })),
     // workflows holds the welcome page and gate too, with the revision both use.
     general, sales_page, workflows, forms, access_integrations, agent, channels,
+    // Ready-made stage plans the agent applies with the stage operations, as the
+    // Workflows board's "Let your agent lead each member" card does.
+    workflow_templates: {
+      agent_led_journey: {
+        guidance: "Make or reuse the select property in `property` (community.client.property.define), put its key where rules say {journey_property}, "
+          + "replace {form_key} with the onboarding form's key (the first stage's join form, else a published form; with none, use the no-form plan), "
+          + "then: add the first stage's additions with community.workflow.stage.update, and for each stage community.workflow.stage.create "
+          + "followed by community.workflow.stage.update with its rules (keys empty, draft-* action keys kept so sequences link).",
+        new_workflow: buildAgentLedJourneyPlan({ hasWorkflow: false, onboardingFormKey: "{form_key}" }),
+        new_workflow_no_form: buildAgentLedJourneyPlan({ hasWorkflow: false, onboardingFormKey: null }),
+        existing_workflow: buildAgentLedJourneyPlan({ hasWorkflow: true, onboardingFormKey: "{form_key}" }),
+      },
+    },
     // Changes waiting for the owner's Apply, and recent outcomes.
     proposals,
   };

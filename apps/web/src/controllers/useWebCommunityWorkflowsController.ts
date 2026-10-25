@@ -27,6 +27,8 @@ import {
   type CloudCommunityMemberSuccessDossier,
 } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import type { CommunityMemberWorkflowAutomation } from "../../../../shared/communityMemberWorkflow";
+import { withJourneyPropertyKey, type AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
+import { ensureCloudCommunitySelectProperty } from "../../../../shared/cloudCommunityFormsGateway";
 import { listCloudCommunityResourceModuleRows, listCloudCommunityResourceRows } from "../../../../shared/cloudCommunityAdminGateway";
 import type { CommunityResource, CommunityResourceModule } from "../components/communityResourcesContracts";
 
@@ -631,6 +633,36 @@ export function useWebCommunityWorkflowsController(params: {
           automations,
         }),
       ),
+    // The agent-led journey template: one stage at a time with the same calls
+    // the stage editor uses, each on the revision the last one returned.
+    applyAgentLedJourney: (plan: AgentLedJourneyPlan) =>
+      mutateMilestone("community_workflows_apply_agent_led_journey", async (session, communityId, startRevision) => {
+        let revision = startRevision;
+        const propertyKey = await ensureCloudCommunitySelectProperty(session, communityId, plan.property);
+        const withNewKeys = (automations: Array<Omit<CommunityMemberWorkflowAutomation, "key">>) =>
+          withJourneyPropertyKey(automations, propertyKey).map((automation) => ({ ...automation, key: "" }) as CommunityMemberWorkflowAutomation);
+        const first = board?.milestones[0];
+        if (plan.firstStageAdditions.length && first) {
+          revision = (await updateCloudCommunityMemberWorkflowMilestone({
+            session, communityId, expectedRevision: revision, milestoneKey: first.key, name: first.name,
+            automations: [...first.automations, ...withNewKeys(plan.firstStageAdditions)],
+            instructions: first.instructions, goal: first.goal, requireHumanApproval: first.requireHumanApproval,
+          })).revision;
+        }
+        for (const stage of plan.stages) {
+          const created = await createCloudCommunityMemberWorkflowMilestone({
+            session, communityId, expectedRevision: revision, name: stage.name,
+            instructions: stage.instructions, goal: stage.goal, requireHumanApproval: stage.requireHumanApproval,
+          });
+          revision = created.revision;
+          if (!stage.automations.length || !created.milestone) continue;
+          revision = (await updateCloudCommunityMemberWorkflowMilestone({
+            session, communityId, expectedRevision: revision, milestoneKey: created.milestone.key, name: stage.name,
+            automations: withNewKeys(stage.automations),
+            instructions: stage.instructions, goal: stage.goal, requireHumanApproval: stage.requireHumanApproval,
+          })).revision;
+        }
+      }),
     deleteMilestone: (milestoneKey: string) =>
       mutateMilestone("community_workflows_delete_milestone", (session, communityId, revision) =>
         deleteCloudCommunityMemberWorkflowMilestone({
