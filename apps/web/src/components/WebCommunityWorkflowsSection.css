@@ -483,11 +483,22 @@
   padding: 20px 0;
   border-bottom: 1px solid var(--border-default);
 }
-.workflow-form-responses dl { margin: 16px 0 0; }
-.workflow-form-responses dl > div + div { margin-top: 16px; }
-.workflow-form-responses dt { font-size: 12px; color: var(--text-secondary); }
-.workflow-form-responses dd { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.workflow-form-responses summary { cursor: pointer; font-size: 13px; }
+/* Each submitted form is a card: a 44px summary row that opens to the answers,
+   question over answer. Sizes are in rem so community-theme-map.css doesn't
+   rescale them (owner chrome, see polynet-ui-design references/owner-screens.md). */
+.workflow-form-responses details { margin-top: 0.5rem; border: 1px solid var(--border-default); border-radius: 0.5rem; background: var(--bg-card, transparent); overflow: hidden; }
+.workflow-form-responses summary { display: flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0 0.875rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; list-style: none; }
+.workflow-form-responses summary::-webkit-details-marker { display: none; }
+.workflow-form-responses summary::before { content: ""; flex-shrink: 0; width: 0.4375rem; height: 0.4375rem; margin-right: 0.25rem; border-right: 2px solid var(--text-secondary); border-bottom: 2px solid var(--text-secondary); transform: rotate(-45deg); transition: transform 140ms; }
+.workflow-form-responses details[open] summary::before { transform: rotate(45deg); }
+.workflow-form-responses summary:hover { background: var(--hover-overlay); }
+.workflow-form-responses summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.workflow-form-responses dl { margin: 0; padding: 0.25rem 0.875rem 0.875rem; border-top: 1px solid var(--border-default); }
+.workflow-form-responses dl > div { padding: 0.75rem 0 0; }
+.workflow-form-responses dl > div + div { margin-top: 0.75rem; border-top: 1px solid var(--border-default); }
+.workflow-form-responses dt { font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); }
+.workflow-form-responses dd { margin: 0.25rem 0 0; font-size: 0.9375rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .workflow-form-responses summary::before { transition: none; } }
 
 .workflow-member-dossier-section:last-child {
   border-bottom: 0;

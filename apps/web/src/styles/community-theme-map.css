@@ -32,25 +32,6 @@
 [data-community-theme] .web-agent-live-turn-response {
   font-size: var(--pn-type-small);
 }
-[data-community-theme] .community-form-hint {
-  font-size: var(--pn-type-label);
-}
-[data-community-theme] .community-form-questions > div {
-  border-radius: calc(6px * var(--pn-radius-scale, 1));
-}
-[data-community-theme] .community-form-tools {
-  font-size: var(--pn-type-label);
-}
-[data-community-theme] .community-form-tools select {
-  border-radius: calc(6px * var(--pn-radius-scale, 1));
-}
-[data-community-theme] .community-form-description {
-  font-size: var(--pn-type-body);
-}
-[data-community-theme] .community-form-options > div,
-[data-community-theme] .community-form-options > label {
-  border-radius: calc(7px * var(--pn-radius-scale, 1));
-}
 [data-community-theme] .community-funnel-identity {
   font-size: var(--pn-type-subheading);
 }
@@ -139,16 +120,23 @@
   border-radius: calc(12px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .member-form-dialog header h2 {
-  font-size: var(--pn-type-reading);
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .member-form-dialog section > small:first-of-type {
+  font-size: var(--pn-type-label);
 }
 [data-community-theme] .member-form-dialog section h2 {
   font-size: var(--pn-type-title);
 }
 [data-community-theme] .member-form-dialog button {
-  border-radius: calc(6px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .member-form-dialog input:not([type=radio]):not([type=checkbox]),
+[data-community-theme] .member-form-dialog textarea {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .member-form-choices label {
-  border-radius: calc(6px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-welcome-intro small,
 [data-community-theme] .community-welcome-step {
@@ -235,12 +223,6 @@
   font-size: var(--pn-type-heading);
 }
 [data-community-theme] .workflow-member-dossier-identity span {
-  font-size: var(--pn-type-small);
-}
-[data-community-theme] .workflow-form-responses dt {
-  font-size: var(--pn-type-label);
-}
-[data-community-theme] .workflow-form-responses summary {
   font-size: var(--pn-type-small);
 }
 [data-community-theme] .workflow-member-dossier-section h3 {
@@ -3571,6 +3553,11 @@
   }
   [data-community-theme] .chat-avatar {
     font-size: var(--pn-type-label);
+  }
+}
+@media(max-width:600px) {
+  [data-community-theme] .member-form-dialog section h2 {
+    font-size: var(--pn-type-heading);
   }
 }
 @media (max-width: 600px) {

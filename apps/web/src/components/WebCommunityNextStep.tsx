@@ -138,7 +138,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
   return <div onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); void close(); } }}>
     <header><h2>{request?.name ?? "Your next step"}</h2><button disabled={busy} onClick={() => void close()} aria-label="Save and close form"><X size={20} /></button></header>
     {done ? <section ref={questionSection}><h2>Submitted</h2><p>You’re all set.</p><button onClick={props.onClose}>Done</button></section> : q ? <section ref={questionSection} onChange={() => setValidation(null)}>
-      <small id={`${fieldId}-count`}>{index + 1} of {request!.questions.length}{q.required ? " · Required" : " · Optional"}</small><h2 id={`${fieldId}-title`}>{q.title}</h2>{q.description ? <p id={`${fieldId}-help`}>{q.description}</p> : null}
+      <div className="member-form-progress" aria-hidden="true"><span style={{ width: `${((index + 1) / request!.questions.length) * 100}%` }} /></div><small id={`${fieldId}-count`}>{index + 1} of {request!.questions.length}{q.required ? " · Required" : " · Optional"}</small><h2 id={`${fieldId}-title`}>{q.title}</h2>{q.description ? <p id={`${fieldId}-help`}>{q.description}</p> : null}
       {q.answerFormat ? <p id={`${fieldId}-format`} className="member-form-format">{FORMAT_HINTS[q.answerFormat]}</p> : null}
       {q.type.endsWith("choice") ? <fieldset className="member-form-choices" {...field}>{q.options.map((option, i) => <label key={i}><input disabled={locked} name={q.key} type={q.type === "single_choice" ? "radio" : "checkbox"}
         checked={q.type === "single_choice" ? answers[q.key] === String(i) : ((answers[q.key] as string[]) ?? []).includes(String(i))}
