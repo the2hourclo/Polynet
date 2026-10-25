@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
@@ -85,6 +87,13 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   useEffect(() => {
     if (layoutHidesActiveTab) onSelectCommunityTab("chat");
   }, [layoutHidesActiveTab, onSelectCommunityTab]);
+  const activeCommunityId = props.communityShell.activeCommunity?.id ?? null;
+  const [postSearchState, setPostSearchState] = useState<{ communityId: string | null; query: string }>({ communityId: null, query: "" });
+  const postSearch = postSearchState.communityId === activeCommunityId ? postSearchState.query : "";
+  const setPostSearch = useCallback(
+    (query: string) => setPostSearchState({ communityId: activeCommunityId, query }),
+    [activeCommunityId],
+  );
   const communityFrame: WebCommunityFrame = {
     layout: communityLayout,
     community: props.communityShell.activeCommunity,
@@ -93,6 +102,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     canInvite: props.communityShell.canViewMembersActiveCommunity,
     onSelectTab: props.communityShell.onSelectCommunityTab,
     onCopyJoinLink: props.communityShell.onCopyCommunityJoinLink,
+    postSearch,
+    onPostSearch: setPostSearch,
   };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&

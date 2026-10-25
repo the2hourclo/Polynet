@@ -50,6 +50,7 @@ export type WebPublicCommunityRecord = {
   entry_policy?: "open" | "approval" | "paid_subscription" | null;
   host?: Omit<CommunityPublicFace, "user_id"> | null;
   funnel?: CommunityFunnelConfig | null;
+  about_presentation?: "page" | "funnel" | null;
   member_count?: number | null;
   member_faces_preview?: CommunityPublicFace[] | null;
   admin_count?: number | null;

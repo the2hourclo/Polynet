@@ -13,6 +13,23 @@
   }
 }
 
+/* The tab bar is the whole header: its first row carries search, messages and
+   notifications, so Polynet's own 48px top bar folds away. */
+@media (min-width: 641px) {
+  .app-root.community-layout-top {
+    grid-template-rows: 0 minmax(0, 1fr);
+  }
+
+  .app-root.community-layout-top:has(> .community-theme-draft-banner) {
+    grid-template-rows: auto 0 minmax(0, 1fr);
+  }
+
+  .app-root.community-layout-top > .app-topbar {
+    visibility: hidden;
+    overflow: hidden;
+  }
+}
+
 .community-top-nav {
   display: flex;
   flex-direction: column;
@@ -75,11 +92,219 @@
   white-space: nowrap;
 }
 
+.community-top-nav-search {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 440px;
+  min-width: 140px;
+  height: 38px;
+  margin: 0 auto;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-muted);
+  box-sizing: border-box;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.community-top-nav-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent-brand) 60%, transparent);
+  background: var(--surface-card, var(--bg-card));
+}
+
+.community-top-nav-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.community-top-nav-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.community-top-nav-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.community-top-nav-search-clear {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.community-top-nav-search-clear:hover {
+  color: var(--text-primary);
+}
+
+.community-top-nav-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.community-top-nav-actions .direct-messages-topbar-button,
+.community-top-nav-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.community-top-nav-actions .direct-messages-topbar-button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.community-top-nav-actions .direct-messages-topbar-button:hover,
+.community-top-nav-actions .direct-messages-topbar-button.active,
+.community-top-nav-icon:hover,
+.community-top-nav-icon.is-open {
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  color: var(--text-primary);
+}
+
+.community-top-nav-icon-badge {
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-attention, var(--accent-brand));
+  color: var(--text-on-accent, #fff);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.community-top-nav-menu {
+  position: relative;
+}
+
+.community-notifications-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(480px, 70vh);
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--surface-card, var(--bg-card));
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+}
+
+.community-notifications-head {
+  padding: 14px 16px 8px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.community-notifications-empty {
+  margin: 0;
+  padding: 8px 16px 18px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.community-notifications-list {
+  margin: 0;
+  padding: 0 6px 6px;
+  list-style: none;
+}
+
+.community-notification {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.community-notification:hover {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.community-notification.is-unseen {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.community-notification-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-brand) 14%, transparent);
+  color: var(--accent-brand);
+}
+
+.community-notification-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-notification-time {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.community-posts-search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .community-top-nav-invite {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
   padding: 7px 14px;
   border: 1px solid var(--border-default);
   border-radius: 999px;

@@ -11,6 +11,7 @@ import {
   formatRelativeTime,
   stripSharedAttachmentSummary,
 } from "./communityInteractionFeed";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 // The community's posts as one card each, newest activity first: the "posts"
 // presentation a layout can choose for the chat page. Same posts, replies,
@@ -226,11 +227,28 @@ function PostComposer(props: CommunityPostsFeedProps) {
   );
 }
 
+// Every word typed in the top bar's search has to appear in the post.
+export function postMatchesSearch(bundle: CommunityInteractionRootBundle, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const haystack = [bundle.root.title ?? "", bundleText(bundle.content_blocks, bundle.root.content_summary)].join(" ").toLowerCase();
+  return words.every((word) => haystack.includes(word));
+}
+
 export function CommunityPostsFeed(props: CommunityPostsFeedProps) {
-  const posts = orderCommunityPosts(props.roots, props.pinnedRoot);
+  const { postSearch, onPostSearch } = useWebCommunityFrame();
+  const searching = postSearch.trim().length > 0;
+  const ordered = orderCommunityPosts(props.roots, props.pinnedRoot);
+  const posts = searching ? ordered.filter((bundle) => postMatchesSearch(bundle, postSearch)) : ordered;
   return (
     <div className="community-posts-feed">
       <PostComposer {...props} />
+      {searching && posts.length > 0 ? (
+        <div className="community-posts-search-status" role="status">
+          <span>{posts.length === 1 ? "1 post" : `${posts.length} posts`} matching "{postSearch.trim()}"</span>
+          <button type="button" className="community-aside-link" onClick={() => onPostSearch("")}>Clear</button>
+        </div>
+      ) : null}
       {props.error && posts.length === 0 ? (
         <div className="community-interaction-state" role="alert">
           <div>{props.error}</div>
@@ -240,6 +258,12 @@ export function CommunityPostsFeed(props: CommunityPostsFeedProps) {
         <div className="community-interaction-state" aria-live="polite">
           <div>Loading posts...</div>
           <div className="community-interaction-loading web-skeleton-pill" aria-hidden="true" />
+        </div>
+      ) : posts.length === 0 && searching ? (
+        <div className="community-interaction-empty">
+          <MessageSquare size={22} aria-hidden="true" />
+          <div>No posts match "{postSearch.trim()}"</div>
+          <button type="button" className="community-aside-link" onClick={() => onPostSearch("")}>Clear search</button>
         </div>
       ) : posts.length === 0 ? (
         <div className="community-interaction-empty">

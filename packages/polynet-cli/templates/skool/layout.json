@@ -17,6 +17,9 @@
     "chat": {
       "presentation": "posts",
       "aside": ["community_card", "upcoming_events"]
+    },
+    "about": {
+      "presentation": "funnel"
     }
   }
 }

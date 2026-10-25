@@ -11,6 +11,7 @@ import type {
   SettingsPage,
 } from "../../../../shared/appShellNavigation";
 import type {
+  CommunityActivityEvent,
   CommunityPresenceFace,
   CommunityShellCommunity,
 } from "../../../../shared/communityTypes";
@@ -99,6 +100,10 @@ export type WebCommunityShellProps = {
   onCopyCommunityJoinLink: (joinUrl: string) => Promise<void> | void;
   canOpenDirectMessages: boolean;
   directMessagesUnreadCount: number;
+  /* The top tab bar carries the messages button and a notifications list
+     itself, so a top-nav layout has the same header tools as Polynet's. */
+  directMessagesButton?: ReactNode;
+  communityActivityEvents?: CommunityActivityEvent[];
   onOpenDiscover: () => void;
   onOpenMobileCreateCommunity: () => void;
   communities: CommunityLike[];

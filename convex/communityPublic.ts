@@ -38,6 +38,7 @@ import {
 } from "./communityJoinRequestCore";
 import { findAuthenticatedActorState } from "./authActor";
 import { resolveCommunityFunnelConfigByCommunityId } from "./communityFunnel";
+import { readPublishedCommunityLayout } from "./communityLayouts";
 import { readCommunityExternalFunnelUrl } from "../shared/communityExternalFunnel";
 import { enqueueCommunityAccessGrantedEmailInternal } from "./emailEvents";
 import {
@@ -318,10 +319,12 @@ export const resolvePublicFunnelBySlug = query({
     const funnel = await resolveCommunityFunnelConfigByCommunityId(ctx, community._id);
     const owner = community.ownerId ? await ctx.db.get(community.ownerId) : null;
     const host = owner ? await resolvePublicProfileFaceFields(ctx, owner._id) : null;
+    const layout = await readPublishedCommunityLayout(ctx, community._id);
 
     return {
       ok: true,
       community: {
+        id: String(community._id),
         slug: community.slug,
         name: community.name,
         host,
@@ -341,6 +344,8 @@ export const resolvePublicFunnelBySlug = query({
           ? readCommunityExternalFunnelUrl(community.externalFunnelUrl)
           : null,
         funnel,
+        // "funnel": the community's About page is its public page (Skool style).
+        about_presentation: layout?.pages.about.presentation ?? "page",
       },
       active_plan: activePlan,
     };
