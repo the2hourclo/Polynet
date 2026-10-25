@@ -28,6 +28,12 @@
     visibility: hidden;
     overflow: hidden;
   }
+
+  /* The top bar can be position: fixed and take no grid cell; pin the shell
+     to the last row either way. */
+  .app-root.community-layout-top > .app-shell {
+    grid-row: -2 / -1;
+  }
 }
 
 .community-top-nav {
