@@ -204,3 +204,83 @@
   .pn-display-sample:not(.is-small) { height: 6rem; }
   .pn-settings-fold-head { padding: 0.875rem 1rem; }
 }
+
+/* Profile: the form beside a live preview of what people see when they
+   click your name, like Substack's profile editor. */
+.pn-your-settings .pn-profile-editor-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19rem;
+  gap: 2rem;
+  padding: 1.5rem 1.25rem;
+}
+.pn-profile-editor-form { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.pn-profile-editor-photo {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin: -0.5rem;
+  padding: 0.5rem;
+  border: 1px dashed transparent;
+  border-radius: var(--pn-set-r-frame);
+}
+.pn-profile-editor-photo.is-drag-over { border-color: var(--text-secondary); background: var(--hover-overlay); }
+.pn-profile-editor-photo .pn-profile-editor-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-card-alt, var(--hover-overlay));
+  box-shadow: 0 0 0 1px var(--border-default);
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.pn-profile-editor-photo-text { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.pn-profile-editor-photo-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.625rem; }
+.pn-profile-editor-upload { position: relative; cursor: pointer; }
+.pn-profile-editor-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.pn-profile-editor-upload:focus-within { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+.pn-profile-editor-field { display: flex; flex-direction: column; gap: 0.375rem; }
+.pn-profile-editor-field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.pn-your-settings textarea.pn-profile-editor-bio {
+  height: auto;
+  min-height: 6.5rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  resize: vertical;
+}
+.pn-profile-editor-preview { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.pn-profile-editor-preview-label {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pn-profile-editor-preview-card {
+  position: sticky;
+  top: 1rem;
+  padding-top: 1rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-set-r-frame);
+  background: var(--bg-app);
+  pointer-events: none;
+  user-select: none;
+}
+.pn-profile-editor-error { margin: 0 1.25rem 1rem; }
+.pn-profile-editor-status { color: var(--text-secondary); font-size: 0.8125rem; }
+.pn-profile-editor-status.is-dirty { color: var(--text-primary); font-weight: 600; }
+
+@media (max-width: 1100px) {
+  .pn-your-settings .pn-profile-editor-body { grid-template-columns: minmax(0, 1fr); }
+  .pn-profile-editor-preview-card { position: static; }
+}
+@media (max-width: 860px) {
+  .pn-your-settings .pn-profile-editor-body { gap: 1.5rem; padding: 1.25rem 1rem; }
+  .pn-profile-editor-photo .pn-profile-editor-avatar { width: 4.5rem; height: 4.5rem; }
+}
