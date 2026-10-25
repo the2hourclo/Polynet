@@ -21,6 +21,7 @@ import {
   Code,
   Code2,
   Copy,
+  GalleryHorizontal,
   GripVertical,
   Heading1,
   Heading2,
@@ -49,6 +50,7 @@ import {
   LessonFencedBlock,
   LessonImage,
   LessonRawMarkdown,
+  LessonSlideDeck,
   LessonVideo,
   lessonEditorBaseExtensions,
 } from "./lessonEditorSchema";
@@ -59,6 +61,7 @@ import {
   LessonFencedBlockView,
   LessonImageView,
   LessonRawMarkdownView,
+  LessonSlideDeckView,
   LessonVideoView,
   focusNextBlock,
   type LessonEditorServices,
@@ -158,6 +161,20 @@ const SLASH_ITEMS: SlashItem[] = [
     run: (e, r) => {
       focusNextBlock("video");
       insertBlock(e, r, { type: "video", attrs: { url: "" } });
+    } },
+  { key: "slides", group: "Media", title: "Slides", hint: "A slideshow: a picture and a note per slide", keywords: "slides slideshow deck carousel presentation gallery", icon: <GalleryHorizontal />,
+    run: (e, r) => {
+      // A lesson has one deck; asking again goes to it.
+      let existing = -1;
+      e.state.doc.forEach((node, offset) => {
+        if (existing < 0 && node.type.name === "slideDeck") existing = offset;
+      });
+      if (existing >= 0) {
+        e.chain().focus().deleteRange(r).setNodeSelection(existing > r.from ? existing - (r.to - r.from) : existing).scrollIntoView().run();
+        return;
+      }
+      focusNextBlock("deck");
+      insertBlock(e, r, { type: "slideDeck", attrs: { lead: "", slides: [{ src: "", alt: "", note: "" }] } });
     } },
   { key: "button", group: "Lesson", title: "Button", hint: "Mark done, ask the agent, open a form", keywords: "button cta action done", icon: <MousePointerClick />,
     run: insertLessonBlock("button") },
@@ -596,6 +613,7 @@ function Toolbar({ editor, followAlong, openLinkRef, host }: {
         {button("link", "Link", <Link2 />, () => openLinkRef.current?.(), { active: editor.isActive("link"), disabled: editor.state.selection.empty || inCode, shortcut: "Ctrl+K" })}
         {divider("d3")}
         {button("image", "Image", <ImagePlus />, () => run("image", true))}
+        {button("slides", "Slides", <GalleryHorizontal />, () => run("slides", true), { active: editor.isActive("slideDeck") })}
         {button("quote", "Callout", <Quote />, () => run("quote", false), { active: editor.isActive("blockquote") })}
         {button("bullets", "Bulleted list", <List />, () => run("bullets", false), { active: editor.isActive("bulletList") })}
         {button("numbers", "Numbered list", <ListOrdered />, () => run("numbers", false), { active: editor.isActive("orderedList") })}
@@ -816,6 +834,8 @@ export default function LessonEditor(props: LessonEditorProps) {
   const services = useMemo<LessonEditorServices>(() => ({
     uploadImage: props.onUploadImage ? (file, replacePos) => startUpload(file, { replacePos }) : null,
     describeVideo,
+    upload: props.onUploadImage,
+    notify: setNotice,
   }), [props.onUploadImage, startUpload]);
 
   const extensions = useMemo(() => [
@@ -823,6 +843,7 @@ export default function LessonEditor(props: LessonEditorProps) {
       if (extension === LessonImage) return LessonImage.extend({ addNodeView: () => ReactNodeViewRenderer(LessonImageView) });
       if (extension === LessonVideo) return LessonVideo.extend({ addNodeView: () => ReactNodeViewRenderer(LessonVideoView) });
       if (extension === LessonFencedBlock) return LessonFencedBlock.extend({ addNodeView: () => ReactNodeViewRenderer(LessonFencedBlockView) });
+      if (extension === LessonSlideDeck) return LessonSlideDeck.extend({ addNodeView: () => ReactNodeViewRenderer(LessonSlideDeckView) });
       if (extension === LessonRawMarkdown) return LessonRawMarkdown.extend({ addNodeView: () => ReactNodeViewRenderer(LessonRawMarkdownView) });
       return extension;
     }),
