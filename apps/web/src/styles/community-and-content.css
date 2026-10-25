@@ -10582,10 +10582,16 @@ button.chat-reply-quote:hover {
   transition: border-color 140ms ease, background 140ms ease;
 }
 
-.resource-viewer-title-edit-trigger:hover,
 .resource-viewer-title-edit-trigger:focus-visible {
   outline: none;
   border-color: color-mix(in srgb, var(--border-default) 72%, transparent);
+}
+
+/* Only a real pointer previews the edit box; a tap would leave it stuck on. */
+@media (hover: hover) {
+  .resource-viewer-title-edit-trigger:hover {
+    border-color: color-mix(in srgb, var(--border-default) 72%, transparent);
+  }
 }
 
 .resource-viewer-title-edit-trigger > span {
