@@ -40,6 +40,21 @@ function project(row: ProposalRow, nowMs: number) {
 
 const show = (value: unknown) => typeof value === "string" ? value : JSON.stringify(value);
 
+const money = (value: unknown) => typeof value === "number" ? `$${(value / 100).toFixed(2)}` : "None";
+// Plain words for each field the proposed operations take. A field not here
+// isn't shown (revisions, generations), so the card never shows a raw name.
+const FIELD_LABELS: Record<string, { label: string; value?: (value: unknown) => string }> = {
+  mode: { label: "Joining", value: value => value === "approval" ? "You approve each request" : value === "open" ? "Anyone can join" : show(value) },
+  monthlyAmountBaseUnits: { label: "Monthly price", value: money },
+  annualAmountBaseUnits: { label: "Yearly price", value: money },
+  integrationId: { label: "Connected service" },
+  milestoneKey: { label: "Stage" },
+  accessMode: { label: "Who can see it" },
+  acknowledgeHistoryExposure: { label: "Past posts", value: value => value ? "Become visible to the new audience" : "Stay hidden" },
+  role: { label: "New role", value: value => typeof value === "string" ? value[0].toUpperCase() + value.slice(1) : show(value) },
+  reason: { label: "Reason" },
+};
+
 // What the owner reads on the card: names, not ids, where Polynet knows them.
 async function describe(ctx: any, args: Record<string, unknown>) {
   const details: Array<{ label: string; value: string }> = [];
@@ -58,8 +73,9 @@ async function describe(ctx: any, args: Record<string, unknown>) {
       details.push({ label: "Channel", value: channel?.name ? `#${channel.name}` : shown });
       continue;
     }
-    if (key === "name" || key === "slug") continue;
-    details.push({ label: key.replace(/([A-Z])/g, " $1").toLowerCase(), value: shown.slice(0, 200) });
+    const field = FIELD_LABELS[key];
+    if (!field) continue;
+    details.push({ label: field.label, value: (field.value ? field.value(value) : shown).slice(0, 200) });
   }
   return details;
 }
