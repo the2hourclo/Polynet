@@ -1399,6 +1399,13 @@
     padding: 0 12px;
   }
 
+  /* Tabs that run past the edge fade out, so it reads as "scroll for more". */
+  .community-top-nav-tabs {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+    padding-right: 40px;
+  }
+
   .community-top-nav-chips {
     flex-wrap: nowrap;
     overflow-x: auto;
