@@ -26,6 +26,7 @@ import { markCommunityLessonElementBlocks } from "../../../../shared/communityLe
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
+import { Eye, PenLine } from "lucide-react";
 import { WebLessonSlideDeck } from "./WebLessonSlideDeck";
 import type { CommunityResource } from "./communityResourcesContracts";
 
@@ -85,6 +86,15 @@ function LessonElementSlot(props: { id: string }) {
       forms={activity.forms}
     />
   );
+}
+
+// A draft can be mid-edit; Preview shows whatever elements already read cleanly.
+function previewLessonElements(body: string) {
+  try {
+    return parseCommunityLessonElements(body).map(publicCommunityLessonElement);
+  } catch {
+    return [];
+  }
 }
 
 type WebCommunityResourceViewerContentProps = {
@@ -209,6 +219,13 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const isTitleEditing = isEditing && activeField === "title";
   const isBodyEditing = isEditing && activeField === "body";
   const isPinned = editor?.isEditing ? editor.pinnedInput : resource.pinned;
+  // Preview shows the lesson as members will read it, from the draft being edited.
+  const [previewing, setPreviewing] = useState(false);
+  const isPreviewing = isEditing && previewing;
+  useEffect(() => {
+    if (!isEditing) setPreviewing(false);
+  }, [isEditing, resource.id]);
+  const shownBody = isPreviewing && editor ? editor.bodyInput.trim() : persistedBody;
   // Follow-along elements work only in lessons (pages with lesson fields),
   // the same rule the server uses when it saves an answer.
   const lessonActivity = props.lessonActivity && resource.lesson ? props.lessonActivity : null;
@@ -216,8 +233,10 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     () =>
       !lessonActivity
         ? []
-        : resource.lesson_elements ?? parseCommunityLessonElements(persistedBody).map(publicCommunityLessonElement),
-    [lessonActivity, resource.lesson_elements, persistedBody],
+        : isPreviewing
+          ? previewLessonElements(shownBody)
+          : resource.lesson_elements ?? parseCommunityLessonElements(persistedBody).map(publicCommunityLessonElement),
+    [lessonActivity, isPreviewing, shownBody, resource.lesson_elements, persistedBody],
   );
   const lessonRef = buildCommunityResourceEvidenceRef(resource.id);
   const lessonResponses = lessonActivity?.progress.responsesByRef[lessonRef];
@@ -237,7 +256,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const hasLessonActivity = Boolean(lessonActivity);
   const lessonElementIds = lessonElements.map((element) => element.id).join(" ");
   const renderedBodyMarkdown = useMemo(() => {
-    if (!persistedBody) return null;
+    if (!shownBody) return null;
     const ids = new Set(lessonElementIds ? lessonElementIds.split(" ") : []);
     const render = (markdown: string) => renderMarkdown(ids.size ? markCommunityLessonElementBlocks(markdown, ids) : markdown, {
       embedStandaloneMedia: true,
@@ -246,8 +265,8 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       renderLessonElement: hasLessonActivity ? (id) => ids.has(id) ? <LessonElementSlot key={id} id={id} /> : null : null,
     });
     // A "## Slides" section reads as a deck, one slide at a time, in place.
-    const deck = splitCommunityLessonSlides(persistedBody);
-    if (!deck) return render(persistedBody);
+    const deck = splitCommunityLessonSlides(shownBody);
+    if (!deck) return render(shownBody);
     return (
       <>
         {deck.before ? render(deck.before) : null}
@@ -255,7 +274,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         {deck.after ? render(deck.after) : null}
       </>
     );
-  }, [persistedBody, props.communityEmbeds, hasLessonActivity, lessonElementIds, resource.id]);
+  }, [shownBody, props.communityEmbeds, hasLessonActivity, lessonElementIds, resource.id]);
 
   useEffect(() => {
     if (!isTitleEditing) return;
@@ -421,6 +440,17 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const renderBodyContent = () => {
     // While the page is being edited the body is always the editor, so moving
     // between the title and the body never reloads it.
+    if (isPreviewing) {
+      return (
+        <>
+          <div className="lesson-editor-preview-note" role="status">
+            <Eye aria-hidden="true" />
+            <span>This is how members see the lesson. Your changes keep saving.</span>
+          </div>
+          {renderedBodyMarkdown ? <div className="resource-viewer-prose">{renderedBodyMarkdown}</div> : null}
+        </>
+      );
+    }
     if (isEditing && editor) {
       const readView = renderedBodyMarkdown ? <div className="resource-viewer-prose">{renderedBodyMarkdown}</div> : null;
       return (
@@ -490,7 +520,11 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
           <div className="resource-viewer-header-aside">
             {isEditing && editor ? (
               <div className="resource-viewer-edit-actions">
-                <span className={`lesson-editor-save-state${bodyProblem ? " is-blocked" : ""}`} role="status" aria-live="polite">
+                <span
+                  className={`lesson-editor-save-pill${bodyProblem ? " is-blocked" : editor.isSaving || closeWhenSaved || editor.isDirty ? " is-pending" : ""}`}
+                  role="status"
+                  aria-live="polite"
+                >
                   {editor.isSaving || closeWhenSaved
                     ? "Saving…"
                     : bodyProblem
@@ -500,7 +534,20 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
                         : "Saved"}
                 </span>
                 <button
-                  className="platform-save-button resource-viewer-edit-save"
+                  className="lesson-editor-header-button"
+                  type="button"
+                  aria-pressed={isPreviewing}
+                  onClick={() => {
+                    bodyFocusAtRef.current = null;
+                    setPreviewing(!previewing);
+                  }}
+                  title={isPreviewing ? "Back to editing" : "See the lesson as members will"}
+                >
+                  {isPreviewing ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                  <span className="lesson-editor-header-label">{isPreviewing ? "Edit" : "Preview"}</span>
+                </button>
+                <button
+                  className="lesson-editor-header-button is-primary"
                   type="button"
                   onClick={finishEditing}
                   disabled={closeWhenSaved || Boolean(bodyProblem && editor.isDirty)}

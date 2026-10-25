@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { EditorContent, ReactNodeViewRenderer, useEditor, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -14,6 +14,7 @@ import {
   ArrowUp,
   Bold,
   CheckSquare,
+  Check,
   ChevronDown,
   CircleHelp,
   ClipboardList,
@@ -35,9 +36,11 @@ import {
   Play,
   Plus,
   Quote,
+  Redo2,
   Strikethrough,
   Table2,
   Trash2,
+  Undo2,
 } from "lucide-react";
 
 import { parseEmbedUrl } from "../../../../../shared/linkEmbedUi";
@@ -111,7 +114,7 @@ function takenBlockIds(editor: Editor): Set<string> {
 }
 
 function insertBlock(editor: Editor, range: Range, content: Record<string, unknown>) {
-  editor.chain().focus().deleteRange(range).insertContent(content).run();
+  editor.chain().focus().deleteRange(range).insertContentAt(range.from, content).run();
 }
 
 function insertLessonBlock(language: string) {
@@ -140,7 +143,7 @@ const SLASH_ITEMS: SlashItem[] = [
   { key: "code", group: "Text", title: "Code or prompt", hint: "Text members copy as is", keywords: "code prompt command ``` copy", icon: <Code2 />,
     run: (e, r) => e.chain().focus().deleteRange(r).toggleCodeBlock().run() },
   { key: "divider", group: "Text", title: "Divider", hint: "A line between parts", keywords: "hr rule line --- separator", icon: <Minus />,
-    run: (e, r) => e.chain().focus().deleteRange(r).setHorizontalRule().run() },
+    run: (e, r) => insertBlock(e, r, { type: "horizontalRule" }) },
   { key: "table", group: "Text", title: "Table", hint: "Rows and columns, written as text", keywords: "table grid |", icon: <Table2 />,
     run: (e, r) => {
       focusNextBlock("raw");
@@ -434,6 +437,182 @@ function FormatBar({ editor, openLinkRef }: { editor: Editor; openLinkRef: { cur
         </>
       )}
     </BubbleMenu>
+  );
+}
+
+/* The toolbar above the page, like a post editor's ------------------------- */
+
+// Where a block from the toolbar goes: into an empty line, or after the block
+// the caret is in, so it never splits a paragraph.
+function toolbarRange(editor: Editor): Range {
+  const { $from } = editor.state.selection;
+  if ($from.depth === 0) return { from: $from.pos, to: $from.pos };
+  if ($from.parent.type.name === "paragraph" && $from.parent.childCount === 0 && $from.depth === 1) return { from: $from.pos, to: $from.pos };
+  const after = $from.after(1);
+  return { from: after, to: after };
+}
+
+const slashItem = (key: string) => SLASH_ITEMS.find((item) => item.key === key)!;
+const TOOLBAR_LESSON_KEYS = ["button", "checklist", "quiz", "form"];
+const TOOLBAR_MORE_KEYS = ["divider", "code", "video", "table", "embed"];
+
+type ToolbarMenu = { key: string; rect: DOMRect } | null;
+
+function ToolbarMenuList(props: {
+  menu: NonNullable<ToolbarMenu>;
+  items: { key: string; title: string; hint?: string; icon: ReactNode; active?: boolean; run: () => void }[];
+  host: HTMLElement | null;
+  label: string;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const close = (event: Event) => {
+      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
+      if (event instanceof MouseEvent && ref.current?.contains(event.target as Node)) return;
+      props.onClose();
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", close);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", close);
+      window.removeEventListener("resize", close);
+    };
+  });
+  const style = {
+    left: Math.max(8, Math.min(props.menu.rect.left, window.innerWidth - 268)),
+    top: props.menu.rect.bottom + 6,
+  };
+  return createPortal(
+    <div ref={ref} className="lesson-editor-menu lesson-editor-toolbar-menu" style={style} role="menu" aria-label={props.label}>
+      {props.items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          role={item.active === undefined ? "menuitem" : "menuitemradio"}
+          aria-checked={item.active}
+          className={`lesson-editor-menu-item${item.hint ? "" : " is-compact"}`}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            item.run();
+            props.onClose();
+          }}
+        >
+          <span className="lesson-editor-menu-icon" aria-hidden="true">{item.icon}</span>
+          <span className="lesson-editor-menu-text">
+            <strong>{item.title}</strong>
+            {item.hint ? <small>{item.hint}</small> : null}
+          </span>
+          {item.active ? <Check className="lesson-editor-menu-check" aria-hidden="true" /> : null}
+        </button>
+      ))}
+    </div>,
+    props.host?.closest<HTMLElement>("[data-community-theme]") ?? document.body,
+  );
+}
+
+function Toolbar({ editor, followAlong, openLinkRef, host }: {
+  editor: Editor;
+  followAlong: boolean;
+  openLinkRef: { current: (() => void) | null };
+  host: HTMLElement | null;
+}) {
+  const [menu, setMenu] = useState<ToolbarMenu>(null);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const rerender = () => setTick((tick) => tick + 1);
+    editor.on("selectionUpdate", rerender);
+    editor.on("update", rerender);
+    editor.on("focus", rerender);
+    return () => {
+      editor.off("selectionUpdate", rerender);
+      editor.off("update", rerender);
+      editor.off("focus", rerender);
+    };
+  }, [editor]);
+  const run = (key: string, block: boolean) => {
+    const range = block ? toolbarRange(editor) : { from: editor.state.selection.from, to: editor.state.selection.from };
+    slashItem(key).run(editor, range);
+  };
+  const button = (key: string, label: string, icon: ReactNode, onClick: () => void, options: { active?: boolean; disabled?: boolean; shortcut?: string } = {}) => (
+    <button
+      key={key}
+      type="button"
+      className={`lesson-editor-tool${options.active ? " is-active" : ""}`}
+      aria-label={label}
+      aria-pressed={options.active === undefined ? undefined : options.active}
+      title={options.shortcut ? `${label} (${options.shortcut})` : label}
+      disabled={options.disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      {icon}
+    </button>
+  );
+  const toggleMenu = (key: string) => (event: ReactMouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenu((current) => (current?.key === key ? null : { key, rect }));
+  };
+  const menuButton = (key: string, label: string, content: ReactNode) => (
+    <button
+      type="button"
+      className={`lesson-editor-tool is-labelled${menu?.key === key ? " is-open" : ""}`}
+      aria-haspopup="menu"
+      aria-expanded={menu?.key === key}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={toggleMenu(key)}
+      title={label}
+    >
+      {content}
+      <ChevronDown className="lesson-editor-tool-caret" aria-hidden="true" />
+    </button>
+  );
+  const style = TURN_INTO.slice(0, 4).find((item) => item.isActive(editor)) ?? null;
+  const inCode = editor.isActive("codeBlock");
+  const divider = (key: string) => <span key={key} className="lesson-editor-tool-divider" aria-hidden="true" />;
+  const menuItems = !menu
+    ? []
+    : menu.key === "style"
+      ? TURN_INTO.slice(0, 4).map((item) => ({ key: item.key, title: item.label, icon: item.icon, active: item === style, run: () => item.run(editor) }))
+      : (menu.key === "lesson" ? TOOLBAR_LESSON_KEYS : TOOLBAR_MORE_KEYS).map((key) => {
+          const item = slashItem(key);
+          return { key, title: item.title, hint: item.hint, icon: item.icon, run: () => run(key, key !== "code") };
+        });
+
+  return (
+    <div className="lesson-editor-toolbar" role="toolbar" aria-label="Formatting">
+      <div className="lesson-editor-toolbar-row">
+        {button("undo", "Undo", <Undo2 />, () => editor.chain().focus().undo().run(), { disabled: !editor.can().undo(), shortcut: "Ctrl+Z" })}
+        {button("redo", "Redo", <Redo2 />, () => editor.chain().focus().redo().run(), { disabled: !editor.can().redo(), shortcut: "Ctrl+Shift+Z" })}
+        {divider("d1")}
+        {menuButton("style", "Text style", <span className="lesson-editor-tool-label">{style?.label ?? "Style"}</span>)}
+        {divider("d2")}
+        {button("bold", "Bold", <Bold />, () => editor.chain().focus().toggleBold().run(), { active: editor.isActive("bold"), disabled: inCode, shortcut: "Ctrl+B" })}
+        {button("italic", "Italic", <Italic />, () => editor.chain().focus().toggleItalic().run(), { active: editor.isActive("italic"), disabled: inCode, shortcut: "Ctrl+I" })}
+        {button("strike", "Strikethrough", <Strikethrough />, () => editor.chain().focus().toggleStrike().run(), { active: editor.isActive("strike"), disabled: inCode, shortcut: "Ctrl+Shift+S" })}
+        {button("inline-code", "Inline code", <Code />, () => editor.chain().focus().toggleCode().run(), { active: editor.isActive("code"), disabled: inCode, shortcut: "Ctrl+E" })}
+        {button("link", "Link", <Link2 />, () => openLinkRef.current?.(), { active: editor.isActive("link"), disabled: editor.state.selection.empty || inCode, shortcut: "Ctrl+K" })}
+        {divider("d3")}
+        {button("image", "Image", <ImagePlus />, () => run("image", true))}
+        {button("quote", "Callout", <Quote />, () => run("quote", false), { active: editor.isActive("blockquote") })}
+        {button("bullets", "Bulleted list", <List />, () => run("bullets", false), { active: editor.isActive("bulletList") })}
+        {button("numbers", "Numbered list", <ListOrdered />, () => run("numbers", false), { active: editor.isActive("orderedList") })}
+        {divider("d4")}
+        {followAlong ? menuButton("lesson", "Add a lesson block", <><CircleHelp aria-hidden="true" /><span className="lesson-editor-tool-label">Lesson</span></>) : null}
+        {menuButton("more", "More blocks", <span className="lesson-editor-tool-label">More</span>)}
+      </div>
+      {menu ? (
+        <ToolbarMenuList
+          menu={menu}
+          items={menuItems}
+          host={host}
+          label={menu.key === "style" ? "Text style" : menu.key === "lesson" ? "Lesson blocks" : "More blocks"}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -778,6 +957,10 @@ export default function LessonEditor(props: LessonEditorProps) {
         className="lesson-editor"
         onMouseMove={(event) => {
           if ((event.target as HTMLElement).closest(".lesson-editor-handle")) return;
+          if ((event.target as HTMLElement).closest(".lesson-editor-toolbar")) {
+            setHover(null);
+            return;
+          }
           const next = topLevelBlockAt(editor.view, event.clientY);
           setHover((current) => (current?.pos === next?.pos && current?.top === next?.top ? current : next));
         }}
@@ -785,6 +968,7 @@ export default function LessonEditor(props: LessonEditorProps) {
           if (!(event.relatedTarget instanceof Node) || !wrapperRef.current?.contains(event.relatedTarget)) setHover(null);
         }}
       >
+        <Toolbar editor={editor} followAlong={props.followAlong ?? true} openLinkRef={openLinkRef} host={wrapperRef.current} />
         {hover ? <BlockHandle editor={editor} hover={hover} onClose={() => setHover(null)} /> : null}
         <EditorContent editor={editor} />
         <FormatBar editor={editor} openLinkRef={openLinkRef} />
