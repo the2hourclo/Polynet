@@ -77,7 +77,8 @@ function withBreaks<T extends WelcomeBlock>(layout: T[], make: (block: WelcomeBl
 const draftKey = (title: string, layout: WelcomeBlock[]) =>
   JSON.stringify({ title: title.replace(/\s+/g, " ").trim(), layout: normalizeWelcomeLayout(layout) });
 
-type MenuTarget = { uid: string; mode: "replace" | "after" } | { uid: null; mode: "end" };
+// "replace" swaps the "/" line typed in a text block (the whole block when that's all it holds) for the new blocks.
+type MenuTarget = { uid: string; mode: "after" } | { uid: string; mode: "replace"; start: number; end: number } | { uid: null; mode: "end" };
 type MenuView = "root" | "form" | "lesson" | "link";
 type MenuItem = { key: string; label: string; hint: string; icon: ReactNode };
 
@@ -173,8 +174,13 @@ export function WebCommunityWelcomeSettings(props: Props) {
     setLayout((layout) => {
       const at = target.uid ? layout.findIndex((block) => block.uid === target.uid) : -1;
       if (at < 0) return [...layout, ...added];
-      return target.mode === "replace" ? [...layout.slice(0, at), ...added, ...layout.slice(at + 1)]
-        : [...layout.slice(0, at + 1), ...added, ...layout.slice(at + 1)];
+      if (target.mode !== "replace") return [...layout.slice(0, at), layout[at], ...added, ...layout.slice(at + 1)];
+      // The words around the "/" line stay where they were, above and below what was added.
+      const block = layout[at];
+      const markdown = block.type === "text" ? block.markdown : "";
+      const around = [markdown.slice(0, target.start), markdown.slice(target.end + 1)]
+        .map((part) => part.replace(/^\n+|\n+$/g, "")).map((part) => (part.trim() ? withUid({ type: "text", markdown: part }) : null));
+      return [...layout.slice(0, at), ...(around[0] ? [around[0]] : []), ...added, ...(around[1] ? [around[1]] : []), ...layout.slice(at + 1)];
     });
     setMenu(null);
     const last = added[added.length - 1];
@@ -215,9 +221,13 @@ export function WebCommunityWelcomeSettings(props: Props) {
 
   const updateText = (uid: string, markdown: string) => {
     setLayout((layout) => layout.map((block) => (block.uid === uid ? { ...block, markdown } : block)));
-    // "/" at the start of an empty line opens the block menu, filtered by what follows.
-    const slash = /^\/(\w*)$/.exec(markdown);
-    if (slash && !full) openMenu({ uid, mode: "replace" }, "root", slash[1]);
+    // "/" at the start of an empty line opens the block menu, filtered by what follows: the line with the cursor, not the whole block.
+    const field = document.getElementById(`${id}-block-${uid}`) as HTMLTextAreaElement | null;
+    const caret = field?.selectionStart ?? markdown.length;
+    const start = markdown.lastIndexOf("\n", caret - 1) + 1;
+    const end = markdown.indexOf("\n", caret) < 0 ? markdown.length : markdown.indexOf("\n", caret);
+    const slash = /^\/(\w*)$/.exec(markdown.slice(start, end));
+    if (slash && !full) openMenu({ uid, mode: "replace", start, end }, "root", slash[1]);
     else if (menu?.target.uid === uid) setMenu(null);
   };
   const remove = (uid: string) => {
