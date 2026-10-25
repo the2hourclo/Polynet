@@ -68,6 +68,7 @@ export const COMMUNITY_SETTINGS_PANES = [
   "sales_page",
   "appearance",
   "agent",
+  "access",
   "danger",
 ] as const;
 
@@ -175,6 +176,8 @@ export function parseCommunitySettingsPane(
     case "appearance":
     case "look":
       return "appearance";
+    case "access":
+      return "access";
     case "community":
     default:
       return "community";
@@ -202,6 +205,9 @@ export function isCommunitySettingsPaneAllowedForAccess(
       return access.canManageMembers;
     // Fonts, sizing and colours: the theme draft, which managers may edit.
     case "appearance":
+      return access.canManageMembers;
+    // Connected services (such as the AIEB MCP) and access given by hand.
+    case "access":
       return access.canManageMembers;
     case "danger":
       return access.isOwner;

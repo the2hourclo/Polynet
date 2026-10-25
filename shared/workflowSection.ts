@@ -1,8 +1,8 @@
-export const WORKFLOW_SECTIONS = ["workflows", "forms", "welcome", "test"] as const;
+export const WORKFLOW_SECTIONS = ["workflows", "clients", "forms", "welcome", "test"] as const;
 export type WorkflowSection = typeof WORKFLOW_SECTIONS[number];
 export function workflowSectionFromSearch(search: string): WorkflowSection {
   const value = new URLSearchParams(search).get("section");
-  return value === "forms" || value === "welcome" || value === "test" ? value : "workflows";
+  return value === "clients" || value === "forms" || value === "welcome" || value === "test" ? value : "workflows";
 }
 export function workflowSectionUrl(href: string, section: WorkflowSection) {
   const url = new URL(href);

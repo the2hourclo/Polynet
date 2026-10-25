@@ -32,6 +32,125 @@
 [data-community-theme] .web-agent-live-turn-response {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .access-muted {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-notice {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-badge {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-facts dt {
+  font-size: var(--pn-type-meta);
+}
+[data-community-theme] .access-facts dd {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-facts code,
+[data-community-theme] .access-panel code,
+[data-community-theme] .access-my-card code,
+[data-community-theme] .access-integration code {
+  font-size: var(--pn-type-label);
+  border-radius: calc(4px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-uses li,
+[data-community-theme] .access-services li {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-uses li small,
+[data-community-theme] .access-services li small {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-panel h4,
+[data-community-theme] .access-client-body > h4,
+[data-community-theme] .access-key-block h4 {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-panel p {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-panel-summary {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-confirm {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-confirm p {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-history summary {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-history ul {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-field {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-field input {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .access-check {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-fieldset legend {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-clients-header h2 {
+  font-size: var(--pn-type-heading);
+}
+[data-community-theme] .access-give-card {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-table {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-table thead th {
+  font-size: var(--pn-type-meta);
+}
+[data-community-theme] .access-client-name small {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-service-chips > span {
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-meta);
+}
+[data-community-theme] .access-client-identity span {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-client-modal .modal-title {
+  font-size: var(--pn-type-heading);
+}
+[data-community-theme] .access-timeline li {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-timeline time {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-integration {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-integration header strong {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .access-events li {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-secrets {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-copy-field {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-copy-field code {
+  font-size: var(--pn-type-label);
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-key-block p {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .community-look-group legend {
   font-size: var(--pn-type-small);
 }

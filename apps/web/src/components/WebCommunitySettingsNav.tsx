@@ -4,11 +4,13 @@ import {
   Bot,
   ClipboardList,
   DoorOpen,
+  KeyRound,
   Megaphone,
   Palette,
   Search,
   Settings2,
   TriangleAlert,
+  Users,
   Workflow,
   X,
 } from "lucide-react";
@@ -74,6 +76,14 @@ export function buildCommunitySettingsNav(params: {
         { kind: "link", id: "forms", label: "Forms", icon: <ClipboardList {...ICON} />, path: at("forms"), keywords: "questions survey application quiz" },
       ],
     });
+  }
+  if (has("access")) {
+    const members: SettingsNavItem[] = [];
+    if (params.workflowsPath) {
+      members.push({ kind: "link", id: "clients", label: "Clients", icon: <Users {...ICON} />, path: `${params.workflowsPath}?section=clients`, keywords: "members people progress plan database" });
+    }
+    members.push({ kind: "pane", pane: "access", label: "Access", icon: <KeyRound {...ICON} />, keywords: "entitlement license key mcp integration webhook api trial comp grant connected services" });
+    groups.push({ label: "Members", items: members });
   }
   if (has("agent")) {
     groups.push({ label: "Agent", items: [{ kind: "pane", pane: "agent", label: "Agent", icon: <Bot {...ICON} />, keywords: "ai assistant model prompt" }] });

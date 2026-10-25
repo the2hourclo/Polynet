@@ -22,6 +22,8 @@ import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
 import { WebCommunitySalesPageSettings } from "./WebCommunitySalesPageSettings";
 import { buildCommunitySettingsNav, WebCommunitySettingsNav } from "./WebCommunitySettingsNav";
 import "./WebCommunitySettings.css";
+import { WebCommunityAccessSettings, WebCommunityMyAccessCard } from "./WebCommunityAccess";
+import { useCommunityAccessGatewayForSession, type CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 
 // Community Settings, after Substack's admin: a side nav (with search) beside
 // one column of section cards. General saves as you type; the sales page and
@@ -157,6 +159,7 @@ const PANE_TITLES: Record<CommunitySettingsPane, string> = {
   sales_page: "Sales page",
   appearance: "Appearance",
   agent: "Agent",
+  access: "Access",
   danger: "Archive",
 };
 
@@ -797,15 +800,17 @@ function CommunityArchiveCard({
 // Members who don't manage the community get their own two settings.
 function CommunityMemberSettings({
   activeCommunity,
+  accessGateway,
   state,
   actions,
-}: SharedSettingsProps & { activeCommunity: ActiveCommunity }) {
+}: SharedSettingsProps & { activeCommunity: ActiveCommunity; accessGateway: CommunityAccessGateway | null }) {
   return (
     <div className="pn-settings-single">
       <header className="pn-settings-page-header">
         <h1>Settings</h1>
       </header>
       <div className="pn-settings-stack">
+        {accessGateway ? <WebCommunityMyAccessCard key={accessGateway.scopeKey} gateway={accessGateway} /> : null}
         <SettingsCard title="Notifications">
           <SettingsRow
             label="Mute this community"
@@ -906,6 +911,9 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
     [availableSettingsPaneKey, workflowsPath],
   );
   const autosave = useCommunitySettingsAutosave({ state, actions });
+  const accessGateway = useCommunityAccessGatewayForSession({
+    communityId: resolvedActiveCommunity?.id ?? null, session: props.session, ensureSession: props.ensureSession,
+  });
   const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -978,7 +986,7 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
   if (!canManageCommunitySettings) {
     return (
       <div className="settings-panel community-settings-panel pn-settings">
-        <CommunityMemberSettings activeCommunity={resolvedActiveCommunity} state={state} actions={actions} />
+        <CommunityMemberSettings activeCommunity={resolvedActiveCommunity} accessGateway={accessGateway} state={state} actions={actions} />
       </div>
     );
   }
@@ -1070,6 +1078,9 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
             />
           ) : null}
           {selectedSettingsPane === "agent" ? <WebCommunityAiAgentSection {...aiAgentProps} embedded /> : null}
+          {selectedSettingsPane === "access" && accessGateway ? (
+            <WebCommunityAccessSettings key={accessGateway.scopeKey} gateway={accessGateway} />
+          ) : null}
           {selectedSettingsPane === "danger" && isOwnerSettingsLayer ? (
             <CommunityArchiveCard activeCommunity={resolvedActiveCommunity} state={state} actions={actions} />
           ) : null}
