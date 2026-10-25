@@ -25,6 +25,7 @@ import { WebAccountSettingsButton } from "./WebAccountSettingsButton";
 import { DRAFT_LOOKS_IN_DISPLAY_MENU, useDraftLook } from "../controllers/useDraftLook";
 import { courseCardLookWords } from "./ResourceCourseCatalog";
 import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
+import { setMemberPickEverywhere, useMemberPickEverywhere } from "../controllers/communityLookPreference";
 import type {
   MobileOverlay,
   WebCommunityShellProps,
@@ -81,6 +82,7 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
 ]);
 
 export function WebShellChromeHost(props: WebShellChromeHostProps) {
+  const pickEverywhere = useMemberPickEverywhere();
   const communityTheme = useWebCommunityThemeStyle(
     COMMUNITY_THEMED_DESTINATIONS.has(props.communityShell.destination.kind)
       ? props.communityShell.activeCommunity?.id ?? null
@@ -134,7 +136,15 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     onPostSearch: setPostSearch,
     layoutChoice: communityLayoutChoice,
     displayMode: communityTheme.followsMemberMode && props.appTheme && props.onChooseAppTheme
-      ? { current: props.appTheme, onChoose: props.onChooseAppTheme }
+      ? {
+          current: communityTheme.theme && !pickEverywhere && !(communityTheme.theme.schemes.light && communityTheme.theme.schemes.dark)
+            ? (communityTheme.theme.schemes.dark ? "dark" : "light")
+            : props.appTheme,
+          onChoose: (theme: AppTheme) => {
+            setMemberPickEverywhere(true);
+            props.onChooseAppTheme!(theme);
+          },
+        }
       : null,
   };
   const isMobileDedicatedRoot =

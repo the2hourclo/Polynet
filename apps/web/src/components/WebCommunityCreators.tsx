@@ -21,6 +21,22 @@ const cache = new Map<string, Creator[]>();
 
 // Fired after the owner changes who the co-creators are, so rows refresh.
 export const COMMUNITY_CREATORS_CHANGED_EVENT = "polynet:community-creators-changed";
+// Asks the community's chat to open someone's profile. The chat cancels the
+// event when it handles it; when it isn't on screen, the profile waits here
+// until the chat mounts.
+export const COMMUNITY_OPEN_PROFILE_EVENT = "polynet:community-open-profile";
+let pendingProfileUserId: string | null = null;
+export function takePendingCommunityProfile(): string | null {
+  const userId = pendingProfileUserId;
+  pendingProfileUserId = null;
+  return userId;
+}
+function requestCommunityProfile(userId: string, onShowChat?: () => void) {
+  const event = new CustomEvent(COMMUNITY_OPEN_PROFILE_EVENT, { detail: { userId }, cancelable: true });
+  if (!window.dispatchEvent(event)) return;
+  pendingProfileUserId = userId;
+  onShowChat?.();
+}
 
 function creatorName(creator: Creator): string {
   return creator.display_name?.trim() || (creator.handle ? `@${creator.handle}` : "Creator");
@@ -33,7 +49,7 @@ function initials(name: string): string {
 // "Created by": the owner first, then the co-creators the owner added. Shown
 // under the community's name in Channels, on its card in Classroom and on
 // About (Rashid, 2026-10-25).
-export function WebCommunityCreators(props: { communityId: string | null | undefined; onOpenProfile?: (userId: string) => void; className?: string }) {
+export function WebCommunityCreators(props: { communityId: string | null | undefined; onOpenProfile?: (userId: string) => void; onShowChat?: () => void; readOnly?: boolean; className?: string }) {
   const communityId = props.communityId ?? null;
   const [creators, setCreators] = useState<Creator[]>(() => (communityId ? cache.get(communityId) ?? [] : []));
   const [reload, setReload] = useState(0);
@@ -85,11 +101,13 @@ export function WebCommunityCreators(props: { communityId: string | null | undef
           {creators.map((creator, index) => (
             <span key={creator.user_id}>
               {index > 0 ? (index === creators.length - 1 ? " & " : ", ") : null}
-              {props.onOpenProfile ? (
-                <button type="button" className="community-creators-name" onClick={() => props.onOpenProfile!(creator.user_id)}>{names[index]}</button>
-              ) : (
-                <span className="community-creators-name">{names[index]}</span>
-              )}
+              {props.readOnly ? <span className="community-creators-name">{names[index]}</span> : <button
+                type="button"
+                className="community-creators-name"
+                onClick={() => (props.onOpenProfile ? props.onOpenProfile(creator.user_id) : requestCommunityProfile(creator.user_id, props.onShowChat))}
+              >
+                {names[index]}
+              </button>}
             </span>
           ))}
         </span>

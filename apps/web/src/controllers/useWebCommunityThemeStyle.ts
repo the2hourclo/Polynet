@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { communityThemeWithBothSchemes } from "../../../../shared/communityThemePalettes";
+import { useMemberPickEverywhere } from "./communityLookPreference";
 import {
   compileCommunityThemeCss,
   communityThemeFontStylesheetUrl,
@@ -134,12 +135,14 @@ export function useWebCommunityThemeStyle(
   const current = loaded && loaded.communityId === communityId ? loaded : null;
   const theme = preview && preview.communityId === communityId ? preview.theme : current?.theme ?? null;
 
+  const pickEverywhere = useMemberPickEverywhere();
   useEffect(() => {
     if (!communityId || !theme) return;
     const style = upsertHeadElement<HTMLStyleElement>(STYLE_ELEMENT_ID, "style");
-    // A member's Light or Dark pick wins over a one-version look: they see its
-    // twin. The Customize preview shows exactly the version being edited.
-    const shown = IS_APPEARANCE_PREVIEW_FRAME ? theme : communityThemeWithBothSchemes(theme);
+    // Once a member picks Light or Dark themselves, it wins over a one-version
+    // look: they see its twin. The Customize preview shows exactly the version
+    // being edited.
+    const shown = IS_APPEARANCE_PREVIEW_FRAME || !pickEverywhere ? theme : communityThemeWithBothSchemes(theme);
     style.textContent = compileCommunityThemeCss(shown, `[data-community-theme="${CSS.escape(communityId)}"]`);
     const fontUrl = communityThemeFontStylesheetUrl(theme);
     if (fontUrl) {
@@ -151,7 +154,7 @@ export function useWebCommunityThemeStyle(
       removeHeadElement(STYLE_ELEMENT_ID);
       removeHeadElement(FONT_ELEMENT_ID);
     };
-  }, [communityId, theme]);
+  }, [communityId, theme, pickEverywhere]);
 
   return {
     attribute: communityId && theme ? communityId : null,
@@ -159,8 +162,8 @@ export function useWebCommunityThemeStyle(
     // settings the shell applies itself, such as the Channels look and rail.
     theme: communityId ? theme : null,
     previewingDraft: Boolean(communityId && current?.draft),
-    // Every look follows the member's Light/Dark (a one-version look shows its
-    // twin). False until the theme is read, so the choice doesn't flash.
+    // Every look offers Light/Dark (choosing one in a one-version look shows
+    // its twin). False until the theme is read, so the choice doesn't flash.
     followsMemberMode: Boolean(communityId && (current || theme)),
   };
 }

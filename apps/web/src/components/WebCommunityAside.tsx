@@ -58,7 +58,7 @@ export function WebCommunityCard() {
           <h2 className="community-card-block-name">{community.name}</h2>
         </div>
         {community.one_liner ? <p className="community-card-block-description">{community.one_liner}</p> : null}
-        <WebCommunityCreators communityId={community.id} />
+        <WebCommunityCreators communityId={community.id} onShowChat={() => frame.onSelectTab("chat")} />
         {typeof frame.memberCount === "number" ? (
           <button type="button" className="community-card-block-stat" onClick={() => frame.onSelectTab("members")}>
             <Users size={16} aria-hidden="true" />
