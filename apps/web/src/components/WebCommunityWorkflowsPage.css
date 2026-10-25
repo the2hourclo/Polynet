@@ -332,20 +332,24 @@
 .pn-wf .test-run-help { font-size: 0.8125rem; }
 .pn-wf .pn-wf-muted { font-size: 0.875rem; }
 
-.pn-wf .test-run-members { display: flex; flex-direction: column; }
+/* A grid, not a wrapping row: the actions always keep their room, so nothing
+   spills past the card's clipped edge where a click can't reach it. */
+.pn-wf .test-run-members { display: flex; flex-direction: column; overflow: visible; }
 .pn-wf .test-run-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.5rem 0.75rem;
   padding: 0.625rem 1rem 0.625rem 0.5rem;
   border-bottom: 1px solid var(--border-default);
 }
-.pn-wf .test-run-row:last-child { border-bottom: 0; }
+.pn-wf .test-run-row:first-child { border-radius: var(--pn-wf-r-frame) var(--pn-wf-r-frame) 0 0; }
+.pn-wf .test-run-row:last-child { border-bottom: 0; border-radius: 0 0 var(--pn-wf-r-frame) var(--pn-wf-r-frame); }
+.pn-wf .test-run-row:only-child { border-radius: var(--pn-wf-r-frame); }
 .pn-wf .test-run-row.is-selected { background: var(--hover-overlay); box-shadow: inset 3px 0 0 var(--text-primary); }
+@media (max-width: 1100px) { .pn-wf .test-run-row { grid-template-columns: minmax(0, 1fr); } }
 .pn-wf .test-run-member-name {
   display: flex;
-  flex: 1 1 18rem;
   flex-direction: row;
   align-items: center;
   gap: 0.875rem;
@@ -353,8 +357,9 @@
   padding: 0.25rem 0.5rem;
   border-radius: var(--pn-wf-r);
 }
+.pn-wf .test-run-member-name .pn-wf-row-text { min-width: 0; }
 .pn-wf .test-run-member-name .pn-wf-row-text small { font-size: 0.8125rem; }
-.pn-wf .test-run-member-actions { gap: 0.375rem; }
+.pn-wf .test-run-member-actions { flex-wrap: wrap; gap: 0.375rem; }
 .pn-wf .test-run-member-actions .workflow-secondary-button { min-height: 2rem; padding: 0 0.75rem; }
 .pn-wf .test-run-end:hover:not(:disabled) { color: var(--accent-error); }
 .pn-wf .test-run :is(.workflow-secondary-button, .pn-wf-primary):disabled { opacity: 0.5; cursor: not-allowed; }
