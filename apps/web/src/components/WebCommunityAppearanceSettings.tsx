@@ -30,7 +30,8 @@ import {
 } from "../controllers/useWebCommunityThemeStyle";
 import "./WebCommunityAppearanceSettings.css";
 
-type Props = { communityId: string; communitySlug: string | null; session: unknown; ensureSession: (session: any) => Promise<any | null> };
+// hasBanner: the community has a banner image, so the side column prints its name over it.
+type Props = { communityId: string; communitySlug: string | null; hasBanner?: boolean; session: unknown; ensureSession: (session: any) => Promise<any | null> };
 
 const PREVIEW_SCOPE = "look-preview";
 const CUSTOMIZE_HASH = "#customize";
@@ -40,7 +41,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_cover_plate" | "course_cover_fit" | "media_plate";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -53,6 +54,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   course_cover_plate: ["Cover background (light scheme)", [["none", "Plain"], ["tint", "Soft accent tint"]]],
   course_cover_fit: ["Cover pictures", [["crop", "Fill the box"], ["whole", "Show whole picture"]]],
   media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
+  banner_name: ["Name on the banner", [["show", "Show it"], ["hide", "Hide it"]]],
 };
 // The community pages the preview can show, by their tab in the address.
 const PREVIEW_PAGES: [string, string][] = [["chat", "Chat"], ["resources", "Courses"], ["events", "Events"]];
@@ -210,7 +212,7 @@ export function WebCommunityAppearanceSettings(props: Props) {
     </section>
     {customizing ? <AppearanceEditor
       theme={theme} scheme={scheme} setScheme={setScheme} set={set} busy={busy} problems={problems} uid={uid}
-      previewTheme={previewTheme} communityId={props.communityId} communitySlug={props.communitySlug}
+      previewTheme={previewTheme} communityId={props.communityId} communitySlug={props.communitySlug} hasBanner={Boolean(props.hasBanner)}
       statusText={statusText} actions={actions} footer={<>{problemList}{errorLine}</>}
       onClose={() => openCustomize(false)}
     /> : null}
@@ -238,6 +240,7 @@ type EditorProps = {
   previewTheme: CommunityThemeV1 | null;
   communityId: string;
   communitySlug: string | null;
+  hasBanner: boolean;
   statusText: string;
   actions: ReactNode;
   footer: ReactNode;
@@ -437,6 +440,10 @@ function AppearanceEditor(props: EditorProps) {
           <Row label="Starting point" wide><PresetPicker theme={theme} disabled={busy} onPick={applyPreset} /></Row>
           <p className="appearance-hint">Picking one replaces your draft. Undo until you save.</p>
         </Group>
+        {props.hasBanner ? <Group title="Banner">
+          {choice("banner_name")}
+          <p className="appearance-hint">Hide the name when your banner artwork already spells it out.</p>
+        </Group> : null}
         <Group title="Colors">
           <Row label="Light or dark" htmlFor={fieldId("mode")}>
             <select id={fieldId("mode")} value={mode} disabled={busy} onChange={(e) => setMode(e.target.value as SchemeMode)}>

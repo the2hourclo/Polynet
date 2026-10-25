@@ -1073,6 +1073,7 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
             <WebCommunityAppearanceSettings
               communityId={resolvedActiveCommunity.id}
               communitySlug={resolvedActiveCommunity.slug}
+              hasBanner={Boolean(state.communitySettingsBannerUrl?.trim())}
               session={props.session}
               ensureSession={props.ensureSession}
             />
