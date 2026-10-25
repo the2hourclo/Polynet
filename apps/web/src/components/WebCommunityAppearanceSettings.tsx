@@ -687,10 +687,18 @@ function AppearanceEditor(props: EditorProps) {
   };
   const setMode = (mode: SchemeMode) => {
     const current = theme.schemes;
+    // A missing version comes from the design or palette the other one
+    // matches; failing that, Polynet's own with the same accent.
     const fallback = (key: CommunityThemeScheme): CommunityThemeColors => {
       const base = DEFAULT_COMMUNITY_THEME.schemes[key] as CommunityThemeColors;
-      const other = current[key === "light" ? "dark" : "light"];
-      return other ? { ...base, accent: other.accent, on_accent: readableOn(other.accent) } : base;
+      const otherKey = key === "light" ? "dark" : "light";
+      const other = current[otherKey];
+      if (!other) return base;
+      const same = (colors: CommunityThemeColors | undefined) => JSON.stringify(colors) === JSON.stringify(other);
+      const twin =
+        COMMUNITY_THEME_PRESETS.find((preset) => same(preset.theme.schemes[otherKey]) && preset.theme.schemes[key])?.theme.schemes[key] ??
+        COMMUNITY_THEME_PALETTES.find((palette) => same(palette.schemes[otherKey]))?.schemes[key];
+      return twin ? { ...twin } : { ...base, accent: other.accent, on_accent: readableOn(other.accent) };
     };
     const schemes = mode === "both"
       ? { light: current.light ?? fallback("light"), dark: current.dark ?? fallback("dark") }

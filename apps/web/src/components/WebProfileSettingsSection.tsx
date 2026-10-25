@@ -16,6 +16,8 @@ type SessionLike = {
 } | null;
 
 type WebProfileSettingsSectionProps = {
+  // Your settings shows the links in a fold of their own.
+  hideLinks?: boolean;
   profileLoadStatus?: "idle" | "loading" | "ready" | "missing" | "error";
   reloadProfile?: () => void;
   session: SessionLike;
@@ -207,13 +209,13 @@ export function WebProfileSettingsSection(props: WebProfileSettingsSectionProps)
           </button>
         </div>
       </div>
-      <WebSocialProfileLinksFields
+      {props.hideLinks ? null : <WebSocialProfileLinksFields
         values={profileSocialLinks}
         disabled={!session || isSavingProfile || isInitialLoad || (!cloudProfile && props.profileLoadStatus === "error")}
         variant="settings"
         onChange={setProfileSocialLink}
         onSave={(nextLinks) => saveProfileToCloud({ socialLinks: nextLinks })}
-      />
+      />}
       {props.profileLoadStatus === "error" && <div className="auth-error" role="alert">Your profile could not be loaded. Your edits are preserved. <button type="button" onClick={props.reloadProfile}>Retry</button></div>}
       {profileSaveError && <div className="auth-error" role="alert">{profileSaveError}</div>}
       <WebUserAvatarEditorModal

@@ -2588,6 +2588,7 @@ export default function App() {
     appearance: {
       appTheme,
       setAppTheme,
+      community: activeCommunity ? { id: activeCommunity.id, name: activeCommunity.name } : null,
     },
     onOpenPath: (path) => navigateTo(path),
   };
