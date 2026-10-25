@@ -157,6 +157,13 @@
   aspect-ratio: auto;
   border-radius: inherit;
 }
+/* The picture fills the card, even when covers are set to show whole. */
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-cover-image {
+  inset: 0 !important;
+  object-fit: cover !important;
+  padding: 0 !important;
+  background: none;
+}
 /* A dark wash under the words keeps white text above 4.5:1 on any picture. */
 :root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-body {
   position: absolute;
