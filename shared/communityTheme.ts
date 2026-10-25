@@ -581,6 +581,17 @@ export function communityThemeVariables(
     "--chat-link": link,
     "--text-link-hover": mixed(link, 84, c.text),
     "--chat-link-hover": mixed(link, 84, c.text),
+    // Polynet defines these at :root from its own text colour, so without them
+    // a dark community inside a light Polynet showed messages in Polynet's
+    // dark ink on the community's dark cards.
+    "--chat-author-text": c.text,
+    "--chat-body-text": c.text,
+    "--chat-meta-text": grey.muted,
+    "--chat-system-text": grey.faint,
+    "--composer-focus-ring": mixed(c.text, 44, "transparent"),
+    "--accent-primary": c.accent,
+    "--surface-app": c.background,
+    "--surface-header": c.background,
     "--bg-button": c.button,
     "--bg-button-hover": mixed(c.button, 88, c.background),
     "--bg-button-text": c.on_button,

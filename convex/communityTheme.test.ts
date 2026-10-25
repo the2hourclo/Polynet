@@ -217,6 +217,9 @@ describe("community theme compilation", () => {
     expect(contrastRatio(dark["--text-secondary"], surface)).toBeGreaterThanOrEqual(15);
     expect(contrastRatio(dark["--text-muted"], surface)).toBeGreaterThanOrEqual(12);
     expect(contrastRatio(dark["--text-faint"], surface)).toBeGreaterThanOrEqual(9);
+    // Chat colours come from the community, not from Polynet's own :root.
+    expect(dark["--chat-body-text"]).toBe(stopwatch.theme.schemes.dark!.text);
+    expect(contrastRatio(dark["--chat-meta-text"], surface)).toBeGreaterThanOrEqual(12);
     const light = communityThemeVariables(clo.theme, "light");
     expect(light["--text-muted"]).toBe("#6B6B63");
     expect(contrastRatio(light["--text-faint"], "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
