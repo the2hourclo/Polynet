@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Circle, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Circle, CircleDot, Lock } from "lucide-react";
 import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import {
   computeCommunityLessonStages,
@@ -100,17 +100,43 @@ export function WebCommunityLessonBoard(props: {
     );
   }
 
+  // The whole journey at a glance: how much is done, and the one lesson to do next.
+  const ordered = stages.flatMap((stage) => inStage(stage.name));
+  const nextUp = ordered.find((lesson) => statusOf(lesson.ref) !== "done" && !lockedRefs.has(lesson.ref)) ?? null;
+  const percent = lessons.length ? Math.round((doneRefs.size / lessons.length) * 100) : 0;
+  const currentStage = nextUp?.resource.lesson?.stage ?? null;
   return (
     <div className="workflow-page workflow-pipeline-page lesson-board">
       <section className="community-panel community-utility-panel workflow-pipeline-shell" aria-label="Roadmap">
         {progress.error ? <p className="workflow-milestone-empty" role="status">{progress.error}</p> : null}
+        <header className="lesson-board-progress">
+          <div className="lesson-board-progress-copy">
+            <strong>{percent}%</strong>
+            <span>{doneRefs.size} of {lessons.length} lessons done</span>
+          </div>
+          <div className="lesson-board-progress-bar" role="progressbar" aria-label="Roadmap progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${doneRefs.size} of ${lessons.length} lessons done`}>
+            {stages.map((stage) => (
+              <span key={stage.name} title={`${stage.name}: ${stage.done_count}/${stage.lesson_count}`}>
+                <i style={{ width: `${stage.lesson_count ? (stage.done_count / stage.lesson_count) * 100 : 0}%` }} />
+              </span>
+            ))}
+          </div>
+          {nextUp ? (
+            <button type="button" className="lesson-board-next" onClick={() => open(nextUp)}>
+              <span><small>Next up</small>{nextUp.resource.title}</span>
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          ) : lessons.length ? <p className="lesson-board-complete"><Check size={16} aria-hidden="true" /> Every lesson is done</p> : null}
+        </header>
         <div className="workflow-board-stage">
           <div className="workflow-milestone-canvas">
-            {stages.map((stage, index) => (
-              <section className={`workflow-milestone-column${stage.locked ? " is-locked" : ""}`} key={stage.name}>
+            {stages.map((stage, index) => {
+              const complete = stage.lesson_count > 0 && stage.done_count === stage.lesson_count;
+              return (
+              <section className={`workflow-milestone-column${stage.locked ? " is-locked" : ""}${complete ? " is-done" : ""}${stage.name === currentStage ? " is-current" : ""}`} key={stage.name}>
                 <header className="workflow-milestone-column-header">
                   <div>
-                    <span className="workflow-milestone-position">{index + 1}</span>
+                    <span className="workflow-milestone-position">{complete ? <Check size={13} role="img" aria-label="Done" /> : index + 1}</span>
                     <h2>{stage.name}</h2>
                   </div>
                   <div className="workflow-milestone-column-actions">
@@ -132,11 +158,11 @@ export function WebCommunityLessonBoard(props: {
                         key={lesson.ref}
                         disabled={locked}
                         data-status={status}
-                        className={`workflow-member-stub lesson-board-lesson-stub${fields?.gate ? " is-gate" : ""}`}
+                        className={`workflow-member-stub lesson-board-lesson-stub${fields?.gate ? " is-gate" : ""}${lesson.ref === nextUp?.ref ? " is-next" : ""}`}
                         onClick={() => open(lesson)}
                       >
                         <span className="lesson-board-lesson-status" aria-hidden="true">
-                          {status === "done" ? <Check size={14} /> : locked ? <Lock size={13} /> : <Circle size={14} />}
+                          {status === "done" ? <Check size={14} /> : locked ? <Lock size={13} /> : status === "in_progress" ? <CircleDot size={14} /> : <Circle size={14} />}
                         </span>
                         <div className="workflow-member-stub-copy">
                           <strong>{lesson.resource.title}</strong>
@@ -147,7 +173,8 @@ export function WebCommunityLessonBoard(props: {
                   })}
                 </div>
               </section>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
