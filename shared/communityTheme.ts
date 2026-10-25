@@ -233,7 +233,7 @@ export function nearestPassingColor(color: string, against: string, ratio: numbe
 // higher floors: a grey that passes on paper still reads as grey-on-black.
 const TEXT_FLOORS: Record<CommunityThemeScheme, { secondary: number; muted: number; faint: number }> = {
   light: { secondary: 7, muted: 4.5, faint: 4.5 },
-  dark: { secondary: 13, muted: 10, faint: 7.5 },
+  dark: { secondary: 15, muted: 12, faint: 9 },
 };
 
 // Secondary, muted and faint text for a scheme, each lifted (toward the text

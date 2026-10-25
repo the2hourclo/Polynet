@@ -792,7 +792,7 @@
 .community-post-card-preview {
   display: -webkit-box;
   overflow: hidden;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 15px;
   line-height: 1.5;
   -webkit-box-orient: vertical;
@@ -963,7 +963,7 @@
 
 .community-card-block-description {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -1141,7 +1141,7 @@
 
 .community-about-one-liner {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 16px;
 }
 
