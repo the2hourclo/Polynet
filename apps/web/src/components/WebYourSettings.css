@@ -102,8 +102,6 @@
 }
 
 /* Display: the theme picker inside its card, without its old headings. */
-.pn-your-display :is(.panel-title, .appearance-title) { display: none; }
-.pn-your-display .appearance-panel { padding: 1.25rem; }
 
 /* Rows are buttons; keep them flat whatever the page's button styles. */
 .pn-your-settings .pn-settings-card-body > .pn-your-membership {
@@ -114,3 +112,95 @@
 }
 .pn-your-settings .pn-settings-card-body > .pn-your-membership + .pn-your-membership { border-top: 1px solid var(--border-muted, var(--border-default)); }
 .pn-your-settings .pn-settings-card-body > .pn-your-membership:hover { background: var(--hover-overlay); }
+
+/* Folds: a card whose controls fold away under its title and summary. */
+.pn-settings-fold { overflow: hidden; }
+.pn-settings-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pn-settings-fold-head:hover { background: var(--hover-overlay); }
+.pn-settings-fold-head:focus-visible { outline: 2px solid var(--text-primary); outline-offset: -2px; }
+.pn-settings-fold.is-open .pn-settings-fold-head { border-bottom: 1px solid var(--border-default); }
+.pn-settings-fold-text { display: flex; flex: 1; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.pn-settings-fold-summary { color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.25rem; }
+.pn-settings-fold-chevron { flex: none; color: var(--text-secondary); transition: transform 0.15s ease; }
+.pn-settings-fold.is-open .pn-settings-fold-chevron { transform: rotate(180deg); }
+.pn-settings-fold-body[hidden] { display: none; }
+.pn-settings-fold-body > .web-social-profile-links { padding: 1rem 1.25rem 1.25rem; }
+/* An older section inside a fold: the fold's head is its title. */
+.pn-your-settings .pn-settings-stack .pn-settings-fold-body > .settings-section {
+  margin: 0;
+  padding: 0.25rem 1.25rem 1rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.pn-your-settings .pn-settings-stack .pn-settings-fold-body > .settings-section > :is(.settings-section-title, .settings-section-desc) { display: none; }
+@media (prefers-reduced-motion: reduce) { .pn-settings-fold-chevron { transition: none; } }
+
+/* Display: Light and Dark as two pages in the community's design. */
+.pn-display-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding: 1.25rem; }
+.pn-settings-mode.pn-display-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-set-r);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pn-settings-mode.pn-display-mode:hover { border-color: var(--text-secondary); }
+.pn-settings-mode.pn-display-mode.is-selected { border-color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--text-primary); }
+.pn-settings-mode.pn-display-mode:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+.pn-display-mode-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9375rem; font-weight: 600; }
+.pn-display-mode-check { margin-left: auto; }
+.pn-display-note { margin: 0; padding: 0 1.25rem 1.25rem; color: var(--text-secondary); font-size: 0.8125rem; }
+
+.pn-display-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 7.5rem;
+  padding: 0.5rem;
+  border: 1px solid;
+  border-radius: 0.625rem;
+  box-sizing: border-box;
+}
+.pn-display-sample-bar { display: flex; align-items: center; height: 1rem; padding: 0 0.375rem; border: 1px solid; border-radius: 0.25rem; }
+.pn-display-sample-bar i { width: 1.5rem; height: 0.25rem; border-radius: 1rem; }
+.pn-display-sample-card { display: flex; flex: 1; flex-direction: column; gap: 0.375rem; padding: 0.5rem; border: 1px solid; border-radius: 0.375rem; }
+.pn-display-sample-card i { height: 0.3125rem; border-radius: 1rem; }
+.pn-display-sample-card i:first-child { width: 70%; }
+.pn-display-sample-card i:nth-child(2) { width: 45%; }
+.pn-display-sample-card b { width: 2.5rem; height: 0.75rem; margin-top: auto; border-radius: 0.25rem; }
+.pn-display-sample.is-small { width: 3rem; height: 2.25rem; gap: 0.1875rem; padding: 0.1875rem; border-radius: 0.375rem; }
+.pn-display-sample.is-small .pn-display-sample-bar { height: 0.375rem; padding: 0 0.125rem; }
+.pn-display-sample.is-small .pn-display-sample-bar i { width: 0.5rem; height: 0.125rem; }
+.pn-display-sample.is-small .pn-display-sample-card { gap: 0.125rem; padding: 0.1875rem; border-radius: 0.1875rem; }
+.pn-display-sample.is-small .pn-display-sample-card i { height: 0.125rem; }
+.pn-display-sample.is-small .pn-display-sample-card b { width: 0.75rem; height: 0.25rem; }
+.pn-display-community { cursor: default; }
+.pn-display-community:hover { background: none; }
+.pn-display-community-samples { display: flex; flex: none; gap: 0.375rem; }
+
+@media (max-width: 860px) {
+  .pn-display-modes { gap: 0.75rem; padding: 1rem; }
+  .pn-display-sample:not(.is-small) { height: 6rem; }
+  .pn-settings-fold-head { padding: 0.875rem 1rem; }
+}
