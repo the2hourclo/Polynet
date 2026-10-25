@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { CommunityTab } from "../../../../shared/appShellNavigation";
 import { DEFAULT_COMMUNITY_LAYOUT, type CommunityLayoutV1 } from "../../../../shared/communityLayout";
 import type { CommunityShellCommunity } from "../../../../shared/communityTypes";
+import type { AppTheme } from "../../../../shared/theme";
 import type { WebCommunityLayoutChoice } from "./useWebCommunityLayout";
 
 // What the community's own area knows about the frame around it: the active
@@ -21,6 +22,9 @@ export type WebCommunityFrame = {
   // The member's own Classroom/Channels pick, for the Display menu. Null when
   // the owner offers no choice.
   layoutChoice: WebCommunityLayoutChoice | null;
+  // The member's Light/Dark, for the Display menu. Null where the community's
+  // look has one scheme only, so the choice would change nothing.
+  displayMode: { current: AppTheme; onChoose: (theme: AppTheme) => void } | null;
 };
 
 export const WebCommunityFrameContext = createContext<WebCommunityFrame>({
@@ -34,6 +38,7 @@ export const WebCommunityFrameContext = createContext<WebCommunityFrame>({
   postSearch: "",
   onPostSearch: () => {},
   layoutChoice: null,
+  displayMode: null,
 });
 
 export function useWebCommunityFrame(): WebCommunityFrame {

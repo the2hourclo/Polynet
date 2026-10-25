@@ -10,6 +10,7 @@ import {
 import type { WebShellChromeHostProps } from "../components/WebShellChromeHost";
 import type { MobileMemberFace, MobileOverlay } from "../components/webShellChromeShared";
 import type { CommunityShellCommunity } from "../../../../shared/communityTypes";
+import type { AppTheme } from "../../../../shared/theme";
 
 type CommunityLike = CommunityShellCommunity;
 
@@ -103,6 +104,8 @@ export function buildWebShellChromeHostProps(params: {
   isGlobalSettings: boolean;
   themeDraftSession?: unknown;
   memberSession?: unknown;
+  appTheme: AppTheme;
+  setAppTheme: (theme: AppTheme) => void;
 }): Omit<WebShellChromeHostProps, "mainSurface" | "globalOverlays"> {
   const isMobileCommunityHome =
     params.showMobileAppShell &&
@@ -295,5 +298,7 @@ export function buildWebShellChromeHostProps(params: {
     isGlobalSettings: params.isGlobalSettings,
     themeDraftSession: params.themeDraftSession ?? null,
     memberSession: params.memberSession ?? null,
+    appTheme: params.appTheme,
+    onChooseAppTheme: params.setAppTheme,
   };
 }

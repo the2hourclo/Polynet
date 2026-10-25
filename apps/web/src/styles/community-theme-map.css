@@ -2297,6 +2297,24 @@
 [data-community-theme] .community-notifications-panel {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
+[data-community-theme] .community-display-panel {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-display-group {
+  font-size: var(--pn-type-meta);
+}
+[data-community-theme] .community-display-option {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-display-option-icon {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-display-option-text strong {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-display-option-text span {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .community-notifications-group {
   font-size: var(--pn-type-meta);
 }

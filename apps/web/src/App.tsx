@@ -3015,6 +3015,9 @@ export default function App() {
     themeDraftSession: canViewActiveCommunitySettings ? session ?? null : null,
     // Layout blocks that read member data (upcoming events) use the viewer's own session.
     memberSession: session ?? null,
+    // The Display menu's Light/Dark is the member's own app-wide choice.
+    appTheme,
+    setAppTheme,
   });
   if (session && activeCommunityId && welcomeStepsKey && activePage === "community" && !isPublicCommunityFunnel) {
     shellChromeHostProps.welcomeSurface = (

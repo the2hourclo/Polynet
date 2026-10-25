@@ -226,6 +226,101 @@
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.08);
 }
 
+/* The Display menu (WebCommunityDisplayMenu): drawn on the page body at a
+   fixed spot under its button, with two-line options and a check on the
+   selected one. */
+.community-display-panel {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-card, var(--bg-card));
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.community-display-panel [role="group"] + [role="group"] {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-muted, var(--border-default));
+}
+
+.community-display-group {
+  padding: 6px 10px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.community-display-option {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.community-display-option:hover,
+.community-display-option:focus-visible {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  outline: none;
+}
+
+.community-display-option:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus-ring, var(--accent-brand));
+}
+
+.community-display-option-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-secondary);
+}
+
+.community-display-option.is-selected .community-display-option-icon {
+  background: color-mix(in srgb, var(--accent-brand) 14%, transparent);
+  color: var(--accent-brand);
+}
+
+.community-display-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.community-display-option-text strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.community-display-option-text span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.community-display-option-check {
+  color: var(--accent-brand);
+}
+
 .community-notifications-group {
   padding: 10px 16px 4px;
   color: var(--text-muted);
