@@ -1,0 +1,395 @@
+/* Workflows in the style of Substack's dashboard (polynet-ui/substack-study),
+   matching community Settings (WebCommunitySettings.css): a 24px page title,
+   underlined section tabs, flat cards with 8/12 radii, status badges, tinted
+   callouts and small centred empty states. Colours are the community's own.
+   Sizes are in rem so community-theme-map.css doesn't rescale them. */
+
+.pn-wf {
+  --pn-wf-r: 0.5rem;
+  --pn-wf-r-frame: 0.75rem;
+  --pn-wf-gutter: 2rem;
+  background: var(--bg-workspace);
+  font-size: 0.9375rem;
+}
+
+.pn-wf .workflow-page { background: transparent; }
+
+.pn-wf-header { flex-shrink: 0; padding: 1.75rem var(--pn-wf-gutter) 0; }
+.pn-wf-header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
+.pn-wf-header p { margin: 0.25rem 0 0; color: var(--text-secondary); font-size: 0.9375rem; line-height: 1.4; }
+
+/* Section tabs: text with an underline under the current one. */
+.pn-wf-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 1.5rem;
+  margin: 1.25rem var(--pn-wf-gutter) 1.5rem;
+  border-bottom: 1px solid var(--border-default);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pn-wf-tabs > button {
+  position: relative;
+  flex-shrink: 0;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pn-wf-tabs > button:hover:not(:disabled) { color: var(--text-primary); }
+.pn-wf-tabs > button[aria-selected="true"] { color: var(--text-primary); font-weight: 600; }
+.pn-wf-tabs > button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-primary);
+}
+.pn-wf-tabs > button:focus-visible { outline: 2px solid var(--text-primary); outline-offset: -2px; border-radius: 0.25rem; }
+.pn-wf-tabs > button:disabled { cursor: progress; }
+
+/* Shared pieces. */
+.pn-wf .workflow-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-wf-r);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pn-wf .workflow-secondary-button:hover:not(:disabled) { background: var(--bg-card-hover, var(--hover-overlay)); }
+.pn-wf-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--pn-wf-r);
+  background: var(--bg-button);
+  color: var(--bg-button-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pn-wf-primary:hover:not(:disabled) { background: var(--bg-button-hover, var(--bg-button)); }
+.pn-wf-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.pn-wf :is(.workflow-secondary-button, .pn-wf-primary, .pn-wf-list > button, .workflow-add-milestone-button):focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.pn-wf-muted { margin: 0; color: var(--text-secondary); }
+
+.pn-wf-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--hover-overlay);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pn-wf-badge:is(.is-on, .is-published) {
+  background: color-mix(in srgb, var(--accent-success, #1f9d55) 16%, transparent);
+  color: var(--text-primary);
+}
+.pn-wf-badge.is-edited {
+  background: color-mix(in srgb, var(--accent-warning, #d97706) 18%, transparent);
+  color: var(--text-primary);
+}
+
+.pn-wf-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+.pn-wf-section-head > div { flex: 1 1 20rem; min-width: 0; }
+.pn-wf-section-head h2 { margin: 0; font-size: 1.0625rem; font-weight: 700; line-height: 1.3; }
+.pn-wf-section-head p { max-width: 40rem; margin: 0.25rem 0 0; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.45; }
+
+.pn-wf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-wf-r-frame);
+  background: var(--bg-card);
+  text-align: center;
+}
+.pn-wf-empty strong { font-size: 0.9375rem; font-weight: 600; }
+.pn-wf-empty p { max-width: 24rem; margin: 0 0 0.5rem; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.45; }
+.pn-wf-empty-icon,
+.pn-wf-callout-icon,
+.pn-wf-row-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: var(--pn-wf-r);
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+}
+.pn-wf-empty-icon { width: 2.5rem; height: 2.5rem; }
+
+/* Board: the welcome page callout above the milestone columns. */
+.pn-wf .community-utility-panel.workflow-pipeline-shell {
+  gap: 1rem;
+  padding: 0 var(--pn-wf-gutter) 1.5rem;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+.pn-wf-callout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-wf-r-frame);
+  background: var(--bg-card);
+}
+.pn-wf-callout-icon { width: 2.5rem; height: 2.5rem; }
+.pn-wf-callout-text { display: flex; flex: 1 1 16rem; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.pn-wf-callout-text strong { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9375rem; font-weight: 600; }
+.pn-wf-callout-text small { color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.4; }
+.pn-wf-callout-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 0.5rem; }
+
+.pn-wf .workflow-board-stage { gap: 0; }
+.pn-wf .workflow-milestone-canvas { align-items: flex-start; gap: 1rem; margin: 0; padding: 0 0 0.5rem; overflow-y: auto; }
+.pn-wf .workflow-milestone-column {
+  flex: 0 0 17rem;
+  max-height: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-wf-r-frame);
+  background: var(--bg-card);
+}
+.pn-wf .workflow-milestone-column-header {
+  min-height: 3.25rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--border-default);
+}
+.pn-wf .workflow-milestone-column-header h2 { color: var(--text-primary); font-size: 0.875rem; font-weight: 600; letter-spacing: 0; }
+.pn-wf .workflow-milestone-position {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+.pn-wf .workflow-milestone-column-actions > .pn-wf-count {
+  min-width: 1.5rem;
+  height: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: 999px;
+  background: var(--hover-overlay);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+  box-sizing: border-box;
+}
+.pn-wf .workflow-milestone-edit-button { width: 2.25rem; height: 2.25rem; border-radius: var(--pn-wf-r); color: var(--text-secondary); }
+.pn-wf .workflow-milestone-edit-button:hover { background: var(--hover-overlay); color: var(--text-primary); }
+.pn-wf .workflow-milestone-column-body { gap: 0.375rem; padding: 0.5rem; }
+.pn-wf .workflow-member-stub {
+  min-height: 3.5rem;
+  padding: 0.5rem 0.75rem;
+  border-color: transparent;
+  border-radius: var(--pn-wf-r);
+  background: transparent;
+}
+.pn-wf .workflow-member-stub:hover { border-color: transparent; background: var(--hover-overlay); }
+.pn-wf .workflow-member-stub + .workflow-member-stub { margin-top: 0; }
+.pn-wf .workflow-member-stub .community-interaction-avatar {
+  width: 2rem;
+  height: 2rem;
+  background: var(--hover-overlay);
+  color: var(--text-primary);
+  font-size: 0.6875rem;
+}
+.pn-wf .workflow-member-stub .community-interaction-avatar.has-image { background: var(--bg-card); }
+.pn-wf .workflow-member-stub-copy strong { font-size: 0.875rem; font-weight: 600; }
+.pn-wf .workflow-member-stub-copy span { font-size: 0.8125rem; font-weight: 400; }
+.pn-wf .workflow-milestone-empty { padding: 1.25rem 0.75rem; color: var(--text-secondary); font-size: 0.8125rem; text-align: center; }
+.pn-wf .test-run-workflow-button {
+  margin-top: 0.25rem;
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.pn-wf .test-run-workflow-button:hover:not(:disabled) { color: var(--text-primary); }
+.pn-wf .workflow-add-milestone-button {
+  display: flex;
+  flex: 0 0 12rem;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  gap: 0.375rem;
+  width: auto;
+  height: auto;
+  min-height: 7.5rem;
+  max-height: 12rem;
+  border: 1px dashed var(--border-strong, var(--border-default));
+  border-radius: var(--pn-wf-r-frame);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pn-wf .workflow-add-milestone-button:hover:not(:disabled) { background: var(--hover-overlay); color: var(--text-primary); }
+.pn-wf .workflow-add-milestone-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.pn-wf .workflow-board-footnote { color: var(--text-secondary); font-size: 0.8125rem; }
+
+/* Forms: a list card of rows (icon, name and questions, status, chevron). */
+.pn-wf .community-forms-page { gap: 1.25rem; max-width: 52rem; padding: 0 var(--pn-wf-gutter) 2.5rem; }
+.pn-wf-list {
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-wf-r-frame);
+  background: var(--bg-card);
+}
+.pn-wf .pn-wf-list > button {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-height: 4rem;
+  padding: 0.75rem 1rem 0.75rem 1.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.pn-wf .pn-wf-list > button:last-child { border-bottom: 0; }
+.pn-wf .pn-wf-list > button:hover { background: var(--hover-overlay); }
+.pn-wf-row-icon { width: 2rem; height: 2rem; }
+.pn-wf-row-text { display: flex; flex: 1; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.pn-wf-row-text strong { overflow: hidden; font-size: 0.9375rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.pn-wf .pn-wf-row-text small { color: var(--text-secondary); font-size: 0.8125rem; }
+.pn-wf-row-chevron { flex-shrink: 0; color: var(--text-secondary); }
+
+/* Clients (WebCommunityAccess): the table sits in a card. */
+.pn-wf .access-clients-page { padding: 0 var(--pn-wf-gutter) 2.5rem; }
+.pn-wf .access-clients-header h2 { margin: 0; font-size: 1.0625rem; font-weight: 700; letter-spacing: 0; }
+.pn-wf .access-clients-header .access-muted { margin: 0.25rem 0 0; font-size: 0.875rem; }
+.pn-wf .access-actions { display: flex; gap: 0.5rem; }
+.pn-wf .access-table-wrap {
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-wf-r-frame);
+  background: var(--bg-card);
+}
+.pn-wf .access-table { font-size: 0.875rem; }
+.pn-wf .access-table th,
+.pn-wf .access-table td { padding: 0.75rem 1rem; }
+.pn-wf .access-table thead th { color: var(--text-secondary); font-size: 0.6875rem; }
+.pn-wf .access-table tbody tr:last-child > * { border-bottom: 0; }
+
+/* Test run: the same section heading, its runs and sequence as cards. */
+.pn-wf .test-run { gap: 1.5rem; max-width: 52rem; padding: 0 var(--pn-wf-gutter) 2.5rem; }
+.pn-wf .test-run-header h1 { font-size: 1.0625rem; font-weight: 700; line-height: 1.3; }
+.pn-wf .test-run-header p { max-width: 44rem; font-size: 0.875rem; line-height: 1.5; }
+.pn-wf .test-run-actions .platform-save-button {
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--pn-wf-r);
+  background: var(--bg-button);
+  color: var(--bg-button-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.pn-wf .test-run-field select { min-height: 2.5rem; border-radius: var(--pn-wf-r); }
+.pn-wf .test-run-members li {
+  padding: 0.75rem 1rem;
+  border-radius: var(--pn-wf-r-frame);
+  background: var(--bg-card);
+}
+.pn-wf .test-run-members li.is-selected { border-color: var(--text-primary); }
+.pn-wf .test-run-member-actions button { min-height: 2rem; border-radius: var(--pn-wf-r); font-weight: 600; }
+.pn-wf .test-run-empty {
+  padding: 2rem 1.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--pn-wf-r-frame);
+  background: var(--bg-card);
+  text-align: center;
+}
+.pn-wf .test-run-sequence h2,
+.pn-wf .test-run-timeline h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@media (max-width: 640px) {
+  .pn-wf { --pn-wf-gutter: 1rem; }
+  .pn-wf-header { padding-top: 1.25rem; }
+  .pn-wf-header h1 { font-size: 1.375rem; }
+  .pn-wf-tabs { gap: 1.25rem; margin-top: 1rem; margin-bottom: 1rem; }
+  .pn-wf-callout-actions { width: 100%; }
+  .pn-wf-callout-actions > button { flex: 1 1 auto; }
+  .pn-wf .workflow-milestone-column { flex-basis: 16rem; }
+  .pn-wf-row-text small { display: none; }
+}
+
+/* Headings in the community's body font, whatever its display font. */
+.pn-wf .pn-wf-callout .pn-wf-callout-actions { flex-direction: row; }
+[data-community-theme] .pn-wf :is(h1, h2, h3) {
+  font-family: var(--font-sans, inherit);
+  letter-spacing: normal;
+  text-transform: none;
+}
+[data-community-theme] .pn-wf :is(.pn-wf-header h1, .pn-wf-section-head h2, .access-clients-header h2, .test-run-header h1) { font-weight: 700; }
+
+/* Small links big enough to tap; "stuck" amber that reads on light and dark. */
+.pn-wf :is(.test-run-link, .welcome-settings-link) { display: inline-flex; align-items: center; min-height: 1.5rem; }
+.pn-wf .access-table tr.is-stuck .access-client-name small { color: color-mix(in srgb, #b7791f 55%, var(--text-primary)); }
+
+/* Phones: milestones stack instead of scrolling sideways. */
+@media (max-width: 640px) {
+  .pn-wf .workflow-milestone-canvas { flex-direction: column; align-items: stretch; overflow: visible; }
+  .pn-wf .workflow-milestone-column { flex: none; max-height: none; }
+  .pn-wf .workflow-add-milestone-button { flex: none; min-height: 3rem; }
+  .pn-wf .workflow-section-content { flex-direction: column; overflow-y: auto; }
+  .pn-wf :is(.workflow-pipeline-page, .workflow-board-stage) { flex: none; min-height: auto; overflow: visible; }
+  .pn-wf .workflow-pipeline-shell { flex: 1 1 auto; min-width: 0; min-height: auto; overflow: visible; }
+}
+
+/* Welcome (restyled with the Knowledge pages): only line it up with the
+   other sections and give its title the same section-heading size. */
+.pn-wf .welcome-settings { padding: 0 var(--pn-wf-gutter); }
+.pn-wf .welcome-settings-header h1 { font-size: 1.0625rem; font-weight: 700; line-height: 1.3; }
+.pn-wf .welcome-settings-header p { font-size: 0.875rem; }

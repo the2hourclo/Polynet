@@ -1,7 +1,6 @@
-import { MoreHorizontal, Plus, RefreshCw } from "lucide-react";
+import { DoorOpen, FlaskConical, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
-import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import { WORKFLOW_SECTIONS, workflowSectionFromSearch, workflowSectionUrl, type WorkflowSection } from "../../../../shared/workflowSection";
 
 import {
@@ -31,6 +30,7 @@ import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
 import { WebCommunityTestRun, startTestRunInNewTab, testRunErrorMessage, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
 import { WebCommunityClientAccessPanel, WebCommunityClients } from "./WebCommunityAccess";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
+import "./WebCommunityWorkflowsPage.css";
 
 export type WebCommunityWorkflowsSectionProps = {
   forms?: CommunityFormsGateway;
@@ -138,10 +138,14 @@ export function WebCommunityWorkflowsSection(
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   const tabs = WORKFLOW_SECTIONS.map(id => ({ id, label: id === "test" ? "Test run" : id[0].toUpperCase() + id.slice(1), disabled: switching }));
-  return <div className="workflow-page workflow-sections">
+  // Page header and underlined section tabs, after Substack's dashboard.
+  return <div className="workflow-page workflow-sections pn-wf">
+    <header className="pn-wf-header">
+      <h1>Workflows</h1>
+      <p>How members move through your community: its stages, forms, welcome page and who is where.</p>
+    </header>
     <WebPlatformTabList tabs={tabs} activeTab={section} onSelectTab={(next, meta) => void select(next, meta.source === "keyboard")}
-      ariaLabel="Workflow sections" idPrefix="workflow-sections" className="platform-switcher platform-switcher-compact workflow-section-tabs"
-      style={buildPlatformSwitcherStyle(WORKFLOW_SECTIONS.length, WORKFLOW_SECTIONS.indexOf(section))} />
+      ariaLabel="Workflow sections" idPrefix="workflow-sections" className="pn-wf-tabs" />
     <div className="workflow-section-content" role="tabpanel" id={platformTabPanelId("workflow-sections", section)} aria-labelledby={platformTabId("workflow-sections", section)}>
       {section === "workflows" ? <WorkflowBoard {...props} onOpenWelcome={() => void select("welcome")} onOpenTest={() => void select("test")} />
         : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
@@ -283,16 +287,19 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
         aria-label="Workflow board"
       >
         {props.board ? (
-          <p className="workflow-welcome-gate">
-            <span>
-              <strong>Welcome page: {props.board.welcome_gate ? "on" : "off"}</strong>
+          <div className="workflow-welcome-gate pn-wf-callout">
+            <span className="pn-wf-callout-icon" aria-hidden="true"><DoorOpen size={20} strokeWidth={2} /></span>
+            <span className="pn-wf-callout-text">
+              <strong>Welcome page <em className={`pn-wf-badge ${props.board.welcome_gate ? "is-on" : "is-off"}`}>{props.board.welcome_gate ? "On" : "Off"}</em></strong>
               <small>{props.board.welcome_gate
                 ? "New members finish its steps before the community opens."
                 : "Turn it on to give new members steps to finish before the community opens."}</small>
             </span>
-            <button type="button" className="workflow-secondary-button" onClick={props.onOpenWelcome}>Edit welcome page</button>
-            {props.testRun ? <button type="button" className="workflow-secondary-button" onClick={() => testStage(null)}>Test as a new member</button> : null}
-          </p>
+            <span className="pn-wf-callout-actions">
+              {props.testRun ? <button type="button" className="workflow-secondary-button" onClick={() => testStage(null)}>Test as a new member</button> : null}
+              <button type="button" className="workflow-secondary-button" onClick={props.onOpenWelcome}>Edit welcome page</button>
+            </span>
+          </div>
         ) : null}
         {testError ? <p role="alert" className="test-run-error">{testError}</p> : null}
         <div className="workflow-board-stage">
@@ -308,7 +315,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
                     <h2>{milestone.name.trim() || `Milestone ${index + 1}`}</h2>
                   </div>
                   <div className="workflow-milestone-column-actions">
-                    <span aria-label={`${members.length} members`}>{members.length}</span>
+                    <span className="pn-wf-count" aria-label={`${members.length} members`}>{members.length}</span>
                     {!incomplete ? (
                       <button
                         className="workflow-milestone-edit-button"
@@ -346,6 +353,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
                     <button type="button" className="workflow-secondary-button test-run-workflow-button"
                       onClick={() => testStage(index === 0 ? null : milestone.key)}
                       aria-label={`Test the ${milestone.name} stage as a test member`}>
+                      <FlaskConical size={14} strokeWidth={2} aria-hidden="true" />
                       Test this stage
                     </button>
                   ) : null}
@@ -353,7 +361,6 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
               </section>
             );
           })}
-        </div>
           <button
             className="workflow-add-milestone-button"
             type="button"
@@ -366,8 +373,10 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
             aria-label="Add milestone"
             title="Add milestone"
           >
-            <Plus size={19} aria-hidden="true" />
+            <Plus size={16} strokeWidth={2} aria-hidden="true" />
+            <span>Add milestone</span>
           </button>
+        </div>
         </div>
 
         {props.hasMore ? (
