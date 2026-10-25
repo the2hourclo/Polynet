@@ -632,3 +632,11 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
   color: #fff;
   border-radius: var(--pn-set-r);
 }
+
+/* Appearance draws its own card (.appearance-card); its wrapper adds none. */
+.pn-settings .pn-settings-main > .settings-section.community-look {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.pn-settings .pn-settings-main > .settings-section.community-look .appearance-card { margin: 0; max-width: none; background: var(--bg-card); }
