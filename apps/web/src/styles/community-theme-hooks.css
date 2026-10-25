@@ -195,3 +195,11 @@
 [data-community-theme] .lesson-slide-deck-count {
   font-size: var(--pn-type-small);
 }
+
+/* Buttons and fields take the community's text face. Browsers give them their
+   own font (Arial on Windows), so a card that is a button, like a course card,
+   otherwise sets its title and description in Arial. Zero specificity, so any
+   component that picks a face still wins. */
+:where([data-community-theme]) :where(button, input, select, textarea) {
+  font-family: inherit;
+}
