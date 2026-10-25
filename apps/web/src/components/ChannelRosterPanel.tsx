@@ -26,10 +26,11 @@ type Page = FunctionReturnType<typeof api.communityChannelParticipants.listChann
 
 // The memory card's one-line agent status, in plain words. A run that failed
 // on AI funding says so, because "Error" alone gives the owner nothing to act on.
-function memoryAgentStatus(overview: CloudCommunityPolynetOverview): string {
+// The stored reason can carry a prefix ("Uncaught Error: founder_inference_…").
+export function memoryAgentStatus(overview: Pick<CloudCommunityPolynetOverview, "agent">): string {
   const state = overview.agent.activity_state || overview.agent.status;
   if (state === "error") {
-    return overview.agent.recent_runs[0]?.stop_reason?.startsWith("founder_inference")
+    return /\bfounder_inference_/.test(overview.agent.recent_runs[0]?.stop_reason ?? "")
       ? "Couldn't run: AI usage isn't set up or has run out"
       : "Couldn't run last time";
   }
