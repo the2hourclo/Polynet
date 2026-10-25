@@ -9526,10 +9526,10 @@ button.chat-reply-quote:hover {
 }
 
 /* Lessons read like an article: one centred ~680px column with room on both
-   sides, the same measure the lesson editor uses (--pn-reading-measure), so
+   sides, the same measure the lesson editor uses (--lesson-reading-measure), so
    what the owner writes is what members read. */
 .knowledge-resource-reader {
-  --pn-reading-measure: 680px;
+  --lesson-reading-measure: 680px;
 }
 
 .knowledge-resource-reader .resource-viewer-content {
@@ -9538,7 +9538,7 @@ button.chat-reply-quote:hover {
 }
 
 .knowledge-resource-reader .resource-viewer-column {
-  max-width: var(--pn-reading-measure);
+  max-width: var(--lesson-reading-measure);
   margin-inline: auto;
 }
 
