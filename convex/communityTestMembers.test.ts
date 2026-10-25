@@ -78,6 +78,11 @@ test("an owner goes through their community as a test member, then ends it", asy
   const clients = await owner.query(api.communityClients.listClientsForOwner, { communityId: f.communityId });
   expect(clients.clients.map((row: any) => [row.name, row.is_test])).toEqual([["Test member 1", true]]);
 
+  const timeline = await owner.query(api.communityClients.getClientTimeline, { communityId: f.communityId, membershipId: started.membership_id });
+  const said = timeline.entries.map((entry: any) => entry.summary);
+  expect(said).toContain("Joined as a test member");
+  expect(said).toContain("Workflow sent the Intake form (Onboarding)");
+
   // Nobody else can use the subject, and the test member can't manage or leave its community.
   await expect(t.withIdentity({ subject: STRANGER }).query(api.communityTestMembers.getMyTestRun, asTest))
     .rejects.toThrow("auth_subject_mismatch");

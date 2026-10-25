@@ -284,7 +284,10 @@ async function readTimeline(ctx: any, args: any) {
   const membership = await requireMembershipInCommunity(ctx, args.communityId, args.membershipId);
   const entries: TimelineEntry[] = [];
   const joinedAt = membership.activatedAt ?? membership.createdAt;
-  entries.push({ at: joinedAt, type: "joined", summary: `Joined (${membership.accessSource ?? "member"})` });
+  const testMember = await findTestMemberByUserId(ctx, membership.userId);
+  entries.push({ at: joinedAt, type: "joined", summary: testMember ? "Joined as a test member"
+    : membership.accessSource === "paid_subscription" ? "Joined with a paid plan"
+    : membership.accessSource === "manual_grant" ? "Added by the owner" : "Joined" });
   if (!communityMembershipRowIsActive(membership)) {
     entries.push({ at: membership.revokedAt ?? membership.updatedAt, type: "left", summary: "Left the community" });
   }
@@ -309,11 +312,23 @@ async function readTimeline(ctx: any, args: any) {
       summary: row.completedWorkflow ? `Finished the workflow from ${row.fromMilestoneName}`
         : `Moved from ${row.fromMilestoneName} to ${row.toMilestoneName ?? "the next stage"}${row.forcedByUserId ? " (moved by the owner)" : ""}` });
   }
+  const formNames = new Map<string, string>();
   for (const row of runs as any[]) {
     if (row.status === "running") continue;
-    const action = row.actionSnapshot?.type ?? "action";
+    const action = row.actionSnapshot ?? {};
+    if (action.type === "request_form" && action.formKey && !formNames.has(action.formKey)) {
+      const form = await ctx.db.query("communityForms")
+        .withIndex("by_community_key", (q: any) => q.eq("communityId", args.communityId).eq("key", action.formKey)).first();
+      formNames.set(action.formKey, form?.name ?? action.formKey);
+    }
+    // What the Workflow did, in words: sending a form is not the member answering it.
+    const did = action.type === "request_form" ? `Workflow sent the ${formNames.get(action.formKey)} form`
+      : action.type === "set_client_property" ? `Workflow set ${action.propertyKey}`
+      : action.type === "create_service_channel" ? "Workflow opened a private channel"
+      : action.type === "prompt_agent" ? "Workflow asked the agent to act"
+      : `Workflow ran ${String(action.type ?? "an action").replace(/_/g, " ")}`;
     entries.push({ at: row.finishedAt ?? row.updatedAt, type: row.status === "failed" ? "workflow_action_failed" : "workflow_action",
-      summary: `${action.replace(/_/g, " ")} in ${row.milestoneName}: ${row.status === "failed" ? `failed (${row.errorCode ?? "unknown"})` : "done"}` });
+      summary: row.status === "failed" ? `${did}: failed (${String(row.errorCode ?? "unknown").replace(/_/g, " ")})` : `${did} (${row.milestoneName})` });
   }
   const titleById = new Map(resources.pages.map((page: any) => [normalizeIdValue(page._id), page.title ?? "Lesson"]));
   for (const row of progressRows as any[]) {
