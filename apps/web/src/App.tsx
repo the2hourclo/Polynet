@@ -8,6 +8,7 @@ import {
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
 import { WebCommunityWelcome } from "./components/WebCommunityWelcome";
+import { useTestMemberRunCheck } from "./components/WebTestRunBar";
 import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
   beginBrowserSignedOutState,
@@ -1097,6 +1098,7 @@ export default function App() {
   const {
     handleSaveCommunityAgentConfig,
   } = communityAgentAndFunnel;
+  useTestMemberRunCheck(session, ensureUsableAuthSession);
   const communityWorkflows = useWebCommunityWorkflowsController({
     activeCommunityId,
     activePage,
@@ -2249,6 +2251,8 @@ export default function App() {
         onSetWelcomeGate: communityWorkflows.setWelcomeGate,
         onSaveWelcomePage: communityWorkflows.saveWelcomePage,
         onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
+        testRun: session && activeCommunityId && activeCommunity?.slug && canManageMembersActiveCommunity
+          ? { communityId: activeCommunityId, communitySlug: activeCommunity.slug, session, ensureSession: ensureUsableAuthSession } : null,
         communityName: activeCommunity?.name ?? null,
         onClearActionError: communityWorkflows.clearActionError,
         onOpenMemberDossier: communityWorkflows.openMemberDossier,

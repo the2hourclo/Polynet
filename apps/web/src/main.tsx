@@ -14,9 +14,12 @@ import { buildTelemetryRouteLabel } from "../../../shared/routePrivacy";
 import { CommunityVisualIdentityRegistryProvider } from "../../../shared/CommunityVisualIdentityRegistry";
 import { captureDistributionAttributionFromLocation } from '../../../shared/distributionAttribution';
 import { captureCommunityReferralFromLocation } from '../../../shared/communityReferralCapture';
+import { captureTestMemberRunFromLocation } from '../../../shared/testMemberRun';
+import { WebTestRunBar } from './components/WebTestRunBar';
 
 captureDistributionAttributionFromLocation();
 captureCommunityReferralFromLocation();
+captureTestMemberRunFromLocation();
 
 type ErrorBoundaryState = {
   error: Error | null;
@@ -378,6 +381,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <ErrorBoundary>
       <CommunityVisualIdentityRegistryProvider>
         {rootView}
+        <WebTestRunBar />
       </CommunityVisualIdentityRegistryProvider>
     </ErrorBoundary>
   </React.StrictMode>

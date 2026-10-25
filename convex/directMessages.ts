@@ -11,6 +11,7 @@ import {
   type CommunityMembershipLike,
 } from "./communityCore";
 import { resolveUserIdForAuthenticatedRequest } from "./authActor";
+import { requireNotTestMemberOutsideCommunity } from "./communityTestMemberCore";
 import { resolveViewerDirectMessageRelationship } from "./profileRelationshipCore";
 import { resolveUserProfileDisplayProjectionForUser } from "./userProfileProjection";
 import { getUniqueUserByNormalizedHandle } from "./profileCore";
@@ -1077,6 +1078,8 @@ export const ensureDirectConversationFromCommunity = mutation({
       ctx,
       authSubject: args.authSubject ?? null,
     });
+    // Test members are an owner's stand-ins inside one community; they message no one.
+    await requireNotTestMemberOutsideCommunity(ctx, viewerUserId);
     const targetUser = await findUserByPublicId(ctx, args.targetUserId);
     if (!targetUser) throw new Error("dm_target_not_found");
     if (normalizeIdValue(targetUser._id) === normalizeIdValue(viewerUserId)) {
@@ -1628,6 +1631,8 @@ export const sendDirectMessage = mutation({
       ctx,
       authSubject: args.authSubject ?? null,
     });
+    // Test members are an owner's stand-ins inside one community; they message no one.
+    await requireNotTestMemberOutsideCommunity(ctx, viewerUserId);
     const { conversation, participant } = await requireActiveUserParticipant({
       ctx,
       conversationId: args.conversationId,
@@ -1684,6 +1689,8 @@ export const sendDirectMessageToUser = mutation({
       ctx,
       authSubject: args.authSubject ?? null,
     });
+    // Test members are an owner's stand-ins inside one community; they message no one.
+    await requireNotTestMemberOutsideCommunity(ctx, viewerUserId);
     const targetUser = await findUserByPublicId(ctx, args.targetUserId);
     if (!targetUser) throw new Error("dm_target_not_found");
     if (normalizeIdValue(targetUser._id) === normalizeIdValue(viewerUserId)) {
