@@ -79,6 +79,22 @@ type WebPublicCommunityFunnelProps = {
   bridge?: WebCommunityBridgeCardProps | null;
 };
 
+// Settings > Sales page previews a style before it's published, in a frame
+// that drops the "Back to builder" link (?presentation=…&embed=1). Read once
+// when the page loads: the app rewrites the address to its canonical form
+// before this page first renders, which drops these extra parameters.
+const SALES_PREVIEW_PARAMS = (() => {
+  if (typeof window === "undefined" || !/\/preview\/?$/.test(window.location.pathname)) {
+    return { presentation: null, embed: false };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const presentation = params.get("presentation");
+  return {
+    presentation: presentation === "funnel" || presentation === "page" ? presentation : null,
+    embed: params.get("embed") === "1",
+  };
+})();
+
 export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
   const {
     publicCommunity,
@@ -110,13 +126,8 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
   } = props;
 
   const communityName = publicCommunity?.name ?? publicRouteSlug ?? "Community";
-  // Settings > Sales page previews a style before it's published, in a frame
-  // that drops the "Back to builder" link (?presentation=…&embed=1).
-  const previewParams = isPreviewMode && typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search)
-    : null;
-  const previewPresentation = previewParams?.get("presentation");
-  const isEmbeddedPreview = previewParams?.get("embed") === "1";
+  const previewPresentation = isPreviewMode ? SALES_PREVIEW_PARAMS.presentation : null;
+  const isEmbeddedPreview = isPreviewMode && SALES_PREVIEW_PARAMS.embed;
   const asSalesPage = previewPresentation === "funnel" || previewPresentation === "page"
     ? previewPresentation === "funnel"
     : publicCommunity?.about_presentation === "funnel";
