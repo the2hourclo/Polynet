@@ -13,6 +13,7 @@
 .community-look-scheme button.is-active { background:var(--hover-overlay); font-weight:600; }
 .community-look-colors { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
 .community-look-colors label { display:flex; align-items:center; gap:8px; font-size:13px; }
+.community-look-color-hint { grid-column:1 / -1; color:var(--text-secondary); font-size:12px; }
 .community-look-colors input[type="color"] { width:32px; height:32px; padding:0; border:1px solid var(--border-default); border-radius:6px; background:none; }
 .community-look-preview { border:1px solid var(--border-default); border-radius:12px; overflow:hidden; background:var(--surface-workspace); color:var(--text-primary); align-self:start; }
 .community-look-sample { display:flex; flex-direction:column; gap:12px; padding:24px; }

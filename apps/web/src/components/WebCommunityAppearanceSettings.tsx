@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { createPortal } from "react-dom";
 import {
   compileCommunityThemeCss,
+  communityTextLevels,
   communityThemeFontStylesheetUrl,
   contrastRatio,
   COMMUNITY_THEME_FONTS,
@@ -275,7 +276,7 @@ function AppearanceEditor(props: EditorProps) {
     return () => window.removeEventListener("message", onMessage);
   });
 
-  const problemFor = (path: string) => {
+  const problemFor = (path: string): { "aria-invalid"?: true; "aria-describedby"?: string } => {
     const ids = props.problems.map((problem, i) => (problem.path === path ? `${props.uid}-problem-${i}` : "")).filter(Boolean).join(" ");
     return ids ? { "aria-invalid": true, "aria-describedby": ids } : {};
   };
@@ -290,6 +291,9 @@ function AppearanceEditor(props: EditorProps) {
       <input type="range" min={min} max={max} step={step} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: Number(e.target.value) } as Partial<CommunityThemeV1>)} /></label>;
 
   const colors = theme.schemes[scheme];
+  // Secondary text is lifted until it reads clearly, so say so when the shown colour isn't the pick.
+  const shownMuted = colors ? communityTextLevels(colors, scheme).muted : null;
+  const mutedHint = colors && shownMuted && shownMuted.toLowerCase() !== colors.muted.toLowerCase() ? shownMuted : null;
   const setColors = (change: Partial<CommunityThemeColors>) => {
     if (!colors) return;
     set({ schemes: { ...theme.schemes, [scheme]: { ...colors, ...change } } });
@@ -353,8 +357,13 @@ function AppearanceEditor(props: EditorProps) {
           {colors ? <>
             <label className="appearance-brand"><input type="color" value={colors.accent} disabled={busy} onChange={(e) => setBrand(e.target.value)} />
               <span><strong>Brand colour</strong><small>Sets the accent and buttons, with readable text on them.</small></span></label>
-            <div className="community-look-colors">{COLOR_FIELDS.map(([key, label]) => <label key={key}>
-              <input type="color" value={colors[key]} disabled={busy} {...problemFor(`schemes.${scheme}.${key}`)} onChange={(e) => setColors({ [key]: e.target.value.toUpperCase() })} /><span>{label}</span></label>)}</div>
+            <div className="community-look-colors">{COLOR_FIELDS.map(([key, label]) => {
+              const problem = problemFor(`schemes.${scheme}.${key}`);
+              const describedBy = [problem["aria-describedby"], key === "muted" && mutedHint ? `${props.uid}-muted-hint` : ""].filter(Boolean).join(" ") || undefined;
+              return <label key={key}>
+                <input type="color" value={colors[key]} disabled={busy} {...problem} aria-describedby={describedBy} onChange={(e) => setColors({ [key]: e.target.value.toUpperCase() })} /><span>{label}</span></label>;
+            })}
+              {mutedHint ? <small id={`${props.uid}-muted-hint`} className="community-look-color-hint">Secondary text shows as {mutedHint.toUpperCase()} so it stays easy to read on {scheme === "dark" ? "dark" : "light"} backgrounds.</small> : null}</div>
           </> : null}
         </Section>
         <Section title="Fonts and text">
