@@ -1866,6 +1866,12 @@
 [data-community-theme] .resource-viewer-prose .md-blockquote {
   border-radius: 0 calc(12px * var(--pn-radius-scale, 1)) calc(12px * var(--pn-radius-scale, 1)) 0;
 }
+[data-community-theme] .md-callout {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .md-callout-label {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .resource-viewer-prose .md-inline-code {
   border-radius: calc(6px * var(--pn-radius-scale, 1));
 }

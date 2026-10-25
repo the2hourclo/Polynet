@@ -9,6 +9,8 @@ import { parseEmbedUrl, StableMediaEmbedFrame, type ParsedEmbed } from "./linkEm
 import { COMMUNITY_EMBED_LANGUAGE, parseCommunityEmbedBlock } from "./communityEmbed";
 import { LESSON_ELEMENT_LANGUAGE_PREFIX } from "./communityLessonElementMarkdown";
 import { CommunityEmbedFrame, CommunityEmbedPlaceholder, type CommunityEmbedContext } from "./communityEmbedUi";
+import { lessonCallout, lessonCalloutType, LESSON_CALLOUT_MARKER } from "./lessonCallouts";
+import { LessonCalloutIcon } from "./lessonCalloutUi";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import css from "highlight.js/lib/languages/css";
@@ -605,6 +607,28 @@ function normalizeMathMarkdown(text: string): string {
   return nextLines.join("\n");
 }
 
+type MdNode = { type: string; value?: string; children?: MdNode[]; data?: { hProperties?: Record<string, unknown> } };
+
+// "> [!TIP]" quotes become callouts: the marker is taken off the text and
+// kept as data-callout for the blockquote renderer below.
+function remarkLessonCallouts() {
+  const visit = (node: MdNode) => {
+    node.children?.forEach(visit);
+    if (node.type !== "blockquote") return;
+    const paragraph = node.children?.[0];
+    const first = paragraph?.type === "paragraph" ? paragraph.children?.[0] : undefined;
+    if (!paragraph || first?.type !== "text") return;
+    const match = LESSON_CALLOUT_MARKER.exec(first.value ?? "");
+    const type = match ? lessonCalloutType(match[1]) : null;
+    if (!match || !type) return;
+    first.value = (first.value ?? "").slice(match[0].length).replace(/^\n/, "");
+    if (!first.value) paragraph.children?.shift();
+    if (!paragraph.children?.length) node.children?.shift();
+    node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataCallout: type } };
+  };
+  return (tree: MdNode) => visit(tree);
+}
+
 export function renderMarkdown(text: string, options?: MarkdownRenderOptions): ReactNode {
   const requestedHeadingLevelOffset = options?.headingLevelOffset ?? 0;
   const headingLevelOffset = Number.isFinite(requestedHeadingLevelOffset)
@@ -627,7 +651,19 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
         </a>
       );
     },
-    blockquote({ children }) {
+    blockquote({ node, children }) {
+      const type = lessonCalloutType(node?.properties?.dataCallout);
+      if (type) {
+        return (
+          <aside className={`md-callout is-${type}`} role="note">
+            <p className="md-callout-label">
+              <LessonCalloutIcon type={type} />
+              <span>{lessonCallout(type).label}</span>
+            </p>
+            <div className="md-callout-body">{children}</div>
+          </aside>
+        );
+      }
       return <blockquote className="md-blockquote">{children}</blockquote>;
     },
     code(props) {
@@ -740,7 +776,7 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
     <ReactMarkdown
       components={components}
       rehypePlugins={[rehypeKatex]}
-      remarkPlugins={[remarkGfm, remarkMath]}
+      remarkPlugins={[remarkGfm, remarkMath, remarkLessonCallouts]}
       skipHtml
     >
       {normalizeMathMarkdown(text)}

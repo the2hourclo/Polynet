@@ -756,8 +756,11 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   };
 
   const handleAddPageDraft = async (moduleId: string) => {
+    // A new lesson goes last, in the order the lesson board uses too.
+    const siblings = moduleSections.find((section) => section.module.id === moduleId)?.lessonResources ?? [];
+    const order = siblings.reduce((max, resource) => Math.max(max, resource.lesson?.order ?? 0), 0) + 1;
     const created = await runPageDraftCreation(
-      () => actions.handleCreateBlankPageDraft(moduleId),
+      () => actions.handleCreateBlankPageDraft(moduleId, { order: Math.min(order, 9_999) }),
     );
     if (!created) return;
     actions.handleSelectModule(created.module_id);
@@ -860,6 +863,8 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           onChangeBody: actions.resourceEditor.onChangeBody,
           onChangePinned: actions.resourceEditor.onChangePinned,
           onSave: saveResourceInlineEdit,
+          onSaveInPlace: () => actions.resourceEditor.saveInlineEditResource({ keepEditing: true }),
+          onUploadImage: actions.resourceEditor.uploadImage ?? null,
           onCancel: cancelResourceInlineEdit,
         }
       : null;

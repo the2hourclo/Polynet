@@ -1,10 +1,12 @@
 import {
   createContext,
   useContext,
+  lazy,
+  Suspense,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
 } from "react";
@@ -24,6 +26,7 @@ import { markCommunityLessonElementBlocks } from "../../../../shared/communityLe
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
+import { Eye, PenLine } from "lucide-react";
 import { WebLessonSlideDeck } from "./WebLessonSlideDeck";
 import type { CommunityResource } from "./communityResourcesContracts";
 
@@ -57,6 +60,41 @@ function LessonElementSlot(props: { id: string }) {
       forms={activity.forms}
     />
   );
+}
+
+// A draft can be mid-edit; Preview shows whatever elements already read cleanly.
+function previewLessonElements(body: string) {
+  try {
+    return parseCommunityLessonElements(body).map(publicCommunityLessonElement);
+  } catch {
+    return [];
+  }
+}
+
+// Only owners and their team edit, so the editor loads when editing starts.
+const LessonEditor = lazy(() => import("./lessonEditor/LessonEditor"));
+
+// The server keeps a page body to this many characters.
+const LESSON_BODY_MAX_CHARS = 20_000;
+
+const LESSON_BLOCK_PROBLEMS: Record<string, string> = {
+  duplicate_id: "two blocks share the id",
+  too_many_elements: "a lesson can hold up to 40 buttons, checklists, quizzes and forms; this one is past it at",
+};
+
+/** Why the server would refuse this body, in words, or null. */
+function lessonBodyProblem(body: string): string | null {
+  if (body.length > LESSON_BODY_MAX_CHARS) {
+    return `This lesson is ${body.length.toLocaleString()} characters; a page holds ${LESSON_BODY_MAX_CHARS.toLocaleString()}. Split it into two lessons to save it.`;
+  }
+  try {
+    parseCommunityLessonElements(body, { strict: true });
+    return null;
+  } catch (error) {
+    const [, id = "", problem = ""] = (error instanceof Error ? error.message : "").split(":");
+    const known = LESSON_BLOCK_PROBLEMS[problem];
+    return known ? `Not saved yet: ${known} "${id}".` : `Not saved yet: the block "${id}" needs fixing (see the note on it).`;
+  }
 }
 
 type WebCommunityResourceViewerContentProps = {
@@ -96,6 +134,9 @@ export type WebCommunityResourceInlineEditor = {
   onChangeBody: (value: string) => void;
   onChangePinned: (value: boolean) => void;
   onSave: () => Promise<boolean> | boolean;
+  /** Saves and keeps editing (autosave). */
+  onSaveInPlace?: (() => Promise<boolean>) | null;
+  onUploadImage?: ((file: File) => Promise<string>) | null;
   onCancel: () => void;
 };
 
@@ -153,14 +194,14 @@ function ExternalArrowIcon() {
 
 export function WebCommunityResourceViewerContent(props: WebCommunityResourceViewerContentProps) {
   const { resource, editor = null } = props;
-  const currentUrl = resource.url;
+  // A lesson's video (lesson.video_url) plays at the top, like a video page's link.
+  const currentUrl = resource.url || resource.lesson?.video_url || null;
   const embed = currentUrl ? parseEmbedUrl(currentUrl) : null;
   const sourceUrl = normalizeExternalUrl(currentUrl);
   const hostLabel = getHostLabel(currentUrl);
   const persistedBody = resource.body_md?.trim() ?? "";
   const trimmedBody = editor?.isEditing ? editor.bodyInput.trim() : persistedBody;
   const titleText = editor?.isEditing ? editor.titleInput : resource.title;
-  const bodyText = editor?.isEditing ? editor.bodyInput : persistedBody;
   const hasBody = trimmedBody.length > 0;
   const verificationLink: { label: string; href: string } | null = sourceUrl
     ? {
@@ -172,13 +213,20 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     : null;
   const isEmpty = !embed && !hasBody && !verificationLink;
   const titleInputRef = useRef<HTMLInputElement | null>(null);
-  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyFocusAtRef = useRef<{ x: number; y: number } | null>(null);
   const canEdit = Boolean(editor?.canEdit);
   const isEditing = Boolean(editor?.isEditing);
   const activeField = editor?.activeField ?? null;
   const isTitleEditing = isEditing && activeField === "title";
   const isBodyEditing = isEditing && activeField === "body";
   const isPinned = editor?.isEditing ? editor.pinnedInput : resource.pinned;
+  // Preview shows the lesson as members will read it, from the draft being edited.
+  const [previewing, setPreviewing] = useState(false);
+  const isPreviewing = isEditing && previewing;
+  useEffect(() => {
+    if (!isEditing) setPreviewing(false);
+  }, [isEditing, resource.id]);
+  const shownBody = isPreviewing && editor ? editor.bodyInput.trim() : persistedBody;
   // Follow-along elements work only in lessons (pages with lesson fields),
   // the same rule the server uses when it saves an answer.
   const lessonActivity = props.lessonActivity && resource.lesson ? props.lessonActivity : null;
@@ -186,8 +234,10 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     () =>
       !lessonActivity
         ? []
-        : resource.lesson_elements ?? parseCommunityLessonElements(trimmedBody).map(publicCommunityLessonElement),
-    [lessonActivity, resource.lesson_elements, trimmedBody],
+        : isPreviewing
+          ? previewLessonElements(shownBody)
+          : resource.lesson_elements ?? parseCommunityLessonElements(persistedBody).map(publicCommunityLessonElement),
+    [lessonActivity, isPreviewing, shownBody, resource.lesson_elements, persistedBody],
   );
   const lessonRef = buildCommunityResourceEvidenceRef(resource.id);
   const lessonResponses = lessonActivity?.progress.responsesByRef[lessonRef];
@@ -206,8 +256,9 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   // The body renders again only when its text or its set of elements changes.
   const hasLessonActivity = Boolean(lessonActivity);
   const lessonElementIds = lessonElements.map((element) => element.id).join(" ");
+  // The read view is the saved body; while editing it shows only as the editor loads.
   const renderedBodyMarkdown = useMemo(() => {
-    if (!hasBody) return null;
+    if (!shownBody) return null;
     const ids = new Set(lessonElementIds ? lessonElementIds.split(" ") : []);
     const render = (markdown: string) => renderMarkdown(ids.size ? markCommunityLessonElementBlocks(markdown, ids) : markdown, {
       embedStandaloneMedia: true,
@@ -216,8 +267,8 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       renderLessonElement: hasLessonActivity ? (id) => ids.has(id) ? <LessonElementSlot key={id} id={id} /> : null : null,
     });
     // A "## Slides" section reads as a deck, one slide at a time, in place.
-    const deck = splitCommunityLessonSlides(trimmedBody);
-    if (!deck) return render(trimmedBody);
+    const deck = splitCommunityLessonSlides(shownBody);
+    if (!deck) return render(shownBody);
     return (
       <>
         {deck.before ? render(deck.before) : null}
@@ -225,14 +276,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         {deck.after ? render(deck.after) : null}
       </>
     );
-  }, [hasBody, trimmedBody, props.communityEmbeds, hasLessonActivity, lessonElementIds, resource.id]);
-
-  const syncBodyTextareaHeight = () => {
-    const textarea = bodyTextareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  };
+  }, [shownBody, props.communityEmbeds, hasLessonActivity, lessonElementIds, resource.id]);
 
   useEffect(() => {
     if (!isTitleEditing) return;
@@ -243,21 +287,55 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     return () => window.clearTimeout(timeoutId);
   }, [isTitleEditing, resource.id]);
 
+  // A click on the read view places the caret once; other ways in start at the end.
   useEffect(() => {
-    if (!isBodyEditing) return;
-    const timeoutId = window.setTimeout(() => {
-      bodyTextareaRef.current?.focus();
-      const length = bodyTextareaRef.current?.value.length ?? 0;
-      bodyTextareaRef.current?.setSelectionRange(length, length);
-      syncBodyTextareaHeight();
-    }, 0);
-    return () => window.clearTimeout(timeoutId);
-  }, [isBodyEditing, resource.id]);
+    if (!isEditing) bodyFocusAtRef.current = null;
+  }, [isEditing]);
 
-  useLayoutEffect(() => {
-    if (!isBodyEditing) return;
-    syncBodyTextareaHeight();
-  }, [bodyText, isBodyEditing]);
+  // Autosave: a moment after the owner stops typing, the page saves and
+  // editing carries on. A body the server would refuse waits, with the reason shown.
+  const bodyProblem = isEditing && editor ? lessonBodyProblem(editor.bodyInput) : null;
+  const hasSavableChanges = Boolean(editor?.isEditing && editor.isDirty && editor.titleInput.trim() && !bodyProblem);
+  const canAutosave = Boolean(hasSavableChanges && editor?.canSave && editor.onSaveInPlace);
+  // The panel hands a new save function each render; the timer keys on the content.
+  const saveInPlaceRef = useRef(editor?.onSaveInPlace ?? null);
+  saveInPlaceRef.current = editor?.onSaveInPlace ?? null;
+  useEffect(() => {
+    if (!canAutosave) return;
+    const timeoutId = window.setTimeout(() => void saveInPlaceRef.current?.(), 1200);
+    return () => window.clearTimeout(timeoutId);
+  }, [canAutosave, editor?.titleInput, editor?.bodyInput, editor?.pinnedInput]);
+
+  // Leaving the lesson saves what the timer hadn't yet. These refs are set
+  // after each commit, so the cleanup below still sees the lesson being left.
+  const leavingRef = useRef<{ pending: boolean; save: (() => Promise<boolean>) | null }>({ pending: false, save: null });
+  useEffect(() => {
+    leavingRef.current = { pending: hasSavableChanges, save: editor?.onSaveInPlace ?? null };
+  });
+  useEffect(() => () => {
+    if (leavingRef.current.pending) void leavingRef.current.save?.();
+  }, [resource.id]);
+  const hasUnsaved = Boolean(editor?.isEditing && editor.isDirty);
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsaved]);
+
+  // Done waits for a save in flight, then saves anything left and closes.
+  const [closeWhenSaved, setCloseWhenSaved] = useState(false);
+  useEffect(() => {
+    if (!closeWhenSaved || !editor || editor.isSaving) return;
+    setCloseWhenSaved(false);
+    if (!editor.isEditing) return;
+    if (!editor.isDirty) editor.onCancel();
+    else if (editor.canSave && !bodyProblem) void editor.onSave();
+  }, [closeWhenSaved, editor, bodyProblem]);
+  const finishEditing = () => setCloseWhenSaved(true);
 
   const beginEdit = (field: WebCommunityResourceInlineEditorField) => {
     if (!editor?.canEdit || editor.isSaving) return;
@@ -272,16 +350,10 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     event: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     if (!editor) return;
-    if (event.key === "Escape") {
+    if (event.key === "Escape" || ((event.metaKey || event.ctrlKey) && event.key === "Enter")) {
       event.preventDefault();
       event.stopPropagation();
-      editor.onCancel();
-      return;
-    }
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault();
-      event.stopPropagation();
-      if (editor.canSave) void editor.onSave();
+      finishEditing();
     }
   };
 
@@ -294,6 +366,9 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     if (interactiveTarget && interactiveTarget !== event.currentTarget) {
       return;
     }
+    // Measured from the body's corner: the editor's toolbar pushes the text down.
+    const body = event.currentTarget.getBoundingClientRect();
+    bodyFocusAtRef.current = { x: event.clientX - body.left, y: event.clientY - body.top };
     beginEdit("body");
   };
 
@@ -313,7 +388,6 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
           ref={titleInputRef}
           className="resource-viewer-title-input"
           value={editor.titleInput}
-          disabled={editor.isSaving}
           placeholder="Lesson title"
           onChange={(event) => editor.onChangeTitle(event.target.value)}
           onFocus={() => editor.onSetActiveField("title")}
@@ -368,22 +442,40 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   };
 
   const renderBodyContent = () => {
-    if (isBodyEditing && editor) {
+    // While the page is being edited the body is always the editor, so moving
+    // between the title and the body never reloads it.
+    if (isPreviewing) {
       return (
-        <textarea
-          ref={bodyTextareaRef}
-          className="resource-viewer-prose resource-viewer-prose-input"
-          value={editor.bodyInput}
-          disabled={editor.isSaving}
-          placeholder="Write the lesson content, context, or takeaway."
-          onChange={(event) => {
-            editor.onChangeBody(event.target.value);
-            event.currentTarget.style.height = "auto";
-            event.currentTarget.style.height = `${event.currentTarget.scrollHeight}px`;
-          }}
-          onFocus={() => editor.onSetActiveField("body")}
-          onKeyDown={handleEditableKeyDown}
-        />
+        <>
+          <div className="lesson-editor-preview-note" role="status">
+            <Eye aria-hidden="true" />
+            <span>This is how members see the lesson. Your changes keep saving.</span>
+          </div>
+          {renderedBodyMarkdown ? <div className="resource-viewer-prose">{renderedBodyMarkdown}</div> : null}
+        </>
+      );
+    }
+    if (isEditing && editor) {
+      const readView = renderedBodyMarkdown ? <div className="resource-viewer-prose">{renderedBodyMarkdown}</div> : null;
+      return (
+        <Suspense fallback={readView}>
+          <LessonEditor
+            key={resource.id}
+            initialMarkdown={editor.bodyInput}
+            followAlong={Boolean(resource.lesson)}
+            onChange={editor.onChangeBody}
+            onUploadImage={editor.onUploadImage ?? null}
+            autoFocus={isBodyEditing}
+            focusAt={bodyFocusAtRef.current}
+            onFocus={() => {
+              if (editor.activeField !== "body") editor.onSetActiveField("body");
+            }}
+            onDone={finishEditing}
+            onSaveNow={() => {
+              if (canAutosave) void editor.onSaveInPlace?.();
+            }}
+          />
+        </Suspense>
       );
     }
 
@@ -432,28 +524,46 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
           <div className="resource-viewer-header-aside">
             {isEditing && editor ? (
               <div className="resource-viewer-edit-actions">
-                <button
-                  className="resource-viewer-edit-cancel"
-                  type="button"
-                  onClick={() => editor.onCancel()}
-                  disabled={editor.isSaving}
+                <span
+                  className={`lesson-editor-save-pill${bodyProblem ? " is-blocked" : editor.isSaving || closeWhenSaved || editor.isDirty ? " is-pending" : ""}`}
+                  role="status"
+                  aria-live="polite"
                 >
-                  Cancel
+                  {editor.isSaving || closeWhenSaved
+                    ? "Saving…"
+                    : bodyProblem
+                      ? "Not saved"
+                      : editor.isDirty
+                        ? "Editing"
+                        : "Saved"}
+                </span>
+                <button
+                  className="lesson-editor-header-button"
+                  type="button"
+                  aria-pressed={isPreviewing}
+                  onClick={() => {
+                    bodyFocusAtRef.current = null;
+                    setPreviewing(!previewing);
+                  }}
+                  title={isPreviewing ? "Back to editing" : "See the lesson as members will"}
+                >
+                  {isPreviewing ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                  <span className="lesson-editor-header-label">{isPreviewing ? "Edit" : "Preview"}</span>
                 </button>
-                {editor.isDirty ? (
-                  <button
-                    className="platform-save-button resource-viewer-edit-save"
-                    type="button"
-                    onClick={() => void editor.onSave()}
-                    disabled={!editor.canSave}
-                  >
-                    {editor.isSaving ? "Saving..." : "Save changes"}
-                  </button>
-                ) : null}
+                <button
+                  className="lesson-editor-header-button is-primary"
+                  type="button"
+                  onClick={finishEditing}
+                  disabled={closeWhenSaved || Boolean(bodyProblem && editor.isDirty)}
+                  title="Save and stop editing (Ctrl+Enter)"
+                >
+                  Done
+                </button>
               </div>
             ) : null}
           </div>
         </div>
+        {isEditing && bodyProblem ? <div className="auth-error resource-viewer-edit-error" role="alert">{bodyProblem}</div> : null}
         {isEditing && editor?.error ? <div className="auth-error resource-viewer-edit-error">{editor.error}</div> : null}
       </div>
 

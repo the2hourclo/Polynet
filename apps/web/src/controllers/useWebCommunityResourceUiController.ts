@@ -101,14 +101,15 @@ export type UseWebCommunityResourceUiControllerResult<
     isSaving: boolean;
     beginInlineEditResource: (resource: ResourceT) => void;
     cancelInlineEditResource: () => void;
-    saveInlineEditResource: () => Promise<boolean>;
+    saveInlineEditResource: (options?: { keepEditing?: boolean }) => Promise<boolean>;
+    uploadImage: (file: File) => Promise<string>;
     onChangeTitle: (value: string) => void;
     onChangeUrl: (value: string) => void;
     onChangeBody: (value: string) => void;
     onChangePinned: (value: boolean) => void;
   };
   handleDeleteResource: (resourceId: string) => Promise<boolean>;
-  handleCreateBlankPageDraft: (moduleId: string) => Promise<ResourceT | null>;
+  handleCreateBlankPageDraft: (moduleId: string, lesson?: { order: number }) => Promise<ResourceT | null>;
   resourceModuleModalProps: ComponentProps<typeof WebCommunityResourceModuleModal>;
   resourceModuleDeleteModalProps: ComponentProps<typeof WebDeleteResourceModuleModal>;
   loadCommunityResourceModules: (communityId: string, session: SessionT) => Promise<void>;
@@ -168,6 +169,7 @@ export function useWebCommunityResourceUiController<
     handleReorderCommunityResources,
     handleMoveCommunityResourceToModule,
     handleSaveCommunityResource,
+    handleUploadCommunityResourceImage,
     handleDeleteResource,
     handleCreateBlankPageDraft,
     handleAddCommunitySources,
@@ -249,8 +251,8 @@ export function useWebCommunityResourceUiController<
     resetResourceForm();
   };
 
-  const saveInlineEditResource = async () => {
-    const didSave = await handleSaveCommunityResource();
+  const saveInlineEditResource = async (options?: { keepEditing?: boolean }) => {
+    const didSave = await handleSaveCommunityResource(options);
     return didSave === true;
   };
 
@@ -393,6 +395,7 @@ export function useWebCommunityResourceUiController<
       beginInlineEditResource,
       cancelInlineEditResource,
       saveInlineEditResource,
+      uploadImage: handleUploadCommunityResourceImage,
       onChangeTitle: setResourceTitleInput,
       onChangeUrl: setResourceUrlInput,
       onChangeBody: setResourceBodyInput,
