@@ -142,7 +142,7 @@ export function WebCommunityExternalFunnelLink(props: Props) {
       <p>Polynet provides a landing page by default. To send Discover visitors to your website, link its Join button back to Polynet and test that journey before activating it.</p>
       <div className="external-funnel-join-link">
         <a href={joinUrl} target="_blank" rel="noopener noreferrer">{joinUrl}</a>
-        <button type="button" className="secondary" onClick={() => void copyJoinUrl}>Copy join link</button>
+        <button type="button" className="secondary" onClick={() => void copyJoinUrl()}>Copy join link</button>
       </div>
       {copyState !== "idle" ? <span className="create-community-hint" role="status">{copyState === "copied" ? "Join link copied." : "Could not copy. Select the link above to copy it."}</span> : null}
       <form onSubmit={submit} className="external-funnel-settings-form">
