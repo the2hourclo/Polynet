@@ -77,7 +77,11 @@
   font-family: inherit; font-size: var(--pn-type-reading, 17px); line-height: 1.65; color: var(--text-primary);
 }
 .welcome-settings-text { resize: none; overflow: hidden; border: 0; outline: 0; background: transparent; }
-.welcome-settings .welcome-settings-text:focus-visible, .welcome-settings .welcome-settings-headline:focus-visible { outline: 0; }
+/* No box around the line being typed, but a soft ring so keyboard focus is still easy to see. */
+.welcome-settings .welcome-settings-text:focus-visible, .welcome-settings .welcome-settings-headline:focus-visible {
+  outline: 0; box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 55%, transparent);
+}
+.welcome-settings-headline { border-radius: 6px; }
 .welcome-settings-text:focus { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
 .welcome-settings-text-view { width: 100%; cursor: text; }
 .welcome-settings-text-view:hover { background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
@@ -91,7 +95,7 @@
 .welcome-settings-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .welcome-settings-step-icon {
   flex-shrink: 0; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px;
-  color: var(--accent-brand, var(--text-primary)); background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 12%, transparent);
+  color: var(--text-link, var(--accent-brand, var(--text-primary))); background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 12%, transparent);
 }
 .welcome-settings-step-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .welcome-settings-step-copy small { color: var(--text-secondary); font-size: var(--pn-type-meta, 11px); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
@@ -153,7 +157,7 @@
 }
 .welcome-settings-icon-button:hover:not(:disabled) { color: var(--text-primary); background: var(--hover-overlay); }
 .welcome-settings-icon-button:disabled { opacity: 0.3; cursor: not-allowed; }
-.welcome-settings-link { padding: 0; border: 0; background: none; color: var(--accent-brand, var(--text-primary)); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.welcome-settings-link { padding: 0; border: 0; background: none; color: var(--text-link, var(--accent-brand, var(--text-primary))); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 
 
 /* Preview: the member's page, played screen by screen in a frame the size of a real screen. */

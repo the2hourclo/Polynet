@@ -127,8 +127,11 @@ export function WebCommunityWelcomeSettings(props: Props) {
   }, [props.forms]);
   const lessonById = useMemo(() => new Map((options ?? []).map((option) => [option.id, option])), [options]);
 
+  // Read out after a keyboard move; any other edit clears it.
+  const [moveNote, setMoveNote] = useState("");
   const setLayout = (update: (layout: EditorBlock[]) => EditorBlock[]) => {
     setSaved(false);
+    setMoveNote("");
     setDraft((current) => ({ ...current, layout: withBreaks(update(current.layout), withUid) }));
   };
   const [editing, setEditing] = useState<string | null>(null);
@@ -202,7 +205,11 @@ export function WebCommunityWelcomeSettings(props: Props) {
   };
   const menuEmpty = menu?.view === "form" ? (formRows === null ? "Loading forms…" : publishedForms.length ? "Every published form is already on the page." : "Publish a form in Forms first.")
     : menu?.view === "lesson" ? (options === null ? "Loading lessons…" : "No more published lessons to add.") : "No block matches.";
+  // The highlighted choice is read out from wherever the keys are typed: the menu's list, or the text line that typed "/".
+  const menuListId = `${id}-menu-list`;
+  const menuOptionId = (index: number) => `${id}-menu-option-${index}`;
   const renderMenu = (autoFocus: boolean) => menu ? <BlockMenu view={menu.view} items={menuItems} active={menu.active} link={link} onLink={setLink}
+    listId={menuListId} optionId={menuOptionId}
     onAddLink={addLink} onChoose={choose} onClose={closeMenu} onBack={() => setMenu({ ...menu, view: "root", active: 0 })}
     autoFocus={autoFocus} onKeys={menuKeys} emptyText={menuEmpty} /> : null;
 
@@ -293,7 +300,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
             onClick={() => { setSaved(false); setMenu(null); setEditing(null); setDraft(baseline); setDraftBase(baselineKey); }}>Discard</button>
           <button type="button" className={`platform-save-button${dirty ? " is-dirty" : ""}`} disabled={!dirty || props.isSaving || !props.onSaveWelcomePage}
             onClick={() => void save()}>{props.isSaving ? "Saving…" : "Save"}</button>
-          <small role="status" className="welcome-settings-saved">{dirty ? "Unsaved changes" : saved ? "Saved" : ""}</small>
+          <small role="status" className="welcome-settings-saved">{moveNote || (dirty ? "Unsaved changes" : saved ? "Saved" : "")}</small>
         </div>
       </header>
       {props.actionError ? <p className="workflow-error welcome-settings-error" role="alert">{props.actionError}</p> : null}
@@ -333,7 +340,10 @@ export function WebCommunityWelcomeSettings(props: Props) {
                       onKeyDown={(event) => {
                         if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
                         event.preventDefault();
-                        move(block.uid, event.key === "ArrowUp" ? index - 1 : index + 2);
+                        const to = event.key === "ArrowUp" ? index - 1 : index + 2;
+                        move(block.uid, to);
+                        const at = Math.max(0, Math.min(draft.layout.length - 1, event.key === "ArrowUp" ? index - 1 : index + 1));
+                        setMoveNote(`Moved the ${label} to ${at + 1} of ${draft.layout.length}.`);
                         requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-handle="${block.uid}"]`)?.focus());
                       }}><GripVertical size={16} aria-hidden="true" /></button>
                   </div>
@@ -342,6 +352,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
                       editing === block.uid || !block.markdown.trim() ? (
                         <AutoSizeTextarea id={`${id}-block-${block.uid}`} value={block.markdown} maxLength={WELCOME_TEXT_MAX} rows={1}
                           aria-label="Text. Type / to add a block." className="welcome-settings-text"
+                          aria-controls={menuHere && menu?.view === "root" ? menuListId : undefined}
+                          aria-activedescendant={menuHere && menu?.view === "root" && menuItems[menu.active] ? menuOptionId(menu.active) : undefined}
                           placeholder={draft.layout.length === 1 ? "Say hello. Type / to add a video, a form, a lesson or a Next page." : "Type / to add a block"}
                           onFocus={() => setEditing(block.uid)}
                           onBlur={() => { if (!menuHere) setEditing((current) => (current === block.uid ? null : current)); }}
@@ -361,7 +373,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
                           }} />
                       ) : <TextView id={`${id}-block-${block.uid}`} markdown={block.markdown} onEdit={() => editText(block.uid)} />
                     ) : block.type === "next" ? (
-                      <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break" role="separator" aria-label={`Next page. Screen ${screenNumber} starts here.`}>
+                      <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break">
                         <span>Next page</span><small>Screen {screenNumber}</small>
                       </div>
                     ) : block.type === "form" ? (
@@ -413,8 +425,14 @@ function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
-    element.style.height = "auto";
-    element.style.height = `${element.scrollHeight}px`;
+    const fit = () => { element.style.height = "auto"; element.style.height = `${element.scrollHeight}px`; };
+    fit();
+    // A narrower window (a phone turned, a resized pane) wraps the words onto more lines.
+    if (typeof ResizeObserver === "undefined") return;
+    let width = element.clientWidth;
+    const observer = new ResizeObserver(() => { if (element.clientWidth !== width) { width = element.clientWidth; fit(); } });
+    observer.observe(element);
+    return () => observer.disconnect();
   }, [value]);
   return <textarea ref={ref} value={value} onChange={(event) => onChange(event.target.value)} {...rest} />;
 }
@@ -422,7 +440,7 @@ function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement
 // Words show as the member reads them (videos play inline); a click puts the cursor back in.
 function TextView(props: { id: string; markdown: string; onEdit: () => void }) {
   const rendered = useMemo(() => renderMarkdown(props.markdown, { embedStandaloneMedia: true }), [props.markdown]);
-  return <div id={props.id} className="community-welcome-message welcome-settings-text-view" tabIndex={0} role="button" aria-label="Edit this text"
+  return <div id={props.id} className="community-welcome-message welcome-settings-text-view" tabIndex={0} role="group" aria-label="Text. Press Enter to edit."
     onClick={(event) => { if (!(event.target as HTMLElement).closest("a, button, iframe, video")) props.onEdit(); }}
     onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); props.onEdit(); } }}>{rendered}</div>;
 }
@@ -441,13 +459,14 @@ function StepCard(props: { id: string; kind: string; icon: ReactNode; title: str
 
 function BlockMenu(props: {
   view: MenuView; items: MenuItem[]; active: number; link: string; emptyText: string; autoFocus: boolean;
+  listId: string; optionId: (index: number) => string;
   onLink: (value: string) => void; onAddLink: () => void; onChoose: (key: string) => void; onClose: () => void; onBack: () => void;
   onKeys: (event: KeyboardEvent) => boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (props.view === "link") ref.current?.querySelector("input")?.focus();
-    else if (props.autoFocus || props.view !== "root") ref.current?.focus();
+    else if (props.autoFocus || props.view !== "root") (ref.current?.querySelector<HTMLElement>("[role=listbox]") ?? ref.current)?.focus();
   }, [props.view, props.autoFocus]);
   const onClose = useRef(props.onClose);
   onClose.current = props.onClose;
@@ -473,9 +492,9 @@ function BlockMenu(props: {
         <button type="submit" className="platform-save-button" disabled={!isLink(props.link)}>Add</button>
       </form>
     ) : props.items.length ? (
-      <ul role="listbox" aria-label={title}>
+      <ul id={props.listId} role="listbox" aria-label={title} tabIndex={-1} aria-activedescendant={props.items[props.active] ? props.optionId(props.active) : undefined}>
         {props.items.map((item, index) => (
-          <li key={item.key} role="option" aria-selected={index === props.active}>
+          <li key={item.key} id={props.optionId(index)} role="option" aria-selected={index === props.active}>
             <button type="button" tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => props.onChoose(item.key)}>
               <span className="welcome-settings-menu-icon">{item.icon}</span>
               <span><strong>{item.label}</strong>{item.hint ? <small>{item.hint}</small> : null}</span>
@@ -521,7 +540,15 @@ function WelcomePreview(props: {
     </div>;
   };
   return <div className="welcome-settings-preview-overlay" role="dialog" aria-modal="true" aria-label="Welcome page preview"
-    onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); props.onClose(); } }}>
+    onKeyDown={(event) => {
+      if (event.key === "Escape") { event.preventDefault(); props.onClose(); return; }
+      if (event.key !== "Tab") return;
+      // Tab stays inside the preview while it's open.
+      const items = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), textarea:not(:disabled), a[href], iframe, [tabindex=\"0\"]")];
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }}>
     <div className="welcome-settings-preview-panel">
       <div className="welcome-settings-preview-bar">
         <h2>Preview</h2>

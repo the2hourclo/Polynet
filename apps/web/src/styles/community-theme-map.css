@@ -370,6 +370,9 @@
 [data-community-theme] .welcome-settings-text-view {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
+[data-community-theme] .welcome-settings-headline {
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .welcome-settings-step-icon {
   border-radius: calc(10px * var(--pn-radius-scale, 1));
 }
