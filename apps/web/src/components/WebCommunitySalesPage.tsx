@@ -9,7 +9,7 @@ import { UserAvatar } from "../../../../shared/UserAvatar";
 import { renderHeroMediaDefault } from "./CommunityFunnelSurface";
 import "./WebCommunitySalesPage.css";
 
-// The About page as a sales page, the way Skool does it: one page that a
+// The About page as a sales page: one page that a
 // visitor lands on and a member opens from the About tab. Media, the facts a
 // buyer checks (who runs it, how many people, what it costs), the pitch, and a
 // card beside it with the join button. It only arranges what the public funnel
