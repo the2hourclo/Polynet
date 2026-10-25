@@ -10,6 +10,7 @@ import { getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurre
 import { readMemberFactsForLens } from "./memberOntologyCore";
 import { courseSummaries, listMemberVisibleLessonPages, readProgressRows } from "./communityResourceProgress";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
+import { listActiveCommunityAccessIntegrations, readClientAccessForList, readCommunityAccessTimelineEntries } from "./communityAccessSync";
 import { canonicalReceiptAttemptValidator, completeCanonicalOperationReceipt } from "./polynetCanonicalReceipts";
 import {
   COMMUNITY_CLIENT_PROPERTY_LIMIT,
@@ -346,6 +347,7 @@ async function readTimeline(ctx: any, args: any) {
       : `${who} ${row.type === "drafted" ? "drafted a message" : "added a note"}: ${row.body}`;
     entries.push({ at: row.createdAt, type: row.type, summary, actor: row.via });
   }
+  entries.push(...await readCommunityAccessTimelineEntries(ctx, { communityId: args.communityId, membership, limit: TIMELINE_LIMIT }));
   entries.sort((a, b) => b.at - a.at);
   return {
     kind: "community_client_timeline",
@@ -382,15 +384,16 @@ async function setSettings(ctx: any, args: any) {
 const listClientsArgs = { ...managerArgs, cursor: v.optional(v.string()), stuckDays: v.optional(v.number()) };
 
 async function listClients(ctx: any, args: any) {
-  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  const { community } = await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
   const nowMs = Date.now();
   const settings = await readSettings(ctx, args.communityId);
   const stuckDays = args.stuckDays !== undefined ? clampStuckDays(args.stuckDays)
     : settings?.stuckDays ?? COMMUNITY_CLIENT_STUCK_DEFAULT_DAYS;
-  const [properties, lessons, workflow] = await Promise.all([
+  const [properties, lessons, workflow, integrations] = await Promise.all([
     listActiveProperties(ctx, args.communityId),
     listMemberVisibleLessonPages(ctx, args.communityId),
     getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId }),
+    listActiveCommunityAccessIntegrations(ctx, args.communityId),
   ]);
   const definitions = properties.map(projectProperty);
   const page = await ctx.db.query("communityMemberships")
@@ -399,7 +402,7 @@ async function listClients(ctx: any, args: any) {
 
   const clients = await Promise.all(page.page.map(async (membership: any) => {
     const active = communityMembershipRowIsActive(membership);
-    const [profile, subscription, progressRows, forms, facts, values, milestoneState, lastFlaggedAt, lastContactedAt, referral] = await Promise.all([
+    const [profile, subscription, progressRows, forms, facts, values, milestoneState, lastFlaggedAt, lastContactedAt, referral, access] = await Promise.all([
       resolveUserProfileDisplayProjection(ctx, membership.userId),
       readLatestSubscription(ctx, membership._id),
       readProgressRows(ctx, args.communityId, membership.userId),
@@ -413,6 +416,7 @@ async function listClients(ctx: any, args: any) {
       readLatestOwnerEventAt(ctx, membership._id, "contacted"),
       ctx.db.query("communityReferrals")
         .withIndex("by_community_user", (q: any) => q.eq("communityId", args.communityId).eq("userId", membership.userId)).first(),
+      readClientAccessForList(ctx, { community, membership, integrations, nowMs }),
     ]);
     const stage = workflow && active && workflow.milestones.length
       ? (() => { try { return resolveCurrentMilestone({ workflow, membership, state: milestoneState }); } catch { return null; } })()
@@ -455,6 +459,9 @@ async function listClients(ctx: any, args: any) {
       last_contacted_at: toIso(lastContactedAt),
       // The ref on the join link this member arrived by, first touch.
       referred_by: referral ? referral.ref : null,
+      // Plan, what they can use (community, courses, each connected service)
+      // and until when: the same answer the AIEB MCP gets.
+      access,
       facts: facts.slice(0, FACTS_PER_CLIENT).map((fact: any) => ({ kind: fact.kind, body: fact.body, provenance: fact.provenance })),
       properties: Object.fromEntries(definitions.map((property: any) => [property.key, currentValue(property, valueByKey.get(property.key) ?? null)])),
     };

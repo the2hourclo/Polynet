@@ -19,6 +19,8 @@ import { StripeConnectCountrySelect } from "./StripeConnectCountrySelect";
 import { StripeSetupButton } from "./StripeSetupButton";
 import { WebCommunityAiAgentSection } from "./WebCommunityAiAgentSection";
 import { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
+import { WebCommunityAccessSettings, WebCommunityMyAccessCard } from "./WebCommunityAccess";
+import { useCommunityAccessGatewayForSession, type CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 import {
   platformTabId,
   platformTabPanelId,
@@ -153,6 +155,7 @@ const COMMUNITY_SETTINGS_PANE_LABELS: Record<CommunitySettingsPane, string> = {
   community: "General",
   look: "Look",
   agent: "Agent",
+  access: "Access",
   danger: "Danger",
 };
 
@@ -673,13 +676,16 @@ function CommunityMonetizationConfigSection({
 
 function CommunityMemberSettingsSection({
   activeCommunity,
+  accessGateway,
   state,
   actions,
 }: SharedSettingsProps & {
   activeCommunity: ActiveCommunity;
+  accessGateway: CommunityAccessGateway | null;
 }) {
   return (
     <div className="create-community-form community-settings-form">
+      {accessGateway ? <WebCommunityMyAccessCard key={accessGateway.scopeKey} gateway={accessGateway} /> : null}
       <div className="settings-section">
         <div className="settings-section-title">Member settings</div>
         <div className="settings-section-desc">
@@ -771,6 +777,9 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
     canView: canViewActiveCommunitySettings,
   });
   const resolvedActiveCommunity = activeCommunity as ActiveCommunity;
+  const accessGateway = useCommunityAccessGatewayForSession({
+    communityId: resolvedActiveCommunity?.id ?? null, session: props.session, ensureSession: props.ensureSession,
+  });
   // The welcome page is edited in Workflows; this is the way there from Settings.
   const workflowsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "workflows");
   const welcomePagePath = workflowsPath ? `${workflowsPath}?section=welcome` : null;
@@ -828,6 +837,7 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
       ) : !canManageCommunitySettings ? (
         <CommunityMemberSettingsSection
           activeCommunity={resolvedActiveCommunity}
+          accessGateway={accessGateway}
           state={state}
           actions={actions}
         />
@@ -986,6 +996,9 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
               ) : null}
               {selectedSettingsPane === "agent" ? (
               <WebCommunityAiAgentSection {...aiAgentProps} embedded />
+              ) : null}
+              {selectedSettingsPane === "access" && accessGateway ? (
+              <WebCommunityAccessSettings key={accessGateway.scopeKey} gateway={accessGateway} />
               ) : null}
               {selectedSettingsPane === "danger" && isOwnerSettingsLayer ? (
               <CommunityDangerSettingsSection

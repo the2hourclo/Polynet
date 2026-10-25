@@ -28,9 +28,13 @@ import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsG
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
 import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
+import { WebCommunityClientAccessPanel, WebCommunityClients } from "./WebCommunityAccess";
+import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 
 export type WebCommunityWorkflowsSectionProps = {
   forms?: CommunityFormsGateway;
+  /** Clients and each member's Access: owners and admins only. */
+  access?: CommunityAccessGateway;
   channels: CloudCommunityChannel[];
   channelsUnavailable: boolean;
   board: CloudCommunityMemberWorkflowBoard | null;
@@ -141,6 +145,9 @@ export function WebCommunityWorkflowsSection(
           forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
           onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
           onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
+        : section === "clients" ? props.access
+          ? <WebCommunityClients key={props.access.scopeKey} gateway={props.access} />
+          : <p role="status">Only the community's owner and admins can see clients.</p>
         : props.forms
         ? <WebCommunityForms key={props.forms.scopeKey} gateway={props.forms} leaveGuard={beforeLeave} />
         : <p role="status">Forms are unavailable.</p>}
@@ -383,6 +390,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
       />
       <WebCommunityWorkflowMemberDossierModal
         formResponses={props.forms?.responses && props.memberDossier ? <WebCommunityFormResponses key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.forms} membershipId={props.memberDossier.membership_id} evidenceKey={JSON.stringify(props.memberDossier.submitted_form_evidence)} /> : null}
+        access={props.access && props.memberDossier ? <WebCommunityClientAccessPanel key={`${props.access.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.access} membershipId={props.memberDossier.membership_id} /> : null}
         courseProgress={props.forms?.courseProgress && props.memberDossier ? <WebCommunityMemberCourseProgress key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} load={props.forms.courseProgress} membershipId={props.memberDossier.membership_id} /> : null}
         isOpen={Boolean(props.selectedMembershipId)}
         dossier={props.memberDossier}
