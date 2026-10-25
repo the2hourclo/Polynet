@@ -2852,6 +2852,128 @@ export default defineSchema({
     .index("by_membership_property", ["membershipId", "propertyKey"])
     .index("by_community_property", ["communityId", "propertyKey"]),
 
+  // Access the owner gave by hand: free or comp time, with why and until when.
+  // The membership stays the gate (accessSource manual_grant); this row is the
+  // who, why and end date, and the end job reads it. One active row per member.
+  communityAccessGrants: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    membershipId: v.id("communityMemberships"),
+    status: v.union(v.literal("active"), v.literal("ended")),
+    endsAt: v.optional(v.number()),
+    reason: v.string(),
+    grantedByUserId: v.id("users"),
+    grantedVia: v.union(v.literal("web"), v.literal("agent")),
+    endJobId: v.optional(v.id("_scheduled_functions")),
+    endedAt: v.optional(v.number()),
+    endedByUserId: v.optional(v.id("users")),
+    endedReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community_user_status", ["communityId", "userId", "status"])
+    .index("by_membership_createdAt", ["membershipId", "createdAt"])
+    .index("by_status_endsAt", ["status", "endsAt"]),
+
+  // A stable, community-scoped id an outside service knows a member by, so the
+  // internal user id never leaves Polynet. Kept across leaving and rejoining.
+  communityAccessMembers: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    memberId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_community_user", ["communityId", "userId"])
+    .index("by_member_id", ["memberId"]),
+
+  // One license key per member and community. Only a hash is stored; the key
+  // is a pointer to the membership, valid exactly while the member is entitled.
+  communityMemberLicenseKeys: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    keyHash: v.string(),
+    last4: v.string(),
+    status: v.union(v.literal("active"), v.literal("rotated"), v.literal("revoked")),
+    createdAt: v.number(),
+    revokedAt: v.optional(v.number()),
+    revokedByUserId: v.optional(v.id("users")),
+    lastCheckedAt: v.optional(v.number()),
+    lastCheckedByIntegrationId: v.optional(v.id("communityAccessIntegrations")),
+  })
+    .index("by_key_hash", ["keyHash"])
+    .index("by_community_user_status", ["communityId", "userId", "status"]),
+
+  // An outside service the owner registered to learn who is entitled: a signed
+  // webhook on every change plus a read-only lookup key. The API key is stored
+  // hashed; the signing secret is encrypted, because Polynet signs with it.
+  communityAccessIntegrations: defineTable({
+    communityId: v.id("communities"),
+    name: v.string(),
+    webhookUrl: v.string(),
+    // Empty = every paid plan.
+    pricePointIds: v.array(v.id("communityPricePoints")),
+    includeOwnerGrants: v.boolean(),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+    apiKeyHash: v.string(),
+    apiKeyLast4: v.string(),
+    encryptedSigningSecretHex: v.string(),
+    signingSecretIvHex: v.string(),
+    signingSecretLast4: v.string(),
+    // The sweep walks every membership in pages so a missed write still reaches
+    // the service; this is where the next page starts.
+    sweepCursor: v.optional(v.string()),
+    sweepStartedAt: v.optional(v.number()),
+    lastDeliveredAt: v.optional(v.number()),
+    lastFailedAt: v.optional(v.number()),
+    lastErrorCode: v.optional(v.string()),
+    lastLookupAt: v.optional(v.number()),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_api_key_hash", ["apiKeyHash"])
+    .index("by_status", ["status"]),
+
+  // What an integration was last told about each member, so a change is sent
+  // once, in order, and only when something it can see changed.
+  communityAccessDeliveryStates: defineTable({
+    integrationId: v.id("communityAccessIntegrations"),
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    fingerprint: v.string(),
+    sequence: v.number(),
+    updatedAt: v.number(),
+  }).index("by_integration_user", ["integrationId", "userId"]),
+
+  // The outbox: one row per membership.access_changed (or test) event, written
+  // in the same transaction as the change and delivered with retries for 72h.
+  communityAccessEvents: defineTable({
+    communityId: v.id("communities"),
+    integrationId: v.id("communityAccessIntegrations"),
+    userId: v.optional(v.id("users")),
+    memberId: v.optional(v.string()),
+    eventId: v.string(),
+    type: v.union(v.literal("membership.access_changed"), v.literal("integration.test")),
+    payload: v.any(),
+    entitled: v.optional(v.boolean()),
+    status: v.union(v.literal("pending"), v.literal("delivering"), v.literal("delivered"), v.literal("needs_attention")),
+    attemptCount: v.number(),
+    attemptToken: v.optional(v.string()),
+    leaseExpiresAt: v.optional(v.number()),
+    nextAttemptAt: v.optional(v.number()),
+    responseStatus: v.optional(v.number()),
+    lastErrorCode: v.optional(v.string()),
+    deliveredAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_integration_createdAt", ["integrationId", "createdAt"])
+    .index("by_community_user_createdAt", ["communityId", "userId", "createdAt"])
+    .index("by_status_next_attempt_at", ["status", "nextAttemptAt"])
+    .index("by_status_lease_expires_at", ["status", "leaseExpiresAt"]),
+
   communityResourceProgress: defineTable({
     communityId: v.id("communities"),
     userId: v.id("users"),

@@ -2225,6 +2225,7 @@ export default function App() {
       },
       workflows: {
         forms: communityWorkflows.forms,
+        access: communityWorkflows.access,
         channels: activeCommunityChannels.filter((channel) => channel.id && channel.community_id === activeCommunityId),
         channelsUnavailable: isLoadingActiveCommunityChannels || Boolean(activeCommunityChannelsError),
         board: communityWorkflows.board,

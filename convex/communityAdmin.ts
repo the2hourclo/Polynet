@@ -55,6 +55,7 @@ import {
 } from "./platformHomeCommunity";
 import { cancelStripeSubscriptionIfActive } from "./stripeSubscriptionCancellation";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
+import { syncCommunityAccessForUser } from "./communityAccessSync";
 import {
   activateCommunityMembershipCore,
 } from "./communityMembershipLifecycle";
@@ -1854,6 +1855,12 @@ export const revokeCommunityMemberInternal = internalMutation({
           nowMs: revokedAt,
           cooldownMs: COMMUNITY_REMOVAL_REAPPLY_COOLDOWN_MS,
         });
+        await syncCommunityAccessForUser(ctx, {
+          communityId: args.communityId,
+          userId: membership.userId,
+          nowMs,
+          reason: revokedReason,
+        });
         return { ok: true };
       },
     });
@@ -2430,6 +2437,12 @@ export const leaveCommunity = mutation({
           ctx,
           communityId: args.communityId,
           userId: args.userId,
+        });
+        await syncCommunityAccessForUser(ctx, {
+          communityId: args.communityId,
+          userId: args.userId,
+          nowMs,
+          reason: "member_left",
         });
         return { ok: true };
       },

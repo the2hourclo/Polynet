@@ -53,6 +53,7 @@ import {
   expireStripeCheckoutSessionIfOpen,
 } from "./stripeSubscriptionCancellation";
 import { requireCommunityBuilderAccess } from "./communityBuilderAccessCore";
+import { syncCommunityAccessForUser } from "./communityAccessSync";
 
 type CommunityCheckoutSessionRow = {
   _id: any;
@@ -472,6 +473,14 @@ export const syncCommunitySubscriptionLifecycleInternal = internalMutation({
         nowMs,
       });
     }
+    // Access integrations (the AIEB MCP) learn about the change in this same
+    // transaction; this adds an outbox write and never changes the decision above.
+    await syncCommunityAccessForUser(ctx, {
+      communityId: args.communityId,
+      userId: args.userId,
+      nowMs,
+      reason: `subscription_${status}`,
+    });
 
     return {
       ok: true,
