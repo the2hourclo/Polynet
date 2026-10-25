@@ -96,6 +96,7 @@ export type CloudCommunityAgentProfile = {
   custom_name: string | null;
   avatar_url: string | null;
   avatar_storage_id: string | null;
+  community_avatar_url?: string | null;
 };
 
 /** The agent's name and photo. Needs no session. */

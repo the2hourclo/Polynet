@@ -60,7 +60,7 @@ export function WebCommunityAgentProfileCard(props: {
   };
 
   const photoUrl = profile?.avatar_url ?? null;
-  const communityIcon = identity?.avatar.url ?? null;
+  const communityIcon = identity?.avatar.url ?? profile?.community_avatar_url ?? null;
 
   return (
     <section className="settings-section pn-settings-card pn-agent-profile" aria-labelledby="agent-profile-title">
@@ -82,8 +82,10 @@ export function WebCommunityAgentProfileCard(props: {
                 <label className="pn-settings-thumb is-logo is-agent-photo">
                   {photoUrl ? (
                     <img className="pn-settings-thumb-media" src={photoUrl} alt="" />
-                  ) : communityIcon ? (
+                  ) : identity?.avatar.url ? (
                     <CommunityAvatar className="pn-settings-thumb-media" communityId={props.communityId} name={props.communityName} alt="" />
+                  ) : communityIcon ? (
+                    <img className="pn-settings-thumb-media" src={communityIcon} alt="" />
                   ) : (
                     <span className="pn-settings-thumb-media pn-agent-profile-sparkles"><Sparkles size={22} strokeWidth={1.75} aria-hidden="true" /></span>
                   )}

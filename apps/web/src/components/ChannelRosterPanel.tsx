@@ -8,6 +8,7 @@ import { useMemberScrollPagination } from "./useMemberScrollPagination";
 import { CommunityJoinRequestReview } from "./CommunityJoinRequestReview";
 import { CommunityAutoJoinControl, type CommunityAdmissionControl } from "./CommunityAutoJoinControl";
 import { ActorAvatar } from "./communityInteractionFeed";
+import { useCommunityAgentProfile } from "../../../../shared/CommunityAgentIcon";
 import { AVATAR_INITIALS_INK } from "../../../../shared/chatUi";
 import type { FunctionReturnType } from "convex/server";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -105,6 +106,7 @@ function RosterSurface(props: RosterProps & {
   onCloseMembers?: () => void;
 }) {
   const scope = useContext(CommunityChannelSessionContext);
+  const agentName = useCommunityAgentProfile()?.name || "Community agent";
   const dialogRef = useRef<HTMLElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -267,9 +269,9 @@ function RosterSurface(props: RosterProps & {
           {!props.directory ? <><h3 className="community-context-section">Agents — {pages[0].agents.length}</h3>
           {pages[0].agents.length ? <div className="community-context-agent-list">
             {pages[0].agents.map(agent => <div className="community-context-member" key={agent.key}>
-              <ActorAvatar seed={agent.key} label="Community agent" className="community-context-member-avatar"
+              <ActorAvatar seed={agent.key} label={agentName} className="community-context-member-avatar"
                 getAvatarColor={props.getAvatarColor} getInitials={props.getInitials} />
-              <span className="community-context-member-copy"><span className="community-context-member-name">Community agent</span></span>
+              <span className="community-context-member-copy"><span className="community-context-member-name">{agentName}</span></span>
             </div>)}
           </div> : <p className="community-context-members-status">No agents in this channel.</p>}</> : null}
         </>}

@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { CommunityAgentIcon } from "../../../../shared/CommunityAgentIcon";
 import { useState } from "react";
 import {
   buildAgentLedJourneyPlan,
@@ -45,7 +45,7 @@ export function WebCommunityAgentLedJourney(props: Props) {
   const formName = props.publishedForms.find((form) => form.key === formKey)?.name ?? null;
 
   return <div className="pn-wf-callout pn-wf-agent-led">
-    <span className="pn-wf-callout-icon" aria-hidden="true"><Sparkles size={20} strokeWidth={2} /></span>
+    <span className="pn-wf-callout-icon pn-wf-agent-led-icon" aria-hidden="true"><CommunityAgentIcon size={20} strokeWidth={2} /></span>
     <span className="pn-wf-callout-text">
       <strong>Let your agent lead each member</strong>
       <small>Your agent welcomes every new member in a private guide channel, reads their onboarding answers, points them to
