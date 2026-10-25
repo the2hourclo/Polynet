@@ -1553,6 +1553,19 @@ export default defineSchema({
   })
     .index("by_community", ["communityId"]),
 
+  // Looks an owner saved under a name, to switch back to later. Applying one
+  // copies it into communityThemes' draft; publishing stays a separate step.
+  communitySavedThemes: defineTable({
+    communityId: v.id("communities"),
+    name: v.string(),
+    theme: v.any(),
+    createdByUserId: v.id("users"),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"]),
+
   // A community's layout (shared/communityLayout.ts): navigation position, tab
   // order and page arrangement. Kept apart from communityThemes so changing
   // the look never resets the layout, and the other way round.
