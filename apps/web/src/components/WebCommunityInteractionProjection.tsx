@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Pencil,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   EmojiPickerButton,
@@ -171,7 +172,7 @@ import {
 } from "./communityInteractionFeed";
 import { interactionMentionsViewer } from "../controllers/communityMentionAttention";
 import { CommunityPinnedRootSurface } from "./CommunityPinnedRootSurface";
-import { CommunityPostsFeed } from "./CommunityPostsFeed";
+import { CommunityPostsFeed, splitPostTitle } from "./CommunityPostsFeed";
 
 export function resolveSelectedCommunityInteractionRoot(
   roots: CommunityInteractionRootBundle[],
@@ -540,6 +541,9 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
   // dialog, instead of squeezing the page beside a drawer.
   const detailAsDialog = hasDetailPanel && !isMobileThreadPage && (isPostsPresentation || props.surface === "members");
   const closeDetail = props.profilePanel ? props.onCloseProfile : props.onCloseDrawer;
+  // A post opened as a dialog reads like an article: its title on top (or its
+  // first line, the same way its card shows it), then the byline and body.
+  const dialogPost = detailAsDialog && selectedRoot ? splitPostTitle(selectedRoot.root.title, selectedRootText) : null;
   useEffect(() => {
     if (!detailAsDialog) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -725,7 +729,16 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           className={`community-interaction-drawer community-interaction-thread-drawer${isMobileThreadPage ? " community-interaction-thread-page" : ""}`}
           aria-label={isMobileThreadPage ? "Thread" : "Thread replies"}
         >
-          {!isMobileThreadPage ? <div className="community-interaction-drawer-back">
+          {detailAsDialog ? (
+            <div className="community-post-dialog-bar">
+              <span className="community-post-dialog-channel">
+                {props.activeChannel?.name ? `# ${props.activeChannel.name}` : "Post"}
+              </span>
+              <button type="button" className="community-post-dialog-close" onClick={props.onCloseDrawer} aria-label="Close post">
+                <X size={20} strokeWidth={2} aria-hidden="true" />
+              </button>
+            </div>
+          ) : !isMobileThreadPage ? <div className="community-interaction-drawer-back">
             <button
               className="back-to-workspace"
               type="button"
@@ -740,6 +753,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           </div> : null}
           <div className="community-interaction-drawer-scroll" ref={drawerScrollRef}>
             <div className="community-interaction-drawer-root">
+              {dialogPost?.title ? <h2 className="community-post-dialog-title">{dialogPost.title}</h2> : null}
               <div className="community-interaction-thread-anchor">
                 <ProfileHoverCard
                   userId={selectedRoot.root.actor_user_id}
@@ -784,11 +798,11 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                     ) : null}
                     <span>{props.formatChatTime(selectedRoot.root.created_at)}</span>
                   </div>
-                  {selectedRoot.root.title ? (
+                  {selectedRoot.root.title && !dialogPost ? (
                     <div className="community-interaction-title">{selectedRoot.root.title}</div>
                   ) : null}
                   <InteractionContent
-                    text={selectedRootText}
+                    text={dialogPost ? dialogPost.body : selectedRootText}
                     renderTextWithLinks={props.renderTextWithLinks}
                     mentionContext={{
                       mentions: selectedRoot.mentions ?? [],
@@ -834,8 +848,16 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                 <div className="community-interaction-loading web-skeleton-pill" aria-hidden="true" />
               </div>
             ) : props.replies.length === 0 ? (
-              <div className="community-interaction-drawer-empty">No replies yet.</div>
+              <div className="community-interaction-drawer-empty">
+                {detailAsDialog ? "No comments yet. Start the conversation below." : "No replies yet."}
+              </div>
             ) : (
+              <>
+              {detailAsDialog ? (
+                <div className="community-post-dialog-comments-label">
+                  {props.replies.length === 1 ? "1 comment" : `${props.replies.length} comments`}
+                </div>
+              ) : null}
               <div className="community-interaction-reply-list">
                 {props.replies.map((bundle) => {
                   const reply = bundle.reply;
@@ -993,6 +1015,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                   );
                 })}
               </div>
+              </>
             )}
           </div>
           {!props.floatingComposers ? (
