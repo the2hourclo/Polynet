@@ -11,7 +11,8 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
   const frameRef = useRef<HTMLDivElement>(null);
   const [loadedVideoId, setLoadedVideoId] = useState<string | null>(null);
   const [hasPlayerRoom, setHasPlayerRoom] = useState(false);
-  // Offline, the player would show the browser's error page; keep the poster until the connection is back.
+  // Offline, a player that hasn't loaded yet would show the browser's error page, so the poster
+  // stays until the connection is back. A player that already loaded stays put through a blip.
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
   useEffect(() => {
     const up = () => setOnline(true);
@@ -55,7 +56,7 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
   return <div ref={frameRef} className={`deferred-youtube${hasPlayerRoom ? "" : " is-too-narrow"}`}
     data-community-youtube-embed={embed.id} data-resource-media="true"
     onClick={(event) => event.stopPropagation()}>
-    {hasPlayerRoom && online && loadedVideoId === embed.id ? <iframe
+    {hasPlayerRoom && loadedVideoId === embed.id ? <iframe
       src={source.href}
       title={title}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
