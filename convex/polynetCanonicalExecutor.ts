@@ -1,4 +1,4 @@
-import { BUILDER_SETTING_OPERATIONS, builderSettingArgs, builderSettingInput, builderSettingOperation, readBuilderSettings } from "./polynetBuilderSettings";
+import { BUILDER_SETTING_OPERATIONS, builderSettingArgs, builderSettingInput, builderSettingOperation, readBuilderSettings, readBuilderWorkflowTemplates } from "./polynetBuilderSettings";
 import { api, internal } from "./_generated/api";
 import { hashSiteFile, publishSite, readSitesConfig, startSiteUpload, uploadSiteFiles } from "./communitySiteDeploy";
 import { siteFileMimeType, siteHostname, siteScriptName, validateSiteManifest } from "./communitySites";
@@ -124,6 +124,7 @@ const designKindOf = (operation: string) => DESIGN_KINDS.find(kind =>
 const designKindAt = (localPath: string) => DESIGN_KINDS.find(kind => DESIGN_RECORDS[kind].path === localPath);
 // Every other Settings save (convex/polynetBuilderSettings.ts), read from one document.
 const BUILDER_SETTINGS_PATH = "/builder/settings.json";
+const BUILDER_WORKFLOW_TEMPLATES_PATH = "/builder/workflow-templates.json";
 const SETTING_OPERATIONS = BUILDER_SETTING_OPERATIONS.map(spec => spec.operation);
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
@@ -1330,6 +1331,7 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, BUILDER_CLIENTS_DIRECTORY), kind: "directory", type: "builder", name: "Clients: every member, past members included, with status, stage, progress, approved facts and your own properties" },
           ...DESIGN_KINDS.map(kind => ({ path: mountedPath(target.communitySlug, DESIGN_RECORDS[kind].path), kind: "document", type: "builder", name: DESIGN_RECORDS[kind].name })),
           { path: mountedPath(target.communitySlug, BUILDER_SETTINGS_PATH), kind: "document", type: "builder", name: "Settings: general, sales page, welcome, workflows, forms, access, agent and channels" },
+          { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_TEMPLATES_PATH), kind: "document", type: "builder", name: "Workflow templates: ready-made stage plans (agent-led journey)" },
           {
             path: mountedPath(
               target.communitySlug,
@@ -1572,6 +1574,13 @@ async function executeCanonicalRead(args: {
       return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
         writable: false, searchable: false } };
     } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
+  }
+
+  if (target.localPath === BUILDER_WORKFLOW_TEMPLATES_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload: readBuilderWorkflowTemplates() }),
+      writable: false, searchable: false } };
   }
 
   if (target.localPath === BUILDER_SETTINGS_PATH) {

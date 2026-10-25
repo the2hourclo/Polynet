@@ -513,3 +513,8 @@
 .pn-wf .test-run-beats time { flex-shrink: 0; color: var(--text-secondary); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
 @keyframes test-run-beat-in { from { background: var(--hover-overlay); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .pn-wf .test-run-beats li:last-child { animation: none; } }
+/* Board → "Let your agent lead each member": the plan opens inside the card. */
+.pn-wf-agent-led { margin-top: 0.75rem; }
+.pn-wf-agent-led-plan { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.625rem; }
+.pn-wf-agent-led-plan ol { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.875rem; line-height: 1.45; }
+.pn-wf-agent-led-plan [role="alert"] { color: var(--accent-error); }
