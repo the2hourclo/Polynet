@@ -24,6 +24,19 @@ import { resolveAuthSubject, type AuthSessionLike } from "../../../../shared/aut
 
 type Page = FunctionReturnType<typeof api.communityChannelParticipants.listChannelRoster>;
 
+// The memory card's one-line agent status, in plain words. A run that failed
+// on AI funding says so, because "Error" alone gives the owner nothing to act on.
+function memoryAgentStatus(overview: CloudCommunityPolynetOverview): string {
+  const state = overview.agent.activity_state || overview.agent.status;
+  if (state === "error") {
+    return overview.agent.recent_runs[0]?.stop_reason?.startsWith("founder_inference")
+      ? "Couldn't run: AI usage isn't set up or has run out"
+      : "Couldn't run last time";
+  }
+  const labels: Record<string, string> = { running: "Working", resting: "Resting", updated_directory: "Updated memory", not_started: "Not started yet" };
+  return labels[state] ?? state.replace(/_/g, " ").replace(/\b\w/g, value => value.toUpperCase());
+}
+
 function trapTab(event: KeyboardEvent, container: HTMLElement | null) {
   if (event.key !== "Tab") return;
   const controls = Array.from(container?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]') ?? [])
@@ -240,7 +253,7 @@ function RosterSurface(props: RosterProps & {
       {memoryError ? <div role="status">Could not load memory. <button type="button" onClick={() => setMemoryRetry(value => value + 1)}>Retry</button></div>
         : memory ? <div className="community-context-memory-summary">
           <div className="community-context-memory-preview"><CommunityMemoryGraphPreview overview={memory} /></div>
-          <div className="community-context-memory-status"><span>{(memory.agent.activity_state || memory.agent.status).replace(/_/g, " ").replace(/\b\w/g, value => value.toUpperCase())}</span></div>
+          <div className="community-context-memory-status"><span>{memoryAgentStatus(memory)}</span></div>
         </div> : <div className="community-context-memory-summary" aria-label="Loading memory"><div className="community-context-memory-preview web-skeleton-block" /><div className="community-context-memory-loading-status web-skeleton-row" /></div>}
     </div></> : null}
     <div className="community-context-members" ref={membersViewportRef} onScroll={handleMembersScroll}>
