@@ -15,7 +15,7 @@ import {
   toIsoString,
 } from "./communityCore";
 import { normalizeCommunityLensAuthority } from "../shared/communityLensAuthority";
-import { resolveCommunityAgentDisplayName } from "./communityAgentContext";
+import { readCommunityAgentProfile } from "./communityAgentContext";
 
 function normalizeCommunitySystemPrompt(raw: unknown): string {
   const prompt = String(raw ?? "").trim();
@@ -204,25 +204,6 @@ function normalizeAgentAvatarUrl(raw: unknown): string | undefined {
   if (!url) return undefined;
   if (!/^https:\/\/\S+$/i.test(url) || url.length > 2_000) throw new Error("community_agent_avatar_url_invalid");
   return url;
-}
-
-async function readCommunityAgentProfile(ctx: any, communityId: any) {
-  const community = (await ctx.db.get(communityId)) as Record<string, any> | null;
-  if (!community) return null;
-  const config = selectPrimaryCommunityAgentConfigRow(await listCommunityAgentConfigRows(ctx, communityId)) as
-    (CommunityAgentConfigLike & { agentDisplayName?: string; agentAvatarStorageId?: any; agentAvatarUrl?: string }) | null;
-  const customName = String(config?.agentDisplayName ?? "").trim() || null;
-  const uploaded = config?.agentAvatarStorageId ? await ctx.storage.getUrl(config.agentAvatarStorageId) : null;
-  const customAvatarUrl = uploaded ?? (String(config?.agentAvatarUrl ?? "").trim() || null);
-  return {
-    community_id: String(communityId),
-    // What members see: the owner's name, else the community's.
-    name: resolveCommunityAgentDisplayName({ configuredDisplayName: customName, communityName: community.name }),
-    custom_name: customName,
-    // null: the agent wears the community's icon.
-    avatar_url: customAvatarUrl,
-    avatar_storage_id: config?.agentAvatarStorageId ? String(config.agentAvatarStorageId) : null,
-  };
 }
 
 // The agent's name and photo, shown wherever it appears. Public, like the

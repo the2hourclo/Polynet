@@ -691,3 +691,6 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
 .pn-settings-thumb.is-agent-photo { border-radius: 999px; }
 .pn-settings-thumb.is-agent-photo .pn-settings-thumb-media { object-fit: cover; }
 .pn-agent-profile-sparkles { display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+
+/* Settings nav: the Agent item shows the agent's own face. */
+.pn-settings-nav-agent-icon { display: inline-flex; width: 16px; height: 16px; border-radius: 999px; overflow: hidden; flex: none; }

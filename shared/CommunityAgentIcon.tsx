@@ -60,7 +60,10 @@ export function CommunityAgentIcon(props: { size?: number; strokeWidth?: number;
   const communityId = props.communityId ?? context.communityId;
   const identity = useCommunityVisualIdentity(communityId);
   const style = props.size ? { width: props.size, height: props.size } : undefined;
-  const photo = communityId === context.communityId ? context.profile?.avatar_url : null;
+  const profile = communityId === context.communityId ? context.profile : null;
+  // The owner's photo; else the community's icon (the profile carries its URL
+  // for screens where the icon registry hasn't loaded this community yet).
+  const photo = profile?.avatar_url || (identity?.avatar.url ? null : profile?.community_avatar_url) || null;
   if (photo) {
     return <img className="community-agent-face community-agent-photo" src={photo} style={style} alt="" aria-hidden="true" />;
   }

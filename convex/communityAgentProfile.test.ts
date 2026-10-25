@@ -9,6 +9,7 @@ import { readCanonicalCommunityAgentContext } from "./communityAgentContext";
 
 const modules = import.meta.glob([
   "./communityAgent.ts",
+  "./communityDirectory.ts",
   "./_generated/**/*.*s",
 ]);
 
@@ -77,4 +78,18 @@ test("an uploaded photo replaces a URL one, and going back to the icon deletes t
   const back = await asOwner.mutation(api.communityAgent.saveCommunityAgentProfile, { communityId, avatarStorageId: null });
   expect(back).toMatchObject({ avatar_url: null, avatar_storage_id: null });
   expect(await t.run((ctx) => ctx.storage.getUrl(storageId))).toBeNull();
+});
+
+test("@mention search offers the agent under its profile name, and still finds it by the community's", async () => {
+  const t = convexTest(schema, modules);
+  const { communityId } = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: OWNER_SUBJECT });
+  const asMember = t.withIdentity({ subject: MEMBER_SUBJECT });
+  await asOwner.mutation(api.communityAgent.saveCommunityAgentProfile, { communityId, displayName: "The Builder" });
+
+  for (const query of ["the bui", "employee"]) {
+    const rows = await asMember.query(api.communityDirectory.searchCommunityMentionCandidates, { communityId, query });
+    expect(rows.find((row: { kind: string }) => row.kind === "community_agent"), query).toMatchObject({ display_name: "The Builder" });
+  }
+  expect(await t.query(api.communityAgent.getCommunityAgentProfile, { communityId })).toMatchObject({ community_avatar_url: null });
 });

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { CommunityAgentIcon } from "../../../../shared/CommunityAgentIcon";
 import {
   ArrowUpRight,
-  Bot,
   ClipboardList,
   DoorOpen,
   KeyRound,
@@ -93,7 +93,7 @@ export function buildCommunitySettingsNav(params: {
     groups.push({ label: "Members", items: members });
   }
   if (has("agent")) {
-    groups.push({ label: "Agent", items: [{ kind: "pane", pane: "agent", label: "Agent", icon: <Bot {...ICON} />, keywords: "ai assistant model prompt" }] });
+    groups.push({ label: "Agent", items: [{ kind: "pane", pane: "agent", label: "Agent", icon: <span className="pn-settings-nav-agent-icon"><CommunityAgentIcon size={ICON.size} strokeWidth={ICON.strokeWidth} /></span>, keywords: "ai assistant model prompt" }] });
   }
   if (has("danger")) {
     groups.push({ label: "Advanced", items: [{ kind: "pane", pane: "danger", label: "Archive", icon: <TriangleAlert {...ICON} />, keywords: "danger delete archive close" }] });
