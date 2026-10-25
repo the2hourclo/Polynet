@@ -9554,6 +9554,7 @@ button.chat-reply-quote:hover {
   max-width: none;
   line-height: 1.75;
 }
+.knowledge-resource-reader .resource-viewer-prose.resource-viewer-prose-edit-trigger { width: calc(100% + 12px); }
 
 .knowledge-resource-reader .resource-viewer-prose :is(.md-paragraph, .md-list, .md-blockquote) {
   margin-block: 0 1.25em;
