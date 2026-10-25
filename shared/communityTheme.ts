@@ -448,12 +448,19 @@ export const COMMUNITY_TYPE_ROLES = {
   display: 32, title: 24, heading: 22, subheading: 18, reading: 16, body: 15, ui: 14, small: 13, label: 12, meta: 11, micro: 10,
 } as const;
 
+// What each role renders at, at 100%. The roles above are the sizes Polynet's
+// CSS is written in; communities show them a step larger, close to Skool's
+// reading sizes (16 body, 13 smallest), with the small end raised the most.
+export const COMMUNITY_TYPE_SIZES: Record<keyof typeof COMMUNITY_TYPE_ROLES, number> = {
+  display: 34, title: 26, heading: 23, subheading: 20, reading: 17, body: 16, ui: 16, small: 15, label: 13, meta: 13, micro: 11,
+};
+
 function typeRoles(scale: number): Record<string, string> {
   const px = (size: number) => `${Math.round(size * scale * 10) / 10}px`;
   const roles: Record<string, string> = {};
-  for (const [role, size] of Object.entries(COMMUNITY_TYPE_ROLES)) roles[`--pn-type-${role}`] = px(size);
+  for (const [role, size] of Object.entries(COMMUNITY_TYPE_SIZES)) roles[`--pn-type-${role}`] = px(size);
   // Page titles still shrink on narrow screens, at the same proportions.
-  roles["--pn-type-display"] = `clamp(${px(26)}, ${Math.round(3 * scale * 100) / 100}vw, ${px(COMMUNITY_TYPE_ROLES.display)})`;
+  roles["--pn-type-display"] = `clamp(${px(26)}, ${Math.round(3 * scale * 100) / 100}vw, ${px(COMMUNITY_TYPE_SIZES.display)})`;
   return roles;
 }
 
