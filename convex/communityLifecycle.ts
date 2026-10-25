@@ -1,4 +1,5 @@
 import { internal } from "./_generated/api";
+import { requireNotTestMemberOutsideCommunity } from "./communityTestMemberCore";
 import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import {
@@ -614,6 +615,7 @@ export const createCommunity = mutation({
       authSubject: args.authSubject ?? null,
     });
     await requireAccountSetupCompleteForUser(ctx, ownerId);
+    await requireNotTestMemberOutsideCommunity(ctx, ownerId);
     const nowMs = Date.now();
     const operatorComped = await hasPlatformOwnerComplimentaryAccess(ctx, ownerId);
     let founderSubscription: FounderSubscriptionRow | null = null;

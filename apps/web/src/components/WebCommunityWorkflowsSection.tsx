@@ -28,6 +28,7 @@ import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsG
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
 import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
+import { WebCommunityTestRun, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
 
 export type WebCommunityWorkflowsSectionProps = {
   forms?: CommunityFormsGateway;
@@ -62,6 +63,8 @@ export type WebCommunityWorkflowsSectionProps = {
   onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
   onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
   onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
+  /** Workflows → Test run: going through the community as a test member. */
+  testRun?: WebCommunityTestRunContext | null;
   communityName?: string | null;
   onClearActionError: () => void;
   onOpenMemberDossier: (membershipId: string) => void;
@@ -130,7 +133,7 @@ export function WebCommunityWorkflowsSection(
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  const tabs = WORKFLOW_SECTIONS.map(id => ({ id, label: id[0].toUpperCase() + id.slice(1), disabled: switching }));
+  const tabs = WORKFLOW_SECTIONS.map(id => ({ id, label: id === "test" ? "Test run" : id[0].toUpperCase() + id.slice(1), disabled: switching }));
   return <div className="workflow-page workflow-sections">
     <WebPlatformTabList tabs={tabs} activeTab={section} onSelectTab={(next, meta) => void select(next, meta.source === "keyboard")}
       ariaLabel="Workflow sections" idPrefix="workflow-sections" className="platform-switcher platform-switcher-compact workflow-section-tabs"
@@ -141,6 +144,10 @@ export function WebCommunityWorkflowsSection(
           forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
           onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
           onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
+        : section === "test" ? props.testRun
+          ? <WebCommunityTestRun key={props.testRun.communityId} {...props.testRun}
+            onOpenRecord={(membershipId) => { void select("workflows"); props.onOpenMemberDossier(membershipId); }} />
+          : <p role="status">Only the community's owner and admins can run tests.</p>
         : props.forms
         ? <WebCommunityForms key={props.forms.scopeKey} gateway={props.forms} leaveGuard={beforeLeave} />
         : <p role="status">Forms are unavailable.</p>}
