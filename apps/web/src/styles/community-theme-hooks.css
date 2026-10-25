@@ -24,6 +24,58 @@
   background: var(--bg-workspace);
 }
 
+/* Polynet derives its panel, popover and code-block colours at :root (index.css),
+   and a custom property keeps the colour it resolved to there. Derived again
+   here, Messages, menus and code blocks take the community's colours instead of
+   Polynet's own light or dark ones. Same formulas as index.css. */
+[data-community-theme] {
+  --community-shell-stroke: var(--stroke-panel-edge);
+  --web-floating-chrome-surface: var(--surface-workspace, var(--bg-workspace));
+  --web-context-panel-surface: var(--surface-panel, var(--bg-panel));
+  --web-context-panel-border: var(--stroke-strong, var(--border-default));
+  --web-popover-surface: var(--surface-card, var(--bg-card));
+  --web-popover-border: var(--stroke-default, var(--border-default));
+
+  --snippet-code-bg: color-mix(in srgb, var(--bg-card) 82%, var(--bg-workspace) 18%);
+  --snippet-code-header-bg: color-mix(in srgb, var(--bg-card-alt) 78%, var(--bg-workspace) 22%);
+  --snippet-code-border: color-mix(in srgb, var(--border-default) 78%, var(--bg-workspace) 22%);
+  --snippet-code-text: var(--text-primary);
+  --snippet-code-muted: var(--text-faint);
+  --snippet-code-accent: color-mix(in srgb, var(--accent-gold) 44%, var(--text-primary) 56%);
+
+  --snippet-artifact-bg: color-mix(in srgb, var(--bg-panel) 74%, var(--bg-card) 26%);
+  --snippet-artifact-header-bg: color-mix(in srgb, var(--bg-card-alt) 62%, var(--bg-panel) 38%);
+  --snippet-artifact-border: color-mix(in srgb, var(--border-muted) 84%, var(--bg-workspace) 16%);
+  --snippet-artifact-text: color-mix(in srgb, var(--text-primary) 92%, var(--text-secondary) 8%);
+  --snippet-artifact-muted: color-mix(in srgb, var(--text-muted) 82%, var(--text-faint) 18%);
+  --snippet-artifact-accent: color-mix(in srgb, var(--accent-gold) 40%, var(--text-primary) 60%);
+
+  --snippet-terminal-bg: color-mix(in srgb, var(--bg-terminal) 88%, var(--bg-workspace) 12%);
+  --snippet-terminal-header-bg: color-mix(in srgb, var(--bg-terminal) 72%, var(--bg-card-alt) 28%);
+  --snippet-terminal-border: color-mix(in srgb, var(--border-default) 56%, var(--bg-terminal) 44%);
+  --snippet-terminal-muted: color-mix(in srgb, var(--text-faint) 88%, var(--text-secondary) 12%);
+  --snippet-terminal-accent: color-mix(in srgb, var(--accent-gold) 30%, var(--text-terminal) 70%);
+
+  --snippet-diff-bg: color-mix(in srgb, var(--bg-card) 74%, var(--bg-workspace) 26%);
+  --snippet-diff-header-bg: color-mix(in srgb, var(--bg-card-alt) 78%, var(--bg-workspace) 22%);
+  --snippet-diff-border: color-mix(in srgb, var(--border-default) 72%, var(--bg-workspace) 28%);
+  --snippet-diff-text: color-mix(in srgb, var(--text-primary) 94%, var(--text-secondary) 6%);
+  --snippet-diff-muted: color-mix(in srgb, var(--text-muted) 80%, var(--text-faint) 20%);
+  --snippet-diff-accent: color-mix(in srgb, #38a169 52%, var(--text-primary) 48%);
+}
+
+@supports (background: color-mix(in srgb, #000 50%, transparent)) {
+  [data-community-theme] {
+    --web-floating-chrome-surface: color-mix(in srgb, var(--surface-workspace, var(--bg-workspace)) 88%, transparent);
+  }
+}
+
+@supports (color: rgb(from #000 r g b)) {
+  [data-community-theme] {
+    --web-context-panel-surface: rgb(from var(--surface-panel, var(--bg-panel)) r g b / 1);
+  }
+}
+
 /* Headings */
 [data-community-theme] :is(
   h1, h2, h3,
