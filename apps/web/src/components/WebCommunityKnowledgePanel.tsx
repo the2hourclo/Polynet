@@ -72,7 +72,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   }), [progress, embedStorage, context.session, context.communityId, context.ensureSession, context.requireSignIn]);
   const tabs: { id: KnowledgeView; label: string }[] = [
     { id: "resources", label: "Resources" },
-    ...(hasBoard ? [{ id: "board" as const, label: "Board" }] : []),
+    ...(hasBoard ? [{ id: "board" as const, label: "Roadmap" }] : []),
     ...(context.canViewGraph ? [{ id: "graph" as const, label: "Graph" }] : []),
   ];
   const graph = useWebCommunityPolynetController({
