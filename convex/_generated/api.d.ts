@@ -139,6 +139,7 @@ import type * as communityResourceMemoryProjection from "../communityResourceMem
 import type * as communityResourceProgress from "../communityResourceProgress.js";
 import type * as communityResources from "../communityResources.js";
 import type * as communitySemanticMembers from "../communitySemanticMembers.js";
+import type * as communitySettingProposals from "../communitySettingProposals.js";
 import type * as communitySiteDeploy from "../communitySiteDeploy.js";
 import type * as communitySites from "../communitySites.js";
 import type * as communitySkillAttachments from "../communitySkillAttachments.js";
@@ -228,6 +229,7 @@ import type * as platformDiagnostics from "../platformDiagnostics.js";
 import type * as platformHomeCommunity from "../platformHomeCommunity.js";
 import type * as platformOperationExecutor from "../platformOperationExecutor.js";
 import type * as platformSkillRuntime from "../platformSkillRuntime.js";
+import type * as polynetBuilderSettings from "../polynetBuilderSettings.js";
 import type * as polynetCanonicalExecutor from "../polynetCanonicalExecutor.js";
 import type * as polynetCanonicalReceipts from "../polynetCanonicalReceipts.js";
 import type * as probe from "../probe.js";
@@ -405,6 +407,7 @@ declare const fullApi: ApiFromModules<{
   communityResourceProgress: typeof communityResourceProgress;
   communityResources: typeof communityResources;
   communitySemanticMembers: typeof communitySemanticMembers;
+  communitySettingProposals: typeof communitySettingProposals;
   communitySiteDeploy: typeof communitySiteDeploy;
   communitySites: typeof communitySites;
   communitySkillAttachments: typeof communitySkillAttachments;
@@ -494,6 +497,7 @@ declare const fullApi: ApiFromModules<{
   platformHomeCommunity: typeof platformHomeCommunity;
   platformOperationExecutor: typeof platformOperationExecutor;
   platformSkillRuntime: typeof platformSkillRuntime;
+  polynetBuilderSettings: typeof polynetBuilderSettings;
   polynetCanonicalExecutor: typeof polynetCanonicalExecutor;
   polynetCanonicalReceipts: typeof polynetCanonicalReceipts;
   probe: typeof probe;

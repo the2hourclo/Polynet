@@ -655,6 +655,8 @@ const modules = import.meta.glob([
   "./communityLifecycle.ts",
   "./communityForms.ts",
   "./communityAccess.ts",
+  "./communitySettingProposals.ts",
+  "./communityColdArchive.ts",
   "./polynetCanonicalReceipts.ts",
   "./_generated/**/*.*s",
 ]);
@@ -4330,4 +4332,73 @@ test("an owner's agent changes Settings through the MCP with the same saves the 
   await expect(settings(member)).rejects.toThrow("semantic_not_found");
   await expect(change("community.channel.create", { name: "mine" }, member)).rejects.toThrow("operation_not_found");
   expect(JSON.stringify(await member("polynet_list", { path: `/communities/${community}/capabilities/` }))).not.toContain("community.settings.save");
+});
+
+test("hard-to-undo Settings changes are only proposed by the agent and happen when the owner taps Apply", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const propose = (operation: string, input: Record<string, unknown>, call = owner) => call("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}` });
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const ownerScope = { authSubject: fixture.ownerSubject, communityId: fixture.communityId };
+  const freeAccess = async () => (await t.run(async ctx => await ctx.db.get(fixture.communityId)) as any);
+
+  const definition = await owner("polynet_read", { path: `/communities/${community}/capabilities/community.free_access.set.json` });
+  expect(definition.body).toContain("owner_apply");
+
+  const before = await freeAccess();
+  const staged = await propose("community.free_access.set", { mode: "approval", note: "Too many spam joins this week" });
+  expect(staged).toMatchObject({ kind: "community_setting_change_proposed", result: { status: "staged", summary: "Who can join for free",
+    note: "Too many spam joins this week" } });
+  // Proposing the same thing again is the same proposal.
+  expect((await propose("community.free_access.set", { mode: "approval", note: "Too many spam joins this week" })).result.proposal_id)
+    .toBe(staged.result.proposal_id);
+  // Nothing changed yet.
+  expect(await freeAccess()).toEqual(before);
+
+  const list = await asOwner.query(api.communitySettingProposals.listCommunitySettingProposals, ownerScope);
+  expect(list.pending.map((row: any) => row.proposal_id)).toEqual([staged.result.proposal_id]);
+  // The agent sees it waiting too.
+  const settings = JSON.parse((await owner("polynet_read", { path: `/communities/${community}/builder/settings.json` })).body);
+  expect(settings.proposals.pending[0].operation).toBe("community.free_access.set");
+
+  // A member can't apply it.
+  await expect(t.withIdentity({ subject: fixture.memberSubject }).action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { authSubject: fixture.memberSubject, communityId: fixture.communityId, proposalId: staged.result.proposal_id })).rejects.toThrow();
+
+  const applied = await asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { ...ownerScope, proposalId: staged.result.proposal_id });
+  expect(applied).toMatchObject({ status: "applied", error: null });
+  expect(await freeAccess()).not.toEqual(before);
+  // Applying twice does nothing more.
+  await expect(asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { ...ownerScope, proposalId: staged.result.proposal_id })).rejects.toThrow("setting_proposal_applied");
+
+  // Rejected proposals never run.
+  const archive = await propose("community.archive", {});
+  expect(await asOwner.mutation(api.communitySettingProposals.rejectCommunitySettingProposal,
+    { ...ownerScope, proposalId: archive.result.proposal_id })).toMatchObject({ status: "rejected" });
+  await expect(asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { ...ownerScope, proposalId: archive.result.proposal_id })).rejects.toThrow("setting_proposal_rejected");
+
+  // A refusal from the Settings function is recorded, not hidden.
+  const bad = await propose("community.free_access.set", { mode: "everyone" });
+  expect(await asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { ...ownerScope, proposalId: bad.result.proposal_id })).toMatchObject({ status: "failed", error: "community_free_access_mode_invalid" });
+
+  // Proposals expire after a day.
+  const late = await propose("community.free_access.set", { mode: "open" });
+  await t.run(async ctx => { await ctx.db.patch(late.result.proposal_id, { expiresAt: Date.now() - 1 }); });
+  await expect(asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { ...ownerScope, proposalId: late.result.proposal_id })).rejects.toThrow("setting_proposal_expired");
 });

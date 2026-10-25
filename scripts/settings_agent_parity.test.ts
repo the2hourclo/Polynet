@@ -57,7 +57,7 @@ test("every write the web app makes has an agent operation or a stated reason", 
 test("the reasons list has no stale entries and uses the agreed reasons", () => {
   const called = new Set(appFunctionReferences().keys());
   for (const [key, reason] of Object.entries(SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH)) {
-    expect(reason, key).toMatch(/^(agent path|pending decision|human only|not a setting): /);
+    expect(reason, key).toMatch(/^(agent path|human only|not a setting): /);
     if (key.endsWith(":*")) continue;
     const reference = key.split("#")[0];
     expect(called.has(reference), `${key} is no longer called by the app`).toBe(true);

@@ -637,3 +637,16 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
 .pn-settings .external-funnel-join-link a,
 .pn-settings .external-funnel-test a { display: inline-flex; align-items: center; min-height: 1.5rem; }
 .pn-settings #external-funnel-url { min-height: 2.5rem; padding: 0 0.75rem; }
+
+/* ── Agent proposals (WebCommunitySettingProposals) ─────── */
+.pn-setting-proposals { border-color: var(--border-active, var(--border-default)); }
+.pn-setting-proposal .pn-settings-row-head { align-items: flex-start; }
+.pn-setting-proposal-details { display: grid; gap: 0.125rem; margin: 0.25rem 0; font-size: 0.8125rem; line-height: 1.25rem; }
+.pn-setting-proposal-details > div { display: flex; gap: 0.5rem; }
+.pn-setting-proposal-details dt { color: var(--text-secondary); text-transform: capitalize; }
+.pn-setting-proposal-details dd { margin: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .pn-setting-proposal .pn-settings-row-head { flex-direction: column; gap: 0.75rem; }
+  .pn-setting-proposal .pn-settings-row-control { width: 100%; }
+  .pn-setting-proposal .pn-settings-row-control .pn-settings-button { flex: 1; }
+}

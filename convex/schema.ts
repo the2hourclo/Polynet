@@ -3163,6 +3163,29 @@ export default defineSchema({
     .index("by_community_sortOrder", ["communityId", "sortOrder"])
     .index("by_createdBy", ["createdByUserId"]),
 
+  // Hard-to-undo Settings changes an agent proposed, waiting for a manager's Apply.
+  communitySettingProposals: defineTable({
+    communityId: v.id("communities"),
+    createdByUserId: v.id("users"),
+    idempotencyKey: v.string(),
+    operation: v.string(),
+    args: v.any(),
+    summary: v.string(),
+    details: v.array(v.object({ label: v.string(), value: v.string() })),
+    note: v.optional(v.string()),
+    status: v.union(v.literal("staged"), v.literal("applying"), v.literal("applied"),
+      v.literal("rejected"), v.literal("failed"), v.literal("expired")),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    expiresAt: v.number(),
+    decidedAt: v.optional(v.number()),
+    decidedByUserId: v.optional(v.id("users")),
+  })
+    .index("by_community_status_createdAt", ["communityId", "status", "createdAt"])
+    .index("by_community_createdAt", ["communityId", "createdAt"])
+    .index("by_community_creator_idempotencyKey", ["communityId", "createdByUserId", "idempotencyKey"]),
+
   communityResourceBuilderChangesets: defineTable({
     communityId: v.id("communities"),
     createdByUserId: v.id("users"),

@@ -20,6 +20,7 @@ import { WebCommunityAppearanceSettings } from "./WebCommunityAppearanceSettings
 import { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
 import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
 import { WebCommunitySalesPageSettings } from "./WebCommunitySalesPageSettings";
+import { WebCommunitySettingProposals } from "./WebCommunitySettingProposals";
 import { buildCommunitySettingsNav, WebCommunitySettingsNav } from "./WebCommunitySettingsNav";
 import "./WebCommunitySettings.css";
 import { WebCommunityAccessSettings, WebCommunityMyAccessCard } from "./WebCommunityAccess";
@@ -1058,6 +1059,9 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
               <SaveStatusPill status={autosave.status} onRetry={autosave.retry} />
             ) : null}
           </header>
+          {canManageCommunitySettings && resolvedActiveCommunity ? (
+            <WebCommunitySettingProposals communityId={resolvedActiveCommunity.id} session={props.session} />
+          ) : null}
           {selectedSettingsPane === "community" ? generalBody : null}
           {selectedSettingsPane === "sales_page" && resolvedActiveCommunity ? (
             <WebCommunitySalesPageSettings

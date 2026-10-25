@@ -2634,6 +2634,21 @@ async function executeCanonicalCall(args: {
     const call = builderSettingArgs(setting, rawInput, { authSubject: args.authSubject, userId: args.userId,
       communityId: target.communityId, current });
     if (!call.ok) return canonicalError("invalid_tool_args", `${call.message} Read ${BUILDER_SETTINGS_PATH} for current values.`);
+    if (setting.review === "owner_apply") {
+      // Proposed only: the owner applies it in the app.
+      const { authSubject: _authSubject, userId: _userId, ...proposed } = call.args;
+      try {
+        const proposal = await args.ctx.runMutation((internal as any).communitySettingProposals.stageSettingProposalInternal, {
+          userId: args.userId, communityId: target.communityId, operation, args: proposed,
+          ...(typeof rawInput.note === "string" && rawInput.note.trim() ? { note: rawInput.note.trim() } : {}),
+          idempotencyKey: idempotencyKey || `${operation}:${JSON.stringify(proposed)}` });
+        return { ok: true, value: { ok: true, operation, kind: "community_setting_change_proposed", review: "owner_apply",
+          result: proposal, guidance: "Nothing has changed yet. The owner applies or rejects this in the app within 24 hours." } };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return canonicalError("setting_refused", message.replace(/^.*Uncaught Error: /s, "").split("\n")[0].slice(0, 300));
+      }
+    }
     try {
       const result = await args.ctx.runMutation(setting.ref, call.args);
       return { ok: true, value: { ok: true, operation, result: result ?? null } };

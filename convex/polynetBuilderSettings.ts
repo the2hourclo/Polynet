@@ -17,7 +17,7 @@ import { api, internal } from "./_generated/api";
 export type BuilderSettingOperation = {
   operation: string;
   // Which Settings page it belongs to.
-  area: "general" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels";
+  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members";
   name: string;
   // The public function the Settings page calls ("module:function").
   calls: string;
@@ -35,6 +35,9 @@ export type BuilderSettingOperation = {
   extra?: Record<string, unknown>;
   // false when the function isn't scoped to one community.
   community?: false;
+  // "owner_apply": hard to undo, so the agent only proposes it. It runs when
+  // the owner taps Apply in the app (convex/communitySettingProposals.ts).
+  review?: "owner_apply";
   effects: string[];
 };
 
@@ -202,10 +205,97 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
   }),
 ];
 
+// Hard-to-undo changes (Rashid, 2026-10-25: "Direct, risky ones need Apply").
+const proposal = (spec: Omit<BuilderSettingOperation, "review">) => op({ ...spec, review: "owner_apply" });
+BUILDER_SETTING_OPERATIONS.push(
+  proposal({
+    operation: "community.pricing.set", area: "pricing", name: "Change the price",
+    calls: "communityLifecycle:saveCommunitySettings", ref: api.communityLifecycle.saveCommunitySettings, kind: "mutation",
+    fields: { expected_settings_revision: "settings_revision from /builder/settings.json",
+      monthly_amount_base_units: "monthly price in cents, or null for none", annual_amount_base_units: "yearly price in cents, or null for none" },
+    required: ["expected_settings_revision"], merge: "community_settings", effects: ["change_price"],
+  }),
+  proposal({
+    operation: "community.free_access.set", area: "pricing", name: "Who can join for free",
+    calls: "communityAdmin:setCommunityFreeAccessMode", ref: api.communityAdmin.setCommunityFreeAccessMode, kind: "mutation",
+    fields: { mode: "open (anyone joins) or approval (you approve each request)" }, required: ["mode"], effects: ["change_free_access"],
+  }),
+  proposal({
+    operation: "community.archive", area: "general", name: "Archive the community",
+    calls: "communityColdArchive:archiveCommunity", ref: api.communityColdArchive.archiveCommunity, kind: "mutation",
+    fields: {}, required: [], effects: ["archive_community"],
+  }),
+  proposal({
+    operation: "community.restore", area: "general", name: "Restore the archived community",
+    calls: "communityColdArchive:restoreCommunityWithoutPayment", ref: api.communityColdArchive.restoreCommunityWithoutPayment, kind: "mutation",
+    fields: { lifecycle_generation: "the archive's lifecycle generation" }, required: ["lifecycle_generation"], effects: ["restore_community"],
+  }),
+  proposal({
+    operation: "community.access.end", area: "access", name: "End access you gave",
+    calls: "communityAccess:endCommunityAccess", ref: api.communityAccess.endCommunityAccess, kind: "mutation",
+    fields: { membership_id: "the member" }, required: ["membership_id"], effects: ["end_owner_access"],
+  }),
+  proposal({
+    operation: "community.access.license_key.revoke", area: "access", name: "Revoke a license key",
+    calls: "communityAccess:revokeClientLicenseKeyForOwner", ref: api.communityAccess.revokeClientLicenseKeyForOwner, kind: "mutation",
+    fields: { membership_id: "the member whose key stops working" }, required: ["membership_id"], effects: ["revoke_license_key"],
+  }),
+  proposal({
+    operation: "community.access.integration.revoke", area: "access", name: "Disconnect a connected service",
+    calls: "communityAccess:revokeAccessIntegration", ref: api.communityAccess.revokeAccessIntegration, kind: "mutation",
+    fields: { integration_id: "from /builder/settings.json" }, required: ["integration_id"], effects: ["revoke_access_integration"],
+  }),
+  proposal({
+    operation: "community.workflow.stage.delete", area: "workflows", name: "Delete a workflow stage",
+    calls: "communityMemberWorkflows:deleteBuilderWorkflowMilestone", ref: api.communityMemberWorkflows.deleteBuilderWorkflowMilestone, kind: "mutation",
+    fields: { expected_revision: "workflow revision", milestone_key: "the stage's key" }, required: ["expected_revision", "milestone_key"],
+    effects: ["delete_workflow_stage"],
+  }),
+  proposal({
+    operation: "community.workflow.member.force", area: "workflows", name: "Move a member past a stage without its checks",
+    calls: "communityMemberWorkflows:forceBuilderMemberMilestone", ref: api.communityMemberWorkflows.forceBuilderMemberMilestone, kind: "mutation",
+    fields: { membership_id: "the member", expected_workflow_id: "from the member's workflow context", expected_workflow_revision: "workflow revision",
+      expected_milestone_key: "the stage they're in now", expected_milestone_entered_at: "when they entered it (ms)",
+      expected_activation_sequence: "from the member's workflow context", expected_transition_seq: "from the member's workflow context" },
+    required: ["membership_id", "expected_workflow_id", "expected_workflow_revision", "expected_milestone_key", "expected_milestone_entered_at",
+      "expected_activation_sequence", "expected_transition_seq"],
+    effects: ["force_member_stage"],
+  }),
+  proposal({
+    operation: "community.channel.delete", area: "channels", name: "Delete a channel",
+    calls: "communityChannels:deleteCommunityChannel", ref: api.communityChannels.deleteCommunityChannel, kind: "mutation",
+    fields: { channel_id: "from /builder/settings.json" }, required: ["channel_id"], effects: ["delete_channel"],
+  }),
+  proposal({
+    operation: "community.channel.access.set", area: "channels", name: "Change who can see a channel",
+    calls: "communityChannels:setChannelAccess", ref: api.communityChannels.setChannelAccess, kind: "mutation",
+    fields: { channel_id: "the channel", access_mode: "the new mode", expected_access_mode: "its mode now",
+      acknowledge_history_exposure: "true when opening it shows its past posts to more people" },
+    required: ["channel_id", "access_mode", "expected_access_mode", "acknowledge_history_exposure"], effects: ["change_channel_access"],
+  }),
+  proposal({
+    operation: "community.member.role.set", area: "members", name: "Change a member's role",
+    calls: "communityAdmin:setCommunityMemberRole", ref: api.communityAdmin.setCommunityMemberRole, kind: "mutation",
+    fields: { target_membership_id: "the member", role: "admin, moderator or member" }, required: ["target_membership_id", "role"],
+    effects: ["change_member_role"],
+  }),
+  proposal({
+    operation: "community.member.remove", area: "members", name: "Remove a member",
+    calls: "communityAdmin:removeCommunityMember", ref: api.communityAdmin.removeCommunityMember, kind: "action",
+    fields: { target_membership_id: "the member" }, required: ["target_membership_id"], effects: ["remove_member"],
+  }),
+  proposal({
+    operation: "community.member.ban", area: "members", name: "Ban a member",
+    calls: "communityAdmin:banCommunityMember", ref: api.communityAdmin.banCommunityMember, kind: "action",
+    fields: { target_membership_id: "the member", reason: "why (kept in the history)" }, required: ["target_membership_id"],
+    effects: ["ban_member"],
+  }),
+);
+
 // Writes the web app makes that are not an operation above, and why. A public
 // mutation or action the app calls that is in neither list fails the parity test.
 // Reasons start with one of: "agent path:" (another MCP path does it),
-// "pending decision:", "human only:" or "not a setting:".
+// "human only:" or "not a setting:".
 export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   // Other MCP paths already do these.
   "communityThemes:saveCommunityThemeDraft": "agent path: community.theme.save_draft",
@@ -221,29 +311,15 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityResources:reorderCommunityResourceModules": "agent path: builder/resources changesets",
   "communityResources:deleteCommunityResource": "agent path: builder/resources changesets (delete_page)",
   "communityResources:deleteCommunityResourceModule": "agent path: builder/resources changesets (delete_category)",
+  "communitySettingProposals:applyCommunitySettingProposal": "human only: the owner applies what an agent proposed",
+  "communitySettingProposals:rejectCommunitySettingProposal": "human only: the owner rejects what an agent proposed",
   "communityResources:applyCommunityResourceBuilderChangeset": "human only: the owner applies what an agent staged",
   "communityResources:rejectCommunityResourceBuilderChangeset": "human only: the owner rejects what an agent staged",
   "communityAdmin:approveCommunityJoinRequest": "agent path: community.admission.approve",
   "communityAdmin:denyCommunityJoinRequest": "agent path: community.admission.deny",
   "communityMemberWorkflows:approveBuilderMemberMilestone": "agent path: community.workflow.approve_milestone",
-  // Waiting for Rashid's call on hard-to-undo changes (archive, money, people,
-  // secrets, deletes): staged for the owner to Apply, or direct.
-  "communityLifecycle:saveCommunitySettings#pricing": "pending decision: price and free/paid changes",
-  "communityAdmin:setCommunityFreeAccessMode": "pending decision: who can join for free",
-  "communityColdArchive:archiveCommunity": "pending decision: archive",
-  "communityColdArchive:restoreCommunityWithoutPayment": "pending decision: restore",
-  "communityAccess:endCommunityAccess": "pending decision: ends a person's access",
-  "communityAccess:revokeClientLicenseKeyForOwner": "pending decision: revokes a license key",
-  "communityAccess:createAccessIntegration": "pending decision: returns an API key and signing secret",
-  "communityAccess:rotateAccessIntegrationSecret": "pending decision: returns a new secret",
-  "communityAccess:revokeAccessIntegration": "pending decision: disconnects a service",
-  "communityMemberWorkflows:deleteBuilderWorkflowMilestone": "pending decision: deletes a stage",
-  "communityMemberWorkflows:forceBuilderMemberMilestone": "pending decision: moves a member past a stage without its checks",
-  "communityChannels:deleteCommunityChannel": "pending decision: deletes a channel",
-  "communityChannels:setChannelAccess": "pending decision: opening a private channel shows its history to everyone",
-  "communityAdmin:setCommunityMemberRole": "pending decision: changes someone's authority",
-  "communityAdmin:removeCommunityMember": "pending decision: removes a member",
-  "communityAdmin:banCommunityMember": "pending decision: bans a member",
+  "communityAccess:createAccessIntegration": "human only: the API key and signing secret are shown once, to the owner",
+  "communityAccess:rotateAccessIntegrationSecret": "human only: the new secret is shown once, to the owner",
   // Can't be done by an agent.
   "creatorCommerce:startConnectOnboarding": "human only: Stripe verifies the owner in person; an agent can only hand over the link",
   "founderBilling:startFounderSubscriptionCheckout": "human only: the founder pays with their own card",
@@ -326,14 +402,19 @@ const camel = (key: string) => key.replace(/_([a-z])/g, (_, letter: string) => l
 
 // What polynet_call shows the agent for one operation.
 export function builderSettingInput(spec: BuilderSettingOperation) {
+  const proposing = spec.review === "owner_apply";
   return {
     required: spec.required,
     ...spec.fields,
+    ...(proposing ? { note: "optional: one line for the owner on why" } : {}),
     ...(spec.merge ? { guidance: "Leave out what you don't change; it keeps its current value." } : {}),
-    result: "what the Settings page gets back after the same save",
+    ...(proposing ? { review: "owner_apply: this only proposes the change. It happens when the owner taps Apply in the app, within 24 hours." } : {}),
+    result: proposing
+      ? "the proposal (status staged); read /builder/settings.json proposals for whether it was applied"
+      : "what the Settings page gets back after the same save",
     refusals: { invalid_tool_args: "a field that isn't listed, or a required one missing", setting_refused: "the save was refused; message says why (for example a revision conflict)" },
     effects: spec.effects,
-    forbidden_effects: ["change_pricing", "change_other_communities", "delete"],
+    forbidden_effects: proposing ? ["apply_without_owner", "change_other_communities"] : ["change_pricing", "change_other_communities", "delete"],
   };
 }
 
@@ -344,7 +425,7 @@ export type BuilderSettingCall = { ok: true; args: Record<string, unknown> } | {
 export function builderSettingArgs(spec: BuilderSettingOperation, input: Record<string, unknown>, caller: {
   authSubject: string; userId: string; communityId: string; current?: Record<string, unknown> | null;
 }): BuilderSettingCall {
-  const unknown = Object.keys(input).filter(key => !(key in spec.fields));
+  const unknown = Object.keys(input).filter(key => !(key in spec.fields) && !(key === "note" && spec.review === "owner_apply"));
   if (unknown.length) return { ok: false, message: `Not a field of ${spec.operation}: ${unknown.join(", ")}.` };
   const missing = spec.required.filter(key => input[key] === undefined);
   if (missing.length) return { ok: false, message: `${spec.operation} needs ${missing.join(", ")}.` };
@@ -353,7 +434,7 @@ export function builderSettingArgs(spec: BuilderSettingOperation, input: Record<
     args.name = caller.current.name;
     args.slug = caller.current.slug;
   }
-  for (const [key, value] of Object.entries(input)) if (value !== undefined) args[camel(key)] = value;
+  for (const [key, value] of Object.entries(input)) if (value !== undefined && key !== "note") args[camel(key)] = value;
   Object.assign(args, spec.extra ?? {});
   if (spec.community !== false) args.communityId = caller.communityId;
   if (spec.identity === "user") args.userId = caller.userId;
@@ -368,7 +449,7 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
   const read = async (ref: any, extra: Record<string, unknown> = {}) => {
     try { return await ctx.runQuery(ref, { ...scope, ...extra }); } catch { return null; }
   };
-  const [general, sales_page, workflows, forms, access_integrations, agent, channels] = await Promise.all([
+  const [general, sales_page, workflows, forms, access_integrations, agent, channels, proposals] = await Promise.all([
     read(api.communityLifecycle.getCommunitySettings),
     read(api.communityFunnel.getCommunityFunnelConfig),
     read(api.communityMemberWorkflows.getBuilderWorkflowBoardPage, { pageSize: 1 }).then(board => board ? board.workflow : null),
@@ -376,12 +457,16 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     read(api.communityAccess.listAccessIntegrations),
     read(api.communityAgent.getCommunityAgentConfig),
     read(api.communityChannels.listCommunityChannels),
+    read(api.communitySettingProposals.listCommunitySettingProposals),
   ]);
   return {
     contract: "polynet.builder_settings.v1",
     guidance: "Change a setting with polynet_call and its operation from capabilities/. Revisions here are what the expected_* fields want.",
-    operations: BUILDER_SETTING_OPERATIONS.map(spec => ({ operation: spec.operation, area: spec.area, name: spec.name })),
+    operations: BUILDER_SETTING_OPERATIONS.map(spec => ({ operation: spec.operation, area: spec.area, name: spec.name,
+      ...(spec.review ? { review: spec.review } : {}) })),
     // workflows holds the welcome page and gate too, with the revision both use.
     general, sales_page, workflows, forms, access_integrations, agent, channels,
+    // Changes waiting for the owner's Apply, and recent outcomes.
+    proposals,
   };
 }
