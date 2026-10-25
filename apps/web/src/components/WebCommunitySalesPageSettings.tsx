@@ -82,7 +82,11 @@ export function WebCommunitySalesPageSettings(props: Props) {
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [frameKey, setFrameKey] = useState(0);
   const alive = useRef(true);
-  useEffect(() => () => { alive.current = false; }, []);
+  // Set on every mount: React's dev double-mount runs the cleanup once first.
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
 
   const withSession = async <T,>(operation: (session: unknown) => Promise<T>) => {
     const session = await props.ensureSession(props.session);
