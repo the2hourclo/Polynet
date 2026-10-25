@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { CommunityNav } from "../../../../shared/CommunityNav";
 import { webDestinationHasCommunityNavSelection } from "../../../../shared/webAppRouteState";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
+import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
 
 type WebCommunityNavSurfaceProps = {
   communityShell: WebCommunityShellProps;
@@ -12,6 +14,8 @@ export function WebCommunityNavSurface({
   presentation,
 }: WebCommunityNavSurfaceProps) {
   const isMobileHome = presentation === "mobile-home";
+  // The menu reads the frame itself, so one element keeps the memoized nav from redrawing.
+  const displayMenu = useMemo(() => (isMobileHome ? null : <WebCommunityDisplayMenu placement="side" />), [isMobileHome]);
   const hasDestinationSelection =
     !isMobileHome &&
     webDestinationHasCommunityNavSelection(communityShell.destination);
@@ -21,6 +25,7 @@ export function WebCommunityNavSurface({
       memberNextStep={communityShell.memberNextStep}
       activeCommunity={communityShell.activeCommunity}
       hideIdentitySettings={isMobileHome}
+      identityActions={displayMenu}
       communityTab={communityShell.communityTab}
       activeSelectionMode={hasDestinationSelection ? "route" : "none"}
       tabIndicators={communityShell.communityTabIndicators}

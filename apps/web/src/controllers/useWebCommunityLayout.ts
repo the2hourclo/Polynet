@@ -97,6 +97,8 @@ export function useActiveCommunityLayout(): CommunityLayoutV1 {
 
 export type WebCommunityLayoutChoice = {
   allowed: CommunityLayoutPosition[];
+  // The owner's layout, which a member gets back by clearing their pick.
+  standard: CommunityLayoutPosition;
   current: CommunityLayoutPosition;
   preference: CommunityLayoutPosition | null;
   onChoose: (position: CommunityLayoutPosition | null) => void;
@@ -147,6 +149,6 @@ export function useWebCommunityLayoutChoice(
   const effective = layoutForMemberChoice(layout, preference);
   return {
     layout: effective,
-    choice: { allowed: offered, current: effective.navigation.position, preference, onChoose },
+    choice: { allowed: offered, standard: layout.navigation.position, current: effective.navigation.position, preference, onChoose },
   };
 }

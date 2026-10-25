@@ -3025,6 +3025,9 @@ export default function App() {
     memberSession: session ?? null,
     onCommunityLayoutPositionChange: setCommunityLayoutPosition,
     onOpenCommunityAgent: openFloatingCommunityAgent,
+    // The Display menu's Light/Dark is the member's own app-wide choice.
+    appTheme,
+    setAppTheme,
   });
   if (session && activeCommunityId && welcomeStepsKey && activePage === "community" && !isPublicCommunityFunnel) {
     shellChromeHostProps.welcomeSurface = (

@@ -19,6 +19,8 @@ import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controlle
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityAside } from "./WebCommunityAside";
 import { WebCommunityTopNav } from "./WebCommunityTopNav";
+import type { AppTheme } from "../../../../shared/theme";
+import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
 import type {
   MobileOverlay,
   WebCommunityShellProps,
@@ -50,6 +52,8 @@ export type WebShellChromeHostProps = {
   // community agent floats at the bottom right instead of being a tab.
   onCommunityLayoutPositionChange?: (position: "top" | "side") => void;
   onOpenCommunityAgent?: () => void;
+  appTheme?: AppTheme;
+  onChooseAppTheme?: (theme: AppTheme) => void;
 };
 
 // Every page inside a community takes its theme, its owner pages included, so
@@ -118,6 +122,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     postSearch,
     onPostSearch: setPostSearch,
     layoutChoice: communityLayoutChoice,
+    displayMode: communityTheme.followsMemberMode && props.appTheme && props.onChooseAppTheme
+      ? { current: props.appTheme, onChoose: props.onChooseAppTheme }
+      : null,
   };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&
@@ -167,7 +174,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   }, [agentTabInTopLayout, onSelectCommunityTab, onOpenCommunityAgent, communityLayout.navigation.home]);
   const desktopCommunityNav = props.communityShell.showDesktopCommunityNav && !welcome ? (
     isTopCommunityNav ? (
-      <WebCommunityTopNav communityShell={props.communityShell} />
+      <WebCommunityTopNav communityShell={props.communityShell} trailing={<WebCommunityDisplayMenu placement="top" />} />
     ) : (
       <WebCommunityNavSurface
         communityShell={props.communityShell}

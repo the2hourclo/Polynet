@@ -67,7 +67,7 @@ function removeHeadElement(id: string) {
 export function useWebCommunityThemeStyle(
   communityId: string | null,
   options: { draftSession?: unknown } = {},
-): { attribute: string | null; previewingDraft: boolean } {
+): { attribute: string | null; previewingDraft: boolean; followsMemberMode: boolean } {
   const [loaded, setLoaded] = useState<{ communityId: string; theme: CommunityThemeV1 | null; draft: boolean } | null>(null);
   const draftSession = options.draftSession ?? null;
   const wantsDraft = Boolean(draftSession) && draftPreviewRequested();
@@ -152,5 +152,9 @@ export function useWebCommunityThemeStyle(
   return {
     attribute: communityId && theme ? communityId : null,
     previewingDraft: Boolean(communityId && current?.draft),
+    // Polynet's own look and two-scheme themes follow the member's Light/Dark;
+    // a one-scheme theme always looks the same, so there is nothing to pick.
+    // False until the theme is read, so the choice doesn't flash and vanish.
+    followsMemberMode: Boolean(communityId && (current || theme)) && (!theme || Boolean(theme.schemes.light && theme.schemes.dark)),
   };
 }
