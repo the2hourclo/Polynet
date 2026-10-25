@@ -652,6 +652,9 @@ const modules = import.meta.glob([
   "./communityThemes.ts",
   "./communityLayouts.ts",
   "./communityBrands.ts",
+  "./communityLifecycle.ts",
+  "./communityForms.ts",
+  "./communityAccess.ts",
   "./polynetCanonicalReceipts.ts",
   "./_generated/**/*.*s",
 ]);
@@ -4272,4 +4275,59 @@ test("the community brand is a design record with no publish step, for managers 
   await expect(read(member)).rejects.toThrow("semantic_not_found");
   const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
   expect(JSON.stringify(builder)).toContain("/builder/brand.json");
+});
+
+test("an owner's agent changes Settings through the MCP with the same saves the Settings page makes", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const settings = async (call = owner) =>
+    JSON.parse((await call("polynet_read", { path: `/communities/${community}/builder/settings.json` })).body);
+  const change = (operation: string, input: Record<string, unknown>, call = owner) => call("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}` });
+
+  const builder = await owner("polynet_list", { path: `/communities/${community}/builder/` });
+  expect(JSON.stringify(builder)).toContain("/builder/settings.json");
+  const capabilities = JSON.stringify(await owner("polynet_list", { path: `/communities/${community}/capabilities/` }));
+  for (const operation of ["community.settings.save", "community.welcome.save", "community.form.save", "community.channel.create", "community.agent.save"])
+    expect(capabilities).toContain(operation);
+  const definition = await owner("polynet_read", { path: `/communities/${community}/capabilities/community.settings.save.json` });
+  expect(definition.body).toContain("expected_settings_revision");
+
+  const before = await settings();
+  expect(before.contract).toBe("polynet.builder_settings.v1");
+  const revision = before.general.settings_revision;
+  // Only the fields sent change; the name and web address stay as they were.
+  await change("community.settings.save", { expected_settings_revision: revision, one_liner: "Two hours a day, one business" });
+  const after = await settings();
+  expect(after.general).toMatchObject({ one_liner: "Two hours a day, one business", name: before.general.name, slug: before.general.slug });
+  expect(after.general.settings_revision).toBeGreaterThan(revision);
+  // Someone saved since: refused, like the page.
+  await expect(change("community.settings.save", { expected_settings_revision: revision, one_liner: "stale" })).rejects.toThrow("setting_refused");
+  // Price isn't one of this operation's fields, and identity can't be sent.
+  await expect(change("community.settings.save", { expected_settings_revision: after.general.settings_revision, monthly_amount_base_units: 100 }))
+    .rejects.toThrow("invalid_tool_args");
+  await expect(change("community.settings.save", { expected_settings_revision: after.general.settings_revision, user_id: fixture.memberId }))
+    .rejects.toThrow("invalid_tool_args");
+
+  // The page's own checks still apply (this fixture's channels predate named channels).
+  await expect(change("community.channel.create", { name: "wins" })).rejects.toThrow("setting_refused: community_channel_name_migration_required");
+
+  await change("community.agent.save", { community_system_prompt: "Answer like a calm coach." });
+  expect(JSON.stringify((await settings()).agent)).toContain("Answer like a calm coach.");
+
+  // Members can't read Settings or change them.
+  await expect(settings(member)).rejects.toThrow("semantic_not_found");
+  await expect(change("community.channel.create", { name: "mine" }, member)).rejects.toThrow("operation_not_found");
+  expect(JSON.stringify(await member("polynet_list", { path: `/communities/${community}/capabilities/` }))).not.toContain("community.settings.save");
 });
