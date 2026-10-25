@@ -12,6 +12,7 @@
 // managers always see them after the community's own tabs.
 export const COMMUNITY_LAYOUT_VERSION = 1;
 export const COMMUNITY_LAYOUT_TABS = ["chat", "resources", "events", "members", "agent", "about"];
+export const COMMUNITY_LAYOUT_POSITIONS = ["top", "side"];
 export const COMMUNITY_LAYOUT_ASIDE_BLOCKS = ["community_card", "upcoming_events"];
 export const COMMUNITY_LAYOUT_TAB_DEFAULT_LABELS = {
     chat: "Chat",
@@ -35,6 +36,7 @@ export const DEFAULT_COMMUNITY_LAYOUT = {
             { tab: "about", label: "", hidden: true },
         ],
         home: "chat",
+        member_choice: [],
     },
     width: "wide",
     pages: {
@@ -131,7 +133,7 @@ export function normalizeCommunityLayout(raw) {
         }
         else {
             const nav = raw.navigation;
-            unknownKeys(nav, ["position", "tabs", "home"], "navigation", problems);
+            unknownKeys(nav, ["position", "tabs", "home", "member_choice"], "navigation", problems);
             if (nav.position !== undefined) {
                 layout.navigation.position = oneOf(nav.position, ["side", "top"], "navigation.position", problems) ?? layout.navigation.position;
             }
@@ -142,6 +144,25 @@ export function normalizeCommunityLayout(raw) {
                 layout.navigation.home = oneOf(nav.home, COMMUNITY_LAYOUT_TABS, "navigation.home", problems) ?? layout.navigation.home;
             }
         }
+    }
+    const rawChoice = isRecord(raw.navigation) ? raw.navigation.member_choice : undefined;
+    if (rawChoice === undefined) {
+        layout.navigation.member_choice = layout.navigation.position === "top" ? ["top", "side"] : [];
+    }
+    else if (!Array.isArray(rawChoice)) {
+        problems.push({ path: "navigation.member_choice", message: "member_choice is a list of positions: top, side." });
+    }
+    else {
+        const choice = [];
+        rawChoice.forEach((entry, index) => {
+            const value = oneOf(entry, COMMUNITY_LAYOUT_POSITIONS, `navigation.member_choice.${index}`, problems);
+            if (value && !choice.includes(value))
+                choice.push(value);
+        });
+        if (choice.length > 0 && !choice.includes(layout.navigation.position)) {
+            problems.push({ path: "navigation.member_choice", message: "Members can always keep the owner's layout: include its position." });
+        }
+        layout.navigation.member_choice = choice.length > 1 ? choice : [];
     }
     const home = layout.navigation.tabs.find((entry) => entry.tab === layout.navigation.home);
     if (!home || home.hidden) {
@@ -206,6 +227,23 @@ export function normalizeCommunityLayout(raw) {
         }
     }
     return problems.length ? { ok: false, problems } : { ok: true, layout };
+}
+// What a member sees: their own pick when the owner allows it, else the
+// owner's layout. A switch keeps the owner's tabs, labels and About page and
+// changes only the arrangement: "top" is the tab bar with the posts feed and
+// side blocks, "side" is the channel column with the chat timeline.
+export function layoutForMemberChoice(layout, choice) {
+    if (!choice || choice === layout.navigation.position || !layout.navigation.member_choice.includes(choice))
+        return layout;
+    const chat = choice === "top"
+        ? { presentation: "posts", aside: ["community_card", "upcoming_events"] }
+        : { presentation: "messages", aside: [] };
+    return {
+        ...layout,
+        navigation: { ...layout.navigation, position: choice },
+        width: choice === "top" ? "centered" : "wide",
+        pages: { ...layout.pages, chat },
+    };
 }
 export function communityLayoutTabLabel(layout, tab) {
     const entry = layout.navigation.tabs.find((candidate) => candidate.tab === tab);

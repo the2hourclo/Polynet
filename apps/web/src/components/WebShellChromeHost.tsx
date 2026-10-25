@@ -15,7 +15,7 @@ import { WebMobileGlobalShell } from "./WebMobileGlobalShell";
 import { WebCommunityNavSurface } from "./WebCommunityNavSurface";
 import { WebSettingsSidebar } from "./WebSettingsSidebar";
 import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
-import { useWebCommunityLayout } from "../controllers/useWebCommunityLayout";
+import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controllers/useWebCommunityLayout";
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityAside } from "./WebCommunityAside";
 import { WebCommunityTopNav } from "./WebCommunityTopNav";
@@ -74,9 +74,16 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const communityThemeAttribute = communityTheme.attribute;
   // The community's layout applies wherever its own navigation shows, owner
   // tools included, so the tab bar doesn't jump between pages.
-  const { layout: communityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
+  const { layout: publishedCommunityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
     props.communityShell.activeCommunity?.id ?? null,
     { draftSession: props.themeDraftSession ?? null },
+  );
+  // What this member sees: their Classroom/Channels pick where the owner
+  // offers one, else the owner's layout.
+  const { layout: communityLayout, choice: communityLayoutChoice } = useWebCommunityLayoutChoice(
+    props.communityShell.activeCommunity?.id ?? null,
+    props.memberSession ?? null,
+    publishedCommunityLayout,
   );
   // Members and About are pages only where the community's layout shows them.
   // Elsewhere their links keep landing on chat, as before layouts existed.
@@ -106,6 +113,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     onCopyJoinLink: props.communityShell.onCopyCommunityJoinLink,
     postSearch,
     onPostSearch: setPostSearch,
+    layoutChoice: communityLayoutChoice,
   };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&

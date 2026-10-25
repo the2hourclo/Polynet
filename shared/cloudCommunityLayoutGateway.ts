@@ -4,7 +4,12 @@ import {
   bootstrapConvexAuthenticatedClient,
   createConvexClient,
 } from "./convexAuthenticatedClient";
-import type { CommunityLayoutV1 } from "./communityLayout";
+import type { CommunityLayoutPosition, CommunityLayoutV1 } from "./communityLayout";
+
+export type CommunityLayoutChoiceState = {
+  allowed: CommunityLayoutPosition[];
+  position: CommunityLayoutPosition | null;
+};
 
 export type CommunityLayoutDraftState = {
   draft: CommunityLayoutV1;
@@ -74,4 +79,28 @@ export async function discardCloudCommunityLayoutDraft<SessionT>(params: {
     communityId: params.communityId as Id<"communities">,
     expectedDraftRevision: params.expectedDraftRevision,
   })) as CommunityLayoutDraftState;
+}
+
+export async function fetchCloudMyCommunityLayoutChoice<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+}): Promise<CommunityLayoutChoiceState> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return (await client.query(api.communityLayouts.getMyCommunityLayoutChoice, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+  })) as CommunityLayoutChoiceState;
+}
+
+export async function setCloudMyCommunityLayoutChoice<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+  position: CommunityLayoutPosition | null;
+}): Promise<CommunityLayoutChoiceState> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return (await client.mutation(api.communityLayouts.setMyCommunityLayoutChoice, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+    position: params.position,
+  })) as CommunityLayoutChoiceState;
 }

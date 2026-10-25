@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import {
   DEFAULT_COMMUNITY_LAYOUT,
   communityLayoutTabLabel,
+  layoutForMemberChoice,
   normalizeCommunityLayout,
   visibleCommunityLayoutTabs,
 } from "../shared/communityLayout";
@@ -42,6 +43,31 @@ describe("community layout v1", () => {
     expect(funnel.ok && funnel.layout.pages.about.presentation).toBe("funnel");
     expect(problemsOf({ pages: { about: { presentation: "landing" } } }).map((p) => p.path)).toEqual(["pages.about.presentation"]);
     expect(problemsOf({ pages: { about: { video: true } } }).map((p) => p.path)).toEqual(["pages.about.video"]);
+  });
+
+  test("members may pick Classroom or Channels where the owner offers it", () => {
+    const skool = normalizeCommunityLayout(SKOOL_LAYOUT);
+    if (!skool.ok) throw new Error("skool");
+    expect(skool.layout.navigation.member_choice).toEqual(["top", "side"]);
+    expect(DEFAULT_COMMUNITY_LAYOUT.navigation.member_choice).toEqual([]);
+
+    const channels = layoutForMemberChoice(skool.layout, "side");
+    expect(channels.navigation.position).toBe("side");
+    expect(channels.pages.chat).toEqual({ presentation: "messages", aside: [] });
+    expect(channels.navigation.tabs).toEqual(skool.layout.navigation.tabs);
+    expect(channels.pages.about).toEqual(skool.layout.pages.about);
+    expect(layoutForMemberChoice(skool.layout, null)).toBe(skool.layout);
+    // Not offered: the owner's layout.
+    expect(layoutForMemberChoice(DEFAULT_COMMUNITY_LAYOUT, "top")).toBe(DEFAULT_COMMUNITY_LAYOUT);
+
+    const offered = normalizeCommunityLayout({ navigation: { position: "side", member_choice: ["side", "top"] } });
+    if (!offered.ok) throw new Error("offered");
+    const classroom = layoutForMemberChoice(offered.layout, "top");
+    expect(classroom.navigation.position).toBe("top");
+    expect(classroom.pages.chat.presentation).toBe("posts");
+
+    expect(problemsOf({ navigation: { position: "side", member_choice: ["top"] } }).map((p) => p.path)).toEqual(["navigation.member_choice"]);
+    expect(problemsOf({ navigation: { member_choice: ["grid"] } }).map((p) => p.path)).toEqual(["navigation.member_choice.0"]);
   });
 
   test("an empty object means Polynet's layout", () => {
