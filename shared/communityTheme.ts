@@ -479,7 +479,9 @@ export function communityThemeVariables(
   const c = theme.schemes[scheme];
   if (!c) throw new Error(`The theme has no ${scheme} scheme.`);
   const font = (name: string) => COMMUNITY_THEME_FONTS[name]?.stack ?? COMMUNITY_THEME_FONTS["IBM Plex Sans"].stack;
-  const link = nearestPassingColor(c.accent, c.background, 4.5) ?? c.text;
+  // Accent-coloured text sits on the page and on cards, so it passes on both.
+  const onPage = nearestPassingColor(c.accent, c.background, 4.5);
+  const link = (onPage && nearestPassingColor(onPage, c.surface, 4.5)) ?? c.text;
   const shadow = shadows(theme, scheme);
   const upper = theme.heading_case === "upper";
   const plate = theme.media_plate === "light" && scheme === "dark";
