@@ -308,3 +308,30 @@ test("attention rejects an oversized execution scope before domain reads", async
     { communityIds: fixture.communityIds },
   )).rejects.toThrow("community_attention_scope_limit_exceeded");
 });
+
+test("a community whose welcome flow holds the member drops out of their attention list", async () => {
+  const t = convexTest(schema, modules);
+  const now = Date.now();
+  const { heldId, openId } = await t.run(async (ctx) => {
+    const user = async (subject: string) => ctx.db.insert("users", { authSubject: subject, displayName: subject, createdAt: 1, updatedAt: 1 });
+    const ownerId = await user("welcome-attention-owner");
+    const memberId = await user("welcome-attention-member");
+    const community = async (slug: string) => {
+      const communityId = await ctx.db.insert("communities", { ownerId, slug, name: slug, visibility: "unlisted",
+        inferenceFundingPolicy: "managed_required", entryPolicy: "open", createdAt: 1, updatedAt: 1 });
+      const membershipId = await ctx.db.insert("communityMemberships", { communityId, userId: memberId, role: "member",
+        active: true, activationSequence: 1, activatedAt: now, accessSource: "manual_grant", createdAt: 1, updatedAt: 1 });
+      return { communityId, membershipId };
+    };
+    const held = await community("welcome-held");
+    const open = await community("welcome-open");
+    await ctx.db.insert("communityMemberWorkflows", { communityId: held.communityId, welcomeGate: true, welcomeGateEnabledAt: 0,
+      revision: 1, createdByUserId: ownerId, updatedByUserId: ownerId, createdAt: 1, updatedAt: 1,
+      milestones: [{ key: "onboarding", name: "Onboarding", automations: [{
+        key: "welcome", trigger: { type: "member_joined" }, action: { key: "intake", type: "request_form", formKey: "intake" } }] }] });
+    return { heldId: held.communityId, openId: open.communityId };
+  });
+  const rows = await t.withIdentity({ subject: "welcome-attention-member" }).query(
+    api.communityAttention.listMyCommunityAttention, { communityIds: [heldId, openId] });
+  expect(rows.map((row: any) => String(row.community_id ?? row.communityId))).toEqual([String(openId)]);
+});
