@@ -69,6 +69,7 @@ export const COMMUNITY_SETTINGS_PANES = [
   "sales_page",
   "appearance",
   "agent",
+  "creators",
   "access",
   "danger",
 ] as const;
@@ -183,6 +184,9 @@ export function parseCommunitySettingsPane(
       return "appearance";
     case "access":
       return "access";
+    case "creators":
+    case "co-creators":
+      return "creators";
     case "community":
     default:
       return "community";
@@ -213,6 +217,9 @@ export function isCommunitySettingsPaneAllowedForAccess(
       return access.canManageMembers;
     // Connected services (such as the AIEB MCP) and access given by hand.
     case "access":
+      return access.canManageMembers;
+    // Who builds the community with its owner; only the owner changes it.
+    case "creators":
       return access.canManageMembers;
     case "danger":
       return access.isOwner;

@@ -1,3 +1,4 @@
+import { WebCommunityCreatorsSettings } from "./WebCommunityCreatorsSettings";
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type DragEvent, type ReactNode } from "react";
 import { ArrowRight, ImageUp, Megaphone } from "lucide-react";
 import { buildCommunityTabPath } from "../../../../shared/webAppRouteState";
@@ -159,6 +160,7 @@ const PANE_TITLES: Record<CommunitySettingsPane, string> = {
   sales_page: "Sales page",
   appearance: "Appearance",
   agent: "Agent",
+  creators: "Creators",
   access: "Access",
   danger: "Archive",
 };
@@ -1081,6 +1083,14 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
             />
           ) : null}
           {selectedSettingsPane === "agent" ? <WebCommunityAiAgentSection {...aiAgentProps} embedded /> : null}
+          {selectedSettingsPane === "creators" && resolvedActiveCommunity ? (
+            <WebCommunityCreatorsSettings
+              key={resolvedActiveCommunity.id}
+              communityId={resolvedActiveCommunity.id}
+              session={props.session}
+              isOwner={isOwnerSettingsLayer}
+            />
+          ) : null}
           {selectedSettingsPane === "access" && accessGateway ? (
             <WebCommunityAccessSettings key={accessGateway.scopeKey} gateway={accessGateway} />
           ) : null}

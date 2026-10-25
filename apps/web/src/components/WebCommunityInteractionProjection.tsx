@@ -146,7 +146,7 @@ export type WebCommunityInteractionProjectionProps = {
   canViewMemberPlanDetails?: boolean;
   isActiveCommunityOwner?: boolean;
   communityInitials?: (value: string) => string;
-  onSetCommunityMemberRole?: (membershipId: string, role: "admin" | "moderator" | "member") => Promise<void> | void;
+  onSetCommunityMemberRole?: (membershipId: string, role: "co_creator" | "admin" | "moderator" | "member") => Promise<void> | void;
   onRemoveCommunityMember?: (membershipId: string) => Promise<void> | void;
   onBanCommunityMember?: (membershipId: string) => Promise<void> | void;
   loadMemberBillingHistory?: (membershipId: string) => Promise<CloudCommunityMemberBillingHistory | null>;

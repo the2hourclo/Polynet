@@ -8,6 +8,7 @@ import {
   listCanonicalCommunityMemberMembershipRows,
   normalizeCommunityRoleForOutput,
   readCommunityActiveMemberCount,
+  communityMembershipIsCoCreator,
   requireCommunityChatAccess,
   requireCommunityManager,
   resolvePublicUserId,
@@ -133,6 +134,7 @@ async function mapCommunityDirectoryMembershipRow(args: {
       String(args.row.userId),
     ...(await resolveUserProfileDisplayProjection(args.ctx, args.row.userId)),
     role: normalizeCommunityRoleForOutput(args.row.role) || "member",
+    co_creator: communityMembershipIsCoCreator(args.row),
     created_at: toIsoString(args.row.createdAt),
     last_active_at: args.lastSeenAt === null ? "" : toIsoString(args.lastSeenAt),
   };

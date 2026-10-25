@@ -10,6 +10,7 @@ import {
   Search,
   Settings2,
   TriangleAlert,
+  UserPlus,
   Users,
   Workflow,
   X,
@@ -84,6 +85,9 @@ export function buildCommunitySettingsNav(params: {
     const members: SettingsNavItem[] = [];
     if (params.workflowsPath) {
       members.push({ kind: "link", id: "clients", label: "Clients", icon: <Users {...ICON} />, path: `${params.workflowsPath}?section=clients`, keywords: "members people progress plan database" });
+    }
+    if (has("creators")) {
+      members.push({ kind: "pane", pane: "creators", label: "Creators", icon: <UserPlus {...ICON} />, keywords: "co-creator co-owner collaborator partner team admin" });
     }
     members.push({ kind: "pane", pane: "access", label: "Access", icon: <KeyRound {...ICON} />, keywords: "entitlement license key mcp integration webhook api trial comp grant connected services" });
     groups.push({ label: "Members", items: members });
