@@ -107,11 +107,11 @@ export function auditPage(options) {
     const large = size >= 24 || (size >= 18.66 && Number(s.fontWeight) >= 700);
     const r = ratio(fg, bg);
     if (r < (large ? 3 : 4.5)) lowContrast.push([el, `${r.toFixed(1)}:1, ${key(fg)} on ${key(bg)}, ${px(size)}`]);
-    // AA still reads as grey on a near-black surface; dark pages want 7:1 for small text.
-    else if (!large && lum(bg) < 0.05 && r < 7) greyOnDark.push([el, `${r.toFixed(1)}:1, ${key(fg)} on ${key(bg)}, ${px(size)}`]);
+    // AA still reads as grey on a near-black surface; dark pages want 9:1 for small text.
+    else if (!large && lum(bg) < 0.05 && r < 9) greyOnDark.push([el, `${r.toFixed(1)}:1, ${key(fg)} on ${key(bg)}, ${px(size)}`]);
   }
   if (lowContrast.length) add(errors, "contrast", "Text below WCAG AA contrast (4.5:1, or 3:1 for large text).", lowContrast);
-  if (greyOnDark.length) add(warnings, "grey-on-dark", "Small text on a dark surface under 7:1 reads as grey on black.", greyOnDark);
+  if (greyOnDark.length) add(warnings, "grey-on-dark", "Small text on a dark surface under 9:1 reads as grey on black.", greyOnDark);
 
   // 4. Every colour comes from the community's theme (or brand), or a mix of
   // two of its colours (tints, hovers, borders). Anything else is a colour
