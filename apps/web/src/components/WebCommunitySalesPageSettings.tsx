@@ -208,7 +208,9 @@ export function WebCommunitySalesPageSettings(props: Props) {
 
   const funnelConfig = props.funnel.editorProps.communityFunnelConfig;
   const previewBase = buildCommunityFunnelPreviewPath(props.communitySlug, funnelConfig?.active_slot ?? "default");
-  const previewSrc = previewBase ? `${previewBase}&presentation=${draftStyle}&embed=1` : null;
+  // Phone loads the phone app (/m/), as a real phone gets it, not the desktop
+  // layout squeezed to 390px.
+  const previewSrc = previewBase ? `${device === "phone" ? "/m" : ""}${previewBase}&presentation=${draftStyle}&embed=1` : null;
   const livePath = buildCommunityFunnelPath(props.communitySlug);
   const external = props.externalWebsite;
   const usesOwnWebsite = Boolean(external.controls.config.external_funnel_active && external.controls.config.external_funnel_url);
@@ -302,7 +304,7 @@ export function WebCommunitySalesPageSettings(props: Props) {
         </header>
         {previewSrc ? (
           <SalesPreviewFrame
-            key={`${frameKey}-${draftStyle}`}
+            key={`${frameKey}-${draftStyle}-${device}`}
             device={device}
             src={previewSrc}
             title={`Preview of the ${styleName(draftStyle)}`}
