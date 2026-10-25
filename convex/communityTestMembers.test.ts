@@ -131,3 +131,39 @@ test("only managers start test runs, and a test member can't create a community"
     authSubject: started.auth_subject, name: "Sock puppet", slug: "sock-puppet",
   })).rejects.toThrow("test_member_outside_community");
 });
+
+test("a test run can start at a later stage, show its sequence and skip a timed wait", async () => {
+  vi.useFakeTimers();
+  const t = convexTest(schema, modules);
+  const f = await fixture(t);
+  await t.run(async (ctx) => {
+    const workflow = (await ctx.db.query("communityMemberWorkflows").first())!;
+    await ctx.db.patch(workflow._id, { milestones: [...workflow.milestones, { key: "nurture", name: "Nurture", automations: [{
+      key: "tier", timerGeneration: "g1", trigger: { type: "milestone_elapsed", delayMinutes: 1440 },
+      action: { key: "set-tier", type: "set_client_property", propertyKey: "tier", value: "Warm" },
+    }] }] } as any);
+    await ctx.db.insert("communityClientProperties", { communityId: f.communityId, key: "tier", name: "Tier", type: "text",
+      options: [], position: 0, createdByUserId: f.ownerId, createdAt: nowMs, updatedAt: nowMs } as any);
+  });
+  const owner = t.withIdentity({ subject: OWNER });
+  const started = await owner.mutation(api.communityTestMembers.startTestMember, { communityId: f.communityId, milestoneKey: "nurture" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const args = { communityId: f.communityId, testMemberId: started.id as any };
+
+  let sequence = await owner.query(api.communityTestMembers.getTestRunSequence, args);
+  expect(sequence.stages.map((stage: any) => [stage.name, stage.is_current])).toEqual([["Onboarding", false], ["Nurture", true]]);
+  // Started past the welcome stage: its join form was never sent.
+  expect(sequence.stages[0].steps[0]).toMatchObject({ when: "When they join", does: "Send the Intake form", status: "skipped" });
+  expect(sequence.stages[1].steps[0]).toMatchObject({ when: "1 day after they reach this stage", does: "Set tier to Warm", status: "scheduled" });
+  await expect(owner.query(api.communityFormRequests.listMyRequests, { authSubject: started.auth_subject, communityId: f.communityId }))
+    .resolves.toEqual([]);
+
+  await expect(owner.mutation(api.communityTestMembers.runTestMemberTimedStepsNow, args)).resolves.toEqual({ ran: 1 });
+  sequence = await owner.query(api.communityTestMembers.getTestRunSequence, args);
+  expect(sequence.stages[1].steps[0].status).toBe("done");
+  const value = await t.run(async (ctx) => (await ctx.db.query("communityClientValues").first())?.value);
+  expect(value).toBe("Warm");
+
+  // Only the manager who started a run can drive it.
+  await expect(t.withIdentity({ subject: STRANGER }).mutation(api.communityTestMembers.runTestMemberTimedStepsNow, args)).rejects.toThrow();
+});

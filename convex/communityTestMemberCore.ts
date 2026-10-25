@@ -19,6 +19,7 @@ export type TestMemberRow = {
   ownerAuthSubject: string;
   label: string;
   number: number;
+  startMilestoneKey?: string;
   createdAt: number;
   endedAt?: number;
 };
