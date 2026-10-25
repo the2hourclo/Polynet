@@ -282,11 +282,3 @@
 :where([data-community-theme]) :where(button, input, select, textarea) {
   font-family: inherit;
 }
-
-/* Offline people stay readable: only the picture fades, not the name. */
-[data-community-theme] .community-context-member.is-offline {
-  opacity: 1;
-}
-[data-community-theme] .community-context-member.is-offline .community-context-member-avatar {
-  opacity: 0.55;
-}
