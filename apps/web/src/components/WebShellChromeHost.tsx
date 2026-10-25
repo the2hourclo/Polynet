@@ -23,6 +23,7 @@ import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerB
 import type { AppTheme } from "../../../../shared/theme";
 import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
 import { useDraftLook } from "../controllers/useDraftLook";
+import { courseCardLookWords } from "./ResourceCourseCatalog";
 import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
 import type {
   MobileOverlay,
@@ -250,6 +251,14 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       clear();
     };
   }, [railColorAttribute, communityThemeAttribute, communityTheme.theme]);
+  // Course card style, pills, description and progress from the theme (set in
+  // Customize), on <html> for styles/course-cards.css.
+  const courseCardsAttribute = communityThemeAttribute ? courseCardLookWords(communityTheme.theme) : null;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (courseCardsAttribute) root.dataset.courseCards = courseCardsAttribute;
+    else delete root.dataset.courseCards;
+  }, [courseCardsAttribute]);
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
   const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (

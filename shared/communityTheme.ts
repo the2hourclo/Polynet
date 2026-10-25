@@ -51,6 +51,15 @@ export type CommunityThemeV1 = {
   course_columns: "auto" | "1" | "2" | "3" | "4";
   course_columns_phone: "1" | "2";
   course_gap: "default" | "tight" | "roomy";
+  // How each course card looks, after Substack's post cards and archive:
+  // "cover" (picture on top), "list" (a row with a small picture on the
+  // right), "overlay" (the title on the picture), "text" (no picture). Pills
+  // are small lesson-count and status labels; progress shows as a bar, a ring
+  // or "3/6 lessons".
+  course_card_style: "cover" | "list" | "overlay" | "text";
+  course_card_pills: "hide" | "show";
+  course_card_description: "show" | "hide";
+  course_card_progress: "bar" | "ring" | "fraction";
   // "tint" prints course covers onto a soft wash of the accent (light schemes),
   // so pale drawings and dark screenshots share one colour.
   course_cover_plate: "none" | "tint";
@@ -145,6 +154,10 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   course_columns: "auto",
   course_columns_phone: "1",
   course_gap: "default",
+  course_card_style: "cover",
+  course_card_pills: "hide",
+  course_card_description: "show",
+  course_card_progress: "bar",
   course_cover_plate: "none",
   course_cover_fit: "crop",
   banner_name: "show",
@@ -180,6 +193,10 @@ const ENUMS = {
   course_columns: ["auto", "1", "2", "3", "4"],
   course_columns_phone: ["1", "2"],
   course_gap: ["default", "tight", "roomy"],
+  course_card_style: ["cover", "list", "overlay", "text"],
+  course_card_pills: ["hide", "show"],
+  course_card_description: ["show", "hide"],
+  course_card_progress: ["bar", "ring", "fraction"],
   course_cover_plate: ["none", "tint"],
   course_cover_fit: ["crop", "whole"],
   banner_name: ["show", "hide"],

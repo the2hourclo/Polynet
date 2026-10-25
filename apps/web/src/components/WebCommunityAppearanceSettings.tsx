@@ -44,7 +44,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -57,6 +57,10 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   course_columns: ["Cards per row", [["auto", "Fit by card size"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]]],
   course_columns_phone: ["Cards per row on phones", [["1", "1"], ["2", "2"]]],
   course_gap: ["Space between cards", [["default", "Page style's own"], ["tight", "Tight"], ["roomy", "Roomy"]]],
+  course_card_style: ["Card style", [["cover", "Cover on top"], ["list", "List row"], ["overlay", "Title on cover"], ["text", "Text only"]]],
+  course_card_pills: ["Pills", [["hide", "Off"], ["show", "Lessons and status"]]],
+  course_card_description: ["Description", [["show", "Show"], ["hide", "Hide"]]],
+  course_card_progress: ["Progress", [["bar", "Bar"], ["ring", "Ring"], ["fraction", "3/6 lessons"]]],
   course_cover_plate: ["Cover background (light scheme)", [["none", "Plain"], ["tint", "Soft accent tint"]]],
   course_cover_fit: ["Cover pictures", [["crop", "Fill the box"], ["whole", "Show whole picture"]]],
   media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
@@ -559,6 +563,13 @@ function AppearanceEditor(props: EditorProps) {
           {choice("course_gap")}
           {choice("course_cover_ratio")}
           <p className="appearance-hint">{theme.course_columns === "auto" ? "Bigger cards mean fewer per row." : "Rows wrap sooner on narrow screens, so cards stay readable."}</p>
+        </Group>
+        <Group title="Course cards">
+          {choice("course_card_style")}
+          {choice("course_card_pills")}
+          {choice("course_card_description")}
+          {choice("course_card_progress")}
+          <p className="appearance-hint">Corners follow Shape → Corner radius.</p>
         </Group>
         <Group title="Course covers">
           {choice("course_cover_fit")}

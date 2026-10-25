@@ -1,0 +1,219 @@
+/* Course card styles an owner picks in Settings → Appearance → Customize
+   (theme tokens course_card_style, _pills, _description, _progress), after
+   Substack's post cards and archive list: quiet type, thin dividers, small
+   muted pills, room to breathe, no heavy shadows. WebShellChromeHost writes
+   the choices that differ from Polynet's own card as words on
+   <html data-course-cards>, only inside a themed community. */
+
+/* Parts that only some choices show. */
+.resource-course-card-pills,
+.resource-course-card-progress-ring,
+.resource-course-card-progress-fraction { display: none; }
+
+/* ── Pills: lesson count and where the member is ───────── */
+:root[data-course-cards~="pills"] [data-community-theme] .resource-course-card-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
+:root[data-course-cards~="pills"] [data-community-theme] .resource-course-card-pills + :is(.resource-course-card-progress, .resource-course-card-meta) {
+  margin-top: 0;
+  padding-top: 0.625rem;
+}
+/* The count is in a pill now; a locked course still says why. */
+:root[data-course-cards~="pills"] [data-community-theme] .resource-course-card-meta.is-count { display: none; }
+[data-community-theme] .resource-course-card-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--hover-overlay);
+  color: var(--text-secondary);
+  font-size: var(--pn-type-meta);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+[data-community-theme] .resource-course-card-pill.is-progress {
+  background: color-mix(in srgb, var(--accent-selection) 16%, transparent);
+  color: var(--text-primary);
+}
+[data-community-theme] .resource-course-card-pill.is-done {
+  background: var(--accent-selection);
+  color: var(--text-on-accent);
+}
+
+/* ── Description off ───────────────────────────────────── */
+:root[data-course-cards~="no-description"] [data-community-theme] .resource-course-card-description { display: none; }
+
+/* ── Progress as a ring or "3/6 lessons" ───────────────── */
+:root:is([data-course-cards~="ring"], [data-course-cards~="fraction"]) [data-community-theme] .resource-course-card-progress-track { display: none; }
+:root[data-course-cards~="ring"] [data-community-theme] .resource-course-card-progress { gap: 0.5rem; }
+:root[data-course-cards~="ring"] [data-community-theme] .resource-course-card-progress-ring {
+  display: block;
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent-brand, var(--accent-selection)) var(--course-progress, 0%), color-mix(in srgb, var(--text-primary) 14%, transparent) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.1875rem), #000 calc(100% - 0.1875rem));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 0.1875rem), #000 calc(100% - 0.1875rem));
+}
+:root[data-course-cards~="ring"] [data-community-theme] .resource-course-card-progress-label { min-width: 0; text-align: left; }
+:root[data-course-cards~="fraction"] [data-community-theme] .resource-course-card-progress-label { display: none; }
+:root[data-course-cards~="fraction"] [data-community-theme] .resource-course-card-progress-fraction {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--pn-type-label);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Every style but the default card is flat: no lift or shadow on hover, the
+   title underlines instead, as on Substack. */
+:root:is([data-course-cards~="list"], [data-course-cards~="overlay"], [data-course-cards~="text"]) [data-community-theme] .resource-course-card {
+  box-shadow: none;
+}
+:root:is([data-course-cards~="list"], [data-course-cards~="overlay"], [data-course-cards~="text"]) [data-community-theme] .resource-course-card:is(:hover, :focus-within) {
+  transform: none;
+  box-shadow: none;
+}
+:root:is([data-course-cards~="list"], [data-course-cards~="text"]) [data-community-theme] .resource-course-card:hover .resource-course-card-heading > strong {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+/* ── List: one row per course, small picture on the right ─ */
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-grid {
+  grid-template-columns: var(--pn-course-columns-owner, minmax(0, 1fr));
+  gap: var(--pn-course-gap-owner, 0 2rem);
+}
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card {
+  min-height: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-default);
+  border-radius: 0;
+  background: transparent;
+}
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
+  grid-template-areas: "body cover";
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 0;
+  overflow: visible;
+  background: transparent;
+}
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card-cover {
+  grid-area: cover;
+  position: relative;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: min(var(--pn-radius), 0.5rem);
+}
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card-body {
+  grid-area: body;
+  gap: 0.25rem;
+  padding: 0;
+}
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card-heading > strong {
+  font-size: var(--pn-type-subheading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card-description { min-height: 0; }
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card-progress { max-width: 16rem; }
+/* The lock sits on the middle of the small picture. */
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-card-lock { top: 50%; left: auto; right: calc(4.25rem - 0.9375rem); transform: translateY(-50%); }
+:root[data-course-cards~="list"] [data-community-theme] .resource-course-create-card {
+  min-height: 4.5rem;
+  margin-top: 1rem;
+  border-radius: min(var(--pn-radius), 0.5rem);
+}
+
+/* ── Overlay: the title on the picture ─────────────────── */
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card {
+  min-height: 0;
+  border: 0;
+  background: var(--bg-card-alt);
+}
+/* A portrait card, so the picture leads and the words sit in its lower part. */
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-main {
+  display: block;
+  min-height: 18rem;
+  aspect-ratio: 4 / 5;
+}
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: inherit;
+}
+/* A dark wash under the words keeps white text above 4.5:1 on any picture. */
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-body {
+  position: absolute;
+  inset: auto 0 0;
+  gap: 0.25rem;
+  padding: 4rem 1.25rem 1.375rem;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.84), rgb(0 0 0 / 0.7) 58%, rgb(0 0 0 / 0));
+  color: #fff;
+}
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-heading > strong {
+  color: #fff;
+  font-size: var(--pn-type-subheading);
+  font-weight: 700;
+}
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-description { min-height: 0; color: rgb(255 255 255 / 0.86); }
+:root[data-course-cards~="overlay"] [data-community-theme] :is(.resource-course-card-meta, .resource-course-card-progress-label, .resource-course-card-progress-fraction) { color: rgb(255 255 255 / 0.86); }
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-status { border-color: rgb(255 255 255 / 0.5); color: #fff; }
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-pill { background: rgb(255 255 255 / 0.18); color: #fff; }
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-pill.is-done { background: #fff; color: #111; }
+/* The bar runs along the card's bottom edge. */
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-progress-track {
+  position: absolute;
+  inset: auto 0 0;
+  height: 0.25rem;
+  border-radius: 0;
+  background: rgb(255 255 255 / 0.25);
+}
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-progress-track > span { border-radius: 0; }
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-progress-ring {
+  background: conic-gradient(#fff var(--course-progress, 0%), rgb(255 255 255 / 0.3) 0);
+}
+
+/* ── Text: no picture, an editorial entry under a hairline ─ */
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-card {
+  min-height: 0;
+  border: 0;
+  border-top: 1px solid var(--border-default);
+  border-radius: 0;
+  background: transparent;
+}
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-card-cover { display: none; }
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-card-main { background: transparent; }
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-card-body { gap: 0.375rem; padding: 1.25rem 0 1.5rem; }
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-card-heading > strong {
+  font-family: var(--pn-font-heading);
+  font-weight: var(--pn-heading-weight);
+  text-transform: var(--pn-heading-case);
+  letter-spacing: var(--pn-heading-tracking);
+  font-size: var(--pn-type-heading);
+  line-height: 1.25;
+}
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-card-description { min-height: 0; -webkit-line-clamp: 3; }
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-card-lock { position: static; display: inline-grid; width: 1.5rem; height: 1.5rem; margin-top: 1.25rem; box-shadow: none; background: var(--hover-overlay); }
+:root[data-course-cards~="text"] [data-community-theme] .resource-course-create-card { min-height: 7rem; border-radius: min(var(--pn-radius), 0.5rem); }
+
+@media (max-width: 640px) {
+  :root[data-course-cards~="list"] [data-community-theme] .resource-course-card-main { grid-template-columns: minmax(0, 1fr) 5.5rem; gap: 1rem; padding: 1rem 0; }
+  :root[data-course-cards~="list"] [data-community-theme] .resource-course-card-lock { right: calc(2.75rem - 0.9375rem); }
+  :root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-main { min-height: 15rem; aspect-ratio: 4 / 3; }
+}
