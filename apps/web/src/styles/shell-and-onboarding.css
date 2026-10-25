@@ -458,10 +458,12 @@ body {
   inset: 0 0 -18px;
   z-index: 0;
   pointer-events: none;
+  /* Strong enough at rest for the white name and icons to stay readable on
+     a light banner or one with its own lettering. */
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.05) 0%,
-    rgba(0, 0, 0, 0.015) 58%,
+    rgba(0, 0, 0, 0.58) 0%,
+    rgba(0, 0, 0, 0.38) 56%,
     rgba(0, 0, 0, 0) 100%
   );
 }
