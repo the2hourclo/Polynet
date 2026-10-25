@@ -66,6 +66,7 @@ export const DEFAULT_COMMUNITY_THEME = {
     channels_look: "current",
     rail_size: "standard",
     rail_color: "polynet",
+    sibling_communities: "hide",
 };
 const COLOR_KEYS = [
     "background", "surface", "text", "muted", "border", "accent", "on_accent", "button", "on_button",
@@ -102,6 +103,7 @@ const ENUMS = {
     channels_look: ["current", "quiet", "reader", "publication"],
     rail_size: ["standard", "large"],
     rail_color: ["polynet", "blend", "tint", "brand"],
+    sibling_communities: ["hide", "show"],
 };
 const RANGES = {
     heading_weight: [300, 900],
@@ -455,6 +457,7 @@ export function communityThemeVariables(theme, scheme) {
         "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
         "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",
         "--pn-banner-name": theme.banner_name === "hide" ? "hidden" : "visible",
+        "--pn-siblings-display": theme.sibling_communities === "show" ? "flex" : "none",
         // With no name to carry, the dark fade only has to hold the icons.
         "--pn-banner-scrim": theme.banner_name === "hide" ? "0.45" : "1",
         // <polynet-account> on community sites.
