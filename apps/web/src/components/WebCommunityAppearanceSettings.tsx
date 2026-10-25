@@ -425,7 +425,11 @@ function AppearanceEditor(props: EditorProps) {
   };
   const mode = schemeMode(theme);
 
-  const src = props.communitySlug ? `/c/${encodeURIComponent(props.communitySlug)}/${page}?${APPEARANCE_PREVIEW_PARAM}=1` : null;
+  // Phone loads the phone app (/m/), as a real phone gets it, not the desktop
+  // layout squeezed into 390px.
+  const src = props.communitySlug
+    ? `${device === "phone" ? "/m" : ""}/c/${encodeURIComponent(props.communitySlug)}/${page}?${APPEARANCE_PREVIEW_PARAM}=1`
+    : null;
 
   return createPortal(<div className="appearance-editor" role="dialog" aria-modal="true" aria-labelledby={`${props.uid}-editor-title`}>
     <header className="appearance-editor-bar">
