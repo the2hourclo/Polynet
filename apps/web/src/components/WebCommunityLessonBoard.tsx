@@ -13,7 +13,7 @@ import type { CommunityResource } from "./communityResourcesContracts";
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import "./WebCommunityLessonBoard.css";
 
-// Knowledge -> Board: the same lesson pages as Resources, laid out by stage on
+// Knowledge -> Roadmap: the same lesson pages as Resources, laid out by stage on
 // the Workflows board. A stage stays locked until the gate lesson before it is
 // done; opening a lesson shows it as a step of its stage, with the member's
 // platform section and Mark done / Next. Progress is the member's own, from the
@@ -102,7 +102,7 @@ export function WebCommunityLessonBoard(props: {
 
   return (
     <div className="workflow-page workflow-pipeline-page lesson-board">
-      <section className="community-panel community-utility-panel workflow-pipeline-shell" aria-label="Board">
+      <section className="community-panel community-utility-panel workflow-pipeline-shell" aria-label="Roadmap">
         {progress.error ? <p className="workflow-milestone-empty" role="status">{progress.error}</p> : null}
         <div className="workflow-board-stage">
           <div className="workflow-milestone-canvas">
@@ -185,7 +185,7 @@ function WebCommunityLessonStep(props: {
       <div className="lesson-board-step-top">
         <button className="resources-back-btn" type="button" onClick={props.onBack}>
           <ArrowLeft aria-hidden="true" />
-          <span>Back to board</span>
+          <span>Back to roadmap</span>
         </button>
         <span className="lesson-board-stage-badge">{fields?.stage}</span>
       </div>

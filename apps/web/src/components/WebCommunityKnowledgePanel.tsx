@@ -32,12 +32,12 @@ type KnowledgeView = "resources" | "board" | "graph";
 export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const [view, setView] = useState<KnowledgeView>("resources");
   useEffect(() => { setView((current) => (current === "graph" ? "resources" : current)); }, [resources.state.selectedModuleId]);
-  // The Board shows when the community has lesson pages with a stage.
+  // The Roadmap (view id "board") shows when the community has lesson pages with a stage.
   const hasBoard = useMemo(() => communityBoardLessons(resources.state.resources).length > 0, [resources.state.resources]);
   const graphOpen = view === "graph" && context.canViewGraph;
   const boardOpen = view === "board" && hasBoard;
   const activeView: KnowledgeView = graphOpen ? "graph" : boardOpen ? "board" : "resources";
-  // One progress read feeds the Board and the course cards.
+  // One progress read feeds the Roadmap and the course cards.
   const progress = useWebCommunityLessonProgress({
     communityId: context.communityId,
     session: context.session ?? null,
@@ -72,7 +72,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   }), [progress, embedStorage, context.session, context.communityId, context.ensureSession, context.requireSignIn]);
   const tabs: { id: KnowledgeView; label: string }[] = [
     { id: "resources", label: "Resources" },
-    ...(hasBoard ? [{ id: "board" as const, label: "Board" }] : []),
+    ...(hasBoard ? [{ id: "board" as const, label: "Roadmap" }] : []),
     ...(context.canViewGraph ? [{ id: "graph" as const, label: "Graph" }] : []),
   ];
   const graph = useWebCommunityPolynetController({
