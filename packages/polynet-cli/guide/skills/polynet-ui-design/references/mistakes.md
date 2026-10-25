@@ -55,6 +55,7 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | 28 | AIEB Knowledge "feels very vibe coded": the theme's hand-drawn face and hard sketch shadow went onto every card, list row and back link, and the back link was set in mono. | A theme's character lives in one or two places (page titles, covers); repeated components keep calm, flat defaults in the text face. | `heavy-cards`, `display-font-on-items`, reviewer |
 | 29 | AIEB Knowledge: a lock reason was printed over every locked course's cover, and an empty header row left a dead gap above the catalog. | Status on a cover is a small icon; its words go in the card's meta line. A row with nothing in it isn't drawn. | `text-levels`, reviewer |
 | 30 | AIEB Knowledge (fresh review): the lesson view had two display headings ("Knowledge" and the lesson title) a hand apart, and on phones the open lesson list pushed the lesson below the fold. | One display heading per screen: the thing you're reading. On phones, content comes first and navigation folds. | reviewer |
+| 31 | 2-Hour Club: secondary text was "gray on black, not white on black". The theme's muted and faint levels sat at 4.5 to 7:1 on near-black: they passed AA but read as grey. | On dark schemes, body text is near-white and secondary text stays light: the compiler lifts secondary to 13:1, muted to 10:1 and faint to 7.5:1 against the card surface. | `grey-on-dark` |
 
 ## What each automatic check means
 
@@ -63,6 +64,7 @@ Most mistakes so far trace to five causes. Fix the cause, not the instance.
 | `overflow` | the page scrolls sideways | let the named element wrap or shrink; check grids at 390px |
 | `overlap` | two boxes in the same row cross | give the row room to wrap; stack on phones |
 | `contrast` | text under 4.5:1 (3:1 large) | darken or lighten that text, or its background |
+| `grey-on-dark` | small text on a near-black surface under 7:1 | use the theme's text levels, which the compiler lifts on dark schemes; never hand-mix a grey |
 | `off-palette` | a colour isn't a theme or brand colour or a mix of two | use a theme token; if the brand truly needs it, add it to the brand |
 | `brand-avoid` | a colour the brand rules out appears | replace it |
 | `drift` | too many font sizes, weights, radii, border colours or shadows on one screen | collapse near-identical values onto the system |
