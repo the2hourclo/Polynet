@@ -1,4 +1,5 @@
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { findTestMemberByUserId } from "./communityTestMemberCore";
 import { v } from "convex/values";
 import {
   communityMembershipRowIsActive,
@@ -399,7 +400,7 @@ async function listClients(ctx: any, args: any) {
 
   const clients = await Promise.all(page.page.map(async (membership: any) => {
     const active = communityMembershipRowIsActive(membership);
-    const [profile, subscription, progressRows, forms, facts, values, milestoneState, lastFlaggedAt, lastContactedAt, referral] = await Promise.all([
+    const [profile, subscription, progressRows, forms, facts, values, milestoneState, lastFlaggedAt, lastContactedAt, referral, testMember] = await Promise.all([
       resolveUserProfileDisplayProjection(ctx, membership.userId),
       readLatestSubscription(ctx, membership._id),
       readProgressRows(ctx, args.communityId, membership.userId),
@@ -413,6 +414,7 @@ async function listClients(ctx: any, args: any) {
       readLatestOwnerEventAt(ctx, membership._id, "contacted"),
       ctx.db.query("communityReferrals")
         .withIndex("by_community_user", (q: any) => q.eq("communityId", args.communityId).eq("userId", membership.userId)).first(),
+      findTestMemberByUserId(ctx, membership.userId),
     ]);
     const stage = workflow && active && workflow.milestones.length
       ? (() => { try { return resolveCurrentMilestone({ workflow, membership, state: milestoneState }); } catch { return null; } })()
@@ -428,6 +430,8 @@ async function listClients(ctx: any, args: any) {
       user_id: String(membership.userId),
       name: profile.display_name,
       avatar_url: profile.avatar_url ?? null,
+      // An owner's test run, not a real member: leave it out of real-member work.
+      is_test: Boolean(testMember),
       status: deriveCommunityClientStatus({
         active,
         subscription: subscription ? { status: subscription.status, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd } : null,

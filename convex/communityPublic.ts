@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { requireNotTestMemberOutsideCommunity } from "./communityTestMemberCore";
 import { normalizeCommunityReferralRef } from "../shared/communityClients";
 import { v } from "convex/values";
 import {
@@ -685,6 +686,7 @@ async function joinPublicCommunityInternal(args: {
   reapply_at?: string | null;
 }> {
   await requireAccountSetupCompleteForUser(args.ctx, args.userId);
+  await requireNotTestMemberOutsideCommunity(args.ctx, args.userId, args.community._id);
 
   if (!communityIsActive(args.community)) {
     throw new Error("community_archived");
