@@ -2768,6 +2768,9 @@
 
 .community-context-member.is-offline { opacity: 0.5; }
 .community-context-member.is-offline:hover { opacity: 1; }
+/* In a themed community, offline people stay readable: only the picture fades, not the name. */
+[data-community-theme] .community-context-member.is-offline { opacity: 1; }
+[data-community-theme] .community-context-member.is-offline .community-context-member-avatar { opacity: 0.55; }
 
 .community-context-members-loading {
   display: grid;
