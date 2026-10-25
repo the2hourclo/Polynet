@@ -3161,6 +3161,9 @@
 .community-channel-header-actions {
   position: relative;
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .community-channel-header-menu-trigger {
@@ -4503,6 +4506,9 @@
 .community-interaction-feed {
   margin-top: auto;
   display: grid;
+  /* One column no wider than the feed: a long nowrap line (member arrivals)
+     must ellipsize, not stretch every message past a phone's edge. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 
