@@ -53,9 +53,15 @@ export const DEFAULT_COMMUNITY_THEME = {
     media_plate: "none",
     course_cover_ratio: "auto",
     course_card_size: "default",
+    course_columns: "auto",
+    course_columns_phone: "1",
+    course_gap: "default",
     course_cover_plate: "none",
     course_cover_fit: "crop",
     banner_name: "show",
+    channels_look: "current",
+    rail_size: "standard",
+    rail_color: "polynet",
 };
 const COLOR_KEYS = [
     "background", "surface", "text", "muted", "border", "accent", "on_accent", "button", "on_button",
@@ -79,9 +85,15 @@ const ENUMS = {
     media_plate: ["none", "light"],
     course_cover_ratio: ["auto", "16:9", "3:2", "4:3", "1:1", "21:9"],
     course_card_size: ["default", "small", "medium", "large"],
+    course_columns: ["auto", "1", "2", "3", "4"],
+    course_columns_phone: ["1", "2"],
+    course_gap: ["default", "tight", "roomy"],
     course_cover_plate: ["none", "tint"],
     course_cover_fit: ["crop", "whole"],
     banner_name: ["show", "hide"],
+    channels_look: ["current", "quiet", "reader", "publication"],
+    rail_size: ["standard", "large"],
+    rail_color: ["polynet", "blend", "tint", "brand"],
 };
 const RANGES = {
     heading_weight: [300, 900],
@@ -341,10 +353,21 @@ const DENSITY = { compact: 0.85, comfortable: 1, roomy: 1.15 };
 // Minimum card width per size; "default" keeps Polynet's two-column catalog.
 const COURSE_CARD_MIN_WIDTH = { small: 220, medium: 300, large: 420 };
 function courseColumns(theme) {
+    if (theme.course_columns !== "auto")
+        return fixedCourseColumns(Number(theme.course_columns));
     if (theme.course_card_size === "default")
         return "repeat(2, minmax(0, 1fr))";
     return `repeat(auto-fill, minmax(min(100%, ${COURSE_CARD_MIN_WIDTH[theme.course_card_size]}px), 1fr))`;
 }
+// At most `count` cards per row. Each column is at least its share of the row
+// less the widest gap (2.5rem), so `count` always fit, and the row wraps
+// before a card gets narrower than 160px.
+function fixedCourseColumns(count) {
+    if (count === 1)
+        return "minmax(0, 1fr)";
+    return `repeat(auto-fill, minmax(max(min(100%, 160px), calc((100% - ${count - 1} * 2.5rem) / ${count})), 1fr))`;
+}
+const COURSE_GAP = { tight: "0.75rem", roomy: "2.5rem" };
 // Every text size inside a community is one of these roles, so one text-size
 // setting moves all of them together. Sizes are Polynet's defaults at 100%.
 export const COMMUNITY_TYPE_ROLES = {
@@ -416,6 +439,11 @@ export function communityThemeVariables(theme, scheme) {
         "--pn-cover-plate": coverTint ? `color-mix(in srgb, ${c.accent} 9%, ${c.surface})` : "var(--bg-card-alt)",
         "--pn-cover-blend": coverTint ? "multiply" : "normal",
         "--pn-course-columns": courseColumns(theme),
+        // Set only when the owner picked them, so page styles keep their own
+        // columns and spacing otherwise ("initial" makes var() use its fallback).
+        "--pn-course-columns-owner": theme.course_columns === "auto" ? "initial" : courseColumns(theme),
+        "--pn-course-columns-phone": `repeat(${theme.course_columns_phone}, minmax(0, 1fr))`,
+        "--pn-course-gap-owner": theme.course_gap === "default" ? "initial" : COURSE_GAP[theme.course_gap],
         "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
         "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",
         "--pn-banner-name": theme.banner_name === "hide" ? "hidden" : "visible",

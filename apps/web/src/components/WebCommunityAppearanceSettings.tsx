@@ -44,7 +44,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -54,6 +54,9 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   button_shape: ["Buttons", [["rounded", "Rounded"], ["pill", "Pill"], ["square", "Square"], ["sketch", "Sketch"]]],
   course_cover_ratio: ["Cover shape", [["auto", "Polynet default"], ["16:9", "Wide 16:9"], ["3:2", "Photo 3:2"], ["4:3", "Classic 4:3"], ["1:1", "Square"], ["21:9", "Banner 21:9"]]],
   course_card_size: ["Card size", [["default", "Two columns"], ["small", "Small"], ["medium", "Medium"], ["large", "Large"]]],
+  course_columns: ["Cards per row", [["auto", "Fit by card size"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]]],
+  course_columns_phone: ["Cards per row on phones", [["1", "1"], ["2", "2"]]],
+  course_gap: ["Space between cards", [["default", "Page style's own"], ["tight", "Tight"], ["roomy", "Roomy"]]],
   course_cover_plate: ["Cover background (light scheme)", [["none", "Plain"], ["tint", "Soft accent tint"]]],
   course_cover_fit: ["Cover pictures", [["crop", "Fill the box"], ["whole", "Show whole picture"]]],
   media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
@@ -549,9 +552,15 @@ function AppearanceEditor(props: EditorProps) {
           {choice("shadow")}
           {choice("density")}
         </Group>
-        <Group title="Courses">
+        <Group title="Course grid">
+          {choice("course_columns")}
+          {theme.course_columns === "auto" ? choice("course_card_size") : null}
+          {choice("course_columns_phone")}
+          {choice("course_gap")}
           {choice("course_cover_ratio")}
-          {choice("course_card_size")}
+          <p className="appearance-hint">{theme.course_columns === "auto" ? "Bigger cards mean fewer per row." : "Rows wrap sooner on narrow screens, so cards stay readable."}</p>
+        </Group>
+        <Group title="Course covers">
           {choice("course_cover_fit")}
           {choice("course_cover_plate")}
           {choice("media_plate")}

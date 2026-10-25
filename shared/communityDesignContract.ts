@@ -60,7 +60,7 @@ export const COMMUNITY_DESIGN_SURFACES = {
   },
   course_catalog: {
     label: "Course grid, covers and card text",
-    tokens: ["course_card_size", "course_cover_ratio", "type_scale"],
+    tokens: ["course_card_size", "course_columns", "course_columns_phone", "course_gap", "course_cover_ratio", "type_scale"],
     classes: [
       "resource-course-grid",
       "resource-course-card-cover",

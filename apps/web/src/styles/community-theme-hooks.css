@@ -123,6 +123,7 @@
 /* Course catalog: card size and cover shape */
 [data-community-theme] .resource-course-grid {
   grid-template-columns: var(--pn-course-columns);
+  gap: var(--pn-course-gap-owner, 24px);
 }
 /* Page layouts (shared/communityLayout.ts) keep flat, hairline cards and a
    sans title on the feed whatever the theme's card style: only the corner
@@ -137,10 +138,11 @@
   letter-spacing: -0.005em;
 }
 
-/* Phones always get one column, whatever the card size. */
+/* Phones get one or two cards per row, whatever the card size. */
 @media (max-width: 640px) {
   [data-community-theme] .resource-course-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--pn-course-columns-phone, minmax(0, 1fr));
+    gap: var(--pn-course-gap-owner, 14px);
   }
 }
 [data-community-theme] .resource-course-card-cover {

@@ -56,6 +56,9 @@ look; both follow the member's own Light/Dark choice.
 | `media_plate` | `none`, `light` (frames white-background images in dark schemes) |
 | `course_cover_ratio` | `auto` (Polynet's fixed height), `16:9`, `3:2`, `4:3`, `1:1`, `21:9` |
 | `course_card_size` | `default` (two columns), `small`, `medium`, `large` (cards at least 220, 300 or 420px wide, as many columns as fit) |
+| `course_columns` | `auto` (Card size decides), or `1`–`4` cards per row on desktop (rows wrap before a card is narrower than 160px). Overrides the page style's columns |
+| `course_columns_phone` | `1` or `2` cards per row on phones |
+| `course_gap` | `default` (the page style's own spacing), `tight`, `roomy` |
 | `course_cover_plate` | `none`, `tint` (light schemes: covers are printed onto a soft wash of the accent, so pale drawings and screenshots match) |
 | `course_cover_fit` | `crop` (covers fill the box, framed by each course's focus and zoom), `whole` (each cover shows in full, centred in the box; for wide banners with words on them) |
 | `banner_name` | `show` (the name sits over the side column's banner), `hide` (the banner artwork already shows it) |

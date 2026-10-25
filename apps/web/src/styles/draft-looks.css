@@ -534,9 +534,10 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   letter-spacing: 0;
   text-transform: none;
 }
+/* Columns and spacing the owner picked in Customize win over the look's own. */
 .product-shell-surface[data-channels-feel="quiet"] .resource-course-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: var(--pn-course-columns-owner, repeat(2, minmax(0, 1fr)));
+  gap: var(--pn-course-gap-owner, 1rem);
 }
 .product-shell-surface[data-channels-feel="quiet"] .resource-course-card {
   border: 1px solid var(--feel-hairline);
@@ -925,8 +926,8 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 }
 /* Courses as editorial cards: open covers, no boxes, heading-font titles. */
 .product-shell-surface[data-channels-feel="publication"] .resource-course-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2rem 1.75rem;
+  grid-template-columns: var(--pn-course-columns-owner, repeat(2, minmax(0, 1fr)));
+  gap: var(--pn-course-gap-owner, 2rem 1.75rem);
 }
 .product-shell-surface[data-channels-feel="publication"] .resource-course-card {
   border: 0;
