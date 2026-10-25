@@ -12,6 +12,21 @@ const FONT_ELEMENT_ID = "polynet-community-theme-font";
 /** Fired after a manager publishes, so the open community picks up its new look. */
 export const COMMUNITY_THEME_PUBLISHED_EVENT = "polynet:community-theme-published";
 
+// Settings → Appearance → Customize shows the real community in a same-origin
+// frame opened with this query flag. The editor posts its unsaved draft to the
+// frame, which wears it in place of the published look. Read once at load, so
+// the frame stays a preview while the owner clicks around inside it.
+export const APPEARANCE_PREVIEW_PARAM = "appearance_preview";
+export const APPEARANCE_PREVIEW_THEME_MESSAGE = "polynet:appearance-preview-theme";
+export const APPEARANCE_PREVIEW_READY_MESSAGE = "polynet:appearance-preview-ready";
+export const IS_APPEARANCE_PREVIEW_FRAME = (() => {
+  try {
+    return window.parent !== window && new URLSearchParams(window.location.search).has(APPEARANCE_PREVIEW_PARAM);
+  } catch {
+    return false;
+  }
+})();
+
 function upsertHeadElement<T extends HTMLElement>(id: string, tag: string): T {
   const existing = document.getElementById(id);
   if (existing) return existing as T;
@@ -57,7 +72,24 @@ export function useWebCommunityThemeStyle(communityId: string | null): string | 
     };
   }, [communityId]);
 
-  const theme = loaded && loaded.communityId === communityId ? loaded.theme : null;
+  const [preview, setPreview] = useState<{ communityId: string; theme: CommunityThemeV1 } | null>(null);
+  useEffect(() => {
+    if (!IS_APPEARANCE_PREVIEW_FRAME || !communityId) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== window.parent || event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; communityId?: string; theme?: CommunityThemeV1 } | null;
+      if (data?.type === APPEARANCE_PREVIEW_THEME_MESSAGE && data.communityId === communityId && data.theme) {
+        setPreview({ communityId, theme: data.theme });
+      }
+    };
+    window.addEventListener("message", onMessage);
+    window.parent.postMessage({ type: APPEARANCE_PREVIEW_READY_MESSAGE, communityId }, window.location.origin);
+    return () => window.removeEventListener("message", onMessage);
+  }, [communityId]);
+
+  const theme = preview && preview.communityId === communityId
+    ? preview.theme
+    : loaded && loaded.communityId === communityId ? loaded.theme : null;
 
   useEffect(() => {
     if (!communityId || !theme) return;

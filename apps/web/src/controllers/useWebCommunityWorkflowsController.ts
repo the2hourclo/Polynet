@@ -19,6 +19,7 @@ import {
   forceCloudCommunityMemberMilestone,
   approveCloudCommunityMemberMilestone,
   retryCloudCommunityMemberGoalReview,
+  retryCloudCommunityMemberWorkflowAction,
   type CloudCommunityMemberWorkflowBoard,
   type CloudCommunityMemberWorkflowBoardPage,
   type CloudCommunityMemberWorkflowMember,
@@ -60,6 +61,9 @@ function workflowErrorMessage(error: unknown): string {
   if (message.includes("welcome_media_url_invalid")) return "Enter a full video or image link, starting with https://.";
   if (message.includes("welcome_title_too_long")) return "Keep the welcome headline to 120 characters.";
   if (message.includes("welcome_message_too_long")) return "Keep the welcome message to 4,000 characters.";
+  if (message.includes("milestone_cleanup_incomplete")) {
+    return "This milestone is still clearing out members who left. Delete it again to finish.";
+  }
   if (message.includes("milestone_has_members")) {
     return "Move members out of this milestone before deleting it.";
   }
@@ -498,6 +502,13 @@ export function useWebCommunityWorkflowsController(params: {
       const session = await params.ensureSession(params.session, "community_workflow_retry_goal_review");
       if (!session || scope !== serviceChannelScopeRef.current) throw new Error("Session changed. Reopen the member panel.");
       await retryCloudCommunityMemberGoalReview({ session, dossier: snapshot });
+    },
+    retryAction: async (snapshot: CloudCommunityMemberSuccessDossier, automationKey: string) => {
+      const scope = serviceChannelScopeRef.current;
+      if (!params.canManageMembers || snapshot.community_id !== params.activeCommunityId || snapshot.membership_id !== selectedMembershipId) throw new Error("Member changed. Reopen the member panel.");
+      const session = await params.ensureSession(params.session, "community_workflow_retry_action");
+      if (!session || scope !== serviceChannelScopeRef.current) throw new Error("Session changed. Reopen the member panel.");
+      return await retryCloudCommunityMemberWorkflowAction({ session, dossier: snapshot, automationKey });
     },
     forceMove: async (snapshot: CloudCommunityMemberSuccessDossier) => {
       const scope = serviceChannelScopeRef.current;

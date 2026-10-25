@@ -57,7 +57,7 @@ export type CommunityTab = (typeof COMMUNITY_TABS)[number];
 
 export const COMMUNITY_SETTINGS_PANES = [
   "community",
-  "look",
+  "appearance",
   "agent",
   "danger",
 ] as const;
@@ -152,8 +152,10 @@ export function parseCommunitySettingsPane(
       return "agent";
     case "danger":
       return "danger";
+    // "look" is the pane's earlier name; old links still open it.
+    case "appearance":
     case "look":
-      return "look";
+      return "appearance";
     case "community":
     default:
       return "community";
@@ -177,7 +179,7 @@ export function isCommunitySettingsPaneAllowedForAccess(
     case "agent":
       return access.canManageMembers;
     // Fonts, sizing and colours: the theme draft, which managers may edit.
-    case "look":
+    case "appearance":
       return access.canManageMembers;
     case "danger":
       return access.isOwner;

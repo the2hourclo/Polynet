@@ -70,6 +70,8 @@ type WorkflowMilestoneMutationResult = {
   workflow_id: string;
   revision: number;
   milestone?: CommunityMemberWorkflowMilestone;
+  /** Delete only: it cleared a batch of departed members' positions; call again. */
+  pending_cleanup?: true;
 };
 
 export function createCloudCommunityMemberWorkflowLiveClient<SessionT>(
@@ -313,6 +315,13 @@ export async function retryCloudCommunityMemberGoalReview<SessionT>(params: Work
     { authSubject, ...currentWorkflowAuthorityArgs(params.dossier), expectedReceiptRef: receiptRef });
 }
 
+/** Runs a failed or since-changed lesson- or course-done property write again. */
+export async function retryCloudCommunityMemberWorkflowAction<SessionT>(params: WorkflowGatewayParams<SessionT> & { dossier: CloudCommunityMemberSuccessDossier; automationKey: string }) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return client.mutation(api.communityMemberWorkflows.retryBuilderMemberWorkflowAction,
+    { authSubject, ...currentWorkflowAuthorityArgs(params.dossier), automationKey: params.automationKey });
+}
+
 async function submitCloudCommunityMemberDecision<SessionT>(params: WorkflowGatewayParams<SessionT> & { dossier: CloudCommunityMemberSuccessDossier }, approval: boolean) {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
   const args = { authSubject, ...currentWorkflowAuthorityArgs(params.dossier) };
@@ -331,13 +340,18 @@ export async function deleteCloudCommunityMemberWorkflowMilestone<SessionT>(
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(
     params.session,
   );
-  return (await client.mutation(
-    api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
-    {
-      authSubject,
-      communityId: params.communityId as Id<"communities">,
-      expectedRevision: params.expectedRevision,
-      milestoneKey: params.milestoneKey,
-    },
-  )) as WorkflowMilestoneMutationResult;
+  // A stage with many departed members' positions clears them in batches first.
+  for (let batch = 0; batch < 200; batch += 1) {
+    const result = (await client.mutation(
+      api.communityMemberWorkflows.deleteBuilderWorkflowMilestone,
+      {
+        authSubject,
+        communityId: params.communityId as Id<"communities">,
+        expectedRevision: params.expectedRevision,
+        milestoneKey: params.milestoneKey,
+      },
+    )) as WorkflowMilestoneMutationResult;
+    if (!result.pending_cleanup) return result;
+  }
+  throw new Error("community_member_workflow_milestone_cleanup_incomplete");
 }

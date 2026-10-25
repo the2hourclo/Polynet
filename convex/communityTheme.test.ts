@@ -170,6 +170,14 @@ describe("community theme compilation", () => {
     expect(normalizeCommunityTheme({ course_cover_plate: "photo" }).ok).toBe(false);
   });
 
+  test("a whole cover fit shows each cover in full, over its inline framing", () => {
+    expect(compileCommunityThemeCss(DEFAULT_COMMUNITY_THEME, ".c")).not.toContain("object-fit: contain");
+    const whole = normalizeCommunityTheme({ ...STOPWATCH_THEME, course_cover_fit: "whole" });
+    if (!whole.ok) throw new Error("invalid");
+    expect(compileCommunityThemeCss(whole.theme, ".c")).toContain(".c .resource-course-card-cover-image {\n  inset: 0 !important;");
+    expect(normalizeCommunityTheme({ course_cover_fit: "stretch" }).ok).toBe(false);
+  });
+
   test("text roles all follow the one text-size setting", () => {
     const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
     expect(defaults["--pn-type-body"]).toBe("15px");

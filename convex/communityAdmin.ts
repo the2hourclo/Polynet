@@ -63,6 +63,7 @@ import { deleteCommunityPresenceForUser } from "./communityPresenceCore";
 import { communityIsActive } from "../shared/communityLifecycle";
 import { requireCommunityBuilderAccess } from "./communityBuilderAccessCore";
 import { recordCriticalAuditEvent } from "./criticalAudit";
+import { deleteMemberWorkflowPosition } from "./communityMemberWorkflowReadCore";
 
 type AnalyticsRangeValue = "7d" | "30d" | "90d" | "1y" | "all";
 type AnalyticsBucketValue = "day" | "week" | "month";
@@ -2402,6 +2403,7 @@ export const leaveCommunity = mutation({
             });
           } else {
             await ctx.db.delete(membership._id as any);
+            await deleteMemberWorkflowPosition({ ctx, communityId: args.communityId, membershipId: membership._id as any });
           }
           await adjustCommunityActiveMemberCountForMembershipTransition({
             ctx,

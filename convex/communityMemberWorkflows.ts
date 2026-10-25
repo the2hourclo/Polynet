@@ -59,6 +59,10 @@ import { intakeCommunityAgentWorkflowAction } from "./communityAgentConciergeCor
 import { resolveNotificationRecipientSource } from "./communityNotificationAccess";
 import { bindMemberServiceChannel } from "./communityMemberServiceChannelCore";
 
+// Departed members' positions cleared per call; past this the call clears a
+// batch and asks the caller to call again (the gateway does), so any number clears.
+const DEPARTED_POSITIONS_PER_CALL = 1_000;
+
 const managerIdentityArgs = {
   userId: v.optional(v.id("users")),
   authSubject: v.optional(v.string()),
@@ -562,13 +566,6 @@ export const deleteBuilderWorkflowMilestone = mutation({
     if (milestoneIndex < 0) {
       throw new Error("community_member_workflow_milestone_invalid");
     }
-    const occupied = await ctx.db
-      .query("communityMemberWorkflowMemberMilestones")
-      .withIndex("by_workflow_milestone", (q: any) =>
-        q.eq("workflowId", workflow._id).eq("currentMilestoneKey", milestoneKey),
-      )
-      .first();
-    if (occupied) throw new Error("community_member_workflow_milestone_has_members");
     if (milestoneIndex === 0) {
       const activeMemberCount = readCommunityActiveMemberCount(community);
       if (activeMemberCount === null) {
@@ -577,6 +574,24 @@ export const deleteBuilderWorkflowMilestone = mutation({
       if (activeMemberCount > 1) {
         throw new Error("community_member_workflow_milestone_has_members");
       }
+    }
+    // Leaving now removes a member's position, but members who left before
+    // that kept one, with their membership gone (a rejoin starts a new one).
+    // Those rows go with the stage instead of blocking it; anyone still a
+    // member holds it.
+    const positions = await ctx.db
+      .query("communityMemberWorkflowMemberMilestones")
+      .withIndex("by_workflow_milestone", (q: any) =>
+        q.eq("workflowId", workflow._id).eq("currentMilestoneKey", milestoneKey),
+      )
+      .take(DEPARTED_POSITIONS_PER_CALL + 1);
+    for (const position of positions.slice(0, DEPARTED_POSITIONS_PER_CALL)) {
+      if (await ctx.db.get(position.membershipId)) throw new Error("community_member_workflow_milestone_has_members");
+      await ctx.db.delete(position._id);
+    }
+    // More to clear: keep this batch, leave the stage, and say to call again.
+    if (positions.length > DEPARTED_POSITIONS_PER_CALL) {
+      return { workflow_id: String(workflow._id), revision: expectedRevision, pending_cleanup: true as const };
     }
     const revision = expectedRevision + 1;
     await ctx.db.patch(workflow._id, {
@@ -1114,6 +1129,52 @@ export const retryBuilderMemberGoalReview = mutation({
         originalIntakeReason: request.intakeReason },
       actionResult: { actionKey: COMPLETION_REVIEW_KEY, status: "complete", serveRequestId: request._id } });
     return { status: "review_queued" as const };
+  },
+});
+
+// A lesson- or course-done property write that failed (say the option was
+// removed), or ran before the builder changed the rule. The lesson won't be
+// finished again, so the builder runs the current rule once more in this
+// visit, answering the rule's newest run so each one is retried once.
+export const retryBuilderMemberWorkflowAction = mutation({
+  args: { ...managerIdentityArgs, communityId: v.id("communities"), membershipId: v.id("communityMemberships"),
+    expectedWorkflowId: v.id("communityMemberWorkflows"), expectedWorkflowRevision: v.number(),
+    expectedMilestoneKey: v.string(), expectedMilestoneEnteredAt: v.number(),
+    expectedActivationSequence: v.number(), expectedTransitionSeq: v.number(), automationKey: v.string() },
+  handler: async (ctx, args) => {
+    await requireWorkflowManager({ ctx, ...args });
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    const membership = await ctx.db.get(args.membershipId);
+    if (!workflow || workflow._id !== args.expectedWorkflowId || workflow.revision !== args.expectedWorkflowRevision
+      || !membership || membership.communityId !== args.communityId || !communityMembershipRowIsActive(membership))
+      throw new Error("community_member_workflow_action_retry_authority_changed");
+    const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+    const current = resolveCurrentMilestone({ workflow, membership, state });
+    const activation = Number(membership.activationSequence ?? 0), transitionSeq = Number(state?.transitionSeq ?? 0);
+    if (current.completedAt || current.milestone.key !== args.expectedMilestoneKey
+      || current.milestoneEnteredAt !== args.expectedMilestoneEnteredAt
+      || activation !== args.expectedActivationSequence || transitionSeq !== args.expectedTransitionSeq)
+      throw new Error("community_member_workflow_action_retry_evidence_changed");
+    const automation = (current.milestone as CommunityMemberWorkflowMilestone).automations.find(a => a.key === args.automationKey);
+    const progress = await readWorkflowActionProgress(ctx, { workflow, membership, milestone: current.milestone,
+      milestoneEnteredAt: current.milestoneEnteredAt, transitionSeq });
+    const item = progress.actions.find(a => a.automation_key === args.automationKey);
+    if (!automation || automation.action.type !== "set_client_property" || !item?.retryable || item.evidence || item.status === "running")
+      throw new Error("community_member_workflow_action_retry_unavailable");
+    const runs = await ctx.db.query("communityMemberWorkflowRuns")
+      .withIndex("by_workflow_membership_createdAt", q => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+      .order("desc").take(256);
+    const last = runs.find(run => run.automationKey === automation.key && run.milestoneKey === current.milestone.key
+      && run.milestoneEnteredAt === current.milestoneEnteredAt && run.activationSequence === activation
+      && run.transitionSeq === transitionSeq && run.triggerSnapshot
+      && workflowTriggerIdentity(run.triggerSnapshot) === workflowTriggerIdentity(automation.trigger));
+    if (!last || last.status === "running") throw new Error("community_member_workflow_action_retry_unavailable");
+    const result = await executeWorkflowAutomation({ ctx, workflow, membership, current, automation,
+      timerReceiptRef: `workflow_action_retry:${last._id}` });
+    if (result.status === "already_executed") throw new Error("community_member_workflow_action_retry_unavailable");
+    return result.status === "action_failed"
+      ? { status: "action_failed" as const, error_code: "error_code" in result ? result.error_code : undefined }
+      : { status: "client_property_set" as const };
   },
 });
 

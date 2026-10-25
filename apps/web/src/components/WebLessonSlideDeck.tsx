@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import type { CommunityLessonSlide } from "../../../../shared/communityLessonContract";
 import { renderMarkdown } from "../../../../shared/markdownUi";
@@ -10,16 +10,23 @@ const MAX_DOTS = 20;
 // A lesson's "## Slides" section shown one slide at a time: the slide, its
 // note underneath, arrows, a counter and full screen. Arrow keys work once the
 // deck has focus, and a sideways swipe turns the slide on touch screens.
-export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[] }) {
+// Notes render like the rest of the lesson, so a checklist or quiz in one works.
+export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[]; renderNote?: (markdown: string) => ReactNode }) {
   const { slides } = props;
   const [index, setIndex] = useState(0);
   const [ratio, setRatio] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const deckRef = useRef<HTMLElement | null>(null);
+  const noteRef = useRef<HTMLDivElement | null>(null);
   const swipeFrom = useRef<number | null>(null);
   const last = slides.length - 1;
   const current = slides[Math.min(index, last)];
   const go = (next: number) => setIndex(Math.max(0, Math.min(last, next)));
+  // Rendered once per slide, so a checklist or quiz in the note keeps its place
+  // (and focus) while the deck itself re-renders.
+  const noteMd = current?.note_md ?? "";
+  const { renderNote } = props;
+  const note = useMemo(() => (noteMd ? (renderNote ? renderNote(noteMd) : renderMarkdown(noteMd)) : null), [noteMd, renderNote]);
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement === deckRef.current);
@@ -39,7 +46,11 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[] }) {
   };
 
   // Keys stay inside the deck, so Enter on an arrow never opens the owner's body editor.
+  // Keys in a note's checklist, quiz or form (or a dialog it opens, which React
+  // bubbles through here) belong to that control, not to the deck.
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const target = event.target as Node;
+    if (!event.currentTarget.contains(target) || noteRef.current?.contains(target)) return;
     event.stopPropagation();
     if (event.key === "ArrowRight" || event.key === "PageDown") go(index + 1);
     else if (event.key === "ArrowLeft" || event.key === "PageUp") go(index - 1);
@@ -87,10 +98,11 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[] }) {
             if (!ratio && naturalWidth && naturalHeight) setRatio(naturalWidth / naturalHeight);
           }}
         />
-        <button className="lesson-slide-deck-side is-prev" type="button" aria-label="Previous slide" disabled={index === 0} onClick={() => go(index - 1)}>
+        {/* Pointer shortcuts on the slide; keyboard and screen reader users get the same buttons in the bar below. */}
+        <button className="lesson-slide-deck-side is-prev" type="button" tabIndex={-1} aria-hidden="true" disabled={index === 0} onClick={() => go(index - 1)}>
           <ChevronLeft aria-hidden="true" />
         </button>
-        <button className="lesson-slide-deck-side is-next" type="button" aria-label="Next slide" disabled={index === last} onClick={() => go(index + 1)}>
+        <button className="lesson-slide-deck-side is-next" type="button" tabIndex={-1} aria-hidden="true" disabled={index === last} onClick={() => go(index + 1)}>
           <ChevronRight aria-hidden="true" />
         </button>
       </div>
@@ -128,7 +140,7 @@ export function WebLessonSlideDeck(props: { slides: CommunityLessonSlide[] }) {
           </button>
         </div>
       </div>
-      {current.note_md ? <div className="lesson-slide-deck-note">{renderMarkdown(current.note_md)}</div> : null}
+      {note ? <div ref={noteRef} className="lesson-slide-deck-note">{note}</div> : null}
     </section>
   );
 }

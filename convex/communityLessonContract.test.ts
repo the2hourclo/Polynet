@@ -146,6 +146,30 @@ describe("lesson body projection", () => {
     expect(splitCommunityLessonSlides("## Slides\n\nNo images here.")).toBeNull();
   });
 
+  test("the deck keeps text before its first image, and code examples stay text", () => {
+    const split = splitCommunityLessonSlides("Intro.\n\n## Slides\n\nRead these first.\n\n![A](a.png)\n\nNote A.\n\n```md\n![B](b.png)\n## Not a section\n```\n\n![C](c.png)")!;
+    expect(split.before).toBe("Intro.\n\nRead these first.");
+    expect(split.slides.map((slide) => slide.image)).toEqual(["a.png", "c.png"]);
+    expect(split.slides[0].note_md).toBe("Note A.\n\n```md\n![B](b.png)\n## Not a section\n```");
+    expect(split.after).toBe("");
+    // A "## Slides" heading inside a code example is not a deck.
+    const example = "How to write one:\n\n```md\n## Slides\n\n![X](x.png)\n```";
+    expect(splitCommunityLessonSlides(example)).toBeNull();
+    expect(projectCommunityLessonBody(example)).toMatchObject({ slides: [], intro_md: example });
+    // Fences follow Markdown: a ```c# or indented opener is a fence, and a
+    // backtick line with words after it doesn't close one.
+    for (const opener of ["```c#", "  ```", "~~~~"]) {
+      const close = opener.trim().startsWith("~") ? "~~~~" : "```";
+      const body = `## Slides\n\n![A](a.png)\n\n${opener}\n![B](b.png)\n${close}`;
+      expect(splitCommunityLessonSlides(body)!.slides.map((slide) => slide.image)).toEqual(["a.png"]);
+    }
+    const notClosed = splitCommunityLessonSlides("## Slides\n\n![A](a.png)\n\n```md\n```not-a-close\n![B](b.png)\n```\n\n![C](c.png)")!;
+    expect(notClosed.slides.map((slide) => slide.image)).toEqual(["a.png", "c.png"]);
+    // More slides than a deck shows: the body reads as written, nothing dropped.
+    const many = ["## Slides", ...Array.from({ length: 61 }, (_, i) => `![S${i}](s${i}.png)`)].join("\n\n");
+    expect(splitCommunityLessonSlides(many)).toBeNull();
+  });
+
   test("a plain body has an intro and nothing else", () => {
     expect(projectCommunityLessonBody("Just text.")).toEqual({
       intro_md: "Just text.",

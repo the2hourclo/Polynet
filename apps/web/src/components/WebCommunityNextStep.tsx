@@ -74,6 +74,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
     questionSection.current?.querySelector<HTMLElement>("input,textarea,button")?.focus();
   }, [index, request?.id, done]);
   const alive = useRef(true), saving = useRef(false);
+  const inflight = useRef<Promise<boolean> | null>(null);
   const latest = useRef(answers); latest.current = answers;
   const saver = useRef<ReturnType<typeof createMemberFormSave> | null>(null);
   const current = useRef<MemberFormRequest | null>(null);
@@ -98,14 +99,18 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
     finally { saving.current = false; if (alive.current) setBusy(false); }
   };
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, []);
-  const save = async (nextIntent: FormSaveIntent = "autosave", retry = false) => {
+  const save = async (nextIntent: FormSaveIntent = "autosave", retry = false): Promise<boolean> => {
+    // Continue, Submit or Close pressed while an autosave is saving waits for it, instead of doing nothing.
+    if (saving.current && nextIntent !== "autosave") await inflight.current;
     if (saving.current || !current.current || !saver.current) return false;
     const snapshot = latest.current;
     const issue = retry ? null : formAnswersIssue(current.current.questions, snapshot, nextIntent === "submit"); if (issue) { setValidation(issue); return false; }
-    setValidation(null);
+    // A background autosave never clears the problem Continue just showed; typing clears it.
+    if (nextIntent !== "autosave") setValidation(null);
     saving.current = true; setBusy(true); setIntent(nextIntent);
-    try {
-      const result = await saver.current.run(nextIntent, snapshot, retry);
+    const saver_ = saver.current;
+    const work = (async () => { try {
+      const result = await saver_.run(nextIntent, snapshot, retry);
       if (!alive.current || !result) return false;
       setError(null); setFailedIntent(null);
       if (result.submitted) setDone(true);
@@ -113,11 +118,13 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
       else if (result.intent === "close") props.onClose();
       return true;
     } catch (e) { if (alive.current) { setFailedIntent(nextIntent); setError(String(e).includes("conflict") ? "Changed in another session. Reload saved answers before continuing." : "Could not save. Your answers are still here. Retry the same operation or discard and reload."); } return false;
-    } finally { saving.current = false; if (alive.current) setBusy(false); }
+    } finally { saving.current = false; if (alive.current) setBusy(false); } })();
+    inflight.current = work;
+    return work;
   };
   useEffect(() => { if (!request || done || busy || error || !saver.current?.dirty(answers)) return; const timer = setTimeout(() => { void save(); }, 600); return () => clearTimeout(timer); }, [answers, request, busy, error, done]);
   useEffect(() => { const warn = (e: BeforeUnloadEvent) => { if (saver.current?.dirty(latest.current)) { e.preventDefault(); e.returnValue = ""; } }; window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, []);
-  const close = async () => { if (saving.current) return; if (done || !request) props.onClose(); else if (!error) await save("close"); };
+  const close = async () => { if (saving.current) await inflight.current; if (saving.current) return; if (done || !request) props.onClose(); else if (!error) await save("close"); };
   const locked = (busy && intent !== "autosave") || failedIntent !== null;
   const q = request?.questions[index];
   // The question, its help text, whether it's required and any problem are read
@@ -140,7 +147,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
         : <input {...field} aria-required={q.required} maxLength={10000} inputMode={q.answerFormat === "number" ? "decimal" : q.answerFormat === "url" ? "url" : undefined} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
       {/* Right under the answer, so it's seen without scrolling and read out with the field. */}
       {validation ? <p role="alert" id={`${fieldId}-issue`} className="member-form-issue">{validation}</p> : null}
-      <footer><button disabled={busy || !!error || index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button disabled={busy || !!error} onClick={async () => {
+      <footer><button disabled={locked || !!error || index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button disabled={locked || !!error} onClick={async () => {
         const answerField = () => requestAnimationFrame(() => questionSection.current?.querySelector<HTMLElement>("input,textarea")?.focus());
         if (q.required && !formQuestionAnswered(q, answers)) { setValidation("Please answer this question."); answerField(); return; }
         const shape = q.answerFormat && typeof answers[q.key] === "string" ? communityClientAnswerFormatIssue(q.answerFormat, answers[q.key] as string) : null;
