@@ -575,6 +575,12 @@ export const saveBuilderWelcomePage = mutation({
         : { ...(title ? { title } : {}), ...(message ? { message } : {}), ...(mediaUrl ? { mediaUrl } : {}) },
       welcomeLessonIds: lessonIds, milestones, revision, updatedByUserId: userId, updatedAt: Date.now(),
     });
+    // Same as a Workflows save: a stage with timed rules re-reads them when its rules change.
+    const first = workflow.milestones[0];
+    if (first && milestones !== workflow.milestones && first.automations.some((a) => a.trigger.type === "milestone_elapsed")) {
+      await ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.refreshMilestoneTimersInternal,
+        { workflowId: workflow._id, milestoneKey: first.key, cursor: null });
+    }
     return { workflow_id: String(workflow._id), revision };
   },
 });
