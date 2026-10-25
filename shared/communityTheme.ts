@@ -583,10 +583,11 @@ export function compileCommunityThemeCss(theme: CommunityThemeV1, scope: string)
         block(`:root[data-theme="light"] ${scope}`, communityThemeVariables(theme, "light"), "light"),
       ];
   // A cover's framing is written inline (StableFramedMedia), so showing it
-  // whole has to outrank that framing. The bands around it are the cover's
-  // own background, not the media plate.
+  // whole has to outrank that framing. The bands around it are the media
+  // plate when the theme has one (images drawn on white get white-ish bands),
+  // otherwise the cover's own background.
   if (theme.course_cover_fit === "whole") {
-    parts.push(`${scope} .resource-course-card-cover-image {\n  inset: 0 !important;\n  width: 100% !important;\n  height: 100% !important;\n  object-fit: contain !important;\n  padding: 0 !important;\n  background: none !important;\n}`);
+    parts.push(`${scope} .resource-course-card-cover-image {\n  inset: 0 !important;\n  width: 100% !important;\n  height: 100% !important;\n  object-fit: contain !important;\n  padding: 0 !important;\n}`);
   }
   return `/* Community theme v${theme.version}; compiled, do not edit. */\n${parts.join("\n\n")}\n`;
 }
