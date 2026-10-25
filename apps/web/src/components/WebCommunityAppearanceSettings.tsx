@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, GraduationCap, MessagesSquare, Monitor, Palette, Smartphone, type LucideIcon } from "lucide-react";
 import {
   compileCommunityThemeCss,
   communityTextLevels,
@@ -55,6 +56,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
 };
 // The community pages the preview can show, by their tab in the address.
 const PREVIEW_PAGES: [string, string][] = [["chat", "Chat"], ["resources", "Courses"], ["events", "Events"]];
+const PAGE_ICONS: Record<string, LucideIcon> = { chat: MessagesSquare, resources: GraduationCap, events: CalendarDays };
 type SchemeMode = "light" | "dark" | "both";
 const SCHEME_MODES: [SchemeMode, string][] = [["light", "Always light"], ["dark", "Always dark"], ["both", "Member chooses"]];
 
@@ -175,27 +177,32 @@ export function WebCommunityAppearanceSettings(props: Props) {
   </>;
   const shown = check?.ok ? check.theme : theme;
 
+  const hasDraft = dirty || state.hasUnpublishedChanges;
+  // Like Substack's Settings → Website: a card that sums up the look and links
+  // out to the visual editor instead of repeating its controls here.
   return <div className="settings-section community-look">
-    <div className="settings-section-title">Appearance</div>
-    <div className="settings-section-desc">Colours, fonts and shapes for your community. Changes stay a draft until you publish, so members only see what you publish.</div>
-    <div className="appearance-overview">
-      <div className="community-look-preview" data-community-theme={PREVIEW_SCOPE}>
-        <style>{previewCss}</style>
-        {fontUrl ? <link rel="stylesheet" href={fontUrl} /> : null}
-        <SampleContent />
+    <style>{previewCss}</style>
+    {fontUrl ? <link rel="stylesheet" href={fontUrl} /> : null}
+    <section className="appearance-card" aria-labelledby={`${uid}-title`}>
+      <header><h2 id={`${uid}-title`}>Appearance</h2></header>
+      <div className="appearance-callout">
+        <span className="appearance-callout-icon" aria-hidden="true"><Palette size={20} /></span>
+        <div className="appearance-callout-text">
+          <strong>Design your community</strong>
+          <p>Pick a starting point, then adjust colours, fonts and shapes beside your real community. Members only see what you publish.</p>
+          <button ref={customizeButton} className="settings-primary-action appearance-customize-button" type="button" onClick={() => openCustomize(true)}>
+            Customize <ArrowRight size={16} aria-hidden="true" /></button>
+        </div>
+        <div className="community-look-preview appearance-callout-preview" data-community-theme={PREVIEW_SCOPE}><SampleContent /></div>
       </div>
-      <div className="appearance-summary">
-        <dl>
-          <div><dt>Colours</dt><dd>{(["light", "dark"] as const).filter((key) => shown.schemes[key]).map((key) => <span key={key} className="appearance-summary-scheme"><Swatches colors={shown.schemes[key]} />{key === "light" ? "Light" : "Dark"}</span>)}</dd></div>
-          <div><dt>Fonts</dt><dd>{shown.font_heading === shown.font_body ? shown.font_body : `${shown.font_heading} titles, ${shown.font_body} text`}</dd></div>
-          <div><dt>Status</dt><dd className="community-look-status" role="status">{statusText}</dd></div>
-        </dl>
-        <button ref={customizeButton} className="settings-primary-action appearance-customize-button" type="button" onClick={() => openCustomize(true)}>Customize</button>
-        <small>Pick a starting point, then adjust colours, fonts and shapes while the real community updates beside you.</small>
-      </div>
-    </div>
-    {customizing ? null : <>{problemList}{errorLine}
-      {dirty || state.hasUnpublishedChanges ? <div className="auth-actions">{actions}</div> : null}</>}
+      <dl className="appearance-facts">
+        <div><dt>Colours</dt><dd>{(["light", "dark"] as const).filter((key) => shown.schemes[key]).map((key) => <span key={key} className="appearance-summary-scheme"><Swatches colors={shown.schemes[key]} />{key === "light" ? "Light" : "Dark"}</span>)}</dd></div>
+        <div><dt>Fonts</dt><dd>{shown.font_heading === shown.font_body ? shown.font_body : `${shown.font_heading} titles, ${shown.font_body} text`}</dd></div>
+        <div><dt>Status</dt><dd><span className="appearance-status" role="status"><i aria-hidden="true" />{statusText}</span></dd></div>
+      </dl>
+      {customizing ? null : <>{problemList}{errorLine}</>}
+      {!customizing && hasDraft ? <footer className="appearance-editor-actions">{actions}</footer> : null}
+    </section>
     {customizing ? <AppearanceEditor
       theme={theme} scheme={scheme} setScheme={setScheme} set={set} busy={busy} problems={problems} uid={uid}
       previewTheme={previewTheme} communityId={props.communityId} communitySlug={props.communitySlug}
@@ -232,15 +239,82 @@ type EditorProps = {
   onClose: () => void;
 };
 
-function Section(props: { title: string; children: ReactNode; open?: boolean }) {
-  return <details className="appearance-section" open={props.open ?? true}>
-    <summary>{props.title}</summary>
-    <div className="appearance-section-body">{props.children}</div>
-  </details>;
+// A group of inspector rows under a small uppercase label, like Substack's
+// website editor: label on the left, control on the right.
+function Group(props: { title: string; children: ReactNode }) {
+  const id = useId();
+  return <section className="appearance-group" aria-labelledby={id}>
+    <h3 id={id}>{props.title}</h3>
+    {props.children}
+  </section>;
 }
 
-// Full-screen editor: controls on the left, the real community on the right,
-// wearing the unsaved draft. Like Substack's design editor.
+function Row(props: { label: ReactNode; htmlFor?: string; children: ReactNode; wide?: boolean }) {
+  return <div className={`appearance-row${props.wide ? " is-wide" : ""}`}>
+    {props.htmlFor ? <label htmlFor={props.htmlFor}>{props.label}</label> : <span>{props.label}</span>}
+    <div className="appearance-row-control">{props.children}</div>
+  </div>;
+}
+
+const HEX = /^#?[0-9a-f]{6}$/i;
+
+// A colour as Substack shows it: a swatch that opens the picker, and the hex.
+function ColorField(props: { id: string; label: string; value: string; disabled: boolean; describedBy?: string; invalid?: boolean; onChange: (value: string) => void }) {
+  const [text, setText] = useState(props.value);
+  useEffect(() => setText(props.value), [props.value]);
+  const commit = () => {
+    if (HEX.test(text.trim())) props.onChange(`#${text.trim().replace("#", "")}`.toUpperCase());
+    else setText(props.value);
+  };
+  return <span className="appearance-color">
+    <input type="color" aria-label={`${props.label} colour picker`} value={props.value} disabled={props.disabled} onChange={(e) => props.onChange(e.target.value.toUpperCase())} />
+    <input id={props.id} type="text" inputMode="text" spellCheck={false} maxLength={7} value={text} disabled={props.disabled}
+      aria-invalid={props.invalid || undefined} aria-describedby={props.describedBy}
+      onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(); }} />
+  </span>;
+}
+
+// Starting points as a two-line list (name and what it is), with a check on
+// the one the draft matches.
+function PresetPicker(props: { theme: CommunityThemeV1; disabled: boolean; onPick: (preset: CommunityThemePreset) => void }) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const button = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const id = useId();
+  const current = COMMUNITY_THEME_PRESETS.find((preset) => JSON.stringify(preset.theme) === JSON.stringify(props.theme)) ?? null;
+  useEffect(() => { if (open) list.current?.focus(); }, [open]);
+  const pick = (preset: CommunityThemePreset) => { props.onPick(preset); setOpen(false); button.current?.focus(); };
+  return <div className="appearance-preset-picker">
+    <button ref={button} type="button" className="appearance-select-button" disabled={props.disabled} aria-haspopup="listbox" aria-expanded={open}
+      aria-controls={`${id}-list`} onClick={() => { setActive(Math.max(0, COMMUNITY_THEME_PRESETS.indexOf(current as CommunityThemePreset))); setOpen(!open); }}>
+      <span>{current ? current.name : "Your own look"}</span><ChevronDown size={16} aria-hidden="true" />
+    </button>
+    {open ? <ul ref={list} id={`${id}-list`} role="listbox" tabIndex={-1} aria-label="Starting point" aria-activedescendant={`${id}-option-${active}`}
+      className="appearance-menu"
+      onBlur={(e) => { if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) setOpen(false); }}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(COMMUNITY_THEME_PRESETS.length - 1, i + 1)); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
+        else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(COMMUNITY_THEME_PRESETS[active]); }
+        else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); button.current?.focus(); }
+      }}>
+      {COMMUNITY_THEME_PRESETS.map((preset, i) => {
+        const sample = preset.theme.schemes.light ?? preset.theme.schemes.dark;
+        return <li key={preset.id} id={`${id}-option-${i}`} role="option" aria-selected={preset === current}
+          className={i === active ? "is-active" : undefined} onMouseEnter={() => setActive(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(preset)}>
+          <span className="appearance-menu-chips" aria-hidden="true"><i style={{ background: sample?.background, borderColor: sample?.border }} /><i style={{ background: sample?.accent }} /></span>
+          <span className="appearance-menu-text"><strong>{preset.name}</strong><small>{preset.description}</small></span>
+          {preset === current ? <Check size={16} aria-hidden="true" /> : null}
+        </li>;
+      })}
+    </ul> : null}
+  </div>;
+}
+
+// Full-screen editor laid out like Substack's website editor: pages on the
+// left, the real community in the middle wearing the unsaved draft, and the
+// design settings on the right.
 function AppearanceEditor(props: EditorProps) {
   const { theme, scheme, set, busy } = props;
   const [page, setPage] = useState("resources");
@@ -280,15 +354,19 @@ function AppearanceEditor(props: EditorProps) {
     const ids = props.problems.map((problem, i) => (problem.path === path ? `${props.uid}-problem-${i}` : "")).filter(Boolean).join(" ");
     return ids ? { "aria-invalid": true, "aria-describedby": ids } : {};
   };
+  const fieldId = (key: string) => `${props.uid}-field-${key.replace(/\W/g, "-")}`;
   const choice = (key: ChoiceKey) => {
     const [label, options] = CHOICES[key];
-    return <label className="create-community-field" key={key}><span>{label}</span>
-      <select value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value } as Partial<CommunityThemeV1>)}>
-        {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>;
+    return <Row key={key} label={label} htmlFor={fieldId(key)}>
+      <select id={fieldId(key)} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value } as Partial<CommunityThemeV1>)}>
+        {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></Row>;
   };
   const slider = (key: "heading_weight" | "type_scale" | "radius" | "border_width", label: string, min: number, max: number, step: number, unit: (value: number) => string) =>
-    <label className="create-community-field" key={key}><span>{label} · {unit(theme[key])}</span>
-      <input type="range" min={min} max={max} step={step} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: Number(e.target.value) } as Partial<CommunityThemeV1>)} /></label>;
+    <Row key={key} label={<>{label} <span className="appearance-row-value">{unit(theme[key])}</span></>} htmlFor={fieldId(key)}>
+      <input id={fieldId(key)} type="range" min={min} max={max} step={step} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: Number(e.target.value) } as Partial<CommunityThemeV1>)} /></Row>;
+  const fontSelect = (key: "font_heading" | "font_body", label: string, fonts: string[]) =>
+    <Row label={label} htmlFor={fieldId(key)}>
+      <select id={fieldId(key)} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value })}>{fonts.map((name) => <option key={name}>{name}</option>)}</select></Row>;
 
   const colors = theme.schemes[scheme];
   // Secondary text is lifted until it reads clearly, so say so when the shown colour isn't the pick.
@@ -326,88 +404,79 @@ function AppearanceEditor(props: EditorProps) {
 
   return createPortal(<div className="appearance-editor" role="dialog" aria-modal="true" aria-labelledby={`${props.uid}-editor-title`}>
     <header className="appearance-editor-bar">
-      <button className="secondary" type="button" onClick={props.onClose}>← Back</button>
+      <button className="appearance-icon-button" type="button" onClick={props.onClose} aria-label="Back to settings"><ChevronLeft size={20} aria-hidden="true" /></button>
       <h2 id={`${props.uid}-editor-title`} ref={heading} tabIndex={-1}>Customize appearance</h2>
-      <span className="community-look-status" role="status">{props.statusText}</span>
+      <span className="appearance-status" role="status"><i aria-hidden="true" />{props.statusText}</span>
+      <div className="appearance-device" role="group" aria-label="Screen size">
+        <button type="button" className="appearance-icon-button" aria-pressed={device === "desktop"} aria-label="Desktop" onClick={() => setDevice("desktop")}><Monitor size={20} aria-hidden="true" /></button>
+        <button type="button" className="appearance-icon-button" aria-pressed={device === "phone"} aria-label="Phone" onClick={() => setDevice("phone")}><Smartphone size={20} aria-hidden="true" /></button>
+      </div>
       <div className="appearance-editor-actions">{props.actions}</div>
     </header>
     <div className="appearance-editor-body">
-      <aside className="appearance-editor-controls community-look" aria-label="Appearance settings">
-        <Section title="Starting point">
-          <p className="appearance-hint">Picking one replaces your draft. You can undo until you save.</p>
-          <div className="appearance-presets">
-            {COMMUNITY_THEME_PRESETS.map((preset) => {
-              const sample = preset.theme.schemes.light ?? preset.theme.schemes.dark;
-              return <button key={preset.id} type="button" className="appearance-preset" disabled={busy} onClick={() => applyPreset(preset)}
-                style={{ background: sample?.background, color: sample?.text, borderColor: sample?.border }}>
-                <strong style={{ fontFamily: COMMUNITY_THEME_FONTS[preset.theme.font_heading]?.stack }}>{preset.name}</strong>
-                <span className="appearance-preset-chips" aria-hidden="true"><i style={{ background: sample?.accent }} /><i style={{ background: sample?.button }} /><i style={{ background: sample?.surface, borderColor: sample?.border }} /></span>
-                <small style={{ color: sample?.muted }}>{preset.description}</small>
-              </button>;
-            })}
-          </div>
-        </Section>
-        <Section title="Colours">
-          <div className="community-look-scheme" role="group" aria-label="Light or dark">
-            {SCHEME_MODES.map(([key, label]) => <button key={key} type="button" className={key === mode ? "is-active" : ""} aria-pressed={key === mode} disabled={busy} onClick={() => setMode(key)}>{label}</button>)}
-          </div>
-          {mode === "both" ? <div className="community-look-scheme" role="group" aria-label="Scheme to edit">
-            {(["light", "dark"] as const).map((key) => <button key={key} type="button" className={key === scheme ? "is-active" : ""} aria-pressed={key === scheme} onClick={() => props.setScheme(key)}>Edit {key}</button>)}
-          </div> : null}
+      <nav className="appearance-pages" aria-label="Page to preview">
+        <h3>Pages</h3>
+        {PREVIEW_PAGES.map(([key, label]) => {
+          const Icon = PAGE_ICONS[key];
+          return <button key={key} type="button" aria-current={key === page ? "page" : undefined} className={key === page ? "is-active" : ""} onClick={() => setPage(key)}>
+            <Icon size={16} aria-hidden="true" />{label}</button>;
+        })}
+        <p className="appearance-hint">Members see this look only after you publish.</p>
+      </nav>
+      <section className={`appearance-canvas is-${device}`} aria-label="Preview">
+        {src ? <iframe ref={frame} key={src} src={src} title="Your community with the draft look" className="appearance-frame" />
+          : <div className="community-look-preview" data-community-theme={PREVIEW_SCOPE}><SampleContent /></div>}
+      </section>
+      <aside className="appearance-inspector community-look" aria-label="Design settings">
+        <Group title="Theme">
+          <Row label="Starting point" wide><PresetPicker theme={theme} disabled={busy} onPick={applyPreset} /></Row>
+          <p className="appearance-hint">Picking one replaces your draft. Undo until you save.</p>
+        </Group>
+        <Group title="Colors">
+          <Row label="Light or dark" htmlFor={fieldId("mode")}>
+            <select id={fieldId("mode")} value={mode} disabled={busy} onChange={(e) => setMode(e.target.value as SchemeMode)}>
+              {SCHEME_MODES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Row>
+          {mode === "both" ? <Row label="Editing" htmlFor={fieldId("scheme")}>
+            <select id={fieldId("scheme")} value={scheme} onChange={(e) => props.setScheme(e.target.value as CommunityThemeScheme)}>
+              <option value="light">Light version</option><option value="dark">Dark version</option></select></Row> : null}
           {colors ? <>
-            <label className="appearance-brand"><input type="color" value={colors.accent} disabled={busy} onChange={(e) => setBrand(e.target.value)} />
-              <span><strong>Brand colour</strong><small>Sets the accent and buttons, with readable text on them.</small></span></label>
-            <div className="community-look-colors">{COLOR_FIELDS.map(([key, label]) => {
+            <Row label={<>Brand colour<small>Accent and buttons</small></>} htmlFor={fieldId("brand")}>
+              <ColorField id={fieldId("brand")} label="Brand" value={colors.accent} disabled={busy} onChange={setBrand} /></Row>
+            {COLOR_FIELDS.map(([key, label]) => {
               const problem = problemFor(`schemes.${scheme}.${key}`);
               const describedBy = [problem["aria-describedby"], key === "muted" && mutedHint ? `${props.uid}-muted-hint` : ""].filter(Boolean).join(" ") || undefined;
-              return <label key={key}>
-                <input type="color" value={colors[key]} disabled={busy} {...problem} aria-describedby={describedBy} onChange={(e) => setColors({ [key]: e.target.value.toUpperCase() })} /><span>{label}</span></label>;
+              return <Row key={key} label={label} htmlFor={fieldId(key)}>
+                <ColorField id={fieldId(key)} label={label} value={colors[key]} disabled={busy} invalid={Boolean(problem["aria-invalid"])} describedBy={describedBy}
+                  onChange={(value) => setColors({ [key]: value })} /></Row>;
             })}
-              {mutedHint ? <small id={`${props.uid}-muted-hint`} className="community-look-color-hint">Secondary text shows as {mutedHint.toUpperCase()} so it stays easy to read on {scheme === "dark" ? "dark" : "light"} backgrounds.</small> : null}</div>
+            {mutedHint ? <small id={`${props.uid}-muted-hint`} className="community-look-color-hint">Secondary text shows as {mutedHint.toUpperCase()} so it stays easy to read on {scheme === "dark" ? "dark" : "light"} backgrounds.</small> : null}
           </> : null}
-        </Section>
-        <Section title="Fonts and text">
-          <label className="create-community-field"><span>Heading font</span>
-            <select value={theme.font_heading} disabled={busy} {...problemFor("font_heading")} onChange={(e) => set({ font_heading: e.target.value })}>{HEADING_FONTS.map((name) => <option key={name}>{name}</option>)}</select></label>
-          <label className="create-community-field"><span>Body font</span>
-            <select value={theme.font_body} disabled={busy} {...problemFor("font_body")} onChange={(e) => set({ font_body: e.target.value })}>{TEXT_FONTS.map((name) => <option key={name}>{name}</option>)}</select></label>
+        </Group>
+        <Group title="Typography">
+          {fontSelect("font_heading", "Headings", HEADING_FONTS)}
+          {fontSelect("font_body", "Body text", TEXT_FONTS)}
           {slider("heading_weight", "Heading weight", 300, 900, 50, String)}
           {choice("heading_case")}
           {slider("type_scale", "Text size", 0.9, 1.2, 0.05, (value) => `${Math.round(value * 100)}%`)}
           {choice("numerals")}
-        </Section>
-        <Section title="Shape and spacing">
+        </Group>
+        <Group title="Shape">
           {slider("radius", "Corner radius", 0, 24, 1, (value) => `${value}px`)}
           {choice("corner_style")}
           {choice("button_shape")}
           {slider("border_width", "Border width", 0, 3, 1, (value) => `${value}px`)}
           {choice("shadow")}
           {choice("density")}
-        </Section>
-        <Section title="Courses" open={false}>
+        </Group>
+        <Group title="Courses">
           {choice("course_cover_ratio")}
           {choice("course_card_size")}
           {choice("course_cover_fit")}
           {choice("course_cover_plate")}
           {choice("media_plate")}
-        </Section>
+        </Group>
         {props.footer}
       </aside>
-      <section className="appearance-editor-canvas" aria-label="Preview">
-        <div className="appearance-canvas-bar">
-          <div className="community-look-scheme" role="group" aria-label="Page to preview">
-            {PREVIEW_PAGES.map(([key, label]) => <button key={key} type="button" className={key === page ? "is-active" : ""} aria-pressed={key === page} onClick={() => setPage(key)}>{label}</button>)}
-          </div>
-          <div className="community-look-scheme" role="group" aria-label="Screen size">
-            {(["desktop", "phone"] as const).map((key) => <button key={key} type="button" className={key === device ? "is-active" : ""} aria-pressed={key === device} onClick={() => setDevice(key)}>{key === "desktop" ? "Desktop" : "Phone"}</button>)}
-          </div>
-          <small>Draft preview · members see it after you publish</small>
-        </div>
-        <div className={`appearance-frame-wrap is-${device}`}>
-          {src ? <iframe ref={frame} key={src} src={src} title="Your community with the draft look" className="appearance-frame" />
-            : <div className="community-look-preview" data-community-theme={PREVIEW_SCOPE}><SampleContent /></div>}
-        </div>
-      </section>
     </div>
   </div>, document.body);
 }
