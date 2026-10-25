@@ -569,16 +569,9 @@ export function WebCommunityEventsSection(props: WebCommunityEventsSectionProps)
         {showInitialEventsLoading ? (
           <div className="community-events-state" role="status">Loading events…</div>
         ) : eventDayGroups.length === 0 && state.eventsError ? null : eventDayGroups.length === 0 ? (
+          // One "New event" button is enough: the header already has it.
           <div className="community-events-state">
-            <div>No events in {formatMonthLabel(monthDate)}.</div>
-            {capabilities.hasActiveCommunity && capabilities.canManageEvents ? (
-              <button
-                type="button"
-                onClick={() => openNewEvent(getDefaultEventDayForMonth(monthDate))}
-              >
-                New event
-              </button>
-            ) : null}
+            <div>Nothing scheduled in {formatMonthLabel(monthDate)}.</div>
           </div>
         ) : (
           <div className="community-events-list">

@@ -60,7 +60,7 @@ export function WebCommunityAiAgentSection(props: WebCommunityAiAgentSectionProp
 
   return (
     <div className={embedded ? "community-settings-embedded-pane" : "settings-panel community-settings-panel"}>
-      <div className="settings-section-title">Community Agent</div>
+      {embedded ? null : <div className="settings-section-title">Community Agent</div>}
       {content}
     </div>
   );

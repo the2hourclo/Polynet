@@ -10,6 +10,7 @@ import {
   parseAppRouteFromPathname,
   readPublicRouteFromLocation,
   resolveInitialAppShellVariant,
+  resolvePhoneShellRedirect,
   webDestinationHasCommunityNavSelection,
 } from "../shared/webAppRouteState";
 
@@ -282,5 +283,25 @@ describe("canonical web destinations", () => {
       kind: "claim",
       token: "claim_123",
     });
+  });
+});
+
+describe("phone layout redirect", () => {
+  const phone = { narrowViewport: true, embedded: false };
+
+  it("sends phones on community and settings links to the phone layout", () => {
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/c/aieb/chat" })).toBe("/m/c/aieb/chat");
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/c/aieb/workflows?section=forms#x" })).toBe("/m/c/aieb/workflows?section=forms#x");
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/settings/profile" })).toBe("/m/settings/profile");
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/c/aieb" })).toBe("/m/c/aieb");
+  });
+
+  it("leaves wide screens, embedded previews and phone links alone", () => {
+    expect(resolvePhoneShellRedirect({ narrowViewport: false, embedded: false, path: "/c/aieb/chat" })).toBeNull();
+    expect(resolvePhoneShellRedirect({ narrowViewport: true, embedded: true, path: "/c/aieb/chat" })).toBeNull();
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/c/aieb/preview?slot=default&embed=1" })).toBeNull();
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/m/c/aieb/chat" })).toBeNull();
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/" })).toBeNull();
+    expect(resolvePhoneShellRedirect({ ...phone, path: "/login" })).toBeNull();
   });
 });

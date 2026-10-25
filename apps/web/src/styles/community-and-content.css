@@ -12,8 +12,9 @@
   place-items: center;
   background: var(--surface-card);
   color: var(--text-ink-primary);
-  font-family: var(--font-mono);
+  font-family: inherit;
   font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.2px;
   user-select: none;
 }
@@ -11956,6 +11957,14 @@ button.chat-reply-quote:hover {
 .cp-node-circle.type-decision { fill: var(--accent-gold); }
 .cp-node-circle.type-question { fill: #8b93a7; }
 .cp-node-circle.type-resource { fill: #38bdf8; }
+
+/* In a themed community the small memory preview speaks the community's
+   colours: every node in its accent, types told apart by strength, so the
+   card never shows a cyan-and-purple graph on a green-and-white page. */
+[data-community-theme] .community-context-memory-graph .cp-node-circle { fill: var(--accent-primary, var(--text-secondary)); }
+[data-community-theme] .community-context-memory-graph .cp-node-circle:is(.type-question, .type-resource) { fill: color-mix(in srgb, var(--accent-primary, var(--text-secondary)) 55%, var(--bg-app)); }
+[data-community-theme] .community-context-memory-graph .cp-root-circle { fill: var(--text-primary); }
+[data-community-theme] .community-context-memory-graph .cp-root-circle.activity-error { stroke: color-mix(in srgb, var(--text-primary) 30%, transparent); }
 
 /* Status treatment, independent of the type color. */
 .cp-node-circle.status-promising { opacity: 0.8; }

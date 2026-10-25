@@ -1114,7 +1114,7 @@ function WebMemberAgentDock(props, ref) {
     props.surfaceContext,
     communityName,
   );
-  const presentation = { ...legacyPresentation, title: agentCustomName || "Agent", surfaceLabel: communityName, emptyLabel: "How can I help?", composerLabel: "Message the community agent", loadingLabel: "Loading conversation" };
+  const presentation = { ...legacyPresentation, title: agentCustomName || "Agent", surfaceLabel: communityName, emptyLabel: "How can I help?", composerLabel: agentCustomName ? `Message ${agentCustomName}` : "Message the community agent", loadingLabel: "Loading conversation" };
   const shouldRenderStreamedText =
     Boolean(streamedText) && !hasSequencedAssistantText(runtimeEvents);
 
@@ -1188,7 +1188,7 @@ function WebMemberAgentDock(props, ref) {
           !isPreparing &&
           !isStartingNewChat ? (
             <div className="member-agent-dock-empty">
-              <CommunityAgentIcon />
+              <span className="member-agent-dock-empty-face" aria-hidden="true"><CommunityAgentIcon size={56} strokeWidth={1.5} /></span>
               <p>
                 {presentation.emptyLabel}
               </p>

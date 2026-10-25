@@ -30,8 +30,10 @@ type Page = FunctionReturnType<typeof api.communityChannelParticipants.listChann
 // The memory card's one-line agent status, in plain words. A run that failed
 // on AI funding says so, because "Error" alone gives the owner nothing to act on.
 // The stored reason can carry a prefix ("Uncaught Error: founder_inference_…").
-export function memoryAgentStatus(overview: Pick<CloudCommunityPolynetOverview, "agent">): string {
+// Members never see the failure: it's the owner's to fix, so they see "Resting".
+export function memoryAgentStatus(overview: Pick<CloudCommunityPolynetOverview, "agent">, options: { canManage?: boolean } = {}): string {
   const state = overview.agent.activity_state || overview.agent.status;
+  if (state === "error" && options.canManage === false) return "Resting";
   if (state === "error") {
     return /\bfounder_inference_/.test(overview.agent.recent_runs[0]?.stop_reason ?? "")
       ? "Couldn't run: AI usage isn't set up or has run out"
@@ -259,7 +261,7 @@ function RosterSurface(props: RosterProps & {
       {memoryError ? <div role="status">Could not load memory. <button type="button" onClick={() => setMemoryRetry(value => value + 1)}>Retry</button></div>
         : memory ? <div className="community-context-memory-summary">
           <div className="community-context-memory-preview"><CommunityMemoryGraphPreview overview={memory} /></div>
-          <div className="community-context-memory-status"><span>{memoryAgentStatus(memory)}</span></div>
+          <div className="community-context-memory-status"><span>{memoryAgentStatus(memory, { canManage: props.memberSettings.canManageMembers })}</span></div>
         </div> : <div className="community-context-memory-summary" aria-label="Loading memory"><div className="community-context-memory-preview web-skeleton-block" /><div className="community-context-memory-loading-status web-skeleton-row" /></div>}
     </div></> : null}
     <div className="community-context-members" ref={membersViewportRef} onScroll={handleMembersScroll}>

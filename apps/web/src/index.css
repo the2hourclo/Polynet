@@ -978,7 +978,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--text-faint);
-  font-family: var(--font-mono);
+  font-family: inherit;
   font-size: 12px;
   cursor: pointer;
   width: fit-content;
@@ -1040,7 +1040,7 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-primary);
-  font-family: var(--font-mono);
+  font-family: inherit;
   font-size: 12px;
   padding: 8px 10px;
   border-radius: 10px;

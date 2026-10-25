@@ -3,7 +3,8 @@
 .access-muted { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
 .access-notice { margin: 0; color: var(--text-primary); font-size: 13px; }
 .access-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.access-primary { background: var(--text-primary) !important; border-color: var(--text-primary) !important; color: var(--surface-workspace) !important; }
+/* The main action wears the community's button colour, like every other primary button. */
+.access-primary { background: var(--bg-button, var(--text-primary)) !important; border-color: transparent !important; color: var(--bg-button-text, var(--surface-workspace)) !important; }
 .access-primary:hover:not(:disabled) { opacity: .88; }
 .access-danger { color: var(--accent-error) !important; }
 

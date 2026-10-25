@@ -232,7 +232,7 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look:
         className="community-display-panel"
         role="menu"
         aria-label="Display"
-        style={{ top: position.top, left: position.left, width: Math.min(PANEL_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2) }}
+        style={{ top: position.top, left: position.left, width: Math.min(PANEL_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2), maxHeight: Math.max(160, window.innerHeight - position.top - VIEWPORT_MARGIN) }}
         onKeyDown={onPanelKeyDown}
       >
         {modeOptions.length > 0 ? (

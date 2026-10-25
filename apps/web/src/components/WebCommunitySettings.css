@@ -114,7 +114,7 @@
   cursor: pointer;
 }
 .pn-settings-nav-item svg { flex: none; color: var(--text-secondary); }
-.pn-settings-nav-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-settings-nav-item > span:not(.pn-settings-nav-agent-icon) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pn-settings-nav-item:hover,
 .pn-settings-nav-item.is-active { background: var(--hover-overlay); }
 .pn-settings-nav-item.is-active { font-weight: 600; }
@@ -149,7 +149,8 @@
   margin-bottom: 1.25rem;
 }
 .pn-settings-page-header h1 { margin: 0; font-size: 1.5rem; line-height: 1.75rem; }
-.pn-settings-stack { display: flex; flex-direction: column; gap: 1rem; }
+.pn-settings-stack,
+.pn-settings .community-settings-embedded-pane { display: flex; flex-direction: column; gap: 1rem; }
 
 .pn-settings .settings-section.pn-settings-card,
 .pn-settings .pn-settings-main > .settings-section,
@@ -694,3 +695,19 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
 
 /* Settings nav: the Agent item shows the agent's own face. */
 .pn-settings-nav-agent-icon { display: inline-flex; width: 16px; height: 16px; border-radius: 999px; overflow: hidden; flex: none; }
+.pn-settings-nav-agent-icon > * { width: 100%; height: 100%; border-radius: inherit; }
+
+/* Settings > Access: the grant form uses the same inputs as every other pane. */
+.pn-settings .access-grant-form,
+.pn-settings .access-integration-form { max-width: none; }
+.pn-settings .access-field { font-size: 0.8125rem; color: var(--text-primary); }
+.pn-settings .access-field input:not([type="checkbox"]) {
+  height: 2.5rem;
+  min-height: 0;
+  padding: 0 0.75rem;
+  border-radius: var(--pn-set-r);
+  background: var(--bg-input, var(--bg-card));
+  font-size: 0.9375rem;
+}
+.pn-settings .access-field-row .access-field { flex: 0 1 14rem; }
+.pn-settings .access-primary { height: 2.5rem; padding: 0 1rem; border-radius: var(--pn-set-r); }

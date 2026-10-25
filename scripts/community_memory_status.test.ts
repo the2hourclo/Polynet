@@ -20,3 +20,9 @@ test("the memory card says why the agent couldn't run instead of a bare Error", 
   expect(memoryAgentStatus(overview("updated_directory"))).toBe("Updated memory");
   expect(memoryAgentStatus(overview("some_new_state"))).toBe("Some New State");
 });
+
+test("members see a calm status when the agent couldn't run", () => {
+  expect(memoryAgentStatus(overview("error", "founder_inference_pricing_misconfigured"), { canManage: false })).toBe("Resting");
+  expect(memoryAgentStatus(overview("resting"), { canManage: false })).toBe("Resting");
+  expect(memoryAgentStatus(overview("error"), { canManage: true })).toBe("Couldn't run last time");
+});

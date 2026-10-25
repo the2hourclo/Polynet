@@ -214,6 +214,27 @@
   height: 22px;
 }
 
+/* The agent's face, a round picture or the Sparkles, never a cropped strip. */
+.member-agent-dock-empty-face {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.member-agent-dock-empty-face > :is(img, span) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.member-agent-dock-empty .member-agent-dock-empty-face svg {
+  width: 28px;
+  height: 28px;
+}
+
 .member-agent-dock-empty p {
   max-width: 240px;
   margin: 0;

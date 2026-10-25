@@ -44,8 +44,12 @@ export function getAvatarColor(id: string): string {
   return colors[index];
 }
 
+// "Test member 1" is TM everywhere, like the member list, not TE. A single
+// word (or an id) keeps its first two letters.
 export function getInitials(id: string): string {
-  return id.slice(0, 2).toUpperCase();
+  const words = String(id ?? "").trim().split(/\s+/).filter((word) => /^[\p{L}]/u.test(word));
+  if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  return String(id ?? "").trim().slice(0, 2).toUpperCase();
 }
 
 export function shouldShowDateSeparator(messages: { created_at: string }[], index: number): string | null {
