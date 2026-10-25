@@ -103,7 +103,12 @@ export function WebCommunityAppearanceSettings(props: Props) {
   const customizeButton = useRef<HTMLButtonElement>(null);
   const uid = useId();
   const alive = useRef(true);
-  useEffect(() => () => { alive.current = false; }, []);
+  // Set in the body too: StrictMode's dev double-mount runs the cleanup once,
+  // which would otherwise leave every save and publish stuck on "Saving…".
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
   const run = async <T,>(operation: (session: unknown) => Promise<T>) => {
     const session = await props.ensureSession(props.session);
     if (!session) throw new Error("auth_session_required");
