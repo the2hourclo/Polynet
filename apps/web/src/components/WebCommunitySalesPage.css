@@ -38,7 +38,7 @@
 
 .community-sales-media {
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--bg-muted, color-mix(in srgb, var(--text-primary) 6%, transparent));
 }
 
@@ -192,7 +192,7 @@
 .community-sales-card-avatar {
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 15px;
 }
 
@@ -266,10 +266,10 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 46px;
+  min-height: 40px;
   padding: 0 18px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--pn-button, var(--accent-brand));
   color: var(--pn-button-text, var(--text-on-accent, #fff));
   font: inherit;

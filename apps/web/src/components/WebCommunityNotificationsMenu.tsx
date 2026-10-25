@@ -31,11 +31,25 @@ function writeLastSeen(communityId: string, value: number) {
   }
 }
 
-function describe(event: CommunityActivityEvent): { text: string; tab: CommunityTab; icon: typeof Bell } {
+// Joins in a row read as one line ("4 new members joined"), so a busy day
+// doesn't fill the list with identical rows.
+type ActivityRow = { event: CommunityActivityEvent; count: number };
+
+function groupJoins(events: CommunityActivityEvent[]): ActivityRow[] {
+  const rows: ActivityRow[] = [];
+  for (const event of events) {
+    const last = rows[rows.length - 1];
+    if (last && last.event.type === "member_joined" && event.type === "member_joined") last.count += 1;
+    else rows.push({ event, count: 1 });
+  }
+  return rows;
+}
+
+function describe(event: CommunityActivityEvent, count: number): { text: string; tab: CommunityTab; icon: typeof Bell } {
   const title = event.target_title?.trim() || null;
   switch (event.type) {
     case "member_joined":
-      return { text: "A new member joined", tab: "members", icon: UserPlus };
+      return { text: count > 1 ? `${count} new members joined` : "A new member joined", tab: "members", icon: UserPlus };
     case "resource_added":
       return { text: title ? `New in the classroom: ${title}` : "New in the classroom", tab: "resources", icon: BookOpen };
     case "event_soon":
@@ -110,8 +124,8 @@ export function WebCommunityNotificationsMenu(props: {
         aria-haspopup="dialog"
         onClick={toggle}
       >
-        <Bell size={18} aria-hidden="true" />
-        {unseen > 0 ? <span className="community-top-nav-icon-badge">{unseen > 9 ? "9+" : unseen}</span> : null}
+        <Bell size={20} strokeWidth={2} aria-hidden="true" />
+        {unseen > 0 ? <span className="community-top-nav-icon-badge">{unseen > 99 ? "99+" : unseen}</span> : null}
       </button>
       {open ? (
         <div className="community-notifications-panel" role="dialog" aria-label="Notifications">
@@ -119,6 +133,8 @@ export function WebCommunityNotificationsMenu(props: {
           {props.mentionChannels.length === 0 && events.length === 0 ? (
             <p className="community-notifications-empty">Nothing new yet.</p>
           ) : (
+            <>
+            {props.mentionChannels.length > 0 ? <div className="community-notifications-group">Mentions</div> : null}
             <ul className="community-notifications-list">
               {props.mentionChannels.map((channel) => (
                 <li key={`mention:${channel.id}`}>
@@ -128,8 +144,11 @@ export function WebCommunityNotificationsMenu(props: {
                   </button>
                 </li>
               ))}
-              {events.map((event) => {
-                const view = describe(event);
+            </ul>
+            {events.length > 0 ? <div className="community-notifications-group">Activity</div> : null}
+            <ul className="community-notifications-list">
+              {groupJoins(events).map(({ event, count }) => {
+                const view = describe(event, count);
                 const Icon = view.icon;
                 const isUnseen = Date.parse(event.created_at) > highlightSince;
                 return (
@@ -147,6 +166,7 @@ export function WebCommunityNotificationsMenu(props: {
                 );
               })}
             </ul>
+            </>
           )}
         </div>
       ) : null}

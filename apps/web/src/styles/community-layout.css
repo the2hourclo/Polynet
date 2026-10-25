@@ -5,35 +5,32 @@
    the community's look. Shape tokens are applied in community-theme-hooks.css.
    Without a "top" layout none of these classes render. */
 
-/* Frame: tab bar above, page below. */
-@media (min-width: 641px) {
-  .product-shell-surface--community-top {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
+/* Frame: tab bar above, page below. The top layout only renders in the
+   desktop shell, whatever the window width, so these rules hold at any width. */
+.product-shell-surface--community-top {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 /* The tab bar is the whole header: its first row carries search, messages and
    notifications, so Polynet's own 48px top bar folds away. */
-@media (min-width: 641px) {
-  .app-root.community-layout-top {
-    grid-template-rows: 0 minmax(0, 1fr);
-  }
+.app-root.community-layout-top {
+  grid-template-rows: 0 minmax(0, 1fr);
+}
 
-  .app-root.community-layout-top:has(> .community-theme-draft-banner) {
-    grid-template-rows: auto 0 minmax(0, 1fr);
-  }
+.app-root.community-layout-top:has(> .community-theme-draft-banner) {
+  grid-template-rows: auto 0 minmax(0, 1fr);
+}
 
-  .app-root.community-layout-top > .app-topbar {
-    visibility: hidden;
-    overflow: hidden;
-  }
+.app-root.community-layout-top > .app-topbar {
+  visibility: hidden;
+  overflow: hidden;
+}
 
-  /* The top bar can be position: fixed and take no grid cell; pin the shell
-     to the last row either way. */
-  .app-root.community-layout-top > .app-shell {
-    grid-row: -2 / -1;
-  }
+/* The top bar can be position: fixed and take no grid cell; pin the shell
+   to the last row either way. */
+.app-root.community-layout-top > .app-shell {
+  grid-row: -2 / -1;
 }
 
 .community-top-nav {
@@ -74,7 +71,7 @@
   width: 36px;
   height: 36px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--accent-brand);
   color: var(--text-on-accent, #fff);
   font-size: 13px;
@@ -105,11 +102,11 @@
   gap: 8px;
   max-width: 440px;
   min-width: 140px;
-  height: 38px;
+  height: 40px;
   margin: 0 auto;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   color: var(--text-muted);
   box-sizing: border-box;
@@ -171,19 +168,19 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
 }
 
 .community-top-nav-actions .direct-messages-topbar-button svg {
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
 }
 
 .community-top-nav-actions .direct-messages-topbar-button:hover,
@@ -224,16 +221,29 @@
   max-height: min(480px, 70vh);
   overflow-y: auto;
   border: 1px solid var(--border-default);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface-card, var(--bg-card));
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.community-notifications-group {
+  padding: 10px 16px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.community-notifications-list + .community-notifications-group {
+  border-top: 1px solid var(--border-muted, var(--border-default));
 }
 
 .community-notifications-head {
-  padding: 14px 16px 8px;
+  padding: 14px 16px 6px;
   color: var(--text-primary);
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .community-notifications-empty {
@@ -311,9 +321,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--border-default);
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-primary);
   font: inherit;
@@ -393,9 +404,10 @@
 
 .community-category-chip {
   position: relative;
-  padding: 6px 14px;
+  height: 32px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   color: var(--text-secondary);
   font: inherit;
@@ -645,8 +657,11 @@
   gap: 4px;
   flex: none;
   margin-left: auto;
-  color: var(--text-muted);
-  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-brand) 20%, transparent);
+  color: var(--text-primary);
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -765,9 +780,10 @@
 
 .community-posts-load-more {
   align-self: center;
-  padding: 8px 16px;
+  height: 32px;
+  padding: 0 14px;
   border: 1px solid var(--post-border);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface-card, var(--bg-card));
   color: var(--text-primary);
   font: inherit;
@@ -832,7 +848,7 @@
   width: 40px;
   height: 40px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--accent-brand);
   color: var(--text-on-accent, #fff);
   font-size: 14px;
@@ -1005,7 +1021,7 @@
 .community-about-main {
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface-card, var(--bg-card));
 }
 
@@ -1107,7 +1123,7 @@
   gap: 6px;
   padding: 20px 16px 16px;
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface-card, var(--bg-card));
   text-align: center;
 }
@@ -1239,4 +1255,70 @@
 /* An avatar with a picture shows no fill colour around it. */
 :is(.community-top-nav-avatar, .community-card-block-avatar).has-image {
   background: transparent;
+}
+
+/* Narrow windows: search folds into an icon that opens it across the row,
+   Invite keeps only its icon, and the name gives way first. */
+.community-top-nav-search-toggle {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .community-top-nav-identity {
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .community-top-nav-search {
+    display: none;
+  }
+
+  .community-top-nav-search-toggle {
+    display: grid;
+    margin-left: auto;
+  }
+
+  .community-top-nav-identity.is-search-open > :not(.community-top-nav-search) {
+    display: none;
+  }
+
+  .community-top-nav-identity.is-search-open > .community-top-nav-search {
+    display: flex;
+    max-width: none;
+    margin: 0;
+  }
+
+  .community-top-nav-invite > span {
+    display: none;
+  }
+
+  .community-top-nav-invite {
+    width: 40px;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+  }
+
+  .community-top-nav-tabs,
+  .community-top-nav-chips {
+    padding: 0 12px;
+  }
+
+  .community-top-nav-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .community-notifications-panel {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .community-top-nav-name {
+    display: none;
+  }
 }

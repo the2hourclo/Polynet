@@ -128,7 +128,7 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
           </span>
         </div>
         {props.pinned ? (
-          <span className="community-post-card-pin"><Pin size={14} aria-hidden="true" /> Pinned</span>
+          <span className="community-post-card-pin"><Pin size={12} aria-hidden="true" /> Pinned</span>
         ) : null}
       </header>
       <div className={`community-post-card-body${thumbnail ? " has-thumbnail" : ""}`}>
