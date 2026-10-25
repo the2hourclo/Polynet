@@ -381,6 +381,34 @@
 .appearance-palette-check { position: absolute; top: 0.1875rem; right: 0.1875rem; display: grid; place-items: center; width: 1rem; height: 1rem; border-radius: 100rem; background: var(--bg-button); color: var(--bg-button-text); }
 .appearance-palette-name { font-size: 0.6875rem; line-height: 0.875rem; font-weight: 500; }
 
+/* ── Course card looks: a tiny catalog drawn in each look ── */
+.appearance-cardlook-frame { position: relative; display: block; height: 3.25rem; padding: 0.3125rem; border: 1px solid var(--border-default); border-radius: 0.375rem; background: var(--bg-workspace, var(--bg-card)); overflow: hidden; }
+.appearance-cardlook-sample { display: grid; grid-template-columns: repeat(var(--cardlook-columns, 2), minmax(0, 1fr)); gap: 0.25rem; height: 100%; }
+.appearance-cardlook-sample i { position: relative; display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; overflow: hidden; border-radius: 0.1875rem; background: var(--bg-card); }
+.appearance-cardlook-sample b { display: block; flex: 0 0 52%; background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 62%, var(--bg-card)); }
+.appearance-cardlook-sample em { display: block; height: 0.125rem; margin: 0 0.1875rem; border-radius: 1px; background: var(--text-primary); opacity: 0.55; }
+.appearance-cardlook-sample em:first-of-type { width: 70%; margin-top: 0.1875rem; }
+.appearance-cardlook-sample em:last-of-type { width: 45%; opacity: 0.25; }
+.appearance-cardlook-sample.edge-border i { box-shadow: inset 0 0 0 1px var(--border-default); }
+.appearance-cardlook-sample.edge-shadow i { box-shadow: 0 1px 3px rgb(0 0 0 / 0.22); }
+.appearance-cardlook-sample.edge-none i { background: transparent; }
+.appearance-cardlook-sample.edge-none b { border-radius: 0.1875rem; }
+.appearance-cardlook-sample.edge-none em { margin-inline: 0; }
+/* List: rows with a small picture on the right, hairlines between. */
+.appearance-cardlook-sample.is-list { gap: 0; }
+.appearance-cardlook-sample.is-list i { display: grid; grid-template-columns: minmax(0, 1fr) 28%; grid-template-rows: auto auto; align-content: center; column-gap: 0.25rem; row-gap: 0.125rem; border-radius: 0; background: transparent; box-shadow: none; border-bottom: 1px solid var(--border-default); }
+.appearance-cardlook-sample.is-list b { grid-column: 2; grid-row: 1 / 3; height: 0.625rem; border-radius: 0.125rem; }
+.appearance-cardlook-sample.is-list em { grid-column: 1; margin: 0; }
+/* Title on cover: the picture fills the card and the words sit at its foot. */
+.appearance-cardlook-sample.is-overlay b { position: absolute; inset: 0; }
+.appearance-cardlook-sample.is-overlay b::after { content: ""; position: absolute; inset: 45% 0 0; background: linear-gradient(to top, rgb(0 0 0 / 0.7), transparent); }
+.appearance-cardlook-sample.is-overlay em { position: relative; z-index: 1; background: #fff; opacity: 0.9; }
+.appearance-cardlook-sample.is-overlay em:first-of-type { margin-top: auto; }
+.appearance-cardlook-sample.is-overlay em:last-of-type { margin-bottom: 0.25rem; opacity: 0.6; }
+/* Text only: entries under hairlines, no pictures. */
+.appearance-cardlook-sample.is-text { gap: 0; }
+.appearance-cardlook-sample.is-text i { justify-content: center; border-radius: 0; background: transparent; box-shadow: none; border-top: 1px solid var(--border-default); }
+
 /* ── Saved themes ── */
 .appearance-saved-list { display: flex; flex-direction: column; margin: 0 0 0.25rem; padding: 0; list-style: none; }
 .appearance-saved-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0; border-bottom: 1px solid var(--border-default); }

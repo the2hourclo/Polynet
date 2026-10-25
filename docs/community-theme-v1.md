@@ -72,6 +72,12 @@ look; both follow the member's own Light/Dark choice.
 | `sibling_communities` | `hide` (default), `show` (lists the owner's other communities, "More from this creator", at the foot of the chat's members panel) |
 | `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
 
+Ready-made course card looks (Classic, Lifted, Magazine, Gallery, Archive,
+Compact) live in `shared/communityCourseCardLooks.ts`. Each one sets only the
+`course_card_*`, `course_card_size`, `course_columns`, `course_cover_ratio`
+and `course_gap` tokens. To apply one, write its tokens through the theme
+draft save.
+
 ## Text roles
 
 Community text uses eleven sizes, compiled as `--pn-type-<role>` from

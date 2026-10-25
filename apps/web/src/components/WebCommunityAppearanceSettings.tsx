@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, GraduationCap, MessagesSquare, Monitor, MoreHorizontal, Palette, Smartphone, type LucideIcon } from "lucide-react";
 import {
@@ -15,6 +15,7 @@ import {
   type CommunityThemeV1,
 } from "../../../../shared/communityTheme";
 import { COMMUNITY_THEME_PRESETS, type CommunityThemePreset } from "../../../../shared/communityThemePresets";
+import { COURSE_CARD_LOOKS, matchingCourseCardLook, type CourseCardLook } from "../../../../shared/communityCourseCardLooks";
 import {
   applyCommunityThemePalette,
   COMMUNITY_THEME_PALETTES,
@@ -478,6 +479,41 @@ function PaletteGallery(props: { theme: CommunityThemeV1; scheme: CommunityTheme
   </div>;
 }
 
+// A tiny catalog drawn in the look's layout: cards, rows, picture cards or text.
+function CardLookSample(props: { look: CourseCardLook }) {
+  const { course_card_style: style, course_card_edge: edge, course_card_size: size } = props.look.tokens;
+  const count = style === "list" || style === "text" ? 3 : size === "small" ? 3 : 2;
+  return <span className={`appearance-cardlook-sample is-${style} edge-${edge}`} style={{ "--cardlook-columns": style === "list" || style === "text" ? 1 : count } as CSSProperties}>
+    {Array.from({ length: count }, (_, index) => <i key={index}>{style === "text" ? null : <b />}<em /><em /></i>)}
+  </span>;
+}
+
+// Ready-made course card looks: one click sets the card style, edge, size,
+// cover shape, spacing, pills and progress together (undo until published).
+function CardLookGallery(props: { theme: CommunityThemeV1; disabled: boolean; onPick: (look: CourseCardLook) => void }) {
+  const current = matchingCourseCardLook(props.theme);
+  const id = useId();
+  return <div className="appearance-palettes appearance-cardlooks">
+    <div className="appearance-palettes-head"><span id={`${id}-label`}>Card looks</span></div>
+    <ul className="appearance-palette-grid" aria-labelledby={`${id}-label`}>
+      {COURSE_CARD_LOOKS.map((look) => {
+        const selected = look === current;
+        return <li key={look.id}>
+          <button type="button" className={`appearance-palette${selected ? " is-selected" : ""}`} disabled={props.disabled} aria-pressed={selected}
+            title={look.description} onClick={() => props.onPick(look)}>
+            <span className="appearance-cardlook-frame" aria-hidden="true">
+              <CardLookSample look={look} />
+              {selected ? <span className="appearance-palette-check"><Check size={12} /></span> : null}
+            </span>
+            <span className="appearance-palette-name">{look.name}</span>
+          </button>
+        </li>;
+      })}
+    </ul>
+    <p className="appearance-hint">Sets the card style, edge, size and details below in one go. Colours and fonts stay.</p>
+  </div>;
+}
+
 // Looks the owner saved under a name: apply one to the draft (undo until
 // saved), save the current look, rename, update or delete.
 function SavedThemes(props: {
@@ -766,6 +802,7 @@ function AppearanceEditor(props: EditorProps) {
           <p className="appearance-hint">{theme.course_columns === "auto" ? "Cards keep the size you pick, and each row fits as many as the screen has room for." : "Rows wrap sooner on narrow screens, so cards stay readable."}</p>
         </Group>
         <Group title="Course cards">
+          <CardLookGallery theme={theme} disabled={busy} onPick={(look) => set({ ...look.tokens })} />
           {choice("course_card_style")}
           {theme.course_card_style === "list" || theme.course_card_style === "text" ? null : choice("course_card_edge")}
           {choice("course_card_pills")}
