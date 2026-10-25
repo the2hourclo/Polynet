@@ -104,6 +104,13 @@
 [data-community-theme] .knowledge-resource-reader .resource-viewer-title {
   font-size: calc(var(--pn-type-display) * 1.25);
 }
+/* On a phone the display face at that size breaks a title into one word per
+   line, so it steps down to the title role. */
+@media (max-width: 640px) {
+  [data-community-theme] .knowledge-resource-reader .resource-viewer-title {
+    font-size: var(--pn-type-title);
+  }
+}
 /* Inside a lesson, section headings are reading text: the theme's display
    face stays on the lesson title. */
 [data-community-theme] .resource-viewer-prose :is(h1, h2, h3, h4, h5, h6).md-header {
