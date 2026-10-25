@@ -139,6 +139,41 @@ export const LessonRawMarkdown = Node.create({
   },
 });
 
+export type LessonSlide = { src: string; alt: string; note: string };
+
+// A lesson's "## Slides" section: the deck members page through.
+export const LessonSlideDeck = Node.create({
+  name: "slideDeck",
+  group: "block",
+  atom: true,
+  draggable: true,
+  selectable: true,
+  addAttributes() {
+    return {
+      lead: { default: "" },
+      slides: { default: [] as LessonSlide[] },
+    };
+  },
+  parseHTML() {
+    return [{
+      tag: "div[data-slide-deck]",
+      getAttrs: (element) => {
+        const el = element as HTMLElement;
+        let slides: LessonSlide[] = [];
+        try {
+          slides = JSON.parse(el.getAttribute("data-slides") ?? "[]");
+        } catch {
+          slides = [];
+        }
+        return { lead: el.getAttribute("data-lead") ?? "", slides };
+      },
+    }];
+  },
+  renderHTML({ node }) {
+    return ["div", { "data-slide-deck": "", "data-lead": node.attrs.lead, "data-slides": JSON.stringify(node.attrs.slides) }];
+  },
+});
+
 export function lessonEditorBaseExtensions(): AnyExtension[] {
   return [
     // The editor writes the reader's own class names, so a lesson looks the
@@ -170,5 +205,6 @@ export function lessonEditorBaseExtensions(): AnyExtension[] {
     LessonVideo,
     LessonFencedBlock,
     LessonRawMarkdown,
+    LessonSlideDeck,
   ];
 }

@@ -2,10 +2,13 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import {
   AppWindow,
+  ArrowDown,
+  ArrowUp,
   CheckSquare,
   CircleHelp,
   ClipboardList,
   Code2,
+  GalleryHorizontal,
   ImagePlus,
   MousePointerClick,
   Play,
@@ -29,7 +32,8 @@ import {
   type LessonElementDraft,
   type LessonEmbedDraft,
 } from "./lessonBlockModel";
-import { fencedBlockMarkdown } from "./lessonMarkdown";
+import { SLIDES_HEADING, fencedBlockMarkdown, readSlidesSection, slidesSectionMarkdown } from "./lessonMarkdown";
+import type { LessonSlide } from "./lessonEditorSchema";
 
 export type LessonVideoInfo = { provider: string; thumbnail: string | null };
 
@@ -37,11 +41,17 @@ export type LessonEditorServices = {
   /** Uploads a picture into an image block (or a new one), or null when uploads aren't available. */
   uploadImage: ((file: File, replacePos?: number) => void) | null;
   describeVideo: (url: string) => LessonVideoInfo | null;
+  /** Stores a picture and returns its address, or null when uploads aren't available. */
+  upload: ((file: File) => Promise<string>) | null;
+  /** Tells the owner something went wrong (an upload that failed). */
+  notify: (message: string) => void;
 };
 
 export const LessonEditorServicesContext = createContext<LessonEditorServices>({
   uploadImage: null,
   describeVideo: () => null,
+  upload: null,
+  notify: () => undefined,
 });
 
 // A block just added from the "/" menu takes the caret into its first field.
@@ -278,6 +288,299 @@ export function LessonRawMarkdownView({ node, updateAttributes, selected }: Node
           {preview}
         </div>
       )}
+    </BlockChrome>
+  );
+}
+
+/* Slides ------------------------------------------------------------------ */
+
+type DeckSlide = LessonSlide & { uploadId?: string };
+
+// Pictures still uploading show from the file itself until their address comes back.
+const uploadPreviews = new Map<string, string>();
+const IMAGE_TYPES = "image/png,image/jpeg,image/gif,image/webp,image/avif";
+
+function AutoGrowArea(props: { value: string; placeholder: string; label: string; onChange: (value: string) => void; className?: string }) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const area = ref.current;
+    if (!area) return;
+    const fit = () => {
+      area.style.height = "auto";
+      area.style.height = `${area.scrollHeight}px`;
+    };
+    fit();
+    // A narrower column wraps more lines.
+    let width = area.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (area.clientWidth === width) return;
+      width = area.clientWidth;
+      fit();
+    });
+    observer.observe(area);
+    return () => observer.disconnect();
+  }, [props.value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={2}
+      className={`lesson-editor-field ${props.className ?? ""}`}
+      value={props.value}
+      placeholder={props.placeholder}
+      aria-label={props.label}
+      onChange={(event) => props.onChange(event.target.value)}
+    />
+  );
+}
+
+export function LessonSlideDeckView({ node, updateAttributes, deleteNode, selected, editor, getPos }: NodeViewProps) {
+  const services = useContext(LessonEditorServicesContext);
+  const slides = (node.attrs.slides ?? []) as DeckSlide[];
+  const lead = String(node.attrs.lead ?? "");
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const replaceAt = useRef<number | null>(null);
+  const firstLinkRef = useRef<HTMLInputElement | null>(null);
+  const [links, setLinks] = useState<Record<number, string>>({});
+  const [textMode, setTextMode] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+  useClaimFocus("deck", () => firstLinkRef.current?.focus());
+  // Redraw when the blocks around the deck change, for the note below it.
+  useEffect(() => {
+    const rerender = () => setTick((tick) => tick + 1);
+    editor.on("update", rerender);
+    return () => void editor.off("update", rerender);
+  }, [editor]);
+
+  // Async work (uploads) reads the deck as it is now, not as it was when it started.
+  const currentSlides = (): DeckSlide[] => {
+    const pos = typeof getPos === "function" ? getPos() : undefined;
+    const current = typeof pos === "number" ? editor.state.doc.nodeAt(pos) : null;
+    return current?.type.name === "slideDeck" ? ([...current.attrs.slides] as DeckSlide[]) : [...slides];
+  };
+  const setSlides = (next: DeckSlide[]) => updateAttributes({ slides: next });
+  const patch = (index: number, change: Partial<DeckSlide>) => setSlides(slides.map((slide, i) => (i === index ? { ...slide, ...change } : slide)));
+  const move = (index: number, by: number) => {
+    const next = [...slides];
+    const [slide] = next.splice(index, 1);
+    next.splice(index + by, 0, slide);
+    setSlides(next);
+  };
+  const remove = (index: number) => {
+    const next = slides.filter((_, i) => i !== index);
+    if (next.length) setSlides(next);
+    else deleteNode();
+  };
+
+  const uploadInto = (files: File[], at: number | null) => {
+    const upload = services.upload;
+    if (!upload || !files.length) return;
+    const ids = files.map((file) => {
+      const uploadId = `slide-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      uploadPreviews.set(uploadId, URL.createObjectURL(file));
+      return uploadId;
+    });
+    const base = currentSlides();
+    if (at !== null) {
+      base[at] = { ...base[at], src: "", uploadId: ids[0] };
+    } else {
+      // A blank slide at the end takes the first picture.
+      const lastSlide = base[base.length - 1];
+      const fillsBlank = Boolean(lastSlide && !lastSlide.src && !lastSlide.uploadId);
+      ids.forEach((uploadId, i) => {
+        if (i === 0 && fillsBlank) base[base.length - 1] = { ...lastSlide, uploadId };
+        else base.push({ src: "", alt: "", note: "", uploadId });
+      });
+    }
+    setSlides(base);
+    files.forEach((file, i) => {
+      const uploadId = ids[i];
+      if (!uploadId) return;
+      upload(file)
+        .then((url) => setSlides(currentSlides().map((slide) => (slide.uploadId === uploadId ? { src: url, alt: slide.alt, note: slide.note } : slide))))
+        .catch((error: unknown) => {
+          services.notify(error instanceof Error ? error.message : "That picture didn't upload. Try again.");
+          setSlides(currentSlides().map((slide) => (slide.uploadId === uploadId ? { src: "", alt: slide.alt, note: slide.note } : slide)));
+        })
+        .finally(() => {
+          const preview = uploadPreviews.get(uploadId);
+          uploadPreviews.delete(uploadId);
+          if (preview) window.setTimeout(() => URL.revokeObjectURL(preview), 60_000);
+        });
+    });
+  };
+
+  const pos = typeof getPos === "function" ? getPos() : undefined;
+  const after = typeof pos === "number" ? editor.state.doc.resolve(pos + node.nodeSize).nodeAfter : null;
+  const absorbsNext = Boolean(after && !(after.type.name === "heading" && after.attrs.level === 2));
+  const count = slides.filter((slide) => slide.src || slide.uploadId).length;
+  const sectionText = slidesSectionMarkdown(lead, slides);
+  const parsedText = textMode === null ? null : readSlidesSection(textMode.replace(/^## Slides[ \t]*\n?/, ""));
+
+  return (
+    <BlockChrome
+      className="lesson-editor-deck"
+      selected={selected}
+      label="Slides"
+      icon={<GalleryHorizontal />}
+      aside={
+        <>
+          <span className="lesson-editor-block-meta">{count === 1 ? "1 slide" : `${count} slides`}</span>
+          <button
+            type="button"
+            className="lesson-editor-text-button"
+            onClick={() => {
+              if (textMode === null) setTextMode(sectionText);
+              else {
+                if (parsedText) updateAttributes({ lead: parsedText.lead, slides: parsedText.slides });
+                setTextMode(null);
+              }
+            }}
+            disabled={textMode !== null && !parsedText}
+          >
+            {textMode === null ? "Edit as text" : "Done"}
+          </button>
+          <button type="button" className="lesson-editor-icon-button" aria-label="Delete slides" onClick={() => deleteNode()}>
+            <Trash2 aria-hidden="true" />
+          </button>
+        </>
+      }
+    >
+      {textMode !== null ? (
+        <>
+          <AutoGrowArea className="lesson-editor-code-field" value={textMode} label="Slides as text" placeholder={SLIDES_HEADING} onChange={setTextMode} />
+          {!parsedText ? <p className="lesson-editor-block-problem" role="alert">Add at least one picture line, like ![Slide 1](https://…/slide-1.png).</p> : null}
+        </>
+      ) : (
+        <>
+          {lead ? (
+            <AutoGrowArea value={lead} label="Text above the slides" placeholder="Text above the slides" onChange={(value) => updateAttributes({ lead: value })} />
+          ) : null}
+          <ol className="lesson-editor-slides">
+            {slides.map((slide, index) => {
+              const preview = slide.uploadId ? uploadPreviews.get(slide.uploadId) : null;
+              const shown = preview ?? slide.src;
+              const link = links[index] ?? "";
+              return (
+                <li key={slide.uploadId ?? `${index}-${slide.src}`} className="lesson-editor-slide">
+                  <div className={`lesson-editor-slide-thumb${shown ? "" : " is-empty"}`}>
+                    <span className="lesson-editor-slide-number" aria-hidden="true">{index + 1}</span>
+                    {shown ? (
+                      <>
+                        <img src={shown} alt="" draggable={false} />
+                        {slide.uploadId ? <span className="lesson-editor-image-status" role="status">Uploading…</span> : null}
+                        {services.upload && !slide.uploadId ? (
+                          <button
+                            type="button"
+                            className="lesson-editor-slide-replace"
+                            onClick={() => {
+                              replaceAt.current = index;
+                              fileRef.current?.click();
+                            }}
+                          >
+                            Replace
+                          </button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="lesson-editor-slide-empty">
+                        {services.upload ? (
+                          <button
+                            type="button"
+                            className="lesson-editor-button is-primary"
+                            onClick={() => {
+                              replaceAt.current = index;
+                              fileRef.current?.click();
+                            }}
+                          >
+                            <Upload aria-hidden="true" /> Upload
+                          </button>
+                        ) : null}
+                        <form
+                          className="lesson-editor-inline-form"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            if (!/^https?:\/\//i.test(link.trim())) return;
+                            patch(index, { src: link.trim() });
+                            setLinks((current) => ({ ...current, [index]: "" }));
+                          }}
+                        >
+                          <input
+                            ref={index === 0 ? firstLinkRef : undefined}
+                            className="lesson-editor-field"
+                            value={link}
+                            placeholder={services.upload ? "or paste a link" : "Paste a picture link"}
+                            aria-label={`Slide ${index + 1} picture link`}
+                            onChange={(event) => setLinks((current) => ({ ...current, [index]: event.target.value }))}
+                          />
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                  <div className="lesson-editor-slide-fields">
+                    <input
+                      className="lesson-editor-field lesson-editor-slide-title"
+                      value={slide.alt}
+                      placeholder={`Slide ${index + 1} title`}
+                      aria-label={`Slide ${index + 1} title (read out for people who can't see it)`}
+                      onChange={(event) => patch(index, { alt: event.target.value })}
+                    />
+                    <AutoGrowArea
+                      value={slide.note}
+                      label={`Slide ${index + 1} note`}
+                      placeholder="What members read under this slide"
+                      onChange={(value) => patch(index, { note: value })}
+                    />
+                  </div>
+                  <div className="lesson-editor-slide-actions">
+                    <button type="button" className="lesson-editor-icon-button" aria-label={`Move slide ${index + 1} up`} disabled={index === 0} onClick={() => move(index, -1)}>
+                      <ArrowUp aria-hidden="true" />
+                    </button>
+                    <button type="button" className="lesson-editor-icon-button" aria-label={`Move slide ${index + 1} down`} disabled={index === slides.length - 1} onClick={() => move(index, 1)}>
+                      <ArrowDown aria-hidden="true" />
+                    </button>
+                    <button type="button" className="lesson-editor-icon-button" aria-label={`Remove slide ${index + 1}`} onClick={() => remove(index)}>
+                      <X aria-hidden="true" />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="lesson-editor-deck-foot">
+            {services.upload ? (
+              <button
+                type="button"
+                className="lesson-editor-button"
+                onClick={() => {
+                  replaceAt.current = null;
+                  fileRef.current?.click();
+                }}
+              >
+                <Upload aria-hidden="true" /> Upload slides
+              </button>
+            ) : null}
+            <button type="button" className="lesson-editor-text-button" onClick={() => setSlides([...slides, { src: "", alt: "", note: "" }])}>
+              <Plus aria-hidden="true" /> Add a slide
+            </button>
+          </div>
+          {absorbsNext ? (
+            <p className="lesson-editor-deck-hint">Text below the slides, up to the next Heading 1, shows under the last slide.</p>
+          ) : null}
+        </>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept={IMAGE_TYPES}
+        multiple
+        hidden
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = "";
+          const at = replaceAt.current;
+          uploadInto(at === null ? files : files.slice(0, 1), at);
+        }}
+      />
     </BlockChrome>
   );
 }
