@@ -754,7 +754,7 @@
 }
 
 .community-post-card-action.is-active {
-  color: var(--accent-brand);
+  color: var(--text-link, var(--accent-brand));
 }
 
 .community-post-card-action.is-active svg {
@@ -1398,7 +1398,7 @@
 }
 
 .community-post-card-last-reply {
-  color: var(--accent-brand);
+  color: var(--text-link, var(--accent-brand));
   font-weight: 500;
 }
 
