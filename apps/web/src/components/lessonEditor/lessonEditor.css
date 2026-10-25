@@ -595,8 +595,12 @@ select.lesson-editor-field {
 .lesson-editor-choice-mark,
 .lesson-editor-choice-box {
   flex: none;
+  align-self: center;
+  box-sizing: border-box;
   width: 18px;
   height: 18px;
+  min-height: 0;
+  margin: 0;
   padding: 0;
   border: 1.5px solid color-mix(in srgb, var(--text-muted) 70%, transparent);
   border-radius: 50%;
@@ -887,7 +891,8 @@ select.lesson-editor-field {
 /* The toolbar above the page: centred, sticky while the lesson scrolls. */
 .lesson-editor-toolbar {
   position: sticky;
-  top: 8px;
+  /* Sticks below the app's top-right buttons (messages, display), not under them. */
+  top: 56px;
   z-index: 20;
   display: flex;
   justify-content: center;
@@ -1088,6 +1093,7 @@ select.lesson-editor-field {
   .lesson-editor-toolbar {
     top: 4px;
     justify-content: flex-start;
+    padding: 0 var(--web-topbar-right-action-safe-inset, 66px) 0 0;
   }
 
   .lesson-editor-header-button .lesson-editor-header-label {
@@ -1273,4 +1279,30 @@ select.lesson-editor-field {
   .lesson-editor-slide-replace {
     opacity: 1;
   }
+}
+
+/* A slide note reads as formatted text until it is clicked. */
+.lesson-editor-slide-note {
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid var(--lesson-editor-line);
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  background: var(--lesson-editor-surface);
+  cursor: text;
+}
+
+.lesson-editor-slide-note:hover {
+  border-color: color-mix(in srgb, var(--text-primary) 22%, transparent);
+}
+
+.lesson-editor-slide-note > :first-child {
+  margin-top: 0;
+}
+
+.lesson-editor-slide-note > :last-child {
+  margin-bottom: 0;
+}
+
+.lesson-editor-slide-note.is-empty {
+  color: var(--text-muted);
 }

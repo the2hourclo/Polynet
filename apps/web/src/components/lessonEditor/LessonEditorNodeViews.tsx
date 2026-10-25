@@ -333,6 +333,53 @@ function AutoGrowArea(props: { value: string; placeholder: string; label: string
   );
 }
 
+// Shown as members read it; a click turns it into the Markdown it's saved as.
+function SlideNote(props: { value: string; label: string; onChange: (value: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const holderRef = useRef<HTMLDivElement | null>(null);
+  const rendered = useMemo(() => (props.value.trim() ? renderMarkdown(props.value, { embedStandaloneMedia: false, headingLevelOffset: 1 }) : null), [props.value]);
+  useEffect(() => {
+    if (!editing) return;
+    // After the editor has handled the click (it selects the card and takes focus).
+    const id = window.setTimeout(() => holderRef.current?.querySelector("textarea")?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [editing]);
+  if (editing) {
+    return (
+      <div
+        ref={holderRef}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setEditing(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setEditing(false);
+        }}
+      >
+        <AutoGrowArea value={props.value} label={props.label} placeholder="What members read under this slide" onChange={props.onChange} />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`resource-viewer-prose lesson-editor-slide-note${rendered ? "" : " is-empty"}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`${props.label}: edit`}
+      onClick={(event) => {
+        if (!(event.target as HTMLElement).closest("a")) setEditing(true);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setEditing(true);
+        }
+      }}
+    >
+      {rendered ?? "What members read under this slide"}
+    </div>
+  );
+}
+
 export function LessonSlideDeckView({ node, updateAttributes, deleteNode, selected, editor, getPos }: NodeViewProps) {
   const services = useContext(LessonEditorServicesContext);
   const slides = (node.attrs.slides ?? []) as DeckSlide[];
@@ -524,10 +571,9 @@ export function LessonSlideDeckView({ node, updateAttributes, deleteNode, select
                       aria-label={`Slide ${index + 1} title (read out for people who can't see it)`}
                       onChange={(event) => patch(index, { alt: event.target.value })}
                     />
-                    <AutoGrowArea
+                    <SlideNote
                       value={slide.note}
                       label={`Slide ${index + 1} note`}
-                      placeholder="What members read under this slide"
                       onChange={(value) => patch(index, { note: value })}
                     />
                   </div>
