@@ -1,7 +1,6 @@
 /* Community Settings, after Substack's admin (polynet-ui/substack-study).
-   Settings look the same in every community (Rashid, 2026-10-25): Polynet's
-   own colours and font (re-declared on .pn-settings in base.css) and
-   four radii (8 controls and cards, 12 frames, 4 badges, full toggles). The
+   Settings take the community's own colours and body font (Rashid,
+   2026-10-25), with Substack's structure and four radii (8 controls and cards, 12 frames, 4 badges, full toggles). The
    accent appears only on primary actions, toggles that are on and selection.
    Sizes are in rem on purpose: the generated community-theme-map.css rescales
    every px size and radius by the community's type and corner settings, and
@@ -618,7 +617,7 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
   .pn-sales-frame-wrap { padding: 0.5rem; }
 }
 
-/* Settings never take the community theme, so Stripe keeps its own indigo. */
+/* Stripe keeps its own indigo in every theme. */
 [data-community-theme] .pn-settings .stripe-setup-button {
   --stripe-setup-bg: #4f46e5;
   --stripe-setup-bg-hover: #5a52ea;
@@ -633,3 +632,8 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
   background: none;
 }
 .pn-settings .pn-settings-main > .settings-section.community-look .appearance-card { margin: 0; max-width: none; background: var(--bg-card); }
+
+/* The own-website card: links and the URL field big enough to tap. */
+.pn-settings .external-funnel-join-link a,
+.pn-settings .external-funnel-test a { display: inline-flex; align-items: center; min-height: 1.5rem; }
+.pn-settings #external-funnel-url { min-height: 2.5rem; padding: 0 0.75rem; }

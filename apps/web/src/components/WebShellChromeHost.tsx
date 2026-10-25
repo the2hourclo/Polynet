@@ -19,6 +19,7 @@ import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controlle
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityAside } from "./WebCommunityAside";
 import { WebCommunityTopNav } from "./WebCommunityTopNav";
+import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
 import type { AppTheme } from "../../../../shared/theme";
 import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
 import type {
@@ -172,8 +173,16 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     onSelectCommunityTab(communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home);
     onOpenCommunityAgent?.();
   }, [agentTabInTopLayout, onSelectCommunityTab, onOpenCommunityAgent, communityLayout.navigation.home]);
+  // Classroom: Settings and Workflows open full screen under a slim bar.
+  const isTopOwnerPage = isTopCommunityNav && isCommunityOwnerPage(props.communityShell.communityTab);
   const desktopCommunityNav = props.communityShell.showDesktopCommunityNav && !welcome ? (
-    isTopCommunityNav ? (
+    isTopOwnerPage ? (
+      <WebCommunityOwnerBar
+        communityShell={props.communityShell}
+        homeTab={communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home}
+        trailing={<WebCommunityDisplayMenu placement="top" />}
+      />
+    ) : isTopCommunityNav ? (
       <WebCommunityTopNav communityShell={props.communityShell} trailing={<WebCommunityDisplayMenu placement="top" />} />
     ) : (
       <WebCommunityNavSurface
@@ -222,7 +231,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     ) : unthemedMainSurface;
   // With the top tab bar the page sits under it, beside the layout's aside.
   const mainSurface = isTopCommunityNav ? (
-    <div className={`community-top-body${communityAsideBlocks.length > 0 ? " has-aside" : ""}`}>
+    <div className={`community-top-body${communityAsideBlocks.length > 0 ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
       <div className="community-top-main">{themedMainSurface}</div>
       <WebCommunityAside blocks={communityAsideBlocks} />
     </div>
