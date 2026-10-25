@@ -7,6 +7,8 @@ import {
 } from "react";
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
+import { WebCommunityWelcome } from "./components/WebCommunityWelcome";
+import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
   beginBrowserSignedOutState,
   getAuthPublicKey,
@@ -2244,6 +2246,10 @@ export default function App() {
         onCreateMilestone: communityWorkflows.createMilestone,
         onUpdateMilestone: communityWorkflows.updateMilestone,
         onDeleteMilestone: communityWorkflows.deleteMilestone,
+        onSetWelcomeGate: communityWorkflows.setWelcomeGate,
+        onSaveWelcomePage: communityWorkflows.saveWelcomePage,
+        onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
+        communityName: activeCommunity?.name ?? null,
         onClearActionError: communityWorkflows.clearActionError,
         onOpenMemberDossier: communityWorkflows.openMemberDossier,
         onCloseMemberDossier: communityWorkflows.closeMemberDossier,
@@ -2254,6 +2260,7 @@ export default function App() {
         onForceMove: communityWorkflows.forceMove,
         onApproveMilestone: communityWorkflows.approveMilestone,
         onRetryGoalReview: communityWorkflows.retryGoalReview,
+        onRetryAction: communityWorkflows.retryAction,
         onOpenServiceChannel: (expectedChannelId: string) => communityWorkflows.openServiceChannel(expectedChannelId, (channelId) => {
           const channel = activeCommunityChannels.find(item => item.id === channelId && item.community_id === activeCommunityId);
           if (!channel) return;
@@ -2482,6 +2489,8 @@ export default function App() {
         canManageCommunityMembers: canManageMembersActiveCommunity,
         canReviewCommunityJoinRequests: canReviewJoinRequestsActiveCommunity,
         communityJoinReviewMode: activeCommunityMembersJoinReviewMode,
+        rosterFooter: activeCommunityId
+          ? <WebCommunitySiblings communityId={activeCommunityId} onOpen={(slug) => navigateTo(`/c/${encodeURIComponent(slug)}`)} /> : null,
         communityJoinRequests: communityContextJoinRequests,
         isLoadingCommunityJoinRequests,
         communityJoinRequestsError,
@@ -2605,6 +2614,15 @@ export default function App() {
     authError,
   });
 
+  // The builder's welcome flow: until the member finishes its forms, then its
+  // lessons, the community pane shows only those steps. The left rail keeps
+  // working. A member who just joined is held before their forms exist (no steps yet).
+  const welcomeStepsKey = activeCommunityAccess?.welcome_required
+    ? `${(activeCommunityAccess.welcome_form_request_ids ?? []).join(",")}|${(activeCommunityAccess.welcome_lesson_ids ?? []).join(",")}` : "";
+  const welcomeSteps = useMemo(() => {
+    const [forms = "", lessons = ""] = welcomeStepsKey.split("|");
+    return { requestIds: forms ? forms.split(",") : [], lessonIds: lessons ? lessons.split(",") : [] };
+  }, [welcomeStepsKey]);
   if (standalonePublicRouteViewProps) {
     return (
       <Suspense fallback={<div className="landing-auth-hold" aria-hidden="true" />}>
@@ -2988,6 +3006,14 @@ export default function App() {
     hasLeftPanel,
     isGlobalSettings,
   });
+  if (session && activeCommunityId && welcomeStepsKey && activePage === "community" && !isPublicCommunityFunnel) {
+    shellChromeHostProps.welcomeSurface = (
+      <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
+        communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeSteps.requestIds} lessonIds={welcomeSteps.lessonIds}
+        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess}
+        onReleased={() => { void communityContent.retryResourceRead("modules"); void communityContent.retryResourceRead("resources"); }} />
+    );
+  }
 
   if (shouldHoldRouteForAccess) {
     const previewAdmissionError = isPublicFunnelPreviewRoute

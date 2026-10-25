@@ -2,7 +2,6 @@ import { useState, type DragEvent, type MouseEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
-  BookOpen,
   Eye,
   EyeOff,
   GripVertical,
@@ -185,15 +184,14 @@ function ResourceCourseCard(props: {
             zoom: module.banner_zoom,
           }}
           alt=""
-          fallback={<BookOpen aria-hidden="true" />}
+          fallback={<span className="resource-course-card-cover-fallback" aria-hidden="true" />}
           loading="lazy"
           fetchPriority="low"
           aria-hidden
         />
         {lockedReason ? (
-          <span className="resource-course-card-lock">
+          <span className="resource-course-card-lock" role="img" aria-label="Locked">
             <Lock aria-hidden="true" />
-            <span>{lockedReason}</span>
           </span>
         ) : null}
         <span className="resource-course-card-body">
@@ -220,7 +218,9 @@ function ResourceCourseCard(props: {
             </span>
           ) : (
             <span className="resource-course-card-meta">
-              {lessonCount === null ? "Lessons not loaded" : `${lessonCount} ${lessonCount === 1 ? "lesson" : "lessons"}`}
+              {lockedReason
+                ? lockedReason
+                : lessonCount === null ? "Lessons not loaded" : `${lessonCount} ${lessonCount === 1 ? "lesson" : "lessons"}`}
             </span>
           )}
         </span>

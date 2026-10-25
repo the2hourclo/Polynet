@@ -84,6 +84,13 @@ const SELF_FORMS_DIRECTORY = "/members/me/forms/";
 const SELF_PROGRESS_PATH = "/members/me/progress.json";
 const LESSON_RESPONSE_OPERATION = "community.resource.response.set";
 const BUILDER_PROGRESS_DIRECTORY = "/builder/progress/";
+// The owner's client list and the owner's own client properties (convex/communityClients.ts).
+const BUILDER_CLIENTS_DIRECTORY = "/builder/clients/";
+const CLIENT_PROPERTY_DEFINE_OPERATION = "community.client.property.define";
+const CLIENT_VALUE_SET_OPERATION = "community.client.value.set";
+const CLIENT_SETTINGS_SET_OPERATION = "community.client.settings.set";
+const CLIENT_EVENT_RECORD_OPERATION = "community.client.event.record";
+const CLIENT_OPERATIONS = [CLIENT_PROPERTY_DEFINE_OPERATION, CLIENT_VALUE_SET_OPERATION, CLIENT_SETTINGS_SET_OPERATION, CLIENT_EVENT_RECORD_OPERATION];
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
@@ -682,10 +689,13 @@ function capabilityDocument(args: {
   const isWorkflowApprovalCapability = args.operation === APPROVE_MILESTONE_OPERATION &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
+  const isClientCapability = CLIENT_OPERATIONS.includes(args.operation) &&
+    args.evidenceSurface === "external_mcp" &&
+    args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
   const isSiteDeployCapability = args.operation === SITE_DEPLOY_OPERATION &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
-  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isProgressCapability && !isSiteDeployCapability) {
+  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isProgressCapability && !isSiteDeployCapability && !isClientCapability) {
     return null;
   }
   const operationDefinition: Record<string, unknown> = {
@@ -693,7 +703,7 @@ function capabilityDocument(args: {
     version: 1,
     tool: "polynet_call",
     target: `/communities/${args.target.communitySlug}/capabilities/${args.operation}.json`,
-    authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability ? "builder" : "member",
+    authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability || isClientCapability ? "builder" : "member",
     idempotency_required: true,
   };
   if (isProgressCapability && args.operation === LESSON_RESPONSE_OPERATION) {
@@ -717,6 +727,48 @@ function capabilityDocument(args: {
       ref: "interaction:root:<id> or interaction:reply:<id> from a channel or thread listing",
       emoji: "up to 32 characters", on: "true adds your reaction, false removes it",
       effects: ["set_own_reaction"], forbidden_effects: ["react_as_someone_else"] };
+  } else if (isClientCapability && args.operation === CLIENT_PROPERTY_DEFINE_OPERATION) {
+    operationDefinition.input = {
+      required: [],
+      name: "a new property's name, or a new name for an existing one (up to 60 characters)",
+      type: "for a new property: text, number, select, multi_select, date, checkbox or url",
+      options: "select and multi_select: the choices, up to 30",
+      key: "an existing property's key from the client list, to change it",
+      position: "an existing property's column order (a number)",
+      archive: "true archives an existing property; its values are kept but hidden",
+      result: "the property, with its key",
+      refusals: { client_property_name_taken: "another property has that name", client_property_limit_reached: "50 properties at most",
+        client_property_not_found: "no property with that key" },
+      effects: ["define_owner_client_property"], forbidden_effects: ["edit_member_facts", "change_membership", "change_billing"],
+    };
+  } else if (isClientCapability && args.operation === CLIENT_EVENT_RECORD_OPERATION) {
+    operationDefinition.input = {
+      required: ["membership_ref", "type"],
+      membership_ref: `membership:<id> from ${BUILDER_CLIENTS_DIRECTORY}`,
+      type: "flagged, note, drafted or contacted",
+      body: "what you noticed, the note, the draft, or what was sent (required except for flagged; up to 2000 characters)",
+      channel: "contacted only: email, message, call or other",
+      result: "the logged entry; it shows on the client's timeline and as last_flagged_at / last_contacted_at in the list",
+      guidance: "Record contact only after it really happened. Check last_contacted_at first so nobody contacts the same person twice.",
+      effects: ["log_client_action"], forbidden_effects: ["send_email", "message_member", "change_membership"],
+    };
+  } else if (isClientCapability && args.operation === CLIENT_SETTINGS_SET_OPERATION) {
+    operationDefinition.input = {
+      required: ["stuck_days"],
+      stuck_days: "days without progress (a lesson finished, a form submitted, a stage moved) before an active client counts as stuck; 1 to 365, default 7",
+      result: "the saved rule",
+      effects: ["set_client_rules"], forbidden_effects: ["message_member", "change_membership"],
+    };
+  } else if (isClientCapability) {
+    operationDefinition.input = {
+      required: ["membership_ref", "key", "value"],
+      membership_ref: `membership:<id> from ${BUILDER_CLIENTS_DIRECTORY}`,
+      key: "a property key from the client list",
+      value: "text: a string. number: a number. checkbox: true or false. date: YYYY-MM-DD. url: http(s) link. select: one option. multi_select: a list of options. null clears it.",
+      result: "the stored value",
+      refusals: { client_property_value_invalid: "the value does not fit the property", community_client_not_found: "no client with that membership" },
+      effects: ["set_owner_client_property"], forbidden_effects: ["edit_member_facts", "change_membership", "change_billing", "message_member"],
+    };
   } else if (isSiteDeployCapability) {
     operationDefinition.input = {
       required: ["files"],
@@ -833,6 +885,28 @@ async function executeCanonicalList(args: {
           kind: "document", type: "member_progress_report" })) }),
         courses: page.courses, next_cursor: page.next_cursor, truncated: page.next_cursor !== null || page.truncated,
         guidance: "Private member progress. Do not post it in shared channels." } };
+    } catch {
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    }
+  }
+
+  if (target.localPath.startsWith(BUILDER_CLIENTS_DIRECTORY)) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent" || target.localPath !== BUILDER_CLIENTS_DIRECTORY) {
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    }
+    try {
+      const page = await args.ctx.runQuery((internal as any).communityClients.listClientsInternal,
+        { userId: args.userId, communityId: target.communityId,
+          ...(typeof args.input.cursor === "string" ? { cursor: args.input.cursor } : {}) });
+      return { ok: true, value: { ...virtualDirectory({ path: absolutePath, searchable: false, writable: false,
+        entries: page.clients.map((client: { membership_id: string }) => ({
+          ...client, ref: `membership:${client.membership_id}`,
+          path: mountedPath(target.communitySlug, `${BUILDER_CLIENTS_DIRECTORY}${client.membership_id}.json`),
+          dossier_path: mountedPath(target.communitySlug, `${WORKFLOW_MEMBERS_DIRECTORY}${client.membership_id}.md`),
+          kind: "document", type: "community_client" })) }),
+        properties: page.properties, stuck_days: page.stuck_days, next_cursor: page.next_cursor,
+        truncated: page.next_cursor !== null || page.lessons_truncated,
+        guidance: `Private client records. Do not post them in shared channels. Change your own properties with ${CLIENT_PROPERTY_DEFINE_OPERATION} and ${CLIENT_VALUE_SET_OPERATION}; member facts belong to the member and cannot be edited here.` } };
     } catch {
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
@@ -1131,7 +1205,7 @@ async function executeCanonicalList(args: {
       ...(args.evidenceSurface === "community_funnel_builder"
         ? []
         : MEMBER_CAPABILITIES),
-      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION].filter(operation => capabilityDocument({ target, operation,
+      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...CLIENT_OPERATIONS].filter(operation => capabilityDocument({ target, operation,
         evidenceSurface: args.evidenceSurface, principalKind: args.principalKind })),
     ];
     return {
@@ -1187,6 +1261,7 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, POLYNET_JOIN_REQUESTS_DIRECTORY_PATH), kind: "directory", type: "builder", name: "Pending admission requests" },
           { path: mountedPath(target.communitySlug, WORKFLOW_MEMBERS_DIRECTORY), kind: "directory", type: "builder", name: "Member workflow context and form responses" },
           { path: mountedPath(target.communitySlug, BUILDER_PROGRESS_DIRECTORY), kind: "directory", type: "builder", name: "Member course progress" },
+          { path: mountedPath(target.communitySlug, BUILDER_CLIENTS_DIRECTORY), kind: "directory", type: "builder", name: "Clients: every member, past members included, with status, stage, progress, approved facts and your own properties" },
           {
             path: mountedPath(
               target.communitySlug,
@@ -1398,6 +1473,18 @@ async function executeCanonicalRead(args: {
         ? canonicalError("form_payload_too_large", "Assigned form exceeds the 24000-character adapter budget.")
         : canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
+  }
+
+  if (target.localPath.startsWith(BUILDER_CLIENTS_DIRECTORY)) {
+    const match = /^\/builder\/clients\/([A-Za-z0-9]+)\.json$/.exec(target.localPath);
+    if (!match || !target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    try {
+      const payload = await args.ctx.runQuery((internal as any).communityClients.readClientTimelineInternal,
+        { userId: args.userId, communityId: target.communityId, membershipId: match[1] });
+      return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+        writable: false, searchable: false } };
+    } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
   }
 
   if (target.localPath.startsWith(BUILDER_PROGRESS_DIRECTORY)) {
@@ -2302,6 +2389,70 @@ async function executeCanonicalCall(args: {
         value.retryAfterMs ? { retry_after_ms: value.retryAfterMs } : undefined);
       return { ok: true, value };
     } catch { return canonicalError("workflow_approval_unavailable", "Observed milestone not available or approval not authorized."); }
+  }
+  if (CLIENT_OPERATIONS.includes(operation)) {
+    if (args.principalKind !== "external_mcp" || target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json`) {
+      return canonicalError("operation_not_found", "Operation is not discoverable or authorized for this community.");
+    }
+    const clientError = (error: unknown) => {
+      const code = /^(client_property_[a-z_]+|client_event_[a-z_]+|client_stuck_days_invalid|community_client_not_found)/.exec(String((error as Error)?.message ?? ""))?.[1];
+      return code ? canonicalError(code, "The client property change was refused.") : canonicalError("client_unavailable", "Client records are not available.");
+    };
+    const base = { communityId: target.communityId, userId: args.userId };
+    const mutate = (name: string, mutationArgs: Record<string, unknown>) =>
+      (receipt: Record<string, unknown>) => args.ctx.runMutation((internal as any).communityClients[name], { ...base, ...mutationArgs, receipt });
+    let run: (receipt: Record<string, unknown>) => Promise<{ deduped?: boolean; result: Record<string, unknown> }>;
+    if (operation === CLIENT_EVENT_RECORD_OPERATION) {
+      const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
+      if (!member || typeof rawInput.type !== "string" ||
+          (rawInput.body !== undefined && typeof rawInput.body !== "string") ||
+          (rawInput.channel !== undefined && typeof rawInput.channel !== "string") ||
+          Object.keys(rawInput).some(key => !["membership_ref", "type", "body", "channel"].includes(key)))
+        return canonicalError("invalid_tool_args", "A membership_ref and a type (flagged, note, drafted or contacted) are required.");
+      run = mutate("recordClientEventInternal", { membershipId: member[1], type: rawInput.type, via: "agent",
+        ...(rawInput.body !== undefined ? { body: rawInput.body } : {}), ...(rawInput.channel !== undefined ? { channel: rawInput.channel } : {}) });
+    } else if (operation === CLIENT_SETTINGS_SET_OPERATION) {
+      if (typeof rawInput.stuck_days !== "number" || Object.keys(rawInput).some(key => key !== "stuck_days"))
+        return canonicalError("invalid_tool_args", "stuck_days (a number of days) is required.");
+      run = mutate("setClientSettingsInternal", { stuckDays: rawInput.stuck_days });
+    } else if (operation === CLIENT_VALUE_SET_OPERATION) {
+      const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
+      if (!member || typeof rawInput.key !== "string" || !("value" in rawInput) ||
+          Object.keys(rawInput).some(key => !["membership_ref", "key", "value"].includes(key)))
+        return canonicalError("invalid_tool_args", "A membership_ref, a property key and a value (or null) are required.");
+      run = mutate("setClientPropertyValueInternal", { membershipId: member[1], key: rawInput.key, value: rawInput.value, via: "agent" });
+    } else {
+      if (Object.keys(rawInput).some(key => !["key", "name", "type", "options", "position", "archive"].includes(key)))
+        return canonicalError("invalid_tool_args", "Only key, name, type, options, position and archive are accepted.");
+      run = typeof rawInput.key !== "string"
+        ? mutate("createClientPropertyInternal", { name: rawInput.name, type: rawInput.type, ...(rawInput.options !== undefined ? { options: rawInput.options } : {}) })
+        : rawInput.archive === true
+          ? mutate("archiveClientPropertyInternal", { key: rawInput.key })
+          : mutate("updateClientPropertyInternal", { key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
+            ...(rawInput.options !== undefined ? { options: rawInput.options } : {}),
+            ...(rawInput.position !== undefined ? { position: rawInput.position } : {}) });
+    }
+    // A retry with the same key returns the first answer instead of writing again,
+    // so a lost reply never records a second event or overwrites a newer edit.
+    // The change completes its receipt in the same transaction.
+    const receiptArgs = { ...args, input: { operation, input: rawInput }, target, toolName: "polynet_call" as const,
+      idempotencyKey: `community-client:${idempotencyKey}` };
+    const reservation = await reserveMutatingOperation(receiptArgs);
+    if (!reservation.ok) return reservation.result;
+    if (reservation.status === "completed") return { ok: true, value: reservation.completedValue };
+    try {
+      const completed = await run({
+        attempt: { communityId: target.communityId, userId: args.userId, principalKind: args.principalKind, toolName: "polynet_call",
+          idempotencyKey: receiptArgs.idempotencyKey, requestFingerprint: reservation.requestFingerprint, attemptToken: reservation.attemptToken },
+        value: { deduped: false, receipt: canonicalReceipt({ toolName: "polynet_call", principalKind: args.principalKind, target, idempotencyKey, deduped: false }) },
+      });
+      return { ok: true, value: completed.deduped === true ? replayedOperationValue(completed.result) : completed.result };
+    } catch (error) {
+      const refused = clientError(error);
+      await failMutatingOperation({ ...receiptArgs, requestFingerprint: reservation.requestFingerprint, attemptToken: reservation.attemptToken,
+        errorCode: refused.ok ? "client_unavailable" : refused.code, errorMessage: refused.ok ? "" : refused.message });
+      return refused;
+    }
   }
   if (operation === RESOURCE_PROGRESS_OPERATION) {
     const ref = parseCommunityResourceEvidenceRef(rawInput.ref);

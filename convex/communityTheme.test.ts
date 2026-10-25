@@ -157,6 +157,42 @@ describe("community theme compilation", () => {
     expect(normalizeCommunityTheme({ course_cover_ratio: "2:1" }).ok).toBe(false);
   });
 
+  test("a cover tint prints covers onto a wash of the accent, in light schemes only", () => {
+    const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
+    expect(defaults["--pn-cover-blend"]).toBe("normal");
+    const tinted = normalizeCommunityTheme({ ...CLO_THEME, course_cover_plate: "tint" });
+    if (!tinted.ok) throw new Error("invalid");
+    expect(communityThemeVariables(tinted.theme, "light")["--pn-cover-plate"]).toBe("color-mix(in srgb, #2B863A 9%, #FFFFFF)");
+    expect(communityThemeVariables(tinted.theme, "light")["--pn-cover-blend"]).toBe("multiply");
+    const dark = normalizeCommunityTheme({ ...STOPWATCH_THEME, course_cover_plate: "tint" });
+    if (!dark.ok) throw new Error("invalid");
+    expect(communityThemeVariables(dark.theme, "dark")["--pn-cover-blend"]).toBe("normal");
+    expect(normalizeCommunityTheme({ course_cover_plate: "photo" }).ok).toBe(false);
+  });
+
+  test("a whole cover fit shows each cover in full, over its inline framing", () => {
+    expect(compileCommunityThemeCss(DEFAULT_COMMUNITY_THEME, ".c")).not.toContain("object-fit: contain");
+    const whole = normalizeCommunityTheme({ ...STOPWATCH_THEME, course_cover_fit: "whole" });
+    if (!whole.ok) throw new Error("invalid");
+    expect(compileCommunityThemeCss(whole.theme, ".c")).toContain(".c .resource-course-card-cover-image {\n  inset: 0 !important;");
+    expect(normalizeCommunityTheme({ course_cover_fit: "stretch" }).ok).toBe(false);
+  });
+
+  test("text roles all follow the one text-size setting, a reading step above Polynet's CSS", () => {
+    const defaults = communityThemeVariables(DEFAULT_COMMUNITY_THEME, "light");
+    expect(defaults["--pn-type-body"]).toBe("16px");
+    expect(defaults["--pn-type-ui"]).toBe("16px");
+    expect(defaults["--pn-type-small"]).toBe("15px");
+    expect(defaults["--pn-type-meta"]).toBe("13px");
+    expect(defaults["--pn-type-display"]).toBe("clamp(26px, 3vw, 34px)");
+    const larger = normalizeCommunityTheme({ ...DEFAULT_COMMUNITY_THEME, type_scale: 1.2 });
+    if (!larger.ok) throw new Error("invalid");
+    const vars = communityThemeVariables(larger.theme, "light");
+    expect(vars["--pn-type-body"]).toBe("19.2px");
+    expect(vars["--pn-type-title"]).toBe("31.2px");
+    expect(vars["--pn-type-display"]).toBe("clamp(31.2px, 3.6vw, 40.8px)");
+  });
+
   test("only Google faces add a stylesheet", () => {
     const stopwatch = normalizeCommunityTheme(STOPWATCH_THEME);
     if (!stopwatch.ok) throw new Error("invalid");
@@ -170,5 +206,24 @@ describe("community theme compilation", () => {
     expect(nearestPassingColor("#000000", "#FFFFFF", 4.5)).toBe("#000000");
     const fixed = nearestPassingColor("#9BE59B", "#FFFFFF", 4.5);
     expect(contrastRatio(fixed ?? "", "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test("grey text on a dark scheme reads near-white, and light schemes keep their greys", () => {
+    const stopwatch = normalizeCommunityTheme(STOPWATCH_THEME);
+    const clo = normalizeCommunityTheme(CLO_THEME);
+    if (!stopwatch.ok || !clo.ok) throw new Error("invalid");
+    const dark = communityThemeVariables(stopwatch.theme, "dark");
+    const surface = stopwatch.theme.schemes.dark!.surface;
+    expect(contrastRatio(dark["--text-secondary"], surface)).toBeGreaterThanOrEqual(15);
+    expect(contrastRatio(dark["--text-muted"], surface)).toBeGreaterThanOrEqual(12);
+    expect(contrastRatio(dark["--text-faint"], surface)).toBeGreaterThanOrEqual(9);
+    // Chat colours come from the community, not from Polynet's own :root.
+    expect(dark["--chat-body-text"]).toBe(stopwatch.theme.schemes.dark!.text);
+    expect(dark["--text-on-accent"]).toBe(stopwatch.theme.schemes.dark!.on_accent);
+    expect(contrastRatio(dark["--text-link"], surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(dark["--chat-meta-text"], surface)).toBeGreaterThanOrEqual(12);
+    const light = communityThemeVariables(clo.theme, "light");
+    expect(light["--text-muted"]).toBe("#6B6B63");
+    expect(contrastRatio(light["--text-faint"], "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
   });
 });

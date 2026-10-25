@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { normalizeCommunityReferralRef } from "../shared/communityClients";
 import { v } from "convex/values";
 import {
   type CommunityLike,
@@ -589,6 +590,34 @@ export const listPublicDiscoverCommunities = query({
   },
 });
 
+// The same owner's other public communities, for the "More from this creator"
+// block inside each community, so one community can send members to the next.
+export const listSiblingCommunities = query({
+  args: { communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    const current = (await ctx.db.get(args.communityId)) as CommunityLike | null;
+    if (!current || !communityIsActive(current)) return { communities: [] };
+    const owned = (await ctx.db.query("communities")
+      .withIndex("by_owner", (q) => q.eq("ownerId", current.ownerId))
+      .take(50)) as CommunityLike[];
+    const communities = [];
+    for (const community of owned) {
+      if (community._id === current._id || community.visibility !== "published" || !communityIsActive(community)) continue;
+      if (!(await resolveCommunityBuilderAccess({ ctx, community })).operational) continue;
+      const branding = await resolveCommunityBrandingFields(ctx, community);
+      communities.push({
+        id: String(community._id),
+        slug: community.slug,
+        name: community.name,
+        one_liner: community.oneLiner ?? null,
+        avatar_url: branding.avatar_url,
+      });
+      if (communities.length >= 6) break;
+    }
+    return { communities };
+  },
+});
+
 /* Cached production clients still call this operation. The current web app
    uses communityAccessQueries:getMyCommunityAccessBySlug as its sole
    admission projection; remove this compatibility shim only after the pinned
@@ -801,9 +830,19 @@ async function joinPublicCommunityInternal(args: {
   };
 }
 
+// First touch wins: a later link never rewrites who sent the member.
+async function recordCommunityReferral(ctx: any, communityId: any, userId: any, rawRef: unknown, nowMs: number) {
+  const ref = normalizeCommunityReferralRef(rawRef);
+  if (!ref) return;
+  const existing = await ctx.db.query("communityReferrals")
+    .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", userId)).first();
+  if (!existing) await ctx.db.insert("communityReferrals", { communityId, userId, ref, capturedAt: nowMs });
+}
+
 export const joinPublicCommunityBySlug = mutation({
   args: {
     communitySlug: v.string(),
+    ref: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await resolveUserIdForAuthenticatedRequest({ ctx });
@@ -814,6 +853,7 @@ export const joinPublicCommunityBySlug = mutation({
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .first()) as CommunityLike | null;
     if (!community) throw new Error("community_not_found");
+    await recordCommunityReferral(ctx, community._id, userId, args.ref, nowMs);
     return await joinPublicCommunityInternal({
       ctx,
       community,
@@ -826,12 +866,14 @@ export const joinPublicCommunityBySlug = mutation({
 export const joinPublicCommunity = mutation({
   args: {
     communityId: v.id("communities"),
+    ref: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await resolveUserIdForAuthenticatedRequest({ ctx });
     const nowMs = Date.now();
     const community = (await ctx.db.get(args.communityId)) as CommunityLike | null;
     if (!community) throw new Error("community_not_found");
+    await recordCommunityReferral(ctx, community._id, userId, args.ref, nowMs);
     return await joinPublicCommunityInternal({
       ctx,
       community,

@@ -1266,6 +1266,25 @@ export default defineSchema({
 
   communityMemberWorkflows: defineTable({
     communityId: v.id("communities"),
+    /** Builder setting: members who joined with a pending welcome form see only that form until they submit it. */
+    welcomeGate: v.optional(v.boolean()),
+    /** When the welcome flow was last turned on; members who join after it are held from the moment they join. */
+    welcomeGateEnabledAt: v.optional(v.number()),
+    /** Lesson pages a member marks done in the welcome flow, after its join forms, in this order. */
+    welcomeLessonIds: v.optional(v.array(v.id("communityResources"))),
+    /** The builder's words on the welcome page; Polynet's defaults where absent. */
+    welcomePage: v.optional(v.object({
+      title: v.optional(v.string()),
+      message: v.optional(v.string()),
+      mediaUrl: v.optional(v.string()),
+      /** The page as blocks with "Next" breaks (shared/communityWelcomeLayout.ts); message and media before it existed. */
+      layout: v.optional(v.array(v.union(
+        v.object({ type: v.literal("text"), markdown: v.string() }),
+        v.object({ type: v.literal("form"), formKey: v.string() }),
+        v.object({ type: v.literal("lesson"), resourceId: v.string() }),
+        v.object({ type: v.literal("next") }),
+      ))),
+    })),
     milestones: v.array(
       v.object({
         key: v.string(),
@@ -1282,6 +1301,8 @@ export default defineSchema({
             v.object({ type: v.literal("member_joined") }),
       v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string() }),
             v.object({ type: v.literal("form_submitted"), formKey: v.string() }),
+            v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
+            v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
             v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
             v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number() }),
           ),
@@ -1292,6 +1313,12 @@ export default defineSchema({
               key: v.string(),
               type: v.literal("prompt_agent"),
               prompt: v.string(),
+            }),
+            v.object({
+              key: v.string(),
+              type: v.literal("set_client_property"),
+              propertyKey: v.string(),
+              value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
             }),
           ),
         })),
@@ -1355,13 +1382,15 @@ export default defineSchema({
     milestoneEnteredAt: v.number(),
     workflowRevision: v.number(),
     automationKey: v.string(),
-    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed")),
+    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed"), v.literal("lesson_completed"), v.literal("course_completed")),
     // Optional for historical runs. New runs capture the condition that matched.
     triggerSnapshot: v.optional(v.union(
       v.object({ type: v.literal("member_joined") }),
       v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string() }),
       v.object({ type: v.literal("form_submitted"), formKey: v.string() }),
       v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
+      v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
+      v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
       v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number() }),
     )),
     triggerReceiptRef: v.string(),
@@ -1371,6 +1400,12 @@ export default defineSchema({
       v.object({ key: v.string(), type: v.literal("create_service_channel") }),
       v.object({ key: v.string(), type: v.literal("request_form"), formKey: v.string() }),
       v.object({ key: v.string(), type: v.literal("prompt_agent"), prompt: v.string() }),
+      v.object({
+        key: v.string(),
+        type: v.literal("set_client_property"),
+        propertyKey: v.string(),
+        value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
+      }),
       v.object({
         key: v.string(),
         type: v.literal("move_member"),
@@ -2734,6 +2769,96 @@ export default defineSchema({
 
   // A member's own progress through lesson pages. Locks are computed on read
   // from lesson gates; only completion state is stored.
+  // The owner's own fields about their clients (shared/communityClients.ts).
+  // Member facts stay in memberFacts; these are the founder's records.
+  communityClientProperties: defineTable({
+    communityId: v.id("communities"),
+    key: v.string(),
+    name: v.string(),
+    type: v.union(
+      v.literal("text"),
+      v.literal("number"),
+      v.literal("select"),
+      v.literal("multi_select"),
+      v.literal("date"),
+      v.literal("checkbox"),
+      v.literal("url"),
+    ),
+    options: v.array(v.string()),
+    position: v.number(),
+    archivedAt: v.optional(v.number()),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_key", ["communityId", "key"]),
+
+  // The community's client rules: for now, how many days without progress count as stuck.
+  communityClientSettings: defineTable({
+    communityId: v.id("communities"),
+    stuckDays: v.number(),
+    updatedByUserId: v.id("users"),
+    updatedAt: v.number(),
+  }).index("by_community", ["communityId"]),
+
+  // What the owner or their agent did about a client: property changes, flags,
+  // notes, drafts and contact. Everything else on a client's timeline is read
+  // from the record that owns it.
+  communityClientEvents: defineTable({
+    communityId: v.id("communities"),
+    membershipId: v.id("communityMemberships"),
+    type: v.union(
+      v.literal("property_set"),
+      // A form answer that couldn't fill its property (the property changed after publishing).
+      v.literal("property_skipped"),
+      v.literal("flagged"),
+      v.literal("note"),
+      v.literal("drafted"),
+      v.literal("contacted"),
+    ),
+    actorUserId: v.id("users"),
+    via: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow"), v.literal("form")),
+    propertyKey: v.optional(v.string()),
+    value: v.optional(v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null())),
+    body: v.optional(v.string()),
+    channel: v.optional(v.union(v.literal("email"), v.literal("message"), v.literal("call"), v.literal("other"))),
+    createdAt: v.number(),
+  }).index("by_membership_createdAt", ["membershipId", "createdAt"])
+    .index("by_membership_type_createdAt", ["membershipId", "type", "createdAt"]),
+
+  // Who sent a member to a community: the `ref` on the join link they arrived
+  // by, kept first-touch. Affiliates and payouts build on this later.
+  communityReferrals: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    ref: v.string(),
+    capturedAt: v.number(),
+  }).index("by_community_user", ["communityId", "userId"]),
+
+  // A member's own widget answers (community site embeds), kept on the server so
+  // they follow the member across devices. Member data: only the member reads it.
+  communityEmbedValues: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    key: v.string(),
+    value: v.string(),
+    updatedAt: v.number(),
+  }).index("by_community_user_key", ["communityId", "userId", "key"]),
+
+  communityClientValues: defineTable({
+    communityId: v.id("communities"),
+    membershipId: v.id("communityMemberships"),
+    propertyKey: v.string(),
+    value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string())),
+    updatedByUserId: v.id("users"),
+    updatedVia: v.union(v.literal("web"), v.literal("agent"), v.literal("workflow"), v.literal("form")),
+    updatedAt: v.number(),
+  })
+    .index("by_membership", ["membershipId"])
+    .index("by_membership_property", ["membershipId", "propertyKey"])
+    .index("by_community_property", ["communityId", "propertyKey"]),
+
   communityResourceProgress: defineTable({
     communityId: v.id("communities"),
     userId: v.id("users"),

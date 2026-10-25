@@ -2,11 +2,21 @@ import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { ArrowLeft, ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { blankCommunityFormQuestion, communityFormIssue, communityFormValidationIssue, COMMUNITY_FORM_MAX_FORMS, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion, type CommunityFormValidationIssue } from "../../../../shared/communityForms";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
+import { communityClientPropertyAcceptsQuestion, type CommunityClientPropertyType } from "../../../../shared/communityClients";
 import "./WebCommunityForms.css";
+
+const clientPropertyFits = (propertyType: string, questionType: string) =>
+  communityClientPropertyAcceptsQuestion(propertyType as CommunityClientPropertyType, questionType);
 
 const contentKey = (form: CommunityFormDraft) => JSON.stringify({ name: form.name, questions: form.questions });
 const errorText = (error: unknown, operation: "save" | "publish") => String(error).includes("form_revision_conflict")
   ? "This form changed in another session. Your edits are still here. Reload the saved form to continue."
+  : String(error).includes("form_property_options_mismatch")
+  ? "A choice question fills a property that doesn't have all its choices. Add them to the property, or change the question's choices."
+  : String(error).includes("form_property_type_mismatch")
+  ? "A question fills a property that can't hold its kind of answer. Pick another property under Fills."
+  : String(error).includes("client_property_not_found")
+  ? "A question fills a client property that no longer exists. Pick another property under Fills."
   : operation === "publish" ? "Could not confirm publication. Your draft is saved. Retry publishing to confirm it safely."
   : "Could not save. Your edits are still here. Try again.";
 
@@ -38,6 +48,12 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
 
 export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { initial: CommunityFormDraft; gateway: CommunityFormsGateway; onBack: () => void; leaveGuard?: LeaveGuard }) {
   const [draft, setDraft] = useState(initial);
+  const [clientProperties, setClientProperties] = useState<Array<{ key: string; name: string; type: string; options: string[] }>>([]);
+  useEffect(() => {
+    let active = true;
+    gateway.clientProperties?.().then(rows => { if (active) setClientProperties(rows); }).catch(() => {});
+    return () => { active = false; };
+  }, [gateway]);
   const [index, setIndex] = useState(0);
   const [preview, setPreview] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -127,9 +143,9 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { 
     <header className="community-forms-header">
       <button className="workflow-secondary-button" disabled={publishing} onClick={() => void close()}><ArrowLeft size={16} /> Forms</button>
       <input className="community-form-name" aria-label="Form name" maxLength={120} disabled={preview || publishing} value={draft.name} onChange={e => { setValidation(null); setDraft({ ...draft, name: e.target.value }); }} />
-      <span className="community-form-hint" role="status">{saving ? "Saving…" : dirty ? "Unsaved edits" : published === revision ? "Published" : published ? "Unpublished edits · Saved" : "Draft saved"}</span>
+      <span className="community-form-hint" role="status" data-state={saving ? "saving" : dirty ? "dirty" : published === revision ? "published" : published ? "edited" : "draft"}>{saving ? "Saving…" : dirty ? "Unsaved edits" : published === revision ? "Published" : published ? "Unpublished edits · Saved" : "Draft saved"}</span>
       <button className="workflow-secondary-button" onClick={() => { setPreview(!preview); setFinished(false); setIndex(0); setValidation(null); setAnswers({}); }}>{preview ? "Edit" : "Preview"}</button>
-      {!preview ? <button className="workflow-secondary-button" disabled={publishing || saving || (!dirty && published === revision)} onClick={() => void publish()}>{publishing ? "Publishing…" : "Publish"}</button> : null}
+      {!preview ? <button className="pn-wf-primary" disabled={publishing || saving || (!dirty && published === revision)} onClick={() => void publish()}>{publishing ? "Publishing…" : "Publish"}</button> : null}
     </header>
     {error ? <div role="alert" className="workflow-error">{error.message} <button className="workflow-secondary-button" disabled={publishing || saving} onClick={() => { if (error.operation === "publish") void publish(); else { setError(null); void flush().catch(() => {}); } }}>{error.operation === "publish" ? "Retry publish" : "Retry save"}</button>
       <button className="workflow-secondary-button" disabled={publishing || saving} onClick={async () => { try { const rows = await gateway.load(); const row = rows.find(f => f.key === draft.key); if (alive.current && row) { persisted.current = row; saved.current = contentKey(row); setDraft(row); setRevision(row.revision); setPublished(row.publishedRevision); setIndex(0); setError(null); } else if (alive.current) setError({ ...error, message: "Saved form not found. Your edits are still here." }); } catch { if (alive.current) setError({ ...error, message: "Could not reload the saved form." }); } }}>Discard edits and reload</button></div> : null}
@@ -149,6 +165,17 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { 
             <option value="short_text">Short text</option><option value="long_text">Long text</option><option value="single_choice">Single choice</option><option value="multiple_choice">Multiple choice</option>
           </select></label>
           <label><input type="checkbox" disabled={publishing} checked={q.required} onChange={e => patch({ required: e.target.checked })} /> Required</label>
+          {clientProperties.length || q.clientPropertyKey ? <label title="The answer fills this property on the member's client record">Fills <select disabled={publishing} aria-label="Client property this answer fills" value={q.clientPropertyKey ?? ""}
+            onChange={e => { const { clientPropertyKey: _old, ...rest } = q; setValidation(null); setDraft(d => ({ ...d, questions: d.questions.map(item => item.key === q.key ? (e.target.value ? { ...rest, clientPropertyKey: e.target.value } : rest) : item) })); }}>
+            <option value="">Nothing</option>
+            {clientProperties.filter(p => clientPropertyFits(p.type, q.type) || p.key === q.clientPropertyKey).map(p => <option key={p.key} value={p.key}>{p.name}</option>)}
+          </select></label> : null}
+          {(() => {
+            const property = clientProperties.find(p => p.key === q.clientPropertyKey);
+            const missing = property && (property.type === "select" || property.type === "multi_select")
+              ? q.options.filter(option => !property.options.some(name => name.trim().toLowerCase() === option.trim().toLowerCase())) : [];
+            return missing.length ? <small className="community-form-hint" role="status">{property!.name} doesn't have {missing.map(option => `“${option}”`).join(", ")}. Add {missing.length > 1 ? "them" : "it"} to the property or change the choices, so every answer fills it.</small> : null;
+          })()}
           <button className="workflow-secondary-button" aria-label="Delete question" disabled={publishing || draft.questions.length === 1} onClick={() => { setDraft({ ...draft, questions: draft.questions.filter(item => item.key !== q.key) }); setIndex(Math.max(0, index - 1)); }}><Trash2 size={15} /></button>
         </div> : <p className="community-form-hint">Preview only · Answers are not submitted</p>}
         {finished ? <div className="community-form-question"><h2>Preview complete</h2><p>No answers were submitted.</p><button className="workflow-secondary-button" onClick={() => { setFinished(false); setIndex(0); }}>Start again</button></div> : <div className="community-form-question" key={`${q.key}-${preview}`}>

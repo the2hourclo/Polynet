@@ -17,6 +17,9 @@ export function workflowAutomationIssue(automation: CommunityMemberWorkflowAutom
     || (automation.trigger.type === "member_joined" && automation.action.type !== "create_service_channel" && automation.action.type !== "request_form")) return "Member joins requires Create private channel or Request form";
   if ((automation.action.type === "request_form" && !automation.action.formKey) || (automation.trigger.type === "form_submitted" && !automation.trigger.formKey)) return "Choose a published form";
   if (automation.trigger.type === "form_submitted" && automation.action.type === "request_form") return "Choose Ask agent";
+  if ((automation.trigger.type === "lesson_completed" || automation.trigger.type === "course_completed")
+    && automation.action.type !== "request_form" && automation.action.type !== "set_client_property") return "Choose Request form or Set client property";
+  if (automation.action.type === "set_client_property" && !automation.action.propertyKey) return "Choose a client property";
   const triggerIssue = workflowTriggerIssue(automation, channels, unavailable);
   if (triggerIssue) return triggerIssue;
   return automation.action.type === "prompt_agent" && !automation.action.prompt.trim() ? "Add agent instructions" : null;
@@ -49,7 +52,7 @@ export function toWorkflowAutomationDraft(automation: CommunityMemberWorkflowAut
 
 export function replaceWorkflowDraftAction(
   automation: WorkflowAutomationDraft,
-  type: "prompt_agent" | "request_form" | "create_service_channel",
+  type: "prompt_agent" | "request_form" | "create_service_channel" | "set_client_property",
 ): WorkflowAutomationDraft {
   if (automation.action.type === type) return automation;
   const promptDraft = automation.action.type === "prompt_agent" ? automation.action.prompt : automation.promptDraft;
@@ -59,6 +62,7 @@ export function replaceWorkflowDraftAction(
     action: type === "prompt_agent"
       ? { key: automation.action.key, type, prompt: promptDraft }
       : type === "request_form" ? { key: automation.action.key, type, formKey: "" }
+      : type === "set_client_property" ? { key: automation.action.key, type, propertyKey: "", value: null }
       : { key: automation.action.key, type: "create_service_channel" },
   };
 }

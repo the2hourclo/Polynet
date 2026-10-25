@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
+import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
+import { createBrowserCommunityEmbedStorage } from "../../../../shared/communityEmbedUi";
 import { CommunityMemoryGraph } from "./CommunityMemoryGraph";
 import { WebCommunityLessonBoard, communityBoardLessons } from "./WebCommunityLessonBoard";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
@@ -30,12 +32,12 @@ type KnowledgeView = "resources" | "board" | "graph";
 export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const [view, setView] = useState<KnowledgeView>("resources");
   useEffect(() => { setView((current) => (current === "graph" ? "resources" : current)); }, [resources.state.selectedModuleId]);
-  // The Board shows when the community has lesson pages with a stage.
+  // The Roadmap (view id "board") shows when the community has lesson pages with a stage.
   const hasBoard = useMemo(() => communityBoardLessons(resources.state.resources).length > 0, [resources.state.resources]);
   const graphOpen = view === "graph" && context.canViewGraph;
   const boardOpen = view === "board" && hasBoard;
   const activeView: KnowledgeView = graphOpen ? "graph" : boardOpen ? "board" : "resources";
-  // One progress read feeds the Board and the course cards.
+  // One progress read feeds the Roadmap and the course cards.
   const progress = useWebCommunityLessonProgress({
     communityId: context.communityId,
     session: context.session ?? null,
@@ -47,17 +49,30 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
         : undefined,
     [progress.loaded, progress.statusByRef, resources.state.resources],
   );
+  const session = context.session as AuthSession | null;
+  const embedStorage = useMemo(
+    () => session && context.communityId
+      ? createServerCommunityEmbedStorage({
+          communityId: context.communityId,
+          ensureSession: () => context.ensureSession(session),
+          // Per member: another account in this browser never sees these answers.
+          fallback: createBrowserCommunityEmbedStorage(`${context.communityId}:user:${session.user.id}`),
+        })
+      : null,
+    [session, context.communityId, context.ensureSession],
+  );
   const lessonActivity = useMemo<WebLessonActivity>(() => ({
     progress,
+    embedStorage,
     signedIn: Boolean(context.session),
     onRequireSignIn: context.requireSignIn,
     forms: context.session && context.communityId
       ? { communityId: context.communityId, session: context.session as AuthSession, ensureSession: context.ensureSession }
       : null,
-  }), [progress, context.session, context.communityId, context.ensureSession, context.requireSignIn]);
+  }), [progress, embedStorage, context.session, context.communityId, context.ensureSession, context.requireSignIn]);
   const tabs: { id: KnowledgeView; label: string }[] = [
     { id: "resources", label: "Resources" },
-    ...(hasBoard ? [{ id: "board" as const, label: "Board" }] : []),
+    ...(hasBoard ? [{ id: "board" as const, label: "Roadmap" }] : []),
     ...(context.canViewGraph ? [{ id: "graph" as const, label: "Graph" }] : []),
   ];
   const graph = useWebCommunityPolynetController({
@@ -71,7 +86,11 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     canViewPolynet: context.canViewGraph,
   });
   return (
-    <section className="community-knowledge-page" aria-label="Knowledge">
+    <section
+      className="community-knowledge-page"
+      aria-label="Knowledge"
+      data-reading={activeView === "resources" && resources.state.selectedModuleId ? "" : undefined}
+    >
       <div className="community-knowledge-header">
         <h1>Knowledge</h1>
         <WebPlatformTabList

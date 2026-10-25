@@ -377,6 +377,11 @@ export type CommunityAccess = {
   can_manage_branding?: boolean;
   can_manage_publishing?: boolean;
   can_manage_payouts?: boolean;
+  /** The builder's welcome flow is on and this member still owes a welcome step. */
+  welcome_required?: boolean;
+  welcome_form_request_ids?: string[];
+  /** Welcome lesson pages still to mark done, after the forms. */
+  welcome_lesson_ids?: string[];
 };
 
 export type CommunityAgentConfig<TLanding = unknown> = {

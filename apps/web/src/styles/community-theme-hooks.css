@@ -5,6 +5,13 @@
    class is fixed here once for every community. Applies only inside an
    element with data-community-theme; without one, nothing changes. */
 
+/* Polynet's own display face for themes (the others load from Google Fonts). */
+@font-face {
+  font-family: "Excalifont";
+  src: url("/fonts/excalifont.woff2") format("woff2");
+  font-display: swap;
+}
+
 /* Mobile and single-pane pages: the wrapper only carries the theme, it adds no box. */
 .community-theme-scope {
   display: contents;
@@ -22,8 +29,6 @@
   h1, h2, h3,
   .community-knowledge-header h1,
   .workflow-milestone-column-header h2,
-  .resource-course-outline-title,
-  .resource-course-card-heading,
   .resource-viewer-title
 ) {
   font-family: var(--pn-font-heading);
@@ -34,14 +39,17 @@
 
 /* Cards */
 [data-community-theme] :is(
-  .resource-course-card,
-  .resource-course-create-card,
   .workflow-milestone-column,
   .workflow-member-stub
 ) {
   border-width: var(--pn-border-width);
   border-radius: var(--pn-radius-card);
   box-shadow: var(--pn-shadow-card);
+}
+/* Repeated cards stay flat with a hairline (one card among many shouldn't
+   shout); the theme sets their corners. */
+[data-community-theme] :is(.resource-course-card, .resource-course-create-card, .resource-course-outline.knowledge-resource-rail) {
+  border-radius: var(--pn-radius-card);
 }
 [data-community-theme] .resource-course-card-cover {
   border-radius: var(--pn-radius-card-top);
@@ -57,10 +65,20 @@
 [data-community-theme] .resource-course-grid {
   grid-template-columns: var(--pn-course-columns);
 }
+/* Phones always get one column, whatever the card size. */
+@media (max-width: 640px) {
+  [data-community-theme] .resource-course-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 [data-community-theme] .resource-course-card-cover {
   position: relative;
   aspect-ratio: var(--pn-course-cover-ratio);
   height: var(--pn-course-cover-height);
+  background: var(--pn-cover-plate, var(--bg-card-alt));
+}
+[data-community-theme] .resource-course-card-cover-image {
+  mix-blend-mode: var(--pn-cover-blend, normal);
 }
 /* Cards line up row by row: two-line titles, three-line descriptions. */
 [data-community-theme] .resource-course-card-heading > strong {
@@ -68,12 +86,95 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  font-size: calc(16px * var(--pn-type-scale));
 }
 [data-community-theme] .resource-course-card-description {
-  -webkit-line-clamp: 3;
-  min-height: calc(3 * 1.5em);
-  font-size: calc(13px * var(--pn-type-scale));
+  -webkit-line-clamp: 2;
+  min-height: calc(2 * 1.5em);
+}
+
+/* Text roles: every size below is one of --pn-type-*, so the text-size setting
+   moves all community text together and nothing drifts to a one-off size. */
+[data-community-theme] :is(.resource-viewer-title, .community-welcome-intro h1) {
+  font-size: var(--pn-type-display);
+}
+[data-community-theme] .community-knowledge-header h1 {
+  font-size: var(--pn-type-display);
+}
+/* A lesson title is the loudest thing on its page. */
+[data-community-theme] .knowledge-resource-reader .resource-viewer-title {
+  font-size: calc(var(--pn-type-display) * 1.25);
+}
+/* On a phone the display face at that size breaks a title into one word per
+   line, so it steps down to the title role. */
+@media (max-width: 640px) {
+  [data-community-theme] .knowledge-resource-reader .resource-viewer-title {
+    font-size: var(--pn-type-title);
+  }
+}
+/* Inside a lesson, section headings are reading text: the theme's display
+   face stays on the lesson title. */
+[data-community-theme] .resource-viewer-prose :is(h1, h2, h3, h4, h5, h6).md-header {
+  font-family: var(--pn-font-body);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+[data-community-theme] .resource-course-card-heading > strong {
+  font-size: var(--pn-type-reading);
+}
+[data-community-theme] :is(.resource-viewer-prose h1.md-header, .member-form-dialog section h2) {
+  font-size: var(--pn-type-title);
+}
+[data-community-theme] .resource-viewer-prose h2.md-header {
+  font-size: var(--pn-type-heading);
+}
+[data-community-theme] .resource-viewer-prose h3.md-header {
+  font-size: var(--pn-type-subheading);
+}
+[data-community-theme] .resource-viewer-prose {
+  font-size: var(--pn-type-reading);
+}
+[data-community-theme] :is(
+  .resource-viewer-prose :is(h4, h5, h6).md-header,
+  .community-interaction-author,
+  .community-interaction-body,
+  .resource-course-outline-header,
+  .community-nav-identity-name,
+  .member-form-dialog header h2,
+  .community-welcome-intro p
+) {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] :is(
+  .knowledge-resource-item-title,
+  .resource-course-card-description
+) {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] :is(
+  .nav-item,
+  .community-channel-participant
+) {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] :is(
+  .community-interaction-meta-row,
+  .resource-viewer-prose .md-media-embed-caption,
+  .resource-course-card-lock,
+  .resource-course-card-meta,
+  .resource-course-card-progress-label,
+  .resource-course-outline-count,
+  .resource-course-outline-progress,
+  .resources-back-btn,
+  .community-welcome-intro small,
+  .community-welcome-step
+) {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] :is(
+  .resource-course-card-status
+) {
+  font-size: var(--pn-type-meta);
 }
 
 /* Images drawn on white sit on a light plate in dark themes, so they don't glare. */
@@ -89,4 +190,23 @@
 /* Code */
 [data-community-theme] :is(code, pre, kbd) {
   font-family: var(--pn-font-mono);
+}
+
+/* Slides drawn on white sit on the light plate in dark themes, like lesson images. */
+[data-community-theme] .lesson-slide-deck-stage img {
+  background: var(--pn-media-plate);
+}
+[data-community-theme] .lesson-slide-deck-note {
+  font-size: var(--pn-type-reading);
+}
+[data-community-theme] .lesson-slide-deck-count {
+  font-size: var(--pn-type-small);
+}
+
+/* Buttons and fields take the community's text face. Browsers give them their
+   own font (Arial on Windows), so a card that is a button, like a course card,
+   otherwise sets its title and description in Arial. Zero specificity, so any
+   component that picks a face still wins. */
+:where([data-community-theme]) :where(button, input, select, textarea) {
+  font-family: inherit;
 }

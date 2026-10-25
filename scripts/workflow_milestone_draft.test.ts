@@ -19,6 +19,16 @@ const automation: CommunityMemberWorkflowAutomation = {
 const snapshot: CommunityMemberWorkflowMilestone = { key: "milestone-1", name: "New", automations: [automation] };
 
 describe("workflow milestone editor drafts", () => {
+  it("lesson and course triggers take a form or a client property, and a property rule needs its property", () => {
+    const lessonDone = toWorkflowAutomationDraft({ ...automation, trigger: { type: "lesson_completed", resourceId: "lesson-1" } });
+    expect(workflowAutomationIssue(lessonDone, [], false)).toBe("Choose Request form or Set client property");
+    const setTier = replaceWorkflowDraftAction(lessonDone, "set_client_property");
+    expect(setTier.action).toEqual({ key: "action-1", type: "set_client_property", propertyKey: "", value: null });
+    expect(workflowAutomationIssue(setTier, [], false)).toBe("Choose a client property");
+    expect(workflowAutomationIssue({ ...setTier, action: { key: "action-1", type: "set_client_property", propertyKey: "tier", value: "VIP" } }, [], false)).toBeNull();
+    // Switching away keeps the prompt the builder had typed.
+    expect(replaceWorkflowDraftAction(setTier, "prompt_agent").action).toMatchObject({ type: "prompt_agent", prompt: "Help the member prepare." });
+  });
   it("tracks and reverts human approval without changing action definitions", () => {
     const drafts = [toWorkflowAutomationDraft(automation)];
     expect(isWorkflowMilestoneDraftDirty(snapshot, "New", drafts, "", "", true)).toBe(true);

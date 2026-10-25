@@ -12,6 +12,7 @@ import {
   normalizeIdValue,
 } from "./communityCore";
 import type { CommunityJoinRequestLike } from "./communityJoinRequestCore";
+import { deleteMemberWorkflowPosition } from "./communityMemberWorkflowReadCore";
 
 function normalizeMaintenanceSlug(raw: unknown): string {
   return String(raw ?? "")
@@ -222,7 +223,10 @@ export const purgeOrphanedCommunityUserArtifactsInternal = internalMutation({
     for (const row of orphanMemberSettings) await ctx.db.delete(row._id as any);
     for (const row of orphanJoinRequests) await ctx.db.delete(row._id as any);
     for (const row of orphanPresenceRows) await ctx.db.delete(row._id as any);
-    for (const row of orphanMemberships) await ctx.db.delete(row._id as any);
+    for (const row of orphanMemberships) {
+      await ctx.db.delete(row._id as any);
+      await deleteMemberWorkflowPosition({ ctx, communityId: row.communityId as any, membershipId: row._id as any });
+    }
 
     return { ok: true, ...summary };
   },

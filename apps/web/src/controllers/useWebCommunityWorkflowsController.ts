@@ -13,15 +13,24 @@ import {
   subscribeCloudCommunityMemberSuccessDossier,
   updateCloudCommunityMemberWorkflowMilestone,
   setCloudCommunityMemberServiceChannel,
+  setCloudCommunityWelcomeGate,
+  saveCloudCommunityWelcomePage,
+  type CloudCommunityWelcomePageDraft,
   forceCloudCommunityMemberMilestone,
   approveCloudCommunityMemberMilestone,
   retryCloudCommunityMemberGoalReview,
+  retryCloudCommunityMemberWorkflowAction,
   type CloudCommunityMemberWorkflowBoard,
   type CloudCommunityMemberWorkflowBoardPage,
   type CloudCommunityMemberWorkflowMember,
   type CloudCommunityMemberSuccessDossier,
 } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import type { CommunityMemberWorkflowAutomation } from "../../../../shared/communityMemberWorkflow";
+import { listCloudCommunityResourceModuleRows, listCloudCommunityResourceRows } from "../../../../shared/cloudCommunityAdminGateway";
+import type { CommunityResource, CommunityResourceModule } from "../components/communityResourcesContracts";
+
+/** A lesson page in a live course, for welcome steps and lesson triggers. */
+export type WelcomeLessonOption = { id: string; title: string; course: string; courseId: string };
 
 type EnsureAuthSession = (
   session?: AuthSession | null,
@@ -42,6 +51,26 @@ function workflowErrorMessage(error: unknown): string {
     return "A selected channel is unavailable. Choose another channel or remove that automation.";
   }
   if (message.includes("workflow_delay_invalid")) return "Choose a duration from 1 minute to 365 days.";
+  if (message.includes("welcome_gate_requires_join_form")) return "Add a Member joins rule that requests a form to the first milestone, or a welcome lesson, then turn on the welcome flow.";
+  if (message.includes("client_property_not_found")) return "That client property no longer exists. Choose another one.";
+  if (message.includes("client_property_value_invalid")) return "That value doesn't fit the client property. Pick one of its options or enter the right kind of value.";
+  if (message.includes("client_property_required")) return "Choose the client property to set.";
+  if (message.includes("lesson_trigger_action_invalid")) return "When a lesson or course is done, a rule can request a form or set a client property.";
+  if (message.includes("welcome_lesson_unavailable")) return "A chosen lesson is no longer published. Pick another lesson.";
+  if (message.includes("welcome_lessons_too_many")) return "Choose up to 5 welcome lessons.";
+  if (message.includes("welcome_media_url_invalid")) return "Enter a full video or image link, starting with https://.";
+  if (message.includes("welcome_title_too_long")) return "Keep the welcome headline to 120 characters.";
+  if (message.includes("welcome_message_too_long")) return "Keep the welcome message to 4,000 characters.";
+  if (message.includes("welcome_layout_too_long")) return "The welcome page holds up to 40 blocks. Join some text together or remove a block.";
+  if (message.includes("welcome_text_too_long")) return "Keep each text block to 4,000 characters, and the whole page to 12,000.";
+  if (message.includes("welcome_forms_too_many")) return "The welcome page holds up to 5 forms.";
+  if (message.includes("welcome_step_duplicate")) return "Each form or lesson can be on the welcome page once.";
+  if (message.includes("welcome_step_invalid")) return "A form or lesson on the welcome page is missing. Remove it and add it again.";
+  if (message.includes("form_not_published")) return "Publish that form in Forms first.";
+  if (message.includes("workflow_previous_action_invalid")) return "A \"then\" rule in Workflows runs after a form that is no longer asked. Change that rule in Workflows first.";
+  if (message.includes("milestone_cleanup_incomplete")) {
+    return "This milestone is still clearing out members who left. Delete it again to finish.";
+  }
   if (message.includes("milestone_has_members")) {
     return "Move members out of this milestone before deleting it.";
   }
@@ -432,6 +461,25 @@ export function useWebCommunityWorkflowsController(params: {
     ],
   );
 
+  // Stable, so lists that load it on mount don't reload on every render.
+  const loadWelcomeLessonOptions = useCallback(async (): Promise<WelcomeLessonOption[]> => {
+    const usableSession = params.activeCommunityId ? await params.ensureSession(params.session, "community_workflows_welcome_lessons") : null;
+    if (!usableSession || !params.activeCommunityId) return [];
+    const [resources, modules] = await Promise.all([
+      listCloudCommunityResourceRows<AuthSession, CommunityResource>({ session: usableSession, communityId: params.activeCommunityId, limit: 1000 }),
+      listCloudCommunityResourceModuleRows<AuthSession, CommunityResourceModule>({ session: usableSession, communityId: params.activeCommunityId, limit: 200 }),
+    ]);
+    const liveModules = modules.filter((module) => module.module_status === "live");
+    const live = new Map(liveModules.map((module) => [module.id, module.name]));
+    // Courses in the order Knowledge shows them; lessons keep the server's order within each.
+    const courseOrder = new Map([...liveModules].sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)) || a.name.localeCompare(b.name))
+      .map((module, index) => [module.id, index]));
+    return resources
+      .filter((resource) => resource.resource_role === "page" && resource.module_id && live.has(resource.module_id))
+      .sort((a, b) => courseOrder.get(a.module_id!)! - courseOrder.get(b.module_id!)!)
+      .map((resource) => ({ id: resource.id, title: resource.title, course: live.get(resource.module_id!) ?? "", courseId: resource.module_id! }));
+  }, [params.activeCommunityId, params.ensureSession, params.session]);
+
   return {
     forms,
     board,
@@ -461,6 +509,13 @@ export function useWebCommunityWorkflowsController(params: {
       const session = await params.ensureSession(params.session, "community_workflow_retry_goal_review");
       if (!session || scope !== serviceChannelScopeRef.current) throw new Error("Session changed. Reopen the member panel.");
       await retryCloudCommunityMemberGoalReview({ session, dossier: snapshot });
+    },
+    retryAction: async (snapshot: CloudCommunityMemberSuccessDossier, automationKey: string) => {
+      const scope = serviceChannelScopeRef.current;
+      if (!params.canManageMembers || snapshot.community_id !== params.activeCommunityId || snapshot.membership_id !== selectedMembershipId) throw new Error("Member changed. Reopen the member panel.");
+      const session = await params.ensureSession(params.session, "community_workflow_retry_action");
+      if (!session || scope !== serviceChannelScopeRef.current) throw new Error("Session changed. Reopen the member panel.");
+      return await retryCloudCommunityMemberWorkflowAction({ session, dossier: snapshot, automationKey });
     },
     forceMove: async (snapshot: CloudCommunityMemberSuccessDossier) => {
       const scope = serviceChannelScopeRef.current;
@@ -589,6 +644,13 @@ export function useWebCommunityWorkflowsController(params: {
           milestoneKey,
         }),
       ),
+    setWelcomeGate: (enabled: boolean) =>
+      mutateMilestone("community_workflows_welcome_gate", (session, communityId, revision) =>
+        setCloudCommunityWelcomeGate({ session, communityId, expectedRevision: revision, enabled })),
+    loadWelcomeLessonOptions,
+    saveWelcomePage: (page: CloudCommunityWelcomePageDraft) =>
+      mutateMilestone("community_workflows_welcome_page", (session, communityId, revision) =>
+        saveCloudCommunityWelcomePage({ session, communityId, expectedRevision: revision, page })),
     clearActionError: () => setActionError(null),
   };
 }

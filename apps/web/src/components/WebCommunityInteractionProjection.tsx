@@ -130,6 +130,8 @@ export type WebCommunityInteractionProjectionProps = {
   canManageCommunityMembers?: boolean;
   canReviewCommunityJoinRequests?: boolean;
   communityJoinReviewMode?: "paid" | "free_auto" | "free_approval" | null;
+  /** Shown under the members list, e.g. the owner's other communities. */
+  rosterFooter?: ReactNode;
   communityJoinRequests?: CommunityAdmissionJoinRequest[] | null;
   isLoadingCommunityJoinRequests?: boolean;
   communityJoinRequestsError?: string | null;
@@ -989,6 +991,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           displayName: props.displayName,
         }}
         admission={props.admission}
+        footer={props.rosterFooter}
         key={`${props.communityId}:${props.activeChannel?.id ?? "general"}`}
         communityName={props.activeCommunityName} presenceSummary={props.presenceSummary} isLoadingPresence={props.isLoadingCommunityPresence}
         currentUserId={props.currentUserId} onMessageUser={props.onMessageUser}
