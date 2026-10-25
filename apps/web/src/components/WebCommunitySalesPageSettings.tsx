@@ -11,8 +11,8 @@ import {
 import { DEFAULT_COMMUNITY_LAYOUT, type CommunityLayoutV1 } from "../../../../shared/communityLayout";
 import { buildCommunityFunnelPath, buildCommunityFunnelPreviewPath } from "../../../../shared/webAppRouteState";
 import { COMMUNITY_LAYOUT_PUBLISHED_EVENT } from "../controllers/useWebCommunityLayout";
-import { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
-import { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
+import type { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
+import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
 
 type Presentation = CommunityLayoutV1["pages"]["about"]["presentation"];
 
@@ -109,10 +109,12 @@ type Props = {
   };
 };
 
-// Settings > Sales page: what a visitor sees at /c/<slug> before joining. The
+// Funnels > Sales page: what a visitor sees at /c/<slug> before joining, as a
+// site editor: the style beside a live preview. The
 // style is a field of the layout record (pages.about.presentation), kept as a
 // draft until Publish like the rest of the layout. The words and video come
-// from the funnel editor below it, which has its own draft and "Make live".
+// from Funnels > Versions (the funnel editor), which has its own draft and
+// "Make live".
 export function WebCommunitySalesPageSettings(props: Props) {
   const [state, setState] = useState<CommunityLayoutDraftState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -216,7 +218,8 @@ export function WebCommunitySalesPageSettings(props: Props) {
   const usesOwnWebsite = Boolean(external.controls.config.external_funnel_active && external.controls.config.external_funnel_url);
 
   return (
-    <div className="pn-settings-stack">
+    <div className="pn-funnels-editor">
+      <div className="pn-funnels-controls">
       <section className="settings-section pn-settings-card" id="sales-style" aria-labelledby="sales-style-title">
         <header className="pn-settings-card-header">
           <h2 className="settings-section-title" id="sales-style-title">Page style</h2>
@@ -225,7 +228,7 @@ export function WebCommunitySalesPageSettings(props: Props) {
           </p>
         </header>
         {usesOwnWebsite ? (
-          <p className="pn-settings-note">Visitors go to your own website right now (see below), so this page only shows once you switch that off.</p>
+          <p className="pn-settings-note">Visitors go to your own website right now (see Own website), so this page only shows once you switch that off.</p>
         ) : null}
         <div className="pn-sales-styles" role="radiogroup" aria-label="Page style">
           {STYLES.map((style) => {
@@ -280,49 +283,40 @@ export function WebCommunitySalesPageSettings(props: Props) {
         ) : null}
       </section>
 
-      <section className="settings-section pn-settings-card pn-sales-preview-card" aria-labelledby="sales-preview-title">
-        <header className="pn-settings-card-header is-row">
-          <div>
-            <h2 className="settings-section-title" id="sales-preview-title">Preview</h2>
-            <p className="settings-section-desc">The {styleName(draftStyle)} as a visitor sees it, with your current copy.</p>
-          </div>
-          <div className="pn-settings-actions">
-            <div className="pn-settings-segmented" role="group" aria-label="Preview size">
-              <button type="button" aria-pressed={device === "desktop"} className={`pn-settings-seg${device === "desktop" ? " is-active" : ""}`} onClick={() => setDevice("desktop")}>
-                <Monitor size={16} strokeWidth={2} aria-hidden="true" /> Desktop
-              </button>
-              <button type="button" aria-pressed={device === "phone"} className={`pn-settings-seg${device === "phone" ? " is-active" : ""}`} onClick={() => setDevice("phone")}>
-                <Smartphone size={16} strokeWidth={2} aria-hidden="true" /> Phone
-              </button>
+      </div>
+      <div className="pn-funnels-preview">
+        <section className="settings-section pn-settings-card pn-sales-preview-card" aria-labelledby="sales-preview-title">
+          <header className="pn-settings-card-header is-row">
+            <div>
+              <h2 className="settings-section-title" id="sales-preview-title">Preview</h2>
+              <p className="settings-section-desc">The {styleName(draftStyle)} as a visitor sees it, with your current copy.</p>
             </div>
-            {livePath ? (
-              <a className="pn-settings-button" href={livePath} target="_blank" rel="noreferrer">
-                View live <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
-              </a>
-            ) : null}
-          </div>
-        </header>
-        {previewSrc ? (
-          <SalesPreviewFrame
-            key={`${frameKey}-${draftStyle}-${device}`}
-            device={device}
-            src={previewSrc}
-            title={`Preview of the ${styleName(draftStyle)}`}
-          />
-        ) : null}
-      </section>
-
-      <section className="pn-settings-subpage" aria-label="Pitch and video">
-        <WebCommunityFunnelSection {...props.funnel} />
-      </section>
-
-      {external.error ? (
-        <section className="settings-section pn-settings-card"><p className="pn-settings-inline-error" role="alert">{external.error}</p></section>
-      ) : external.isLoading ? (
-        <section className="settings-section pn-settings-card"><div className="pn-settings-loading" role="status"><span className="pn-settings-spinner" aria-hidden="true" />Loading website settings…</div></section>
-      ) : (
-        <WebCommunityExternalFunnelLink key={external.controls.communityId} {...external.controls} />
-      )}
+            <div className="pn-settings-actions">
+              <div className="pn-settings-segmented" role="group" aria-label="Preview size">
+                <button type="button" aria-pressed={device === "desktop"} className={`pn-settings-seg${device === "desktop" ? " is-active" : ""}`} onClick={() => setDevice("desktop")}>
+                  <Monitor size={16} strokeWidth={2} aria-hidden="true" /> Desktop
+                </button>
+                <button type="button" aria-pressed={device === "phone"} className={`pn-settings-seg${device === "phone" ? " is-active" : ""}`} onClick={() => setDevice("phone")}>
+                  <Smartphone size={16} strokeWidth={2} aria-hidden="true" /> Phone
+                </button>
+              </div>
+              {livePath ? (
+                <a className="pn-settings-button" href={livePath} target="_blank" rel="noreferrer">
+                  View live <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
+                </a>
+              ) : null}
+            </div>
+          </header>
+          {previewSrc ? (
+            <SalesPreviewFrame
+              key={`${frameKey}-${draftStyle}-${device}`}
+              device={device}
+              src={previewSrc}
+              title={`Preview of the ${styleName(draftStyle)}`}
+            />
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }

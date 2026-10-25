@@ -101,10 +101,11 @@ export function useWebCommunityAgentAndFunnelController(params: {
   });
 
   useEffect(() => {
-    // Settings > Sales page edits the funnel; General links to it.
-    const showingEntrySettings = params.communityTab === "settings"
-      && (params.communitySettingsPane === "community"
-        || params.communitySettingsPane === "sales_page");
+    // Funnels edits the sales page; Settings > General links to it.
+    const showingEntrySettings = params.communityTab === "funnels"
+      || (params.communityTab === "settings"
+        && (params.communitySettingsPane === "community"
+          || params.communitySettingsPane === "sales_page"));
     if (params.activePage !== "community" || !showingEntrySettings) {
       return;
     }

@@ -17,6 +17,7 @@ import { WebCommunityNotificationsMenu } from "./WebCommunityNotificationsMenu";
 // Members' own Settings (their access, mute, leave) reads as Membership.
 const OWNER_TABS: { tab: CommunityTab; label: (shell: WebCommunityShellProps) => string; allowed: (shell: WebCommunityShellProps) => boolean }[] = [
   { tab: "workflows", label: () => "Workflows", allowed: (shell) => shell.canManageMembersActiveCommunity },
+  { tab: "funnels", label: () => "Funnels", allowed: (shell) => shell.canManageMembersActiveCommunity },
   { tab: "analytics", label: () => "Analytics", allowed: (shell) => shell.canViewActiveCommunityAnalytics },
   { tab: "settings", label: (shell) => (shell.canManageMembersActiveCommunity ? "Settings" : "Membership"), allowed: (shell) => shell.canViewActiveCommunitySettings },
 ];
