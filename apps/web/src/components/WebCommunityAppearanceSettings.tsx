@@ -492,7 +492,7 @@ function CardLookSample(props: { look: CourseCardLook }) {
 // Ready-made course card looks: one click sets the card style, edge, size,
 // cover shape, spacing, pills and progress together (undo until published).
 function CardLookGallery(props: { theme: CommunityThemeV1; disabled: boolean; onPick: (look: CourseCardLook) => void }) {
-  const current = matchingCourseCardLook(props.theme);
+  const current = matchingCourseCardLook({ ...DEFAULT_COMMUNITY_THEME, ...props.theme });
   const id = useId();
   return <div className="appearance-palettes appearance-cardlooks">
     <div className="appearance-palettes-head"><span id={`${id}-label`}>Card looks</span></div>
@@ -663,7 +663,8 @@ function AppearanceEditor(props: EditorProps) {
   const choice = (key: ChoiceKey, also: Partial<CommunityThemeV1> = {}) => {
     const [label, options] = CHOICES[key];
     return <Row key={key} label={label} htmlFor={fieldId(key)}>
-      <select id={fieldId(key)} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value, ...also } as Partial<CommunityThemeV1>)}>
+      {/* A draft saved before a setting existed lacks it: show the default, so Undo back to it updates the field. */}
+      <select id={fieldId(key)} value={theme[key] ?? DEFAULT_COMMUNITY_THEME[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value, ...also } as Partial<CommunityThemeV1>)}>
         {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></Row>;
   };
   const slider = (key: "heading_weight" | "type_scale" | "radius" | "border_width", label: string, min: number, max: number, step: number, unit: (value: number) => string) =>
