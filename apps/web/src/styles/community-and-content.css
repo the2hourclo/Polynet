@@ -4100,8 +4100,11 @@
   object-fit: cover;
 }
 
+/* Initials sit on a light pastel tint, so they take dark ink: white letters on
+   those tints measured under 3:1. */
 .community-interaction-avatar-fallback {
   background: color-mix(in srgb, var(--bg-card) 65%, var(--accent) 35%);
+  color: #1c1c1e;
 }
 
 .community-interaction-root-content,
