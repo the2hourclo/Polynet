@@ -59,7 +59,8 @@ function MemberFormDialog(props: Props & { rows: MemberFormSummary[]; hasMore: b
   </div></div>, document.body);
 }
 const FORMAT_HINTS = { number: "Answer with a number.", date: "Answer with a date, like 2026-11-01.", url: "Answer with a full link, starting with https://." } as const;
-export function MemberFormRunner(props: Props & { requestId: string; onClose: () => void }) {
+/** With `preview`, the owner sees and clicks through the form exactly as members do; nothing is loaded or saved. */
+export function MemberFormRunner(props: Props & { requestId: string; onClose: () => void; preview?: MemberFormRequest }) {
   const [request, setRequest] = useState<MemberFormRequest | null>(null);
   const [answers, setAnswers] = useState<FormAnswers>({});
   const [index, setIndex] = useState(0);
@@ -70,8 +71,11 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
   const [done, setDone] = useState(false);
   const [validation, setValidation] = useState<string | null>(null);
   const questionSection = useRef<HTMLElement>(null);
+  // The owner's preview sits beside the editor, so it never takes focus on its own.
+  const focusedOnce = useRef(false);
   useEffect(() => {
-    questionSection.current?.querySelector<HTMLElement>("input,textarea,button")?.focus();
+    if (props.preview && !focusedOnce.current) { focusedOnce.current = Boolean(request); return; }
+    questionSection.current?.querySelector<HTMLElement>("input,textarea,button")?.focus({ preventScroll: Boolean(props.preview) });
   }, [index, request?.id, done]);
   const alive = useRef(true), saving = useRef(false);
   const inflight = useRef<Promise<boolean> | null>(null);
@@ -80,6 +84,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
   const current = useRef<MemberFormRequest | null>(null);
   const session = useRef(props.session); session.current = props.session;
   const load = async () => {
+    if (props.preview) { current.current = props.preview; setRequest(props.preview); setAnswers({}); setIndex(0); return; }
     if (saving.current) return;
     saving.current = true; setBusy(true); setIntent("close");
     try { const ready = await props.ensureSession(session.current, "member_form"); if (!ready) throw new Error("session_unavailable"); if (!alive.current) return;
@@ -100,6 +105,13 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
   };
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, []);
   const save = async (nextIntent: FormSaveIntent = "autosave", retry = false): Promise<boolean> => {
+    if (props.preview) {
+      if (nextIntent === "autosave") return false;
+      if (nextIntent === "close") { props.onClose(); return true; }
+      const issue = formAnswersIssue(props.preview.questions, latest.current, nextIntent === "submit"); if (issue) { setValidation(issue); return false; }
+      if (nextIntent === "submit") setDone(true); else setIndex(n => n + 1);
+      return true;
+    }
     // Continue, Submit or Close pressed while an autosave is saving waits for it, instead of doing nothing.
     if (saving.current && nextIntent !== "autosave") await inflight.current;
     if (saving.current || !current.current || !saver.current) return false;
@@ -153,7 +165,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
         const shape = q.answerFormat && typeof answers[q.key] === "string" ? communityClientAnswerFormatIssue(q.answerFormat, answers[q.key] as string) : null;
         if (shape) { setValidation(shape); answerField(); return; }
         await save(index === request!.questions.length - 1 ? "submit" : "continue");
-      }}>{index === request!.questions.length - 1 ? "Submit" : "Continue"}</button><small role="status">{busy ? "Saving…" : saver.current?.dirty(answers) ? "Unsaved answers" : "Saved"}</small></footer>
+      }}>{index === request!.questions.length - 1 ? "Submit" : "Continue"}</button><small role="status">{props.preview ? "Preview: answers aren't saved" : busy ? "Saving…" : saver.current?.dirty(answers) ? "Unsaved answers" : "Saved"}</small></footer>
     </section> : !error ? <p role="status">Loading form…</p> : null}
     {error ? <div role="alert"><p>{error}</p><button disabled={busy} onClick={() => failedIntent ? void save(failedIntent, true) : void load()}>Retry</button><button disabled={busy} onClick={() => void load()}>Discard edits and reload</button><button disabled={busy} onClick={props.onClose}>Discard unsaved answers and close</button></div> : null}
   </div>;
