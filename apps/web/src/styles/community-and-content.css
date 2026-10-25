@@ -5050,6 +5050,86 @@
   font-size: 12px;
 }
 
+/* Replying is one obvious step (Rashid, 2026-10-25): Reply leads the hover
+   toolbar with its name on it; the "N replies" row is one click target that
+   frames itself on hover and says where it goes; touch screens, which have no
+   hover toolbar, get a visible Reply link under messages with no replies. */
+.community-interaction-msg-action.community-interaction-msg-reply {
+  width: auto;
+  gap: 5px;
+  padding: 0 9px 0 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.community-interaction-thread-row {
+  position: relative;
+  margin-left: -5px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.community-interaction-thread-row:hover {
+  border-color: var(--border-default);
+  background: var(--bg-card-solid);
+}
+
+.community-interaction-thread-row .community-interaction-reply-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.community-interaction-thread-row:hover .community-interaction-reply-pill {
+  text-decoration: none;
+}
+
+.community-interaction-thread-open {
+  display: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.community-interaction-thread-open::after {
+  content: " \203A";
+}
+
+.community-interaction-thread-row:hover .community-interaction-thread-open {
+  display: inline;
+}
+
+.community-interaction-reply-start {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .community-interaction-footer.is-reply-start-only {
+    display: none;
+  }
+}
+
+@media (hover: none) {
+  .community-interaction-reply-start {
+    display: inline-flex;
+  }
+}
+
 .community-interaction-overflow-menu {
   position: absolute;
   right: 0;

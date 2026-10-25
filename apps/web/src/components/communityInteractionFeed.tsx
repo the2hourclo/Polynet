@@ -285,6 +285,19 @@ export function MessageActions(props: {
 }) {
   return (
     <div className="community-interaction-msg-actions">
+      {/* Reply leads, with its name on it, so a thread is one obvious click. */}
+      {props.onReply ? (
+        <button
+          type="button"
+          className="community-interaction-msg-action community-interaction-msg-reply"
+          onClick={props.onReply}
+          aria-label={props.replyLabel}
+          title={props.replyLabel}
+        >
+          <MessageSquare size={15} aria-hidden="true" />
+          <span aria-hidden="true">Reply</span>
+        </button>
+      ) : null}
       {QUICK_REACTIONS.map((emoji) => (
         <button
           key={emoji}
@@ -302,17 +315,6 @@ export function MessageActions(props: {
         label="Add reaction"
         onPick={props.onReact}
       />
-      {props.onReply ? (
-        <button
-          type="button"
-          className="community-interaction-msg-action"
-          onClick={props.onReply}
-          aria-label={props.replyLabel}
-          title={props.replyLabel}
-        >
-          <MessageSquare size={15} aria-hidden="true" />
-        </button>
-      ) : null}
       <OverflowMenu
         onEdit={props.onEdit}
         onDelete={props.onDelete}
@@ -1076,10 +1078,16 @@ export function CommunityInteractionFeedList(
                             root.last_reply_actor_user_id !== props.currentUserId &&
                             Date.parse(root.last_reply_at) > unreadBoundary,
                         );
+                        // Touch screens have no hover toolbar, so a message with no
+                        // replies yet carries a visible Reply link there instead.
+                        const showReplyStart = !bundle.pending && root.reply_count === 0 && threadTypers.length === 0;
                         const hasFooter =
                           root.reply_count > 0 ||
                           root.reaction_summary.length > 0 ||
-                          threadTypers.length > 0;
+                          threadTypers.length > 0 ||
+                          showReplyStart;
+                        const replyStartOnly =
+                          showReplyStart && root.reaction_summary.length === 0;
                         const isOwnRoot = Boolean(
                           props.currentUserId && root.actor_user_id && root.actor_user_id === props.currentUserId,
                         );
@@ -1189,7 +1197,7 @@ export function CommunityInteractionFeedList(
                               </div>
                             ) : null}
                             {hasFooter ? (
-                              <div className="community-interaction-footer">
+                              <div className={`community-interaction-footer${replyStartOnly ? " is-reply-start-only" : ""}`}>
                                 <ReactionSummary
                                   rows={root.reaction_summary}
                                   viewerEmojis={root.viewer_emojis}
@@ -1245,7 +1253,17 @@ export function CommunityInteractionFeedList(
                                         Last reply {formatRelativeTime(root.last_reply_at)}
                                       </span>
                                     ) : null}
+                                    <span className="community-interaction-thread-open" aria-hidden="true">View thread</span>
                                   </div>
+                                ) : showReplyStart ? (
+                                  <button
+                                    type="button"
+                                    className="community-interaction-reply-start"
+                                    onClick={() => props.onSelectRoot(root.id)}
+                                  >
+                                    <MessageSquare size={14} aria-hidden="true" />
+                                    Reply
+                                  </button>
                                 ) : null}
                               </div>
                             ) : null}

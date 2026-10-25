@@ -288,6 +288,40 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   text-transform: uppercase;
   color: var(--text-muted);
 }
+/* Replies: a quiet toolbar on a hairline, Reply first; the thread row in the
+   page's own type. */
+.product-shell-surface[data-channels-feel] .community-interaction-msg-actions {
+  top: -1rem;
+  border: 1px solid var(--feel-hairline);
+  border-radius: 0.5rem;
+  background: var(--surface-card, var(--bg-card-solid));
+  box-shadow: 0 0.25rem 0.75rem color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-msg-action {
+  border-radius: 0.375rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-msg-action:hover {
+  background: var(--feel-fill-hover);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-msg-reply {
+  font-size: 0.8125rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-message:hover {
+  background: var(--feel-fill-hover);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-thread-row:hover {
+  border-color: var(--feel-hairline);
+  background: var(--surface-card, var(--bg-card-solid));
+}
+.product-shell-surface[data-channels-feel] .community-interaction-reply-pill {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--pn-link, var(--pn-accent, var(--accent-attention)));
+}
+.product-shell-surface[data-channels-feel] :is(.community-interaction-thread-time, .community-interaction-thread-open) {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
 .product-shell-surface[data-channels-feel] .community-interaction-main-composer {
   padding: 0 1.5rem 1.25rem;
 }
