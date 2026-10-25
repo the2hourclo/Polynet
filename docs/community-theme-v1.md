@@ -58,6 +58,7 @@ look; both follow the member's own Light/Dark choice.
 | `course_card_size` | `default` (two columns), `small`, `medium`, `large` (cards at least 220, 300 or 420px wide, as many columns as fit) |
 | `course_cover_plate` | `none`, `tint` (light schemes: covers are printed onto a soft wash of the accent, so pale drawings and screenshots match) |
 | `course_cover_fit` | `crop` (covers fill the box, framed by each course's focus and zoom), `whole` (each cover shows in full, centred in the box; for wide banners with words on them) |
+| `banner_name` | `show` (the name sits over the side column's banner), `hide` (the banner artwork already shows it) |
 
 ## Text roles
 

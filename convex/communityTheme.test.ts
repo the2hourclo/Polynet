@@ -59,6 +59,15 @@ describe("community theme validation", () => {
     expect(normalizeCommunityTheme(STOPWATCH_THEME)).toMatchObject({ ok: true });
   });
 
+  test("a banner that already shows the name can hide the side column's name", () => {
+    expect(DEFAULT_COMMUNITY_THEME.banner_name).toBe("show");
+    expect(communityThemeVariables(DEFAULT_COMMUNITY_THEME, "dark")["--pn-banner-name"]).toBe("visible");
+    const result = normalizeCommunityTheme({ banner_name: "hide" });
+    if (!result.ok) throw new Error(JSON.stringify(result.problems));
+    expect(communityThemeVariables(result.theme, "dark")).toMatchObject({ "--pn-banner-name": "hidden", "--pn-banner-scrim": "0.45" });
+    expect(normalizeCommunityTheme({ banner_name: "maybe" }).ok).toBe(false);
+  });
+
   test("an empty theme is Polynet's own look", () => {
     expect(normalizeCommunityTheme({})).toEqual({ ok: true, theme: DEFAULT_COMMUNITY_THEME });
   });

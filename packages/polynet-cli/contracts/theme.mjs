@@ -55,6 +55,7 @@ export const DEFAULT_COMMUNITY_THEME = {
     course_card_size: "default",
     course_cover_plate: "none",
     course_cover_fit: "crop",
+    banner_name: "show",
 };
 const COLOR_KEYS = [
     "background", "surface", "text", "muted", "border", "accent", "on_accent", "button", "on_button",
@@ -80,6 +81,7 @@ const ENUMS = {
     course_card_size: ["default", "small", "medium", "large"],
     course_cover_plate: ["none", "tint"],
     course_cover_fit: ["crop", "whole"],
+    banner_name: ["show", "hide"],
 };
 const RANGES = {
     heading_weight: [300, 900],
@@ -414,6 +416,9 @@ export function communityThemeVariables(theme, scheme) {
         "--pn-course-columns": courseColumns(theme),
         "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
         "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",
+        "--pn-banner-name": theme.banner_name === "hide" ? "hidden" : "visible",
+        // With no name to carry, the dark fade only has to hold the icons.
+        "--pn-banner-scrim": theme.banner_name === "hide" ? "0.45" : "1",
         // <polynet-account> on community sites.
         "--polynet-accent": c.accent,
         "--polynet-on-accent": c.on_accent,

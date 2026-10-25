@@ -73,6 +73,11 @@ export const COMMUNITY_DESIGN_SURFACES = {
     tokens: ["media_plate"],
     classes: ["resource-course-card-cover-image", "resource-viewer-prose"],
   },
+  banner_identity: {
+    label: "The community name over the side column's banner (hide it when the banner shows the name)",
+    tokens: ["banner_name"],
+    classes: ["community-nav-identity-name"],
+  },
   page_cards: {
     label: "Post cards, the post box and sidebar cards (stay flat; corners follow the theme)",
     tokens: ["radius", "font_body"],
