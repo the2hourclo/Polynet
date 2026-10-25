@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   compileCommunityThemeCss,
+  communityTextLevels,
   communityThemeFontStylesheetUrl,
   COMMUNITY_THEME_FONTS,
   normalizeCommunityTheme,
@@ -98,6 +99,9 @@ export function WebCommunityLookSettings(props: Props) {
         {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>;
   };
   const colors = theme.schemes[scheme];
+  // Secondary text is lifted until it reads clearly, so say so when the shown colour isn't the pick.
+  const shownMuted = colors ? communityTextLevels(colors, scheme).muted : null;
+  const mutedHint = colors && shownMuted && shownMuted.toLowerCase() !== colors.muted.toLowerCase() ? shownMuted : null;
   const setColor = (key: keyof CommunityThemeColors, value: string) => {
     if (!colors) return;
     set({ schemes: { ...theme.schemes, [scheme]: { ...colors, [key]: value.toUpperCase() } } });
@@ -126,7 +130,7 @@ export function WebCommunityLookSettings(props: Props) {
   const discard = () => act(() => run((session) => discardCloudCommunityThemeDraft({ session, communityId: props.communityId, expectedDraftRevision: state.draftRevision })));
   const problems = check && !check.ok ? check.problems : Array.isArray(error) ? error : [];
   // Each control names the problems about it, so they're read out on focus.
-  const problemFor = (path: string) => {
+  const problemFor = (path: string): { "aria-invalid"?: true; "aria-describedby"?: string } => {
     const ids = problems.map((problem, i) => (problem.path === path ? `${uid}-problem-${i}` : "")).filter(Boolean).join(" ");
     return ids ? { "aria-invalid": true, "aria-describedby": ids } : {};
   };
@@ -169,8 +173,13 @@ export function WebCommunityLookSettings(props: Props) {
         <div className="community-look-scheme" role="group" aria-label="Colour scheme">
           {(["light", "dark"] as const).filter((key) => theme.schemes[key]).map((key) => <button key={key} type="button" className={key === scheme ? "is-active" : ""} aria-pressed={key === scheme} onClick={() => setScheme(key)}>{key === "light" ? "Light" : "Dark"}</button>)}
         </div>
-        {colors ? <div className="community-look-colors">{COLOR_FIELDS.map(([key, label]) => <label key={key}>
-          <input type="color" value={colors[key]} disabled={busy} {...problemFor(`schemes.${scheme}.${key}`)} onChange={(e) => setColor(key, e.target.value)} /><span>{label}</span></label>)}</div> : null}
+        {colors ? <div className="community-look-colors">{COLOR_FIELDS.map(([key, label]) => {
+          const problem = problemFor(`schemes.${scheme}.${key}`);
+          const describedBy = [problem["aria-describedby"], key === "muted" && mutedHint ? `${uid}-muted-hint` : ""].filter(Boolean).join(" ") || undefined;
+          return <label key={key}>
+            <input type="color" value={colors[key]} disabled={busy} {...problem} aria-describedby={describedBy} onChange={(e) => setColor(key, e.target.value)} /><span>{label}</span></label>;
+        })}
+          {mutedHint ? <small id={`${uid}-muted-hint`} className="community-look-color-hint">Secondary text shows as {mutedHint.toUpperCase()} so it stays easy to read on {scheme === "dark" ? "dark" : "light"} backgrounds.</small> : null}</div> : null}
       </div>
       <div className="community-look-preview" data-community-theme={PREVIEW_SCOPE}>
         <style>{previewCss}</style>
