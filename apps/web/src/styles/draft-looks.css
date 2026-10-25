@@ -288,6 +288,36 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   text-transform: uppercase;
   color: var(--text-muted);
 }
+/* The thread panel: its title row is as tall as "# General" beside it, on
+   the same hairline, in the same type. The band and the space under it both
+   follow --web-topbar-height. */
+.product-shell-surface[data-channels-feel] .community-interaction-thread-drawer {
+  --web-topbar-height: 3.5rem;
+}
+.product-shell-surface[data-channels-feel] .community-interaction-thread-drawer .community-interaction-drawer-back {
+  box-sizing: border-box;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--feel-hairline);
+  background: var(--bg-workspace);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-drawer-back .back-to-workspace {
+  gap: 0.5rem;
+  padding: 0.375rem 0.625rem 0.375rem 0.375rem;
+  border-radius: 0.5rem;
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-drawer-back .back-to-workspace:hover {
+  background: var(--feel-fill-hover);
+}
+.product-shell-surface[data-channels-feel] .community-interaction-drawer-back .back-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-muted);
+}
 /* Replies: a quiet toolbar on a hairline, Reply first; the thread row in the
    page's own type. */
 .product-shell-surface[data-channels-feel] .community-interaction-msg-actions {

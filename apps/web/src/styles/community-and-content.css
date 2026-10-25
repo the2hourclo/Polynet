@@ -3467,6 +3467,18 @@
   height: 17px;
 }
 
+/* Inside a themed community the thread's title speaks the community's type,
+   like the channel title beside it, instead of Polynet's path-style mono. */
+[data-community-theme] .community-interaction-drawer-back .back-to-workspace {
+  font-family: var(--pn-font-body, inherit);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+[data-community-theme] .community-interaction-drawer-back .back-path {
+  text-transform: capitalize;
+}
+
 /* Threads own a stable top band so scrolling root content never competes with
    the back control. Profile drawers keep the compact floating treatment. */
 .community-member-chat .community-interaction-thread-drawer .community-interaction-drawer-back {
