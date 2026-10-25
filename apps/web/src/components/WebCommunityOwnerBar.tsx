@@ -46,7 +46,7 @@ export function WebCommunityOwnerBar(props: {
       ) : null}
       <span className="community-owner-bar-title">
         <span className="community-owner-bar-community">{community?.name ?? "Community"}</span>
-        <span className="community-owner-bar-page">{(tab && PAGE_LABEL[tab]) ?? "Settings"}</span>
+        <span className="community-owner-bar-page">{tab === "settings" && !props.communityShell.canManageMembersActiveCommunity ? "Membership" : (tab && PAGE_LABEL[tab]) ?? "Settings"}</span>
       </span>
       {props.trailing ? <span className="community-owner-bar-tools">{props.trailing}</span> : null}
     </header>
