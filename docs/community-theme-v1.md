@@ -55,8 +55,8 @@ look; both follow the member's own Light/Dark choice.
 | `density` | `compact`, `comfortable`, `roomy` |
 | `media_plate` | `none`, `light` (frames white-background images in dark schemes) |
 | `course_cover_ratio` | `auto` (Polynet's fixed height), `16:9`, `3:2`, `4:3`, `1:1`, `21:9` |
-| `course_card_size` | `default` (two columns), `small`, `medium`, `large` (cards at least 220, 300 or 420px wide, as many columns as fit) |
-| `course_columns` | `auto` (Card size decides), or `1`–`4` cards per row on desktop (rows wrap before a card is narrower than 160px). Overrides the page style's columns |
+| `course_card_size` | `default` (the page style's own columns), `small`, `medium`, `large` (cards at least 200, 260 or 360px wide; the catalog widens up to 90rem and each row fits as many as the screen has room for) |
+| `course_columns` | `auto` (fit to screen by Card size), or `1`–`4` cards per row on desktop (rows wrap before a card is narrower than 160px). Overrides the page style's columns; picking a Card size in Customize sets it back to `auto` |
 | `course_columns_phone` | `1` or `2` cards per row on phones |
 | `course_gap` | `default` (the page style's own spacing), `tight`, `roomy` |
 | `course_card_style` | `cover` (picture on top), `list` (a row with a small picture on the right, thin dividers), `overlay` (title on the picture), `text` (no picture, editorial) |

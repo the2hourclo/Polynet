@@ -556,6 +556,10 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   width: 100%;
   box-sizing: border-box;
 }
+/* A picked card size widens the course catalog page to fit more per row. */
+.product-shell-surface[data-channels-feel="quiet"] .community-knowledge-page:has(.resource-course-catalog) {
+  max-width: var(--pn-course-catalog-max-owner, 54.25rem);
+}
 .product-shell-surface[data-channels-feel="quiet"] .community-knowledge-header {
   padding: 2rem 1.5rem 0.5rem;
   border-bottom: 0;
@@ -930,6 +934,9 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   width: 100%;
   box-sizing: border-box;
 }
+.product-shell-surface[data-channels-feel="publication"] .community-knowledge-page:has(.resource-course-catalog) {
+  max-width: var(--pn-course-catalog-max-owner, 60rem);
+}
 .product-shell-surface[data-channels-feel="publication"] .community-knowledge-header {
   padding: 1.75rem 1.5rem 0.75rem;
   margin: 0 1.5rem;
@@ -954,6 +961,12 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 .product-shell-surface[data-channels-feel="publication"] .resource-course-grid {
   grid-template-columns: var(--pn-course-columns-owner, repeat(2, minmax(0, 1fr)));
   gap: var(--pn-course-gap-owner, 2rem 1.75rem);
+}
+/* Phones keep the owner's phone columns (one by default) in either look. */
+@media (max-width: 640px) {
+  .product-shell-surface:is([data-channels-feel="quiet"], [data-channels-feel="publication"]) .resource-course-grid {
+    grid-template-columns: var(--pn-course-columns-phone, minmax(0, 1fr));
+  }
 }
 .product-shell-surface[data-channels-feel="publication"] .resource-course-card {
   border: 0;

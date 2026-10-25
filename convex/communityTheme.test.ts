@@ -160,7 +160,12 @@ describe("community theme compilation", () => {
     const stopwatch = normalizeCommunityTheme(STOPWATCH_THEME);
     if (!stopwatch.ok) throw new Error("invalid");
     const vars = communityThemeVariables(stopwatch.theme, "dark");
-    expect(vars["--pn-course-columns"]).toBe("repeat(auto-fill, minmax(min(100%, 300px), 1fr))");
+    expect(vars["--pn-course-columns"]).toBe("repeat(auto-fill, minmax(min(100%, 260px), 1fr))");
+    // A picked size beats the page style's columns and lets the catalog fill the screen.
+    expect(vars["--pn-course-columns-owner"]).toBe(vars["--pn-course-columns"]);
+    expect(vars["--pn-course-catalog-max-owner"]).toBe("90rem");
+    expect(defaults["--pn-course-columns-owner"]).toBe("initial");
+    expect(defaults["--pn-course-catalog-max-owner"]).toBe("initial");
     expect(vars["--pn-course-cover-ratio"]).toBe("16 / 9");
     expect(vars["--pn-course-cover-height"]).toBe("auto");
     expect(normalizeCommunityTheme({ course_cover_ratio: "2:1" }).ok).toBe(false);

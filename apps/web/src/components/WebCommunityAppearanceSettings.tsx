@@ -64,8 +64,8 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   density: ["Spacing", [["compact", "Compact"], ["comfortable", "Comfortable"], ["roomy", "Roomy"]]],
   button_shape: ["Buttons", [["rounded", "Rounded"], ["pill", "Pill"], ["square", "Square"], ["sketch", "Sketch"]]],
   course_cover_ratio: ["Cover shape", [["auto", "Polynet default"], ["16:9", "Wide 16:9"], ["3:2", "Photo 3:2"], ["4:3", "Classic 4:3"], ["1:1", "Square"], ["21:9", "Banner 21:9"]]],
-  course_card_size: ["Card size", [["default", "Two columns"], ["small", "Small"], ["medium", "Medium"], ["large", "Large"]]],
-  course_columns: ["Cards per row", [["auto", "Fit by card size"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]]],
+  course_card_size: ["Card size", [["default", "Page style's own"], ["small", "Small"], ["medium", "Medium"], ["large", "Large"]]],
+  course_columns: ["Cards per row", [["auto", "Fit to screen"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]]],
   course_columns_phone: ["Cards per row on phones", [["1", "1"], ["2", "2"]]],
   course_gap: ["Space between cards", [["default", "Page style's own"], ["tight", "Tight"], ["roomy", "Roomy"]]],
   course_card_style: ["Card style", [["cover", "Cover on top"], ["list", "List row"], ["overlay", "Title on cover"], ["text", "Text only"]]],
@@ -622,10 +622,10 @@ function AppearanceEditor(props: EditorProps) {
     return ids ? { "aria-invalid": true, "aria-describedby": ids } : {};
   };
   const fieldId = (key: string) => `${props.uid}-field-${key.replace(/\W/g, "-")}`;
-  const choice = (key: ChoiceKey) => {
+  const choice = (key: ChoiceKey, also: Partial<CommunityThemeV1> = {}) => {
     const [label, options] = CHOICES[key];
     return <Row key={key} label={label} htmlFor={fieldId(key)}>
-      <select id={fieldId(key)} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value } as Partial<CommunityThemeV1>)}>
+      <select id={fieldId(key)} value={theme[key]} disabled={busy} {...problemFor(key)} onChange={(e) => set({ [key]: e.target.value, ...also } as Partial<CommunityThemeV1>)}>
         {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></Row>;
   };
   const slider = (key: "heading_weight" | "type_scale" | "radius" | "border_width", label: string, min: number, max: number, step: number, unit: (value: number) => string) =>
@@ -756,12 +756,13 @@ function AppearanceEditor(props: EditorProps) {
           {choice("density")}
         </Group>
         <Group title="Course grid">
-          {choice("course_columns")}
-          {theme.course_columns === "auto" ? choice("course_card_size") : null}
+          {/* Picking a size goes back to fitting the screen, even if an agent set fixed columns. */}
+          {choice("course_card_size", { course_columns: "auto" })}
+          {theme.course_columns === "auto" ? null : choice("course_columns")}
           {choice("course_columns_phone")}
           {choice("course_gap")}
           {choice("course_cover_ratio")}
-          <p className="appearance-hint">{theme.course_columns === "auto" ? "Bigger cards mean fewer per row." : "Rows wrap sooner on narrow screens, so cards stay readable."}</p>
+          <p className="appearance-hint">{theme.course_columns === "auto" ? "Cards keep the size you pick, and each row fits as many as the screen has room for." : "Rows wrap sooner on narrow screens, so cards stay readable."}</p>
         </Group>
         <Group title="Course cards">
           {choice("course_card_style")}

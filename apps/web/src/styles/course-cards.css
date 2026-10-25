@@ -5,6 +5,12 @@
    the choices that differ from Polynet's own card as words on
    <html data-course-cards>, only inside a themed community. */
 
+/* A picked card size (Course grid → Card size) lets the catalog use the
+   screen, up to 90rem, so wider screens fit more cards per row. */
+[data-community-theme] .resource-course-catalog {
+  width: min(100%, var(--pn-course-catalog-max-owner, 1120px));
+}
+
 /* Parts that only some choices show. */
 .resource-course-card-pills,
 .resource-course-card-progress-ring,
@@ -88,9 +94,11 @@
 }
 
 /* ── List: one row per course, small picture on the right ─ */
+/* A reading-width column whatever the card size, like an archive list. */
 :root[data-course-cards~="list"] [data-community-theme] .resource-course-grid {
-  grid-template-columns: var(--pn-course-columns-owner, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--pn-course-gap-owner, 0 2rem);
+  max-width: 60rem;
 }
 :root[data-course-cards~="list"] [data-community-theme] .resource-course-card {
   min-height: 0;

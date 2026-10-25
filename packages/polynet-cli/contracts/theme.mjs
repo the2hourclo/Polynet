@@ -361,7 +361,7 @@ function shadows(theme, scheme) {
 }
 const DENSITY = { compact: 0.85, comfortable: 1, roomy: 1.15 };
 // Minimum card width per size; "default" keeps Polynet's two-column catalog.
-const COURSE_CARD_MIN_WIDTH = { small: 220, medium: 300, large: 420 };
+const COURSE_CARD_MIN_WIDTH = { small: 200, medium: 260, large: 360 };
 function courseColumns(theme) {
     if (theme.course_columns !== "auto")
         return fixedCourseColumns(Number(theme.course_columns));
@@ -413,6 +413,8 @@ export function communityThemeVariables(theme, scheme) {
     const upper = theme.heading_case === "upper";
     const plate = theme.media_plate === "light" && scheme === "dark";
     const coverTint = theme.course_cover_plate === "tint" && scheme === "light";
+    const sizedCourseGrid = theme.course_columns === "auto" && theme.course_card_size !== "default";
+    const ownerCourseGrid = sizedCourseGrid || theme.course_columns !== "auto";
     const grey = communityTextLevels(c, scheme);
     const pn = {
         "--pn-background": c.background,
@@ -451,7 +453,10 @@ export function communityThemeVariables(theme, scheme) {
         "--pn-course-columns": courseColumns(theme),
         // Set only when the owner picked them, so page styles keep their own
         // columns and spacing otherwise ("initial" makes var() use its fallback).
-        "--pn-course-columns-owner": theme.course_columns === "auto" ? "initial" : courseColumns(theme),
+        "--pn-course-columns-owner": ownerCourseGrid ? courseColumns(theme) : "initial",
+        // A picked card size fills the screen: the catalog widens (up to 90rem)
+        // and each row fits as many cards of that size as there is room for.
+        "--pn-course-catalog-max-owner": sizedCourseGrid ? "90rem" : "initial",
         "--pn-course-columns-phone": `repeat(${theme.course_columns_phone}, minmax(0, 1fr))`,
         "--pn-course-gap-owner": theme.course_gap === "default" ? "initial" : COURSE_GAP[theme.course_gap],
         "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
