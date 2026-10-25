@@ -7,6 +7,7 @@ import { communityThemeWithBothSchemes } from "../../../../shared/communityTheme
 import { listCloudCommunityMembershipRows } from "../../../../shared/cloudCommunityMembershipGateway";
 import type { AppTheme } from "../../../../shared/theme";
 import { WebSettingsFold } from "./WebSettingsFold";
+import { setMemberPickEverywhere, useMemberPickEverywhere } from "../controllers/communityLookPreference";
 
 type Community = {
   id: string;
@@ -99,6 +100,7 @@ export function WebYourDisplaySection<SessionT>(props: {
   const shownTheme = activeId && activeTheme?.id === activeId ? activeTheme.theme : null;
   const activeLook = lookOf(shownTheme);
   const designName = props.community ? `${props.community.name}'s design` : "Polynet's design";
+  const everywhere = useMemberPickEverywhere();
   const madeIn = props.community && activeLook.kind === "one" ? activeLook.scheme : null;
   const oneCount = (looks ?? []).filter((entry) => entry.look.kind === "one").length;
 
@@ -108,7 +110,7 @@ export function WebYourDisplaySection<SessionT>(props: {
         <header className="pn-settings-card-header">
           <h2 className="settings-section-title" id="your-display-title">Light or dark</h2>
           <p className="settings-section-desc">
-            Every design comes in a light and a dark version. Pick yours: it applies in each community, on this device.
+            How pages look for you on this device, in every community made in light and dark.
           </p>
         </header>
         <div className="pn-settings-card-body pn-display-modes" role="radiogroup" aria-label="Light or dark">
@@ -122,7 +124,10 @@ export function WebYourDisplaySection<SessionT>(props: {
                 role="radio"
                 aria-checked={selected}
                 className={`pn-settings-mode pn-display-mode${selected ? " is-selected" : ""}`}
-                onClick={() => props.setAppTheme(mode.scheme)}
+                onClick={() => {
+                  setMemberPickEverywhere(true);
+                  props.setAppTheme(mode.scheme);
+                }}
               >
                 <DesignSample colors={colorsFor(activeLook.theme, mode.scheme)} />
                 <span className="pn-display-mode-label">
@@ -136,9 +141,31 @@ export function WebYourDisplaySection<SessionT>(props: {
         </div>
         <p className="pn-settings-note pn-display-note">
           {madeIn
-            ? `Shown in ${designName}. Its owner made it ${madeIn}; pick the other and you'll see its matching version. Only you see the change.`
+            ? `Shown in ${designName}, which its owner made ${madeIn}.`
             : `Shown in ${designName}.`}
         </p>
+        <div className="pn-settings-row pn-display-everywhere">
+          <div className="pn-settings-row-head">
+            <div className="pn-settings-row-text">
+              <span className="pn-settings-label">Use my pick in every community</span>
+              <span className="pn-settings-help">
+                Some communities are made only light or only dark. With this on, you see a matching version in your pick. Only you see the change.
+              </span>
+            </div>
+            <div className="pn-settings-row-control">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={everywhere}
+                aria-label="Use my pick in every community"
+                className={`pn-settings-switch${everywhere ? " is-on" : ""}`}
+                onClick={() => setMemberPickEverywhere(!everywhere)}
+              >
+                <span aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
       {looks && looks.length > 0 ? (
         <WebSettingsFold
@@ -146,7 +173,7 @@ export function WebYourDisplaySection<SessionT>(props: {
           title="In your communities"
           summary={oneCount === 0
             ? "Every community follows your pick"
-            : `All follow your pick; ${oneCount} with a matched version`}
+            : everywhere ? `All follow your pick; ${oneCount} with a matched version` : `${oneCount} shown as made, the rest follow your pick`}
         >
           {looks.map(({ community, look }) => (
             <div key={community.id} className="pn-your-membership pn-display-community">
@@ -166,10 +193,11 @@ export function WebYourDisplaySection<SessionT>(props: {
               />
               <span className="pn-your-membership-text">
                 <strong>{community.name}</strong>
-                <small>{look.kind === "both" ? "Light and dark" : `Made ${look.scheme}, ${look.scheme === "light" ? "dark" : "light"} matched`}</small>
+                <small>{look.kind === "both" ? "Light and dark" : everywhere ? `Made ${look.scheme}, ${look.scheme === "light" ? "dark" : "light"} matched` : `Made ${look.scheme}, shown as made`}</small>
               </span>
               <span className="pn-display-community-samples">
-                {MODES.map((mode) => <DesignSample key={mode.scheme} size="small" colors={colorsFor(look.theme, mode.scheme)} />)}
+                {MODES.filter((mode) => look.kind === "both" || everywhere || mode.scheme === look.scheme)
+                  .map((mode) => <DesignSample key={mode.scheme} size="small" colors={colorsFor(look.theme, mode.scheme)} />)}
               </span>
             </div>
           ))}

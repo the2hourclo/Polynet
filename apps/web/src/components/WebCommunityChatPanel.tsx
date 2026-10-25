@@ -36,6 +36,7 @@ import {
   type WebCommunityInteractionProjectionProps,
 } from "./WebCommunityInteractionProjection";
 import { WebCommunityProfilePanel } from "./WebCommunityProfilePanel";
+import { COMMUNITY_OPEN_PROFILE_EVENT, takePendingCommunityProfile } from "./WebCommunityCreators";
 import { CommunityComposerControls } from "./CommunityComposerControls";
 import { resolveWebCommunityChatPresentationMode } from "../controllers/resolveWebCommunityChatPresentationMode";
 import {
@@ -744,6 +745,20 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
     interactionProjection?.onCloseDrawer();
     setProfilePanelUserId(userId);
   }, [interactionProjection]);
+  // Creator names elsewhere in the community (the community card, About)
+  // open their profile here.
+  useEffect(() => {
+    const pending = takePendingCommunityProfile();
+    if (pending) handleOpenCommunityProfile(pending);
+    const onOpen = (event: Event) => {
+      const userId = (event as CustomEvent<{ userId?: string }>).detail?.userId;
+      if (!userId) return;
+      event.preventDefault();
+      handleOpenCommunityProfile(userId);
+    };
+    window.addEventListener(COMMUNITY_OPEN_PROFILE_EVENT, onOpen);
+    return () => window.removeEventListener(COMMUNITY_OPEN_PROFILE_EVENT, onOpen);
+  }, [handleOpenCommunityProfile]);
   const handleSelectCommunityRoot = useCallback((rootId: string) => {
     setProfilePanelUserId(null);
     interactionProjection?.onSelectRoot(rootId);

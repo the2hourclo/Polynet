@@ -12,6 +12,8 @@ import {
   type CommunityFunnelSurfaceAction,
 } from "./CommunityFunnelSurface";
 import { CommunityFunnelMemberProof } from "./CommunityFunnelMemberProof";
+import { WebCommunityCreators } from "./WebCommunityCreators";
+import "./WebCommunityCreators.css";
 import { WebCommunityBridgeCard, type WebCommunityBridgeCardProps } from "./WebCommunityBridgeCard";
 import { WebBlockingSetupModal } from "./WebBlockingSetupModal";
 import "./WebCommunityFunnelRenderer.css";
@@ -110,6 +112,7 @@ export function WebCommunityFunnelRenderer(props: WebCommunityFunnelRendererProp
           />
           <span>{props.communityName}</span>
         </header>
+        {props.communityId ? <WebCommunityCreators communityId={props.communityId} readOnly className="community-funnel-creators community-funnel-reveal" /> : null}
 
         <section className="community-funnel-hero community-funnel-reveal">
           <h1 id={titleId}>{props.renderModel.headline}</h1>

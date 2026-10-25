@@ -53,3 +53,6 @@ button.community-creators-name:focus-visible { outline: 2px solid var(--text-pri
 .community-context-rail-creators { padding: 0 1rem 0.75rem; }
 /* Classroom card and About: between the description and the member count. */
 .community-card-block .community-creators { margin: 0.25rem 0; }
+
+/* On the public About page, centred under the community name. */
+.community-creators.community-funnel-creators { justify-content: center; margin-top: -0.5rem; text-align: left; }
