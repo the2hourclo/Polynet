@@ -263,7 +263,7 @@
   font-size: var(--pn-type-title);
 }
 [data-community-theme] .community-sales-media {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-sales-facts {
   font-size: var(--pn-type-ui);
@@ -282,7 +282,7 @@
   font-size: var(--pn-type-subheading);
 }
 [data-community-theme] .community-sales-card-avatar {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-body);
 }
 [data-community-theme] .community-sales-card-identity h2 {
@@ -301,7 +301,7 @@
   font-size: var(--pn-type-label);
 }
 [data-community-theme] .community-sales-join-button {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-body);
 }
 [data-community-theme] .community-sales-join-note {
@@ -2275,27 +2275,30 @@
   font-size: var(--pn-type-small);
 }
 [data-community-theme] .community-top-nav-avatar {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
 }
 [data-community-theme] .community-top-nav-name {
   font-size: var(--pn-type-subheading);
 }
 [data-community-theme] .community-top-nav-search {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-top-nav-search input {
   font-size: var(--pn-type-ui);
 }
 [data-community-theme] .community-top-nav-actions .direct-messages-topbar-button,
 [data-community-theme] .community-top-nav-icon {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-top-nav-icon-badge {
   font-size: var(--pn-type-micro);
 }
 [data-community-theme] .community-notifications-panel {
-  border-radius: calc(12px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-notifications-group {
+  font-size: var(--pn-type-meta);
 }
 [data-community-theme] .community-notifications-head {
   font-size: var(--pn-type-body);
@@ -2314,6 +2317,7 @@
   font-size: var(--pn-type-small);
 }
 [data-community-theme] .community-top-nav-invite {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
 }
 [data-community-theme] .community-top-nav-tab {
@@ -2323,6 +2327,7 @@
   border-radius: calc(2px * var(--pn-radius-scale, 1)) calc(2px * var(--pn-radius-scale, 1)) 0 0;
 }
 [data-community-theme] .community-category-chip {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
 }
 [data-community-theme] .community-posts-composer-bar {
@@ -2341,7 +2346,8 @@
   font-size: var(--pn-type-small);
 }
 [data-community-theme] .community-post-card-pin {
-  font-size: var(--pn-type-small);
+  border-radius: calc(4px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-meta);
 }
 [data-community-theme] .community-post-card-title {
   font-size: var(--pn-type-subheading);
@@ -2363,13 +2369,14 @@
   font-size: var(--pn-type-micro);
 }
 [data-community-theme] .community-posts-load-more {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-ui);
 }
 [data-community-theme] .community-aside-card {
   border-radius: calc(12px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-card-block-avatar {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-ui);
 }
 [data-community-theme] .community-card-block-name {
@@ -2407,7 +2414,7 @@
   font-size: var(--pn-type-label);
 }
 [data-community-theme] .community-about-main {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-about-title {
   font-size: var(--pn-type-title);
@@ -2422,7 +2429,7 @@
   font-size: var(--pn-type-ui);
 }
 [data-community-theme] .members-page .community-context-member {
-  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .members-page .community-context-member-avatar {
   font-size: var(--pn-type-heading);
