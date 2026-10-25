@@ -686,3 +686,8 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
 .pn-creators-invite { margin-top: 0.5rem; }
 .pn-creators-error { padding: 1rem 1.25rem 0; }
 .pn-settings-card-body > .pn-settings-note { padding: 0 1.25rem 1rem; }
+
+/* Settings > Agent > Profile: the agent's photo is round, like everywhere it shows. */
+.pn-settings-thumb.is-agent-photo { border-radius: 999px; }
+.pn-settings-thumb.is-agent-photo .pn-settings-thumb-media { object-fit: cover; }
+.pn-agent-profile-sparkles { display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }

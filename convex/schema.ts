@@ -2453,6 +2453,10 @@ export default defineSchema({
     // Owner-set display name for the agent's taggable identity; absent means
     // the community's own name.
     agentDisplayName: v.optional(v.string()),
+    // Owner-set photo for the agent (an upload, or an https image). Absent
+    // means it wears the community's icon.
+    agentAvatarStorageId: v.optional(v.id("_storage")),
+    agentAvatarUrl: v.optional(v.string()),
     // Owner off-switch for the memory agent. Absent means enabled; inference
     // admission is resolved through the canonical managed-funding policy.
     agentEnabled: v.optional(v.boolean()),

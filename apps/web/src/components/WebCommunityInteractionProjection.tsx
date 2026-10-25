@@ -175,6 +175,7 @@ import {
 import { interactionMentionsViewer } from "../controllers/communityMentionAttention";
 import { CommunityPinnedRootSurface } from "./CommunityPinnedRootSurface";
 import { CommunityPostsFeed, splitPostTitle } from "./CommunityPostsFeed";
+import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 
 export function resolveSelectedCommunityInteractionRoot(
   roots: CommunityInteractionRootBundle[],
@@ -199,6 +200,7 @@ export function communityInteractionRootHasRichContent(
 
 
 export function WebCommunityInteractionProjection(props: WebCommunityInteractionProjectionProps) {
+  const agentName = useCommunityAgentName(props.activeCommunityName);
   const hasChannelContext = Boolean(props.communityId && props.activeChannel);
   // The Members page is the member list kept open.
   const peopleOpen = Boolean((props.peopleOpen || props.surface === "members") && hasChannelContext);
@@ -520,7 +522,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
     props.selectedRootId,
   );
   const selectedRootLabel = selectedRoot
-    ? actorLabel(selectedRoot.root, props.displayName, props.activeCommunityName)
+    ? actorLabel(selectedRoot.root, props.displayName, agentName)
     : "";
   const selectedRootText = selectedRoot
     ? stripSharedAttachmentSummary(
@@ -614,7 +616,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             openLabel={`View full pinned post by ${actorLabel(
               props.pinnedRoot.root,
               props.displayName,
-              props.activeCommunityName,
+              agentName,
             )}`}
           >
             <CommunityInteractionFeedList
@@ -815,7 +817,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                       onMessageUser: props.onMessageUser,
                       getAvatarColor: props.getAvatarColor,
                       getInitials: props.getInitials,
-                      communityAgentDisplayName: props.activeCommunityName,
+                      communityAgentDisplayName: agentName,
                     }}
                     afterBody={(
                       <InteractionAttachments
@@ -863,7 +865,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
               <div className="community-interaction-reply-list">
                 {props.replies.map((bundle) => {
                   const reply = bundle.reply;
-                  const label = actorLabel(reply, props.displayName, props.activeCommunityName);
+                  const label = actorLabel(reply, props.displayName, agentName);
                   const profile = reply.actor_user_id ? props.profilesByUserId[reply.actor_user_id] ?? null : null;
                   const body = stripSharedAttachmentSummary(
                     bundleText(bundle.content_blocks, reply.content_summary),
@@ -875,7 +877,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                     reply.actor_type === "community_agent"
                       ? {
                           userId: "community_agent",
-                          displayName: props.activeCommunityName,
+                          displayName: agentName,
                           handle: null,
                           avatarUrl: null,
                           kind: "community_agent",
@@ -979,7 +981,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                                 onMessageUser: props.onMessageUser,
                                 getAvatarColor: props.getAvatarColor,
                                 getInitials: props.getInitials,
-                                communityAgentDisplayName: props.activeCommunityName,
+                                communityAgentDisplayName: agentName,
                               }}
                               afterBody={(
                                 <InteractionAttachments

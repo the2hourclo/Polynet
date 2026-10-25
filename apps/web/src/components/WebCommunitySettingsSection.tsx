@@ -17,6 +17,7 @@ import { buildStripeConnectPresentation } from "../controllers/buildStripeConnec
 import { StripeConnectCountrySelect } from "./StripeConnectCountrySelect";
 import { StripeSetupButton } from "./StripeSetupButton";
 import { WebCommunityAiAgentSection } from "./WebCommunityAiAgentSection";
+import { WebCommunityAgentProfileCard } from "./WebCommunityAgentProfileCard";
 import { WebCommunityAppearanceSettings } from "./WebCommunityAppearanceSettings";
 import { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
 import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
@@ -1082,7 +1083,19 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
               ensureSession={props.ensureSession}
             />
           ) : null}
-          {selectedSettingsPane === "agent" ? <WebCommunityAiAgentSection {...aiAgentProps} embedded /> : null}
+          {selectedSettingsPane === "agent" ? (
+            <WebCommunityAiAgentSection
+              {...aiAgentProps}
+              embedded
+              profileCard={resolvedActiveCommunity ? (
+                <WebCommunityAgentProfileCard
+                  session={props.session}
+                  communityId={resolvedActiveCommunity.id}
+                  communityName={String(resolvedActiveCommunity.name ?? "")}
+                />
+              ) : null}
+            />
+          ) : null}
           {selectedSettingsPane === "creators" && resolvedActiveCommunity ? (
             <WebCommunityCreatorsSettings
               key={resolvedActiveCommunity.id}

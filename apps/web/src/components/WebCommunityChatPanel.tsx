@@ -18,6 +18,7 @@ import type {
   UserProfile as SharedUserProfile,
 } from "../../../../shared/communityTypes";
 import { fetchCloudProfileCommunityContext } from "../../../../shared/cloudProfilesGateway";
+import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import {
   searchCloudCommunityMentionCandidates,
   type CloudCommunityMentionCandidateRow,
@@ -314,6 +315,7 @@ export type WebCommunityChatPanelProps = {
 };
 
 export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
+  const communityAgentName = useCommunityAgentName(props.activeCommunity?.name);
   const { upsertCommunityVisualIdentities } =
     useCommunityVisualIdentityRegistryActions();
   const {
@@ -569,9 +571,9 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
         }
       : null;
     // The community agent is taggable inside its own community, pinned first and
-    // always badged. V0 token/name = the community's own name; the backend stores
-    // the stable (communityId, community_agent) identity.
-    const agentDisplayName = String(activeCommunity?.name ?? "").trim();
+    // always badged. Its token/name is the owner's name for the agent, else the
+    // community's; the backend stores the stable (communityId, community_agent) identity.
+    const agentDisplayName = communityAgentName.trim();
     const agentCandidate: MentionCandidate | null = agentDisplayName
       ? {
           userId: "community_agent",
@@ -583,7 +585,7 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
       : null;
     return { agentCandidate, everybodyCandidate, memberCandidates };
   }, [
-    activeCommunity?.name,
+    communityAgentName,
     canMentionEverybody,
     displayName,
     everybodyMemberCount,

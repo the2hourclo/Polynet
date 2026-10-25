@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { CommunityAgentIcon } from "../../../../shared/CommunityAgentIcon";
+import { CommunityAgentIcon, useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext";
 import { downloadCloudCommunityChatAttachment } from "../../../../shared/cloudCommunityChatGateway";
 import {
@@ -890,6 +890,7 @@ export function CommunityInteractionFeedList(
     onCancelEdit: () => void;
   },
 ) {
+  const agentName = useCommunityAgentName(props.activeCommunityName);
   const seenRootIds = useRef<Set<string>>(new Set());
   const rootsLoadedOnce = useRef(false);
   useEffect(() => {
@@ -1019,7 +1020,7 @@ export function CommunityInteractionFeedList(
                   );
                 }
                 const first = segment.bundles[0]!;
-                const label = actorLabel(first.root, props.displayName, props.activeCommunityName);
+                const label = actorLabel(first.root, props.displayName, agentName);
                 const profile = first.root.actor_user_id
                   ? props.profilesByUserId[first.root.actor_user_id] ?? null
                   : null;
@@ -1158,7 +1159,7 @@ export function CommunityInteractionFeedList(
                                       onMessageUser: props.onMessageUser,
                                       getAvatarColor: props.getAvatarColor,
                                       getInitials: props.getInitials,
-                                      communityAgentDisplayName: props.activeCommunityName,
+                                      communityAgentDisplayName: agentName,
                                     }}
                                     afterBody={(
                                       <InteractionAttachments

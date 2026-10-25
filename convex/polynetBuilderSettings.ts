@@ -177,6 +177,14 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     required: [], effects: ["update_community_agent"],
   }),
   op({
+    operation: "community.agent.profile.save", area: "agent", name: "Agent's name and photo",
+    calls: "communityAgent:saveCommunityAgentProfile", ref: api.communityAgent.saveCommunityAgentProfile, kind: "mutation",
+    fields: { display_name: "the agent's name (up to 60 characters), or null for the community's name",
+      avatar_storage_id: "photo from community.settings.upload_url (kind avatar), or null for the community's icon",
+      avatar_url: "photo as an https image URL, or null for the community's icon" },
+    required: [], effects: ["update_community_agent_profile"],
+  }),
+  op({
     operation: "community.channel.create", area: "channels", name: "Add a channel",
     calls: "communityChannels:createCommunityChannel", ref: api.communityChannels.createCommunityChannel, kind: "mutation",
     fields: { name: "channel name", access_mode: "who can see it, as /builder/settings.json lists the modes" },
@@ -501,7 +509,7 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
   const read = async (ref: any, extra: Record<string, unknown> = {}) => {
     try { return await ctx.runQuery(ref, { ...scope, ...extra }); } catch { return null; }
   };
-  const [general, sales_page, workflows, forms, access_integrations, agent, channels, proposals, saved_themes] = await Promise.all([
+  const [general, sales_page, workflows, forms, access_integrations, agent, channels, proposals, saved_themes, agent_profile] = await Promise.all([
     read(api.communityLifecycle.getCommunitySettings),
     read(api.communityFunnel.getCommunityFunnelConfig),
     read(api.communityMemberWorkflows.getBuilderWorkflowBoardPage, { pageSize: 1 }).then(board => board ? board.workflow : null),
@@ -513,6 +521,7 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     read(api.communitySavedThemes.listCommunitySavedThemes).then(list => list
       ? list.map((saved: any) => ({ savedThemeId: saved.savedThemeId, name: saved.name, valid: saved.theme !== null, updatedAt: saved.updatedAt }))
       : null),
+    ctx.runQuery(api.communityAgent.getCommunityAgentProfile, { communityId: caller.communityId }).catch(() => null),
   ]);
   return {
     contract: "polynet.builder_settings.v1",
@@ -521,6 +530,8 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
       ...(spec.review ? { review: spec.review } : {}) })),
     // workflows holds the welcome page and gate too, with the revision both use.
     general, sales_page, workflows, forms, access_integrations, agent, channels,
+    // The agent's name and photo (avatar_url null: it wears the community's icon).
+    agent_profile,
     // Looks saved under a name, and the ready-made colour palettes (each has a
     // light and a dark scheme; applying one changes the draft's colours only).
     saved_themes,

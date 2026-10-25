@@ -18,7 +18,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { CommunityAgentIcon } from "../../../../shared/CommunityAgentIcon";
+import { CommunityAgentIcon, useCommunityAgentProfile } from "../../../../shared/CommunityAgentIcon";
 import { getAuthUrl, type AuthSession } from "../auth";
 import { CommunityComposerControls } from "./CommunityComposerControls";
 import { renderMarkdown } from "../../../../shared/markdownUi";
@@ -190,6 +190,8 @@ export const WebMemberAgentDock = forwardRef<WebMemberAgentDockHandle, WebMember
 function WebMemberAgentDock(props, ref) {
   const communityId = props.community?.id ?? null;
   const communityName = String(props.community?.name ?? "").trim();
+  // The owner's name for the agent (Settings > Agent), if they gave it one.
+  const agentCustomName = useCommunityAgentProfile()?.custom_name ?? null;
   const isOpenSurface = props.pageMode
     ? Boolean(props.pageActive)
     : props.floating
@@ -1112,7 +1114,7 @@ function WebMemberAgentDock(props, ref) {
     props.surfaceContext,
     communityName,
   );
-  const presentation = { ...legacyPresentation, title: "Agent", surfaceLabel: communityName, emptyLabel: "How can I help?", composerLabel: "Message the community agent", loadingLabel: "Loading conversation" };
+  const presentation = { ...legacyPresentation, title: agentCustomName || "Agent", surfaceLabel: communityName, emptyLabel: "How can I help?", composerLabel: "Message the community agent", loadingLabel: "Loading conversation" };
   const shouldRenderStreamedText =
     Boolean(streamedText) && !hasSequencedAssistantText(runtimeEvents);
 
@@ -1408,7 +1410,7 @@ function WebMemberAgentDock(props, ref) {
         type="button"
         className="member-agent-launcher"
         onClick={() => props.floating?.onOpenChange(true)}
-        aria-label={`Ask the ${communityName || "community"} agent`}
+        aria-label={agentCustomName ? `Ask ${agentCustomName}` : `Ask the ${communityName || "community"} agent`}
         aria-controls="polynet-member-agent-surface"
         aria-expanded={false}
       >

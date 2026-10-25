@@ -12,6 +12,7 @@ import {
   stripSharedAttachmentSummary,
 } from "./communityInteractionFeed";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
+import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 
 // The community's posts as one card each, newest activity first: the "posts"
 // presentation a layout can choose for the chat page. Same posts, replies,
@@ -83,9 +84,10 @@ function postThumbnail(bundle: CommunityInteractionRootBundle): { src: string; a
 }
 
 function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractionRootBundle; pinned: boolean }) {
+  const agentName = useCommunityAgentName(props.activeCommunityName);
   const { bundle } = props;
   const root = bundle.root;
-  const label = actorLabel(root, props.displayName, props.activeCommunityName);
+  const label = actorLabel(root, props.displayName, agentName);
   const profile = root.actor_user_id ? props.profilesByUserId[root.actor_user_id] ?? null : null;
   const badge = agentBadgeLabel(root.actor_type);
   const text = splitPostTitle(
