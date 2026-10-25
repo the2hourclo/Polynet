@@ -31,8 +31,17 @@ describe("community layout v1", () => {
     expect(result.layout.navigation.position).toBe("top");
     expect(result.layout.width).toBe("centered");
     expect(result.layout.pages.chat).toEqual({ presentation: "posts", aside: ["community_card", "upcoming_events"] });
+    expect(result.layout.pages.about).toEqual({ presentation: "funnel" });
     expect(visibleCommunityLayoutTabs(result.layout).map((t) => communityLayoutTabLabel(result.layout, t.tab)))
       .toEqual(["Community", "Classroom", "Calendar", "Members", "Ask AI", "About"]);
+  });
+
+  test("the About page is Polynet's own unless a layout makes it the funnel", () => {
+    expect(DEFAULT_COMMUNITY_LAYOUT.pages.about.presentation).toBe("page");
+    const funnel = normalizeCommunityLayout({ pages: { about: { presentation: "funnel" } } });
+    expect(funnel.ok && funnel.layout.pages.about.presentation).toBe("funnel");
+    expect(problemsOf({ pages: { about: { presentation: "landing" } } }).map((p) => p.path)).toEqual(["pages.about.presentation"]);
+    expect(problemsOf({ pages: { about: { video: true } } }).map((p) => p.path)).toEqual(["pages.about.video"]);
   });
 
   test("an empty object means Polynet's layout", () => {

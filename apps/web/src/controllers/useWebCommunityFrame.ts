@@ -14,6 +14,9 @@ export type WebCommunityFrame = {
   canInvite: boolean;
   onSelectTab: (tab: CommunityTab) => void;
   onCopyJoinLink: ((joinUrl: string) => Promise<void> | void) | null;
+  // Words typed in the top bar's search; the posts feed shows only matches.
+  postSearch: string;
+  onPostSearch: (query: string) => void;
 };
 
 export const WebCommunityFrameContext = createContext<WebCommunityFrame>({
@@ -24,6 +27,8 @@ export const WebCommunityFrameContext = createContext<WebCommunityFrame>({
   canInvite: false,
   onSelectTab: () => {},
   onCopyJoinLink: null,
+  postSearch: "",
+  onPostSearch: () => {},
 });
 
 export function useWebCommunityFrame(): WebCommunityFrame {

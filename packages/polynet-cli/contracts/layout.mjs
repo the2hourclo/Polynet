@@ -39,6 +39,7 @@ export const DEFAULT_COMMUNITY_LAYOUT = {
     width: "wide",
     pages: {
         chat: { presentation: "messages", aside: [] },
+        about: { presentation: "page" },
     },
 };
 const MAX_LABEL_LENGTH = 24;
@@ -119,7 +120,10 @@ export function normalizeCommunityLayout(raw) {
         version: 1,
         navigation: { ...DEFAULT_COMMUNITY_LAYOUT.navigation, tabs: DEFAULT_COMMUNITY_LAYOUT.navigation.tabs.map((t) => ({ ...t })) },
         width: DEFAULT_COMMUNITY_LAYOUT.width,
-        pages: { chat: { ...DEFAULT_COMMUNITY_LAYOUT.pages.chat, aside: [] } },
+        pages: {
+            chat: { ...DEFAULT_COMMUNITY_LAYOUT.pages.chat, aside: [] },
+            about: { ...DEFAULT_COMMUNITY_LAYOUT.pages.about },
+        },
     };
     if (raw.navigation !== undefined) {
         if (!isRecord(raw.navigation)) {
@@ -154,7 +158,20 @@ export function normalizeCommunityLayout(raw) {
             problems.push({ path: "pages", message: "pages is an object." });
         }
         else {
-            unknownKeys(raw.pages, ["chat"], "pages", problems);
+            unknownKeys(raw.pages, ["chat", "about"], "pages", problems);
+            const about = raw.pages.about;
+            if (about !== undefined) {
+                if (!isRecord(about)) {
+                    problems.push({ path: "pages.about", message: "pages.about is an object." });
+                }
+                else {
+                    unknownKeys(about, ["presentation"], "pages.about", problems);
+                    if (about.presentation !== undefined) {
+                        layout.pages.about.presentation =
+                            oneOf(about.presentation, ["page", "funnel"], "pages.about.presentation", problems) ?? layout.pages.about.presentation;
+                    }
+                }
+            }
             const chat = raw.pages.chat;
             if (chat !== undefined) {
                 if (!isRecord(chat)) {

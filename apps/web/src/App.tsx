@@ -2979,6 +2979,7 @@ export default function App() {
     onCopyCommunityJoinLink: copyTextToClipboard,
     canOpenDirectMessages: Boolean(session),
     directMessagesUnreadCount,
+    communityActivityEvents,
     handleOpenDiscover,
     openMobileCreateCommunity,
     openCommunityCreateFlow: openNewCommunityPurchaseFlow,

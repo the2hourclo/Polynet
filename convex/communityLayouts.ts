@@ -56,6 +56,12 @@ function readStoredLayout(raw: unknown): CommunityLayoutV1 | null {
   return result.ok ? result.layout : null;
 }
 
+/** The published layout, or null, for code that already holds a community. */
+export async function readPublishedCommunityLayout(ctx: any, communityId: any): Promise<CommunityLayoutV1 | null> {
+  const row = await getLayoutRow(ctx, communityId);
+  return readStoredLayout(row?.publishedLayout);
+}
+
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {

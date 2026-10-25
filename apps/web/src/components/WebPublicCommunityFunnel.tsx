@@ -11,12 +11,18 @@ import {
 } from "../../../../shared/communityFunnelUi";
 import type { WebCommunityBridgeCardProps } from "./WebCommunityBridgeCard";
 import { WebCommunityFunnelRenderer } from "./WebCommunityFunnelRenderer";
+import { WebCommunitySalesPage, type CommunitySalesPageCommunity } from "./WebCommunitySalesPage";
+import { ActionStatusCards } from "./CommunityFunnelSurface";
+import { WebBlockingSetupModal } from "./WebBlockingSetupModal";
+import { WebCommunityBridgeCard } from "./WebCommunityBridgeCard";
+import { communityJoinUrl } from "../controllers/useWebCommunityFrame";
+import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
 import "./WebPublicCommunityFunnel.css";
 
 type CheckoutStatus = "idle" | "loading" | "pending" | "succeeded" | "error";
 type MagicLinkStatus = "idle" | "sending" | "sent";
 
-export type PublicCommunityFunnelCommunityLike = {
+export type PublicCommunityFunnelCommunityLike = CommunitySalesPageCommunity & {
   id?: string;
   slug?: string;
   name: string;
@@ -36,6 +42,8 @@ export type PublicCommunityFunnelCommunityLike = {
     avatar_zoom?: number | null;
   }> | null;
   funnel?: CommunityFunnelConfig | null;
+  // "funnel": the owner's layout makes the About page the public page.
+  about_presentation?: "page" | "funnel" | null;
 };
 
 type WebPublicCommunityFunnelProps = {
@@ -102,6 +110,8 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
   } = props;
 
   const communityName = publicCommunity?.name ?? publicRouteSlug ?? "Community";
+  const asSalesPage = publicCommunity?.about_presentation === "funnel";
+  const salesTheme = useWebCommunityThemeStyle(asSalesPage ? publicCommunity?.id ?? null : null);
   const funnel = publicCommunity?.funnel ?? null;
   const memberCount =
     typeof publicCommunity?.member_count === "number" ? publicCommunity.member_count : null;
@@ -185,7 +195,46 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
       : funnel,
   });
 
-  const funnelSurface = (
+  const salesAddress = (() => {
+    const url = communityJoinUrl(publicCommunity?.slug ?? publicRouteSlug);
+    return url ? url.replace(/^https?:\/\//, "") : null;
+  })();
+  const funnelSurface = asSalesPage && publicCommunity ? (
+    <div className="community-sales-public" data-community-theme={salesTheme.attribute ?? undefined}>
+      <WebCommunitySalesPage
+        community={publicCommunity}
+        plan={paidPlan}
+        renderModel={renderModel}
+        address={salesAddress}
+        alertMessages={!isLoadingPublicCommunity
+          ? [...funnelErrors, ...(previewDocumentError ? [previewDocumentError] : [])]
+          : []}
+        action={
+          <div className="community-sales-join">
+            <button
+              type="button"
+              className="community-sales-join-button"
+              disabled={isPrimaryActionDisabled}
+              onClick={onPrimaryJoinAction}
+            >
+              {primaryActionLabel}
+            </button>
+            <ActionStatusCards action={action} />
+          </div>
+        }
+      />
+      {props.bridge ? (
+        <WebBlockingSetupModal
+          titleId="community-account-setup-title"
+          descriptionId="community-account-setup-description"
+          busy={props.bridge.setup.submission.isSaving}
+          className="polynet-account-setup-modal"
+        >
+          <WebCommunityBridgeCard {...props.bridge} />
+        </WebBlockingSetupModal>
+      ) : null}
+    </div>
+  ) : (
     <WebCommunityFunnelRenderer
       communityId={publicCommunity?.id}
       communityName={communityName}
