@@ -214,9 +214,9 @@ describe("community theme compilation", () => {
     if (!stopwatch.ok || !clo.ok) throw new Error("invalid");
     const dark = communityThemeVariables(stopwatch.theme, "dark");
     const surface = stopwatch.theme.schemes.dark!.surface;
-    expect(contrastRatio(dark["--text-secondary"], surface)).toBeGreaterThanOrEqual(13);
-    expect(contrastRatio(dark["--text-muted"], surface)).toBeGreaterThanOrEqual(10);
-    expect(contrastRatio(dark["--text-faint"], surface)).toBeGreaterThanOrEqual(7.5);
+    expect(contrastRatio(dark["--text-secondary"], surface)).toBeGreaterThanOrEqual(15);
+    expect(contrastRatio(dark["--text-muted"], surface)).toBeGreaterThanOrEqual(12);
+    expect(contrastRatio(dark["--text-faint"], surface)).toBeGreaterThanOrEqual(9);
     const light = communityThemeVariables(clo.theme, "light");
     expect(light["--text-muted"]).toBe("#6B6B63");
     expect(contrastRatio(light["--text-faint"], "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
