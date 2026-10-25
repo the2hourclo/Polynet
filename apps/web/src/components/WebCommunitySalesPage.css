@@ -271,7 +271,7 @@
   border: 0;
   border-radius: 8px;
   background: var(--pn-button, var(--accent-brand));
-  color: var(--pn-button-text, var(--text-on-accent, #fff));
+  color: var(--pn-on-button, var(--text-on-accent, #fff));
   font: inherit;
   font-size: 15px;
   font-weight: 700;
