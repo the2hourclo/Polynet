@@ -7,6 +7,7 @@
 @import "./styles/community-theme-map.css";
 @import "./styles/community-layout.css";
 @import "./styles/community-theme-hooks.css";
+@import "./styles/draft-looks.css";
 
 :root {
   --web-chat-max-width: 800px;
