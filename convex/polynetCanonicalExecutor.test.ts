@@ -4358,6 +4358,7 @@ test("hard-to-undo Settings changes are only proposed by the agent and happen wh
 
   const before = await freeAccess();
   const staged = await propose("community.free_access.set", { mode: "approval", note: "Too many spam joins this week" });
+  expect(staged.result.details).toEqual([{ label: "Joining", value: "You approve each request" }]);
   expect(staged).toMatchObject({ kind: "community_setting_change_proposed", result: { status: "staged", summary: "Who can join for free",
     note: "Too many spam joins this week" } });
   // Proposing the same thing again is the same proposal.
