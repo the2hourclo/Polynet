@@ -187,10 +187,10 @@ export function WebCommunityTestRun(props: Props) {
                 onClick={() => member.auth_subject && openTestTab(null, props.communitySlug, { auth_subject: member.auth_subject, label: member.label })}>
                 <ExternalLink size={14} aria-hidden="true" /> Open as {member.label}
               </button>
-              <button type="button" className="workflow-secondary-button" disabled={busy !== null} onClick={() => start(member.start_milestone_key ?? "", member)}>
+              <button type="button" className="workflow-secondary-button" aria-label={`Start over as ${member.label}`} disabled={busy !== null} onClick={() => start(member.start_milestone_key ?? "", member)}>
                 <RefreshCw size={14} aria-hidden="true" /> {busy === `restart:${member.id}` ? "Starting over…" : "Start over"}
               </button>
-              <button type="button" className="workflow-secondary-button test-run-end" disabled={busy !== null} onClick={() => end(member)}>
+              <button type="button" className="workflow-secondary-button test-run-end" aria-label={`End ${member.label}`} disabled={busy !== null} onClick={() => end(member)}>
                 {busy === `end:${member.id}` ? "Ending…" : "End"}
               </button>
             </div>
