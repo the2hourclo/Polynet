@@ -13,11 +13,12 @@
 // holds the web app to: every write the app makes is either an operation here or
 // has a stated reason not to be one.
 import { api, internal } from "./_generated/api";
+import { COMMUNITY_THEME_PALETTES } from "../shared/communityThemePalettes";
 
 export type BuilderSettingOperation = {
   operation: string;
   // Which Settings page it belongs to.
-  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members";
+  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members" | "appearance";
   name: string;
   // The public function the Settings page calls ("module:function").
   calls: string;
@@ -205,6 +206,38 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
   }),
 ];
 
+// Saved themes and colour palettes (Settings → Appearance → Customize). Each
+// apply goes to the theme draft; community.theme.publish makes it live.
+BUILDER_SETTING_OPERATIONS.push(
+  op({
+    operation: "community.theme.saved.save", area: "appearance", name: "Save a look as a named theme",
+    calls: "communitySavedThemes:saveCommunitySavedTheme", ref: api.communitySavedThemes.saveCommunitySavedTheme, kind: "mutation",
+    fields: { name: "the theme's name (unique in this community, up to 60 characters)",
+      theme: "a community theme v1 record, for example the draft from /builder/theme.json" },
+    required: ["name", "theme"], effects: ["save_named_theme"],
+  }),
+  op({
+    operation: "community.theme.saved.rename", area: "appearance", name: "Rename a saved theme",
+    calls: "communitySavedThemes:renameCommunitySavedTheme", ref: api.communitySavedThemes.renameCommunitySavedTheme, kind: "mutation",
+    fields: { saved_theme_id: "savedThemeId from saved_themes in /builder/settings.json", name: "the new name" },
+    required: ["saved_theme_id", "name"], effects: ["rename_named_theme"],
+  }),
+  op({
+    operation: "community.theme.saved.apply", area: "appearance", name: "Make a saved theme the draft",
+    calls: "communitySavedThemes:applyCommunitySavedThemeToDraft", ref: api.communitySavedThemes.applyCommunitySavedThemeToDraft, kind: "mutation",
+    fields: { saved_theme_id: "savedThemeId from saved_themes", expected_draft_revision: "draftRevision from /builder/theme.json" },
+    required: ["saved_theme_id", "expected_draft_revision"], effects: ["replace_theme_draft"],
+  }),
+  op({
+    operation: "community.theme.palette.apply", area: "appearance", name: "Use a ready-made colour palette",
+    calls: "communitySavedThemes:applyCommunityThemePaletteToDraft", ref: api.communitySavedThemes.applyCommunityThemePaletteToDraft, kind: "mutation",
+    fields: { palette_id: "an id from theme_palettes in /builder/settings.json",
+      scheme: "optional: light or dark to fix the look to one; left out, the draft keeps the schemes it has",
+      expected_draft_revision: "draftRevision from /builder/theme.json" },
+    required: ["palette_id", "expected_draft_revision"], effects: ["set_theme_draft_colours"],
+  }),
+);
+
 // Hard-to-undo changes (Rashid, 2026-10-25: "Direct, risky ones need Apply").
 const proposal = (spec: Omit<BuilderSettingOperation, "review">) => op({ ...spec, review: "owner_apply" });
 BUILDER_SETTING_OPERATIONS.push(
@@ -289,6 +322,21 @@ BUILDER_SETTING_OPERATIONS.push(
     calls: "communityAdmin:banCommunityMember", ref: api.communityAdmin.banCommunityMember, kind: "action",
     fields: { target_membership_id: "the member", reason: "why (kept in the history)" }, required: ["target_membership_id"],
     effects: ["ban_member"],
+  }),
+);
+
+// Replacing or deleting a saved theme loses that look, so the owner applies it.
+BUILDER_SETTING_OPERATIONS.push(
+  proposal({
+    operation: "community.theme.saved.replace", area: "appearance", name: "Replace a saved theme's look",
+    calls: "communitySavedThemes:saveCommunitySavedTheme", ref: api.communitySavedThemes.saveCommunitySavedTheme, kind: "mutation",
+    fields: { saved_theme_id: "savedThemeId from saved_themes", theme: "the new community theme v1 record", name: "optional new name" },
+    required: ["saved_theme_id", "theme"], effects: ["replace_named_theme"],
+  }),
+  proposal({
+    operation: "community.theme.saved.delete", area: "appearance", name: "Delete a saved theme",
+    calls: "communitySavedThemes:deleteCommunitySavedTheme", ref: api.communitySavedThemes.deleteCommunitySavedTheme, kind: "mutation",
+    fields: { saved_theme_id: "savedThemeId from saved_themes" }, required: ["saved_theme_id"], effects: ["delete_named_theme"],
   }),
 );
 
@@ -450,7 +498,7 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
   const read = async (ref: any, extra: Record<string, unknown> = {}) => {
     try { return await ctx.runQuery(ref, { ...scope, ...extra }); } catch { return null; }
   };
-  const [general, sales_page, workflows, forms, access_integrations, agent, channels, proposals] = await Promise.all([
+  const [general, sales_page, workflows, forms, access_integrations, agent, channels, proposals, saved_themes] = await Promise.all([
     read(api.communityLifecycle.getCommunitySettings),
     read(api.communityFunnel.getCommunityFunnelConfig),
     read(api.communityMemberWorkflows.getBuilderWorkflowBoardPage, { pageSize: 1 }).then(board => board ? board.workflow : null),
@@ -459,6 +507,9 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     read(api.communityAgent.getCommunityAgentConfig),
     read(api.communityChannels.listCommunityChannels),
     read(api.communitySettingProposals.listCommunitySettingProposals),
+    read(api.communitySavedThemes.listCommunitySavedThemes).then(list => list
+      ? list.map((saved: any) => ({ savedThemeId: saved.savedThemeId, name: saved.name, valid: saved.theme !== null, updatedAt: saved.updatedAt }))
+      : null),
   ]);
   return {
     contract: "polynet.builder_settings.v1",
@@ -467,6 +518,10 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
       ...(spec.review ? { review: spec.review } : {}) })),
     // workflows holds the welcome page and gate too, with the revision both use.
     general, sales_page, workflows, forms, access_integrations, agent, channels,
+    // Looks saved under a name, and the ready-made colour palettes (each has a
+    // light and a dark scheme; applying one changes the draft's colours only).
+    saved_themes,
+    theme_palettes: COMMUNITY_THEME_PALETTES.map(({ id, name, description }) => ({ id, name, description })),
     // Changes waiting for the owner's Apply, and recent outcomes.
     proposals,
   };

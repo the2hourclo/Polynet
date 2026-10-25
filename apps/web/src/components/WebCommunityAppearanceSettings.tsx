@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, GraduationCap, MessagesSquare, Monitor, Palette, Smartphone, type LucideIcon } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronLeft, GraduationCap, MessagesSquare, Monitor, MoreHorizontal, Palette, Smartphone, type LucideIcon } from "lucide-react";
 import {
   compileCommunityThemeCss,
   communityTextLevels,
@@ -16,10 +16,21 @@ import {
 } from "../../../../shared/communityTheme";
 import { COMMUNITY_THEME_PRESETS, type CommunityThemePreset } from "../../../../shared/communityThemePresets";
 import {
+  applyCommunityThemePalette,
+  COMMUNITY_THEME_PALETTES,
+  matchingCommunityThemePalette,
+  type CommunityThemePalette,
+} from "../../../../shared/communityThemePalettes";
+import {
   discardCloudCommunityThemeDraft,
   fetchCloudCommunityThemeDraft,
   publishCloudCommunityThemeDraft,
   saveCloudCommunityThemeDraft,
+  deleteCloudCommunitySavedTheme,
+  fetchCloudCommunitySavedThemes,
+  renameCloudCommunitySavedTheme,
+  saveCloudCommunitySavedTheme,
+  type CommunitySavedTheme,
   type CommunityThemeDraftState,
 } from "../../../../shared/cloudCommunityThemeGateway";
 import {
@@ -109,6 +120,21 @@ function matchingPreset(theme: CommunityThemeV1): CommunityThemePreset | null {
   return COMMUNITY_THEME_PRESETS.find((preset) => JSON.stringify(preset.theme) === JSON.stringify(theme)) ?? null;
 }
 
+function sameLook(a: CommunityThemeV1 | null, b: CommunityThemeV1 | null) {
+  return Boolean(a && b) && JSON.stringify(a) === JSON.stringify(b);
+}
+
+function savedThemeProblem(error: unknown): string {
+  const code = (error as { data?: { code?: string } })?.data?.code;
+  if (code === "saved_theme_name_taken") return "You already have a saved theme with that name.";
+  if (code === "saved_theme_name_required") return "Give the theme a name.";
+  if (code === "saved_theme_name_too_long") return "Keep the name under 60 characters.";
+  if (code === "saved_theme_limit") return "You can keep up to 50 saved themes. Delete one to save another.";
+  if (code === "saved_theme_not_found") return "That saved theme was deleted in another session.";
+  if (code === "community_theme_invalid") return "Fix the problems listed below before saving this look.";
+  return "Could not save the theme list. Try again.";
+}
+
 // A label on the left with a muted line of help under it, Substack's settings row.
 function Fact(props: { label: string; help: string; children: ReactNode }) {
   return <div className="appearance-fact">
@@ -127,6 +153,9 @@ export function WebCommunityAppearanceSettings(props: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<CommunityThemeProblem[] | string | null>(null);
   const [reload, setReload] = useState(0);
+  const [savedThemes, setSavedThemes] = useState<CommunitySavedTheme[]>([]);
+  const [savedBusy, setSavedBusy] = useState(false);
+  const [savedError, setSavedError] = useState<string | null>(null);
   const [customizing, setCustomizing] = useState(() => typeof window !== "undefined" && window.location.hash === CUSTOMIZE_HASH);
   const customizeButton = useRef<HTMLButtonElement>(null);
   const pane = useRef<HTMLDivElement>(null);
@@ -153,6 +182,10 @@ export function WebCommunityAppearanceSettings(props: Props) {
         setScheme(loaded.draft.schemes.light ? "light" : "dark");
       })
       .catch(() => { if (active) setError("Could not load this community's look."); });
+    // The saved list is extra: if it fails to load, the editor still works.
+    run((session) => fetchCloudCommunitySavedThemes({ session, communityId: props.communityId }))
+      .then((list) => { if (active) setSavedThemes(list); })
+      .catch(() => { if (active) setSavedError("Could not load your saved themes."); });
     return () => { active = false; };
   }, [props.communityId, reload]);
 
@@ -197,6 +230,26 @@ export function WebCommunityAppearanceSettings(props: Props) {
     if (dirty && alive.current) { setState(saved); setTheme(saved.draft); }
     return run((session) => publishCloudCommunityThemeDraft({ session, communityId: props.communityId, expectedDraftRevision: saved.draftRevision }));
   }, true);
+  // Saved themes change only the list; the draft stays as it is.
+  const savedAct = async (operation: (session: unknown) => Promise<CommunitySavedTheme[]>) => {
+    setSavedBusy(true); setSavedError(null);
+    try {
+      const next = await run(operation);
+      if (alive.current) setSavedThemes(next);
+      return true;
+    } catch (caught) {
+      if (alive.current) setSavedError(savedThemeProblem(caught));
+      return false;
+    } finally {
+      if (alive.current) setSavedBusy(false);
+    }
+  };
+  const savedActions: SavedThemeActions = {
+    saveAs: (name) => savedAct(async (session) => (await saveCloudCommunitySavedTheme({ session, communityId: props.communityId, name, theme })).savedThemes),
+    replace: (saved) => savedAct(async (session) => (await saveCloudCommunitySavedTheme({ session, communityId: props.communityId, savedThemeId: saved.savedThemeId, theme })).savedThemes),
+    rename: (saved, name) => savedAct((session) => renameCloudCommunitySavedTheme({ session, communityId: props.communityId, savedThemeId: saved.savedThemeId, name })),
+    remove: (saved) => savedAct((session) => deleteCloudCommunitySavedTheme({ session, communityId: props.communityId, savedThemeId: saved.savedThemeId })),
+  };
   const discard = () => act(() => run((session) => discardCloudCommunityThemeDraft({ session, communityId: props.communityId, expectedDraftRevision: state.draftRevision })));
   const undoOrDiscard = () => { if (dirty) setTheme(state.draft); else void discard(); };
   const problems = check && !check.ok ? check.problems : Array.isArray(error) ? error : [];
@@ -214,6 +267,8 @@ export function WebCommunityAppearanceSettings(props: Props) {
   </>;
   const shown = check?.ok ? check.theme : theme;
   const preset = matchingPreset(shown);
+  const savedMatch = savedThemes.find((saved) => sameLook(saved.theme, shown)) ?? null;
+  const palette = matchingCommunityThemePalette(shown);
   const mode = schemeMode(shown);
 
   const hasDraft = dirty || state.hasUnpublishedChanges;
@@ -237,8 +292,8 @@ export function WebCommunityAppearanceSettings(props: Props) {
           Customize <ArrowRight size={16} aria-hidden="true" /></button>
       </div>
       <dl className="appearance-facts">
-        <Fact label="Theme" help="The starting point, until you change it">{preset ? preset.name : "Your own look"}</Fact>
-        <Fact label="Colours" help={SCHEME_MODES.find(([key]) => key === mode)?.[1] ?? ""}>
+        <Fact label="Theme" help="A starting point or a theme you saved">{preset ? preset.name : savedMatch ? savedMatch.name : "Your own look"}</Fact>
+        <Fact label="Colours" help={[palette?.name, SCHEME_MODES.find(([key]) => key === mode)?.[1]].filter(Boolean).join(" · ")}>
           {(["light", "dark"] as const).filter((key) => shown.schemes[key]).map((key) => <span key={key} className="appearance-summary-scheme"><Swatches colors={shown.schemes[key]} />{key === "light" ? "Light" : "Dark"}</span>)}
         </Fact>
         <Fact label="Fonts" help="Headings and body text">{shown.font_heading === shown.font_body ? shown.font_body : `${shown.font_heading} and ${shown.font_body}`}</Fact>
@@ -252,6 +307,7 @@ export function WebCommunityAppearanceSettings(props: Props) {
     </section>
     {customizing ? <AppearanceEditor
       theme={theme} scheme={scheme} setScheme={setScheme} set={set} busy={busy} problems={problems} uid={uid}
+      canSave={Boolean(check?.ok)} savedThemes={savedThemes} savedBusy={savedBusy} savedError={savedError} savedActions={savedActions}
       previewTheme={previewTheme} communityId={props.communityId} communitySlug={props.communitySlug} hasBanner={Boolean(props.hasBanner)} pane={pane}
       status={status} actions={actions} footer={<>{problemList}{errorLine}</>}
       onClose={() => openCustomize(false)}
@@ -269,8 +325,21 @@ function SampleContent() {
   </div>;
 }
 
+type SavedThemeActions = {
+  saveAs: (name: string) => Promise<boolean>;
+  replace: (saved: CommunitySavedTheme) => Promise<boolean>;
+  rename: (saved: CommunitySavedTheme, name: string) => Promise<boolean>;
+  remove: (saved: CommunitySavedTheme) => Promise<boolean>;
+};
+
 type EditorProps = {
   theme: CommunityThemeV1;
+  // The draft in the editor passes the theme rules, so it can be saved under a name.
+  canSave: boolean;
+  savedThemes: CommunitySavedTheme[];
+  savedBusy: boolean;
+  savedError: string | null;
+  savedActions: SavedThemeActions;
   scheme: CommunityThemeScheme;
   setScheme: (scheme: CommunityThemeScheme) => void;
   set: (change: Partial<CommunityThemeV1>) => void;
@@ -360,6 +429,129 @@ function PresetPicker(props: { theme: CommunityThemeV1; disabled: boolean; onPic
       })}
     </ul> : null}
   </div>;
+}
+
+// A tiny page in a palette's colours: page, card, accent line and button.
+function PaletteSample(props: { colors: CommunityThemeColors }) {
+  const c = props.colors;
+  return <span className="appearance-palette-sample" style={{ background: c.background }}>
+    <span className="appearance-palette-card" style={{ background: c.surface, borderColor: c.border }}>
+      <i style={{ background: c.text }} /><i style={{ background: c.accent }} />
+    </span>
+    <span className="appearance-palette-button" style={{ background: c.button }} />
+  </span>;
+}
+
+// Ready-made colour themes as small swatch cards, light and dark side by side.
+// Picking one changes colours only. The first row shows until opened, so the
+// colour fields stay close.
+const PALETTES_FOLDED = 6;
+function PaletteGallery(props: { theme: CommunityThemeV1; scheme: CommunityThemeScheme; disabled: boolean; onPick: (palette: CommunityThemePalette) => void }) {
+  const current = matchingCommunityThemePalette(props.theme);
+  const [open, setOpen] = useState(() => Boolean(current && COMMUNITY_THEME_PALETTES.indexOf(current) >= PALETTES_FOLDED));
+  const id = useId();
+  const shown = open ? COMMUNITY_THEME_PALETTES : COMMUNITY_THEME_PALETTES.slice(0, PALETTES_FOLDED);
+  return <div className="appearance-palettes">
+    <div className="appearance-palettes-head">
+      <span id={`${id}-label`}>Colour themes</span>
+      <button type="button" className="appearance-link" aria-expanded={open} aria-controls={`${id}-grid`} onClick={() => setOpen(!open)}>
+        {open ? "Show fewer" : `Show all ${COMMUNITY_THEME_PALETTES.length}`}</button>
+    </div>
+    <ul id={`${id}-grid`} className="appearance-palette-grid" aria-labelledby={`${id}-label`}>
+      {shown.map((palette) => {
+        const selected = palette === current;
+        return <li key={palette.id}>
+          <button type="button" className={`appearance-palette${selected ? " is-selected" : ""}`} disabled={props.disabled} aria-pressed={selected}
+            title={palette.description} onClick={() => props.onPick(palette)}>
+            <span className="appearance-palette-pair" aria-hidden="true">
+              <PaletteSample colors={palette.schemes.light} /><PaletteSample colors={palette.schemes.dark} />
+              {selected ? <span className="appearance-palette-check"><Check size={12} /></span> : null}
+            </span>
+            <span className="appearance-palette-name">{palette.name}</span>
+          </button>
+        </li>;
+      })}
+    </ul>
+    <p className="appearance-hint">Changes colours only: fonts, shapes and course cards stay. Each comes in light and dark.</p>
+  </div>;
+}
+
+// Looks the owner saved under a name: apply one to the draft (undo until
+// saved), save the current look, rename, update or delete.
+function SavedThemes(props: {
+  theme: CommunityThemeV1;
+  canSave: boolean;
+  saved: CommunitySavedTheme[];
+  busy: boolean;
+  error: string | null;
+  actions: SavedThemeActions;
+  onApply: (theme: CommunityThemeV1) => void;
+}) {
+  const id = useId();
+  // What the inline form is doing: naming a new theme, renaming one, or confirming a delete.
+  const [mode, setMode] = useState<{ kind: "new" } | { kind: "rename" | "delete"; saved: CommunitySavedTheme } | null>(null);
+  const [name, setName] = useState("");
+  const [menu, setMenu] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (mode && mode.kind !== "delete") input.current?.focus(); }, [mode]);
+  const close = () => { setMode(null); setName(""); };
+  const submit = async () => {
+    if (!mode) return;
+    const ok = mode.kind === "new" ? await props.actions.saveAs(name)
+      : mode.kind === "rename" ? await props.actions.rename(mode.saved, name)
+        : await props.actions.remove(mode.saved);
+    if (ok) close();
+  };
+  const inUse = props.saved.find((saved) => sameLook(saved.theme, props.theme)) ?? null;
+
+  return <Group title="Saved themes">
+    {props.saved.length ? <ul className="appearance-saved-list">
+      {props.saved.map((saved) => {
+        const colors = saved.theme?.schemes.light ?? saved.theme?.schemes.dark;
+        const active = saved === inUse;
+        return <li key={saved.savedThemeId} className={active ? "is-active" : undefined}>
+          <span className="appearance-saved-swatch" aria-hidden="true">{colors ? <><i style={{ background: colors.background, borderColor: colors.border }} /><i style={{ background: colors.accent }} /><i style={{ background: colors.button }} /></> : null}</span>
+          <span className="appearance-saved-name">
+            <strong>{saved.name}</strong>
+            <small>{active ? "In your draft now" : saved.theme ? new Date(saved.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "No longer valid; rename or delete it"}</small>
+          </span>
+          <button type="button" className="appearance-button" disabled={props.busy || !saved.theme || active}
+            onClick={() => saved.theme && props.onApply(saved.theme)}>{active ? "Applied" : "Apply"}</button>
+          <span className="appearance-saved-more">
+            <button type="button" className="appearance-icon-button" aria-label={`More for ${saved.name}`} aria-haspopup="menu"
+              aria-expanded={menu === saved.savedThemeId} disabled={props.busy}
+              onClick={() => setMenu(menu === saved.savedThemeId ? null : saved.savedThemeId)}><MoreHorizontal size={16} aria-hidden="true" /></button>
+            {menu === saved.savedThemeId ? <span role="menu" className="appearance-menu appearance-saved-menu"
+              onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setMenu(null); } }}
+              onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setMenu(null); }}>
+              <button type="button" role="menuitem" autoFocus onClick={() => { setMenu(null); setName(saved.name); setMode({ kind: "rename", saved }); }}>Rename</button>
+              <button type="button" role="menuitem" disabled={!props.canSave || active}
+                onClick={() => { setMenu(null); void props.actions.replace(saved); }}>Replace with the current look</button>
+              <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenu(null); setMode({ kind: "delete", saved }); }}>Delete</button>
+            </span> : null}
+          </span>
+        </li>;
+      })}
+    </ul> : <p className="appearance-hint">Save the look you have now to switch back to it later, or to try a few looks side by side.</p>}
+
+    {mode?.kind === "delete" ? <div className="appearance-saved-form" role="group" aria-labelledby={`${id}-confirm`}>
+      <span id={`${id}-confirm`} className="appearance-help">Delete “{mode.saved.name}”? Your draft and live look don't change.</span>
+      <div className="appearance-actions">
+        <button type="button" className="appearance-button" onClick={close}>Cancel</button>
+        <button type="button" className="appearance-button is-danger" disabled={props.busy} onClick={() => void submit()}>Delete</button>
+      </div>
+    </div> : mode ? <form className="appearance-saved-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <label htmlFor={`${id}-name`} className="appearance-help">{mode.kind === "new" ? "Name this look" : "New name"}</label>
+      <input ref={input} id={`${id}-name`} className="appearance-text-input" value={name} maxLength={60} placeholder="e.g. Autumn launch"
+        onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } }} />
+      <div className="appearance-actions">
+        <button type="button" className="appearance-button" onClick={close}>Cancel</button>
+        <button type="submit" className="appearance-button is-primary" disabled={props.busy || !name.trim()}>{mode.kind === "new" ? "Save theme" : "Rename"}</button>
+      </div>
+    </form> : <button type="button" className="appearance-button appearance-saved-add" disabled={props.busy || !props.canSave || Boolean(inUse)}
+      onClick={() => { setName(""); setMode({ kind: "new" }); }}>{inUse ? "This look is saved" : "Save current look as a theme"}</button>}
+    {props.error ? <p className="auth-error" role="alert">{props.error}</p> : null}
+  </Group>;
 }
 
 // Full-screen editor laid out like Substack's website editor: pages on the
@@ -468,10 +660,13 @@ function AppearanceEditor(props: EditorProps) {
     set({ schemes });
     props.setScheme(mode === "both" ? scheme : mode);
   };
-  const applyPreset = (preset: CommunityThemePreset) => {
-    set(structuredClone(preset.theme));
-    props.setScheme(preset.theme.schemes.light ? "light" : "dark");
+  const applyTheme = (next: CommunityThemeV1) => {
+    set(structuredClone(next));
+    props.setScheme(next.schemes.light ? "light" : "dark");
   };
+  const applyPreset = (preset: CommunityThemePreset) => applyTheme(preset.theme);
+  // A palette changes colours only and keeps the light/dark setting.
+  const applyPalette = (palette: CommunityThemePalette) => set({ schemes: applyCommunityThemePalette(theme, palette).schemes });
   const mode = schemeMode(theme);
 
   // Phone loads the phone app (/m/), as a real phone gets it, not the desktop
@@ -516,11 +711,14 @@ function AppearanceEditor(props: EditorProps) {
           <Row label="Starting point" wide><PresetPicker theme={theme} disabled={busy} onPick={applyPreset} /></Row>
           <p className="appearance-hint">Picking one replaces your draft. Undo until you save.</p>
         </Group>
+        <SavedThemes theme={theme} canSave={props.canSave} saved={props.savedThemes} busy={props.savedBusy || busy} error={props.savedError}
+          actions={props.savedActions} onApply={applyTheme} />
         {props.hasBanner ? <Group title="Banner">
           {choice("banner_name")}
           <p className="appearance-hint">Hide the name when your banner artwork already spells it out.</p>
         </Group> : null}
         <Group title="Colors">
+          <PaletteGallery theme={theme} scheme={scheme} disabled={busy} onPick={applyPalette} />
           <Row label="Light or dark" htmlFor={fieldId("mode")}>
             <select id={fieldId("mode")} value={mode} disabled={busy} onChange={(e) => setMode(e.target.value as SchemeMode)}>
               {SCHEME_MODES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Row>
