@@ -28,7 +28,7 @@ import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsG
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
 import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
-import { WebCommunityTestRun, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
+import { WebCommunityTestRun, startTestRunInNewTab, testRunErrorMessage, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
 
 export type WebCommunityWorkflowsSectionProps = {
   forms?: CommunityFormsGateway;
@@ -139,13 +139,14 @@ export function WebCommunityWorkflowsSection(
       ariaLabel="Workflow sections" idPrefix="workflow-sections" className="platform-switcher platform-switcher-compact workflow-section-tabs"
       style={buildPlatformSwitcherStyle(WORKFLOW_SECTIONS.length, WORKFLOW_SECTIONS.indexOf(section))} />
     <div className="workflow-section-content" role="tabpanel" id={platformTabPanelId("workflow-sections", section)} aria-labelledby={platformTabId("workflow-sections", section)}>
-      {section === "workflows" ? <WorkflowBoard {...props} onOpenWelcome={() => void select("welcome")} />
+      {section === "workflows" ? <WorkflowBoard {...props} onOpenWelcome={() => void select("welcome")} onOpenTest={() => void select("test")} />
         : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
           forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
           onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
           onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
         : section === "test" ? props.testRun
           ? <WebCommunityTestRun key={props.testRun.communityId} {...props.testRun}
+            stages={(props.board?.milestones ?? []).filter((m) => m.key && m.name.trim()).map((m) => ({ key: m.key, name: m.name }))}
             onOpenRecord={(membershipId) => { void select("workflows"); props.onOpenMemberDossier(membershipId); }} />
           : <p role="status">Only the community's owner and admins can run tests.</p>
         : props.forms
@@ -155,7 +156,14 @@ export function WebCommunityWorkflowsSection(
   </div>;
 }
 
-function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcome: () => void }) {
+function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcome: () => void; onOpenTest: () => void }) {
+  const [testError, setTestError] = useState<string | null>(null);
+  // "Test this": a test member starts in the stage, the community opens as them, and Test run shows the sequence.
+  const testStage = (milestoneKey: string | null) => {
+    if (!props.testRun) return;
+    setTestError(null);
+    startTestRunInNewTab(props.testRun, milestoneKey).then(() => props.onOpenTest(), (caught) => setTestError(testRunErrorMessage(caught)));
+  };
   const [publishedForms, setPublishedForms] = useState<Array<{ key: string; name: string }>>([]);
   const [formsState, setFormsState] = useState<"loading" | "ready" | "error">("loading");
   const [formsRetry, setFormsRetry] = useState(0);
@@ -276,8 +284,10 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
                 : "Turn it on to give new members steps to finish before the community opens."}</small>
             </span>
             <button type="button" className="workflow-secondary-button" onClick={props.onOpenWelcome}>Edit welcome page</button>
+            {props.testRun ? <button type="button" className="workflow-secondary-button" onClick={() => testStage(null)}>Test as a new member</button> : null}
           </p>
         ) : null}
+        {testError ? <p role="alert" className="test-run-error">{testError}</p> : null}
         <div className="workflow-board-stage">
         <div className="workflow-milestone-canvas" aria-label="Member success milestones">
           {milestones.map((milestone, index) => {
@@ -325,6 +335,13 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
                   ) : (
                     <p className="workflow-milestone-empty">No members yet</p>
                   )}
+                  {!incomplete && props.testRun ? (
+                    <button type="button" className="workflow-secondary-button test-run-workflow-button"
+                      onClick={() => testStage(index === 0 ? null : milestone.key)}
+                      aria-label={`Test the ${milestone.name} stage as a test member`}>
+                      Test this stage
+                    </button>
+                  ) : null}
                 </div>
               </section>
             );

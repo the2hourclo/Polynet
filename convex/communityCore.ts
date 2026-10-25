@@ -1,4 +1,5 @@
 import { resolveUserIdForAuthenticatedRequest } from "./authActor";
+import { findTestMemberByUserId } from "./communityTestMemberCore";
 import {
   buildCommunityResourceDirectoryFields,
   buildCommunityResourceModuleDirectoryFields,
@@ -1240,6 +1241,9 @@ export async function readCommunityWelcomeGate(args: {
   const workflow = await args.ctx.db.query("communityMemberWorkflows")
     .withIndex("by_community", (q: any) => q.eq("communityId", args.community._id)).first();
   if (!workflow?.welcomeGate) return open;
+  // A test run started at a later stage tests that stage, not the welcome flow.
+  const testMember = await findTestMemberByUserId(args.ctx, args.userId);
+  if (testMember?.startMilestoneKey && testMember.startMilestoneKey !== workflow.milestones?.[0]?.key) return open;
   const byStatus = (status: "pending" | "submitted") => args.ctx.db.query("communityFormRequests")
     .withIndex("by_member_status", (q: any) => q.eq("membershipId", args.membership!._id).eq("status", status))
     .take(20);

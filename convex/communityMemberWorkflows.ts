@@ -1652,6 +1652,20 @@ export const refreshMilestoneTimersInternal = internalMutation({
   },
 });
 
+/** Runs one pending timed step now, as if its wait were over. Test runs use it to skip waits. */
+export async function runWorkflowTimerNow(ctx: any, timer: any): Promise<boolean> {
+  const nowMs = Date.now();
+  if (timer.status !== "pending") return false;
+  const resolved = await resolveWorkflowTimer(ctx, timer);
+  if (!resolved) {
+    await ctx.db.patch(timer._id, { status: "obsolete", finishedAt: nowMs });
+    return false;
+  }
+  await executeWorkflowAutomation({ ctx, ...resolved, workflowTimerId: timer._id, timerReceiptRef: `workflow-timer:${timer._id}` });
+  await ctx.db.patch(timer._id, { status: "consumed", finishedAt: nowMs });
+  return true;
+}
+
 export const processDueMilestoneTimersInternal = internalMutation({
   args: {},
   handler: async (ctx) => {

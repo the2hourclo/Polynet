@@ -8,7 +8,9 @@ import {
   type CommunityMembershipLike,
 } from "./communityCore";
 import { activateCommunityMembershipCore } from "./communityMembershipLifecycle";
-import { deleteMemberWorkflowPosition, getCommunityMemberWorkflowByCommunity } from "./communityMemberWorkflowReadCore";
+import { deleteMemberWorkflowPosition, getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
+import { enrollWorkflowMilestoneTimers } from "./communityMemberWorkflowTimerCore";
+import { runWorkflowTimerNow } from "./communityMemberWorkflows";
 import { deleteCommunityPresenceForUser } from "./communityPresenceCore";
 import { deleteCommunityReadCursorsForUserCommunity } from "./communityReadCursorCore";
 import { deleteCommunityJoinRequestByPair } from "./communityJoinRequestCore";
@@ -101,6 +103,7 @@ function projectRow(row: TestMemberRow, membershipId: string | null, viewerUserI
   return {
     id: String(row._id),
     label: row.label,
+    start_milestone_key: row.startMilestoneKey ?? null,
     membership_id: membershipId,
     created_at: new Date(row.createdAt).toISOString(),
     // Only the manager who started a test run can open the community as it.
@@ -124,9 +127,18 @@ export const listTestMembers = query({
 
 /** Creates a test member that joins like a new member: join rules, welcome flow and all. */
 export const startTestMember = mutation({
-  args: { authSubject: v.optional(v.string()), communityId: v.id("communities") },
+  args: {
+    authSubject: v.optional(v.string()),
+    communityId: v.id("communities"),
+    /** Start in this Workflow stage instead of joining at the first, to test that stage's rules. */
+    milestoneKey: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const { userId, ownerAuthSubject } = await requireManagerNotTestMember(ctx, args);
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    const startStage = args.milestoneKey ? workflow?.milestones.find((m) => m.key === args.milestoneKey) : undefined;
+    if (args.milestoneKey && !startStage) throw new Error("test_member_stage_not_found");
+    const laterStage = startStage && startStage.key !== workflow!.milestones[0]?.key ? startStage : undefined;
     const running = await listRunning(ctx, args.communityId);
     if (running.length >= COMMUNITY_TEST_MEMBER_LIMIT) throw new Error("test_member_limit_reached");
     const nowMs = Date.now();
@@ -143,12 +155,24 @@ export const startTestMember = mutation({
     });
     const testMemberId = await ctx.db.insert("communityTestMembers", {
       communityId: args.communityId, userId: testUserId, authSubject, ownerUserId: userId, ownerAuthSubject,
-      label, number, createdAt: nowMs,
+      label, number, ...(laterStage ? { startMilestoneKey: laterStage.key } : {}), createdAt: nowMs,
     });
     const activation = await activateCommunityMembershipCore({
       ctx, communityId: args.communityId, userId: testUserId, role: "member",
       accessSource: "manual_grant", activationReason: "test_member", nowMs,
     });
+    if (laterStage) {
+      // Placed straight into the stage, as if moved there on joining: the
+      // first stage's join rules stand down and this stage's timers start now.
+      await ctx.db.insert("communityMemberWorkflowMemberMilestones", {
+        workflowId: workflow!._id, membershipId: activation.membership._id, currentMilestoneKey: laterStage.key,
+        milestoneEnteredAt: nowMs, transitionSeq: 1, createdAt: nowMs, updatedAt: nowMs,
+      });
+      for (const timer of await ctx.db.query("communityMemberWorkflowTimers")
+        .withIndex("by_member_entry", (q: any) => q.eq("workflowId", workflow!._id).eq("membershipId", activation.membership._id))
+        .take(20)) await ctx.db.patch(timer._id, { status: "obsolete", finishedAt: nowMs });
+      await enrollWorkflowMilestoneTimers({ ctx, membership: activation.membership, nowMs });
+    }
     return {
       id: String(testMemberId),
       label,
@@ -185,5 +209,146 @@ export const getMyTestRun = query({
       community_slug: community?.slug ?? null,
       community_name: community?.name ?? null,
     };
+  },
+});
+
+async function requireMyTestMember(ctx: any, args: { authSubject?: string; communityId: any; testMemberId: any }) {
+  const { userId } = await requireManagerNotTestMember(ctx, args);
+  const row = (await ctx.db.get(args.testMemberId)) as TestMemberRow | null;
+  if (!row || String(row.communityId) !== String(args.communityId) || row.endedAt !== undefined) throw new Error("test_member_not_found");
+  if (String(row.ownerUserId) !== String(userId)) throw new Error("test_member_not_yours");
+  const membership = await getUniqueCommunityMembershipByPair({ ctx, communityId: row.communityId, userId: row.userId });
+  if (!membership) throw new Error("test_member_not_found");
+  return { row, membership };
+}
+
+function durationText(minutes: number): string {
+  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  if (minutes % 1440 === 0) return unit(minutes / 1440, "day");
+  if (minutes % 60 === 0) return unit(minutes / 60, "hour");
+  return unit(minutes, "minute");
+}
+
+async function nameOf(ctx: any, table: string, id: string | undefined, field: "title" | "name"): Promise<string | null> {
+  if (!id) return null;
+  const normalized = ctx.db.normalizeId(table, id);
+  const row = normalized ? await ctx.db.get(normalized) : null;
+  return row?.[field] ?? null;
+}
+
+/** One rule of a stage, in plain words, as the Workflows editor sets it up. */
+async function describeRule(ctx: any, communityId: any, rules: any[], rule: any, formName: (key: string) => Promise<string>) {
+  const trigger = rule.trigger;
+  const action = rule.action;
+  const actionText = async (a: any): Promise<string> =>
+    a.type === "request_form" ? `Send the ${await formName(a.formKey)} form`
+    : a.type === "create_service_channel" ? "Open a private channel with them"
+    : a.type === "prompt_agent" ? `Agent: ${String(a.prompt ?? "").slice(0, 160)}${String(a.prompt ?? "").length > 160 ? "…" : ""}`
+    : a.type === "set_client_property" ? `Set ${a.propertyKey} to ${a.value === null ? "empty" : Array.isArray(a.value) ? a.value.join(", ") : String(a.value)}`
+    : String(a.type ?? "action").replace(/_/g, " ");
+  const predecessor = trigger.type === "previous_action_completed"
+    ? rules.find((other) => other.action?.key === trigger.predecessorActionKey) : null;
+  const when = trigger.type === "member_joined" ? "When they join"
+    : trigger.type === "previous_action_completed" ? `After “${predecessor ? await actionText(predecessor.action) : "the previous step"}”`
+    : trigger.type === "member_contributed" ? `When they post${trigger.channelId ? ` in #${(await nameOf(ctx, "communityChannels", trigger.channelId, "name")) ?? "a channel"}` : ""}`
+    : trigger.type === "form_submitted" ? `When they submit the ${await formName(trigger.formKey)} form`
+    : trigger.type === "milestone_elapsed" ? `${durationText(trigger.delayMinutes)} after they reach this stage`
+    : trigger.type === "lesson_completed" ? `When they finish ${trigger.resourceId ? `“${(await nameOf(ctx, "communityResources", trigger.resourceId, "title")) ?? "a lesson"}”` : "any lesson"}`
+    : trigger.type === "course_completed" ? `When they finish ${trigger.moduleId ? `the ${(await nameOf(ctx, "communityResourceModules", trigger.moduleId, "name")) ?? ""} course` : "any course"}`
+    : "When its trigger happens";
+  void communityId;
+  return { when, does: await actionText(action), timed: trigger.type === "milestone_elapsed" };
+}
+
+/**
+ * The test member's way through the Workflow, stage by stage: every rule in
+ * order, what it waits for, and whether it has run (and when), is timed for
+ * later, or failed. This is how an owner reviews a welcome sequence.
+ */
+export const getTestRunSequence = query({
+  args: { authSubject: v.optional(v.string()), communityId: v.id("communities"), testMemberId: v.id("communityTestMembers") },
+  handler: async (ctx, args) => {
+    const { membership } = await requireMyTestMember(ctx, args);
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    if (!workflow || !workflow.milestones.length) return { kind: "community_test_run_sequence", stages: [], completed_at: null };
+    const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+    const current = resolveCurrentMilestone({ workflow, membership, state });
+    const [runs, timers] = await Promise.all([
+      ctx.db.query("communityMemberWorkflowRuns")
+        .withIndex("by_workflow_membership_createdAt", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+        .order("desc").take(200),
+      ctx.db.query("communityMemberWorkflowTimers")
+        .withIndex("by_member_entry", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+        .take(100),
+    ]);
+    const forms = new Map<string, string>();
+    const formName = async (key: string) => {
+      if (!forms.has(key)) {
+        const form = await ctx.db.query("communityForms")
+          .withIndex("by_community_key", (q: any) => q.eq("communityId", args.communityId).eq("key", key)).first();
+        forms.set(key, form?.name ?? key);
+      }
+      return forms.get(key)!;
+    };
+    const visitedKeys = new Set((runs as any[]).map((run) => run.milestoneKey));
+    const stages = [];
+    for (const [index, stage] of workflow.milestones.entries()) {
+      const isCurrent = !current.completedAt && stage.key === current.milestone.key;
+      const reached = isCurrent || index < current.milestoneIndex || current.completedAt !== null && current.completedAt !== undefined || visitedKeys.has(stage.key);
+      const steps = [];
+      for (const rule of stage.automations) {
+        const described = await describeRule(ctx, args.communityId, stage.automations, rule, formName);
+        const run = (runs as any[]).find((row) => row.milestoneKey === stage.key && row.automationKey === rule.key
+          && (!isCurrent || row.milestoneEnteredAt === current.milestoneEnteredAt));
+        const timer = isCurrent ? (timers as any[]).find((row) => row.automationKey === rule.key && row.status === "pending"
+          && row.milestoneKey === stage.key && row.milestoneEnteredAt === current.milestoneEnteredAt) : null;
+        const status = run ? (run.status === "finished" ? "done" : run.status === "failed" ? "failed" : "running")
+          : timer ? "scheduled" : isCurrent ? "waiting" : reached ? "skipped" : "not_reached";
+        steps.push({
+          key: rule.key,
+          when: described.when,
+          does: described.does,
+          status,
+          at: run ? new Date(run.finishedAt ?? run.updatedAt ?? run.createdAt).toISOString() : null,
+          due_at: timer ? new Date(timer.dueAt).toISOString() : null,
+          error: run?.status === "failed" ? String(run.errorCode ?? "unknown").replace(/_/g, " ") : null,
+        });
+      }
+      stages.push({
+        key: stage.key,
+        name: stage.name,
+        is_current: isCurrent,
+        reached,
+        entered_at: isCurrent ? new Date(current.milestoneEnteredAt).toISOString() : null,
+        steps,
+      });
+    }
+    return {
+      kind: "community_test_run_sequence",
+      stages,
+      completed_at: current.completedAt ? new Date(current.completedAt).toISOString() : null,
+    };
+  },
+});
+
+/** Skips the wait on the test member's timed steps in their current stage: one, or all of them. */
+export const runTestMemberTimedStepsNow = mutation({
+  args: {
+    authSubject: v.optional(v.string()),
+    communityId: v.id("communities"),
+    testMemberId: v.id("communityTestMembers"),
+    automationKey: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { membership } = await requireMyTestMember(ctx, args);
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    if (!workflow) return { ran: 0 };
+    const pending = (await ctx.db.query("communityMemberWorkflowTimers")
+      .withIndex("by_member_entry", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
+      .take(100)).filter((timer: any) => timer.status === "pending" && (!args.automationKey || timer.automationKey === args.automationKey))
+      .sort((a: any, b: any) => a.dueAt - b.dueAt);
+    let ran = 0;
+    for (const timer of pending) if (await runWorkflowTimerNow(ctx, timer)) ran += 1;
+    return { ran };
   },
 });

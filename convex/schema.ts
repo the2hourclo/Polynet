@@ -2832,6 +2832,8 @@ export default defineSchema({
     ownerAuthSubject: v.string(),
     label: v.string(),
     number: v.number(),
+    /** The stage the run started in, when not the first: no welcome flow then. */
+    startMilestoneKey: v.optional(v.string()),
     createdAt: v.number(),
     endedAt: v.optional(v.number()),
   }).index("by_authSubject", ["authSubject"])
