@@ -15,6 +15,7 @@
 import { api, internal } from "./_generated/api";
 import { COMMUNITY_THEME_PALETTES } from "../shared/communityThemePalettes";
 import { buildAgentLedJourneyPlan } from "../shared/agentLedJourneyTemplate";
+import { describeCommunityInferenceEngine } from "./communityInferenceProvider";
 
 export type BuilderSettingOperation = {
   operation: string;
@@ -539,6 +540,9 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     // Ready-made stage plans live at /builder/workflow-templates.json, kept out
     // of this read so it stays inside the adapter's 24,000-character budget.
     workflow_templates: { path: "/builder/workflow-templates.json", available: ["agent_led_journey"] },
+    // Which AI engine answers for the community agent. Set by whoever runs the
+    // platform (OpenAI, OpenRouter, or Claude Code for local tests), not here.
+    agent_engine: describeCommunityInferenceEngine(),
     // Changes waiting for the owner's Apply, and recent outcomes.
     proposals,
   };

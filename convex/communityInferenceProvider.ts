@@ -172,9 +172,5 @@ export async function runCommunityFundedCompletion(input: CompletionInput): Prom
 // community. Holds no secrets.
 export const getCommunityInferenceEngine = query({
   args: {},
-  handler: async (ctx): Promise<CommunityInferenceEngine | null> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-    return describeCommunityInferenceEngine();
-  },
+  handler: async (): Promise<CommunityInferenceEngine> => describeCommunityInferenceEngine(),
 });

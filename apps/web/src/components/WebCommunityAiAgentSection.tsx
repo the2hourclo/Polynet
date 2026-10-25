@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { WebCommunityAgentEngineCard } from "./WebCommunityAgentEngineCard";
 import {
   WebCommunityAiAgentInstructionsEditor,
   type WebCommunityAiAgentInstructionsEditorProps,
@@ -55,7 +56,11 @@ export function WebCommunityAiAgentSection(props: WebCommunityAiAgentSectionProp
   } else if (communityAgentConfigError) {
     content = <div className="auth-error">{communityAgentConfigError}</div>;
   } else {
-    content = <>{profileCard}<WebCommunityAiAgentInstructionsEditor {...instructionsEditorProps} /></>;
+    content = <>
+      {profileCard}
+      <WebCommunityAgentEngineCard />
+      <WebCommunityAiAgentInstructionsEditor {...instructionsEditorProps} />
+    </>;
   }
 
   return (

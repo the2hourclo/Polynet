@@ -134,3 +134,17 @@ export async function saveCloudCommunityAgentProfile(session: unknown, community
     ...(change.photo === null ? { avatarUrl: null } : {}),
   })) as CloudCommunityAgentProfile | null;
 }
+
+export type CloudCommunityInferenceEngine = {
+  provider: "openai" | "openrouter" | "claude_code_local";
+  label: string;
+  model: string;
+  ready: boolean;
+  problem: string | null;
+  testOnly: boolean;
+};
+
+/** Which AI engine answers for community agents on this Polynet. Holds no secrets. */
+export async function getCloudCommunityInferenceEngine(): Promise<CloudCommunityInferenceEngine> {
+  return await createConvexClient().query(api.communityInferenceProvider.getCommunityInferenceEngine, {});
+}
