@@ -493,6 +493,8 @@ export function communityThemeVariables(theme, scheme) {
         // Polynet defines these at :root from its own text colour, so without them
         // a dark community inside a light Polynet showed messages in Polynet's
         // dark ink on the community's dark cards.
+        // Text on an accent fill (badges, active chips); unset, it fell back to white.
+        "--text-on-accent": c.on_accent,
         "--chat-author-text": c.text,
         "--chat-body-text": c.text,
         "--chat-meta-text": grey.muted,
