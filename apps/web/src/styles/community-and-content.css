@@ -9567,8 +9567,10 @@ button.chat-reply-quote:hover {
   margin-top: 0;
 }
 
-/* Pictures, videos and embeds get space above and below so text doesn't crowd them. */
-.knowledge-resource-reader .resource-viewer-prose :is(img, figure, .md-media-embed, .md-video, iframe) {
+/* Pictures, videos and embeds get space above and below so text doesn't crowd them.
+   Not media inside a slide deck, an embed's frame or a lesson element: those
+   are sized by their box, and a margin would push them out of it. */
+.knowledge-resource-reader .resource-viewer-prose :is(img, figure, .md-media-embed, .md-video, iframe):not(.lesson-slide-deck *, .md-media-embed *, .lesson-element *) {
   margin-block: 2em;
 }
 
