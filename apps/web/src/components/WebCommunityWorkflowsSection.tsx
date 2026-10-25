@@ -29,8 +29,6 @@ import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCom
 import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
 import { WebCommunityTestRun, startTestRunInNewTab, testRunErrorMessage, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
 import { WebCommunityClientAccessPanel, WebCommunityClients } from "./WebCommunityAccess";
-import { WebCommunityAgentLedJourney } from "./WebCommunityAgentLedJourney";
-import type { AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 import "./WebCommunityWorkflowsPage.css";
 
@@ -66,8 +64,6 @@ export type WebCommunityWorkflowsSectionProps = {
     requireHumanApproval?: boolean,
   ) => Promise<boolean>;
   onDeleteMilestone: (milestoneKey: string) => Promise<boolean>;
-  /** Adds the agent-led journey's stages (Workflows → board card). */
-  onApplyAgentLedJourney?: (plan: AgentLedJourneyPlan) => Promise<boolean>;
   onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
   onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
   onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
@@ -305,8 +301,6 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
             </span>
           </div>
         ) : null}
-        {props.onApplyAgentLedJourney && formsState !== "loading" ? <WebCommunityAgentLedJourney milestones={props.board?.milestones ?? null}
-          publishedForms={publishedForms} isSaving={props.isSaving} onApply={props.onApplyAgentLedJourney} /> : null}
         {testError ? <p role="alert" className="test-run-error">{testError}</p> : null}
         <div className="workflow-board-stage">
         <div className="workflow-milestone-canvas" aria-label="Member success milestones">

@@ -2254,7 +2254,6 @@ export default function App() {
         onCreateMilestone: communityWorkflows.createMilestone,
         onUpdateMilestone: communityWorkflows.updateMilestone,
         onDeleteMilestone: communityWorkflows.deleteMilestone,
-        onApplyAgentLedJourney: communityWorkflows.applyAgentLedJourney,
         onSetWelcomeGate: communityWorkflows.setWelcomeGate,
         onSaveWelcomePage: communityWorkflows.saveWelcomePage,
         onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
