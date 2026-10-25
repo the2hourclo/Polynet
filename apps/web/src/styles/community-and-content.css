@@ -6167,7 +6167,9 @@
 }
 
 .community-dm-panel-context.is-presence.is-active-now {
-  color: #34d399;
+  /* Green leaning toward the text colour, so it reads on light and dark pages
+     alike (pure #34d399 was 1.9:1 on white). */
+  color: color-mix(in srgb, #22c55e 60%, var(--text-primary));
 }
 
 .community-dm-panel-menu-wrap {
