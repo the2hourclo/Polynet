@@ -581,6 +581,8 @@ export function communityThemeVariables(
     "--chat-link": link,
     "--text-link-hover": mixed(link, 84, c.text),
     "--chat-link-hover": mixed(link, 84, c.text),
+    // Text on an accent fill (badges, active chips); unset, it fell back to white.
+    "--text-on-accent": c.on_accent,
     // Polynet defines these at :root from its own text colour, so without them
     // a dark community inside a light Polynet showed messages in Polynet's
     // dark ink on the community's dark cards.
