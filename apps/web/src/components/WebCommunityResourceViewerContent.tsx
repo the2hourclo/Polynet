@@ -194,7 +194,8 @@ function ExternalArrowIcon() {
 
 export function WebCommunityResourceViewerContent(props: WebCommunityResourceViewerContentProps) {
   const { resource, editor = null } = props;
-  const currentUrl = resource.url;
+  // A lesson's video (lesson.video_url) plays at the top, like a video page's link.
+  const currentUrl = resource.url || resource.lesson?.video_url || null;
   const embed = currentUrl ? parseEmbedUrl(currentUrl) : null;
   const sourceUrl = normalizeExternalUrl(currentUrl);
   const hostLabel = getHostLabel(currentUrl);
