@@ -2820,6 +2820,24 @@ export default defineSchema({
   }).index("by_membership_createdAt", ["membershipId", "createdAt"])
     .index("by_membership_type_createdAt", ["membershipId", "type", "createdAt"]),
 
+  // Test members: stand-in accounts an owner creates to go through their own
+  // community as a new member (welcome page, forms, lessons, Workflows). Only
+  // the owner who made one can act as it, only in its community, and ending it
+  // deletes its membership and member data.
+  communityTestMembers: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    authSubject: v.string(),
+    ownerUserId: v.id("users"),
+    ownerAuthSubject: v.string(),
+    label: v.string(),
+    number: v.number(),
+    createdAt: v.number(),
+    endedAt: v.optional(v.number()),
+  }).index("by_authSubject", ["authSubject"])
+    .index("by_user", ["userId"])
+    .index("by_community_createdAt", ["communityId", "createdAt"]),
+
   // Who sent a member to a community: the `ref` on the join link they arrived
   // by, kept first-touch. Affiliates and payouts build on this later.
   communityReferrals: defineTable({

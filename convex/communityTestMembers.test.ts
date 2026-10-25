@@ -1,0 +1,128 @@
+/// <reference types="vite/client" />
+
+import { convexTest } from "convex-test";
+import { afterEach, expect, test, vi } from "vitest";
+
+import { api, internal } from "./_generated/api";
+import schema from "./schema";
+import { requireNotTestMemberOutsideCommunity } from "./communityTestMemberCore";
+
+const modules = import.meta.glob([
+  "./auth.ts",
+  "./authActor.ts",
+  "./communityClients.ts",
+  "./communityForms.ts",
+  "./communityFormRequests.ts",
+  "./communityMemberWorkflows.ts",
+  "./communityResourceProgress.ts",
+  "./communityAdmin.ts",
+  "./communityLifecycle.ts",
+  "./communityPublic.ts",
+  "./communityTestMembers.ts",
+  "./_generated/**/*.*s",
+]);
+
+const OWNER = "test-run-owner";
+const STRANGER = "test-run-stranger";
+const nowMs = 1_787_478_400_000;
+const internalApi = internal as any;
+
+afterEach(() => { vi.useRealTimers(); });
+
+async function fixture(t: ReturnType<typeof convexTest>) {
+  return await t.run(async (ctx) => {
+    const ownerId = await ctx.db.insert("users", { authSubject: OWNER, displayName: "Ada Builder", createdAt: nowMs, updatedAt: nowMs });
+    await ctx.db.insert("users", { authSubject: STRANGER, displayName: "Eve", createdAt: nowMs, updatedAt: nowMs });
+    await ctx.db.insert("operatorRoles", { userId: ownerId, role: "owner", active: true, createdAt: nowMs, updatedAt: nowMs });
+    const community = (slug: string) => ctx.db.insert("communities", {
+      ownerId, slug, name: slug, lifecycleStatus: "active", visibility: "unlisted",
+      inferenceFundingPolicy: "managed_required", entryPolicy: "open", activeMemberCount: 0, createdAt: nowMs, updatedAt: nowMs,
+    });
+    const communityId = await community("test-run");
+    const otherCommunityId = await community("elsewhere");
+    await ctx.db.insert("communityMemberWorkflows", {
+      communityId, welcomeGate: true, welcomeGateEnabledAt: nowMs - 1, revision: 1, createdByUserId: ownerId, updatedByUserId: ownerId,
+      milestones: [{ key: "onboarding", name: "Onboarding", automations: [{
+        key: "welcome", trigger: { type: "member_joined" }, action: { key: "intake", type: "request_form", formKey: "intake" },
+      }] }],
+      createdAt: nowMs, updatedAt: nowMs,
+    } as any);
+    const formId = await ctx.db.insert("communityForms", {
+      communityId, key: "intake", name: "Intake", questions: [], revision: 1, publishedRevision: 1, createdAt: nowMs, updatedAt: nowMs,
+    });
+    await ctx.db.insert("communityFormVersions", {
+      communityId, formId, revision: 1, name: "Intake", questions: [], publishedBy: ownerId, publishedAt: nowMs,
+    });
+    return { ownerId, communityId, otherCommunityId };
+  });
+}
+
+test("an owner goes through their community as a test member, then ends it", async () => {
+  vi.useFakeTimers();
+  const t = convexTest(schema, modules);
+  const f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER });
+
+  const started = await owner.mutation(api.communityTestMembers.startTestMember, { communityId: f.communityId });
+  expect(started.label).toBe("Test member 1");
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+  // The owner's tab, sending the test member's subject, acts as the test member.
+  const asTest = { authSubject: started.auth_subject };
+  await expect(owner.query(api.communityTestMembers.getMyTestRun, asTest))
+    .resolves.toMatchObject({ label: "Test member 1", community_slug: "test-run" });
+  const forms = await owner.query(api.communityFormRequests.listMyRequests, { ...asTest, communityId: f.communityId }) as any[];
+  expect(forms.map((row) => row.name)).toEqual(["Intake"]);
+
+  // The record is tagged so owners and agents can tell it from real members.
+  const clients = await owner.query(api.communityClients.listClientsForOwner, { communityId: f.communityId });
+  expect(clients.clients.map((row: any) => [row.name, row.is_test])).toEqual([["Test member 1", true]]);
+
+  // Nobody else can use the subject, and the test member can't manage or leave its community.
+  await expect(t.withIdentity({ subject: STRANGER }).query(api.communityTestMembers.getMyTestRun, asTest))
+    .rejects.toThrow("auth_subject_mismatch");
+  await expect(owner.query(api.communityTestMembers.listTestMembers, { ...asTest, communityId: f.communityId }))
+    .rejects.toThrow("test_member_cannot_manage");
+  await expect(t.run(async (ctx) => {
+    const row = (await ctx.db.query("communityTestMembers").first())!;
+    await requireNotTestMemberOutsideCommunity(ctx, row.userId, f.communityId);
+    await requireNotTestMemberOutsideCommunity(ctx, row.userId, f.otherCommunityId);
+  })).rejects.toThrow("test_member_outside_community");
+  await expect(owner.query(internalApi.authActor.resolveAuthenticatedActorInternal, asTest))
+    .rejects.toThrow("test_member_unavailable_here");
+
+  const listed = await owner.query(api.communityTestMembers.listTestMembers, { communityId: f.communityId });
+  expect(listed.test_members).toMatchObject([{ label: "Test member 1", mine: true, auth_subject: started.auth_subject }]);
+  // Another manager sees the run but not the subject to act as it.
+  expect(await t.run(async (ctx) => {
+    const strangerId = (await ctx.db.query("users").withIndex("by_authSubject", (q) => q.eq("authSubject", STRANGER)).first())!._id;
+    await ctx.db.insert("communityMemberships", { communityId: f.communityId, userId: strangerId, role: "admin",
+      accessSource: "manual_grant", active: true, activationSequence: 1, activatedAt: nowMs, createdAt: nowMs, updatedAt: nowMs });
+    return true;
+  })).toBe(true);
+  const adminView = await t.withIdentity({ subject: STRANGER }).query(api.communityTestMembers.listTestMembers, { communityId: f.communityId });
+  expect(adminView.test_members[0]).toMatchObject({ mine: false, auth_subject: null });
+
+  await owner.mutation(api.communityTestMembers.endTestMember, { communityId: f.communityId, testMemberId: started.id as any });
+  await expect(owner.query(api.communityTestMembers.getMyTestRun, asTest)).rejects.toThrow("test_member_ended");
+  const left = await t.run(async (ctx) => ({
+    memberships: (await ctx.db.query("communityMemberships").withIndex("by_community", (q) => q.eq("communityId", f.communityId)).collect()).length,
+    requests: (await ctx.db.query("communityFormRequests").collect()).length,
+  }));
+  expect(left).toEqual({ memberships: 1, requests: 0 });
+
+  // A fresh run starts over as a new member.
+  const again = await owner.mutation(api.communityTestMembers.startTestMember, { communityId: f.communityId });
+  expect(again.label).toBe("Test member 2");
+});
+
+test("only managers start test runs, and a test member can't create a community", async () => {
+  const t = convexTest(schema, modules);
+  const f = await fixture(t);
+  await expect(t.withIdentity({ subject: STRANGER }).mutation(api.communityTestMembers.startTestMember, { communityId: f.communityId }))
+    .rejects.toThrow();
+  const started = await t.withIdentity({ subject: OWNER }).mutation(api.communityTestMembers.startTestMember, { communityId: f.communityId });
+  await expect(t.withIdentity({ subject: OWNER }).mutation(api.communityLifecycle.createCommunity as any, {
+    authSubject: started.auth_subject, name: "Sock puppet", slug: "sock-puppet",
+  })).rejects.toThrow("test_member_outside_community");
+});
