@@ -165,6 +165,7 @@ export const autoplayTestMemberStep = mutation({
         const result: any = await createCommunityInteractionComposerMessageCore(ctx, {
           communityId, ...(channelId ? { channelId } : {}), idempotencyKey: `autoplay:${row._id}:${visit}:${rule.key}`,
           text: `Hi everyone, I'm ${row.label}. (A test post from Autoplay; it's removed when the test run ends.)`,
+          skipAgentIntake: true,
         }, userId);
         const rootId = result?.interaction?.root_id;
         await remember(`post:${visit}:${rule.key}`, ...(rootId ? [`posted:${rootId}`] : []));
