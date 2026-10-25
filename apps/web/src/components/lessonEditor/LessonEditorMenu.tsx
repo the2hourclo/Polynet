@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 
@@ -28,9 +28,18 @@ export function ToolbarMenuList(props: {
       window.removeEventListener("resize", close);
     };
   });
+  // Below the button, or above it when there isn't room, and never off screen.
+  const [top, setTop] = useState(props.menu.rect.bottom + 6);
+  useLayoutEffect(() => {
+    const height = ref.current?.offsetHeight ?? 0;
+    const below = props.menu.rect.bottom + 6;
+    const above = props.menu.rect.top - 6 - height;
+    const fits = below + height <= window.innerHeight - 8;
+    setTop(fits || above < 8 ? Math.max(8, Math.min(below, window.innerHeight - 8 - height)) : above);
+  }, [props.menu.rect, props.items.length]);
   const style = {
     left: Math.max(8, Math.min(props.menu.rect.left, window.innerWidth - 268)),
-    top: props.menu.rect.bottom + 6,
+    top,
   };
   return createPortal(
     <div ref={ref} className="lesson-editor-menu lesson-editor-toolbar-menu" style={style} role="menu" aria-label={props.label}>
