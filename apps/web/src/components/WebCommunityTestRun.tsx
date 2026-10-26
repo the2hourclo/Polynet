@@ -1,5 +1,6 @@
 import { CheckCircle2, ExternalLink, FastForward, FlaskConical, MousePointerClick, Pause, Play, RefreshCw, ShieldCheck, SkipForward, X, XCircle } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { AuthSession } from "../auth";
 import {
   autoplayCloudTestMemberStep,
@@ -453,9 +454,15 @@ const WATCH_READY_FALLBACK_MS = 12_000;
 
 // Watch a test run: the community as the test member on the left (a frame of
 // the real app, signed in as them), and the sequence with Autoplay on the
-// right. Autoplay starts on screen as soon as their screen is ready.
+// right. Autoplay starts on screen as soon as their screen is ready. It's drawn
+// on the page's body, above the app's rail and top bar, in the community's look.
 function TestRunWatch(props: Props & { member: CloudCommunityTestMember; busy: boolean; onClose: () => void; onEnd: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const marker = useRef<HTMLSpanElement>(null);
+  const [look, setLook] = useState<{ theme: string | null } | null>(null);
+  useLayoutEffect(() => {
+    setLook({ theme: marker.current?.closest("[data-community-theme]")?.getAttribute("data-community-theme") ?? null });
+  }, []);
   const [ready, setReady] = useState(false);
   const { onClose } = props;
   const run = { authSubject: props.member.auth_subject ?? "", label: props.member.label };
@@ -471,7 +478,8 @@ function TestRunWatch(props: Props & { member: CloudCommunityTestMember; busy: b
     window.addEventListener("keydown", onKey);
     return () => { window.clearTimeout(fallback); window.removeEventListener("message", onMessage); window.removeEventListener("keydown", onKey); };
   }, [onClose]);
-  return <div className="test-run-watch" role="dialog" aria-modal="true" aria-labelledby="test-run-watch-title">
+  const view = <div className="pn-wf test-run-watch-layer" data-community-theme={look?.theme ?? undefined}>
+    <div className="test-run-watch" role="dialog" aria-modal="true" aria-labelledby="test-run-watch-title">
     <header className="test-run-watch-head">
       <span className="pn-wf-row-icon" aria-hidden="true"><Play size={16} strokeWidth={2} /></span>
       <span className="pn-wf-row-text">
@@ -493,7 +501,8 @@ function TestRunWatch(props: Props & { member: CloudCommunityTestMember; busy: b
         <TestRunSequence {...props} watch={{ ready }} />
       </aside>
     </div>
-  </div>;
+  </div></div>;
+  return <><span ref={marker} hidden />{look ? createPortal(view, document.body) : null}</>;
 }
 
 function TestRunTimeline(props: Props & { member: CloudCommunityTestMember; membershipId: string }) {

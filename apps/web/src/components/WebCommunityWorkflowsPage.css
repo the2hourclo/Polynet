@@ -457,7 +457,8 @@
 .pn-wf .test-run-watch {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 2147483000;
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   background: var(--bg-workspace);
