@@ -675,7 +675,8 @@ export function useWebCommunityWorkflowsController(params: {
         if (plan.firstStageAdditions.length && first) {
           revision = (await updateCloudCommunityMemberWorkflowMilestone({
             session, communityId, expectedRevision: revision, milestoneKey: first.key, name: first.name,
-            automations: [...first.automations, ...withNewKeys(plan.firstStageAdditions)],
+            automations: [...first.automations, ...withNewKeys(plan.firstStageAdditions),
+              ...(first.pausedAutomations ?? []).map((rule) => ({ ...rule, paused: true }))],
             instructions: first.instructions, goal: first.goal, requireHumanApproval: first.requireHumanApproval,
           })).revision;
         }
