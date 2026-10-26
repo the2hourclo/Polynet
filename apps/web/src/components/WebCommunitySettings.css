@@ -50,6 +50,28 @@
   flex-direction: column;
   gap: 0.25rem;
 }
+/* "← Community name": back out of Settings in Channels, where Settings takes
+   the community menu's place. */
+.pn-settings-nav-back {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  margin-bottom: 0.5rem;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: var(--pn-set-r);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.pn-settings-nav-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-settings-nav-back:hover { background: var(--hover-overlay); color: var(--text-primary); }
+.pn-settings-nav-back:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
 .pn-settings-search {
   display: flex;
   align-items: center;
@@ -649,6 +671,8 @@ textarea.pn-settings-input { height: auto; min-height: 4.5rem; padding: 0.625rem
 .pn-setting-proposal-details dt { color: var(--text-secondary); }
 .pn-setting-proposal-details dd { margin: 0; color: var(--text-primary); overflow-wrap: anywhere; }
 @media (max-width: 640px) {
+  /* Phones have the phone shell's own back. */
+  .pn-settings-nav-back { display: none; }
   .pn-setting-proposal .pn-settings-row-head { flex-direction: column; gap: 0.75rem; }
   .pn-setting-proposal .pn-settings-row-control { width: 100%; }
   .pn-setting-proposal .pn-settings-row-control .pn-settings-button { flex: 1; }

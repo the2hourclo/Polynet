@@ -326,7 +326,10 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   ) : themedMainSurface;
   // Your settings bring their own menu (WebYourSettingsNav), so the frame
   // has one column there too.
-  const desktopFrameMode = desktopCommunityNav
+  // Channels: Settings swaps the community's menu for its own (with a way
+  // back), like Substack, instead of showing two menus side by side.
+  const settingsReplacesNav = Boolean(desktopCommunityNav) && !isTopCommunityNav && props.communityShell.communityTab === "settings";
+  const desktopFrameMode = desktopCommunityNav && !settingsReplacesNav
     ? isTopCommunityNav ? "community-top" : "community"
     : "single";
 
@@ -374,16 +377,16 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
             data-community-theme={desktopCommunityNav || props.isGlobalSettings ? communityThemeAttribute ?? undefined : undefined}
             data-channels-feel={channelsFeelAttribute}
           >
-            {desktopCommunityNav}
+            {settingsReplacesNav ? null : desktopCommunityNav}
             {mainSurface}
           </div>
         ) : desktopCommunityNav ? (
           <div
-            className={`product-shell-surface product-shell-surface--${isTopCommunityNav ? "community-top" : "community"}`}
+            className={`product-shell-surface product-shell-surface--${settingsReplacesNav ? "single" : isTopCommunityNav ? "community-top" : "community"}`}
             data-community-theme={communityThemeAttribute ?? undefined}
             data-channels-feel={channelsFeelAttribute}
           >
-            {desktopCommunityNav}
+            {settingsReplacesNav ? null : desktopCommunityNav}
             {mainSurface}
           </div>
         ) : (

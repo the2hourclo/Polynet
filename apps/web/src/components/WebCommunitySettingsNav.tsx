@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { CommunityAgentIcon } from "../../../../shared/CommunityAgentIcon";
 import {
+  ArrowLeft,
   ArrowUpRight,
   ClipboardList,
   DoorOpen,
@@ -109,6 +110,8 @@ export function WebCommunitySettingsNav(props: {
   onSelectPane: (pane: CommunitySettingsPane) => void;
   onSelectAnchor: (anchorId: string) => void;
   onOpenLink: (path: string) => void;
+  /** Channels: Settings takes the community menu's place, so it leads with a way back. */
+  back?: { label: string; onBack: () => void } | null;
 }) {
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
@@ -136,6 +139,12 @@ export function WebCommunitySettingsNav(props: {
 
   return (
     <nav className="pn-settings-nav" aria-label="Settings">
+      {props.back ? (
+        <button type="button" className="pn-settings-nav-back" onClick={props.back.onBack}>
+          <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+          <span>{props.back.label}</span>
+        </button>
+      ) : null}
       <label className="pn-settings-search">
         <Search size={16} strokeWidth={2} aria-hidden="true" />
         <input
