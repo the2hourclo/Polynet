@@ -1,12 +1,17 @@
 import {
   lazy,
+  useCallback,
   useMemo,
   useRef,
+  useState,
   Suspense,
   type ChangeEvent,
 } from "react";
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
+import { WebCommunityWelcome, WelcomeSkippedReminder } from "./components/WebCommunityWelcome";
+import { useTestMemberAutoplayFollow, useTestMemberRunCheck } from "./components/WebTestRunBar";
+import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
   beginBrowserSignedOutState,
   getAuthPublicKey,
@@ -200,6 +205,7 @@ import {
   WEB_IMAGE_DATA_URL_CHAR_LIMIT,
 } from "./webAppRuntime";
 import { useWebCommunityVisualIdentityRegistryLifecycle } from "./controllers/useWebCommunityVisualIdentityRegistryLifecycle";
+import { AgentCommunityProvider } from "../../../shared/CommunityAgentIcon";
 import {
   useWebBuilderKnowledgeCompletionController,
   useWebBuilderKnowledgeHydrationController,
@@ -721,6 +727,7 @@ export default function App() {
     openNewModuleModal,
     handleEditModule,
     handleSetModuleStatus,
+    handleSetModuleLessonStyle,
     handleDeleteModule,
     handleReorderModules,
     handleReorderResources,
@@ -1096,6 +1103,8 @@ export default function App() {
   const {
     handleSaveCommunityAgentConfig,
   } = communityAgentAndFunnel;
+  useTestMemberRunCheck(session, ensureUsableAuthSession);
+  useTestMemberAutoplayFollow(session, ensureUsableAuthSession);
   const communityWorkflows = useWebCommunityWorkflowsController({
     activeCommunityId,
     activePage,
@@ -1896,6 +1905,7 @@ export default function App() {
     pendingToken,
     handlePrimaryAction: handlePublicLandingPrimaryAction,
     handleCheckoutContinue: handlePublicCheckoutContinue,
+    handleOfferCheckout: handlePublicOfferCheckout,
     handleClaimContinue: handlePublicClaimContinue,
     handleCancelPendingJoinRequest,
   } = useWebPublicFunnelEntryController({
@@ -2224,6 +2234,7 @@ export default function App() {
       },
       workflows: {
         forms: communityWorkflows.forms,
+        access: communityWorkflows.access,
         channels: activeCommunityChannels.filter((channel) => channel.id && channel.community_id === activeCommunityId),
         channelsUnavailable: isLoadingActiveCommunityChannels || Boolean(activeCommunityChannelsError),
         board: communityWorkflows.board,
@@ -2245,6 +2256,16 @@ export default function App() {
         onCreateMilestone: communityWorkflows.createMilestone,
         onUpdateMilestone: communityWorkflows.updateMilestone,
         onDeleteMilestone: communityWorkflows.deleteMilestone,
+        onApplyAgentLedJourney: communityWorkflows.applyAgentLedJourney,
+        onSetWelcomeGate: communityWorkflows.setWelcomeGate,
+        onSetWelcomeDisplay: communityWorkflows.setWelcomeDisplay,
+        onSaveWelcomePage: communityWorkflows.saveWelcomePage,
+        onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
+        onLoadTrackOptions: communityWorkflows.loadTrackOptions,
+        onLoadOfferOptions: communityWorkflows.loadOfferOptions,
+        testRun: session && activeCommunityId && activeCommunity?.slug && canManageMembersActiveCommunity
+          ? { communityId: activeCommunityId, communitySlug: activeCommunity.slug, session, ensureSession: ensureUsableAuthSession } : null,
+        communityName: activeCommunity?.name ?? null,
         onClearActionError: communityWorkflows.clearActionError,
         onOpenMemberDossier: communityWorkflows.openMemberDossier,
         onCloseMemberDossier: communityWorkflows.closeMemberDossier,
@@ -2255,6 +2276,7 @@ export default function App() {
         onForceMove: communityWorkflows.forceMove,
         onApproveMilestone: communityWorkflows.approveMilestone,
         onRetryGoalReview: communityWorkflows.retryGoalReview,
+        onRetryAction: communityWorkflows.retryAction,
         onOpenServiceChannel: (expectedChannelId: string) => communityWorkflows.openServiceChannel(expectedChannelId, (channelId) => {
           const channel = activeCommunityChannels.find(item => item.id === channelId && item.community_id === activeCommunityId);
           if (!channel) return;
@@ -2290,6 +2312,7 @@ export default function App() {
         openNewModuleModal,
         handleEditModule,
         handleSetModuleStatus,
+        handleSetModuleLessonStyle,
         handleDeleteModule,
         handleReorderModules,
         handleReorderResources,
@@ -2483,6 +2506,8 @@ export default function App() {
         canManageCommunityMembers: canManageMembersActiveCommunity,
         canReviewCommunityJoinRequests: canReviewJoinRequestsActiveCommunity,
         communityJoinReviewMode: activeCommunityMembersJoinReviewMode,
+        rosterFooter: activeCommunityId
+          ? <WebCommunitySiblings communityId={activeCommunityId} onOpen={(slug) => navigateTo(`/c/${encodeURIComponent(slug)}`)} /> : null,
         communityJoinRequests: communityContextJoinRequests,
         isLoadingCommunityJoinRequests,
         communityJoinRequestsError,
@@ -2569,7 +2594,9 @@ export default function App() {
     appearance: {
       appTheme,
       setAppTheme,
+      community: activeCommunity ? { id: activeCommunity.id, name: activeCommunity.name } : null,
     },
+    onOpenPath: (path) => navigateTo(path),
   };
   const activeCommunityAttentionSummary = activeCommunityId
     ? (attentionByCommunityId[activeCommunityId] ?? { chat: false, resources: false, events: false, mentions: false, channels: [] })
@@ -2606,6 +2633,15 @@ export default function App() {
     authError,
   });
 
+  // The builder's welcome flow: until the member finishes its forms, then its
+  // lessons, the community pane shows only those steps. The left rail keeps
+  // working. A member who just joined is held before their forms exist (no steps yet).
+  const welcomeStepsKey = activeCommunityAccess?.welcome_required
+    ? `${(activeCommunityAccess.welcome_form_request_ids ?? []).join(",")}|${(activeCommunityAccess.welcome_lesson_ids ?? []).join(",")}` : "";
+  const welcomeSteps = useMemo(() => {
+    const [forms = "", lessons = ""] = welcomeStepsKey.split("|");
+    return { requestIds: forms ? forms.split(",") : [], lessonIds: lessons ? lessons.split(",") : [] };
+  }, [welcomeStepsKey]);
   if (standalonePublicRouteViewProps) {
     return (
       <Suspense fallback={<div className="landing-auth-hold" aria-hidden="true" />}>
@@ -2753,6 +2789,8 @@ export default function App() {
         publicCommunityUi.isCancellingPublicCommunityJoinRequest,
       onCancelPendingRequest: handleCancelPendingJoinRequest,
       onPrimaryJoinAction: handlePublicLandingPrimaryAction,
+      onStartOfferCheckout: handlePublicOfferCheckout,
+      offerSession: isPublicFunnelPreviewRoute ? null : session,
       publicCommunityError: publicCommunityUi.publicCommunityError,
       publicJoinError: publicCommunityUi.publicJoinError,
       checkoutError,
@@ -2841,12 +2879,18 @@ export default function App() {
           }
         : null,
   });
+  const [communityLayoutPosition, setCommunityLayoutPosition] = useState<"top" | "side">("side");
+  const [isFloatingCommunityAgentOpen, setIsFloatingCommunityAgentOpen] = useState(false);
+  const openFloatingCommunityAgent = useCallback(() => setIsFloatingCommunityAgentOpen(true), []);
+  // Under the Classroom layout the community agent floats at the bottom
+  // right; elsewhere on desktop it is the Agent page.
+  const floatingCommunityAgent = !showMobileShell && communityLayoutPosition === "top";
   const {
     community: memberAgentDockCommunity,
     surfaceContext: memberAgentSurfaceContext,
     isVisible: isMemberAgentDockVisible,
   } = useWebMemberAgentSurfaceController({
-    pageMode: !showMobileShell,
+    pageMode: !showMobileShell && !floatingCommunityAgent,
     activePage,
     communityTab,
     activeCommunity,
@@ -2876,6 +2920,15 @@ export default function App() {
   }
   const shellChromeHostProps = buildWebShellChromeHostProps({
     onOpenCommunityMembers: handleOpenCommunityMembers,
+    viewerFace: session
+      ? {
+          name: profileUi.profileName,
+          avatarUrl: profileUi.profileAvatarUrl || null,
+          focusX: profileUi.profileAvatarFocusX,
+          focusY: profileUi.profileAvatarFocusY,
+          zoom: profileUi.profileAvatarZoom,
+        }
+      : null,
     showMobileAppShell,
     showMobileSettingsShell,
     showMobilePublicFunnel,
@@ -2957,6 +3010,7 @@ export default function App() {
     onCopyCommunityJoinLink: copyTextToClipboard,
     canOpenDirectMessages: Boolean(session),
     directMessagesUnreadCount,
+    communityActivityEvents,
     handleOpenDiscover,
     openMobileCreateCommunity,
     openCommunityCreateFlow: openNewCommunityPurchaseFlow,
@@ -2992,7 +3046,27 @@ export default function App() {
     themeDraftSession: canViewActiveCommunitySettings ? session ?? null : null,
     // Layout blocks that read member data (upcoming events) use the viewer's own session.
     memberSession: session ?? null,
+    onCommunityLayoutPositionChange: setCommunityLayoutPosition,
+    onOpenCommunityAgent: openFloatingCommunityAgent,
+    // The Display menu's Light/Dark is the member's own app-wide choice.
+    appTheme,
+    setAppTheme,
   });
+  if (session && activeCommunityId && welcomeStepsKey && activePage === "community" && !isPublicCommunityFunnel) {
+    const popup = activeCommunityAccess?.welcome_display === "popup";
+    const welcome = (
+      <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
+        communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeSteps.requestIds} lessonIds={welcomeSteps.lessonIds}
+        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess} display={popup ? "popup" : "page"}
+        onReleased={() => { void communityContent.retryResourceRead("modules"); void communityContent.retryResourceRead("resources"); }} />
+    );
+    if (popup) shellChromeHostProps.welcomeOverlay = welcome;
+    else shellChromeHostProps.welcomeSurface = welcome;
+  } else if (session && activeCommunityId && activePage === "community" && !isPublicCommunityFunnel) {
+    // A setup screen the member skipped on the welcome page waits here as a reminder.
+    shellChromeHostProps.welcomeOverlay = <WelcomeSkippedReminder key={`${activeCommunityId}:${session.user.id}`}
+      communityId={activeCommunityId} session={session} ensureSession={ensureUsableAuthSession} />;
+  }
 
   if (shouldHoldRouteForAccess) {
     const previewAdmissionError = isPublicFunnelPreviewRoute
@@ -3045,18 +3119,26 @@ export default function App() {
   }
 
   return (
+    <AgentCommunityProvider communityId={activeCommunityId}>
     <WebAppCompositionRoot
       globalOverlayHostProps={globalOverlayHostProps}
       memberAgentDockRef={memberAgentComposerApiRef}
       memberAgentDockProps={{
-        pageMode: !showMobileShell,
+        pageMode: !showMobileShell && !floatingCommunityAgent,
         pageActive: activePage === "community" && communityTab === "agent",
+        floating: floatingCommunityAgent
+          ? { open: isFloatingCommunityAgentOpen, onOpenChange: setIsFloatingCommunityAgentOpen }
+          : null,
         isVisible: isMemberAgentDockVisible,
         isSuppressed: false,
         canManageResources: canManageResourcesActiveCommunity,
         mobileShellActive: showMobileShell,
         mobileRoot: showMobileShell && mobileRootPage === "agent",
-        onRequestOpen: () => showMobileShell ? setMobileRootPage("agent") : handleSelectCommunityTab("agent"),
+        onRequestOpen: () => showMobileShell
+          ? setMobileRootPage("agent")
+          : floatingCommunityAgent
+            ? openFloatingCommunityAgent()
+            : handleSelectCommunityTab("agent"),
         community: memberAgentDockCommunity,
         surfaceContext: memberAgentSurfaceContext,
         session,
@@ -3102,5 +3184,6 @@ export default function App() {
       mainSurfaceHostProps={mainSurfaceHostProps}
       shellChromeHostProps={shellChromeHostProps}
     />
+    </AgentCommunityProvider>
   );
 }

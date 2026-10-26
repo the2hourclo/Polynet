@@ -11,6 +11,9 @@ import {
   formatRelativeTime,
   stripSharedAttachmentSummary,
 } from "./communityInteractionFeed";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
+import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
+import { PostCardView, ReactorsHover, postCardTitle } from "./CommunityPostCard";
 
 // The community's posts as one card each, newest activity first: the "posts"
 // presentation a layout can choose for the chat page. Same posts, replies,
@@ -82,15 +85,19 @@ function postThumbnail(bundle: CommunityInteractionRootBundle): { src: string; a
 }
 
 function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractionRootBundle; pinned: boolean }) {
+  const agentName = useCommunityAgentName(props.activeCommunityName);
   const { bundle } = props;
   const root = bundle.root;
-  const label = actorLabel(root, props.displayName, props.activeCommunityName);
+  const label = actorLabel(root, props.displayName, agentName);
   const profile = root.actor_user_id ? props.profilesByUserId[root.actor_user_id] ?? null : null;
   const badge = agentBadgeLabel(root.actor_type);
-  const text = splitPostTitle(
-    root.title,
-    stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0),
-  );
+  // A poll or form post shows its question or form as the title and the card as its body.
+  const text = bundle.post_card
+    ? { title: postCardTitle(bundle), body: "" }
+    : splitPostTitle(
+        root.title,
+        stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0),
+      );
   const thumbnail = postThumbnail(bundle);
   const likes = root.reaction_summary.find((row) => row.emoji === LIKE)?.count ?? 0;
   const liked = root.viewer_emojis.includes(LIKE);
@@ -127,7 +134,7 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
           </span>
         </div>
         {props.pinned ? (
-          <span className="community-post-card-pin"><Pin size={14} aria-hidden="true" /> Pinned</span>
+          <span className="community-post-card-pin"><Pin size={12} aria-hidden="true" /> Pinned</span>
         ) : null}
       </header>
       <div className={`community-post-card-body${thumbnail ? " has-thumbnail" : ""}`}>
@@ -141,18 +148,32 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
         </button>
         {thumbnail ? <img className="community-post-card-thumbnail" src={thumbnail.src} alt={thumbnail.alt} loading="lazy" /> : null}
       </div>
+      {bundle.post_card ? <PostCardView bundle={bundle} showQuestion={false} /> : null}
       <footer className="community-post-card-footer">
-        <button
-          type="button"
-          className={`community-post-card-action${liked ? " is-active" : ""}`}
-          aria-pressed={liked}
-          aria-label={liked ? "Unlike" : "Like"}
-          disabled={!props.onToggleReaction}
-          onClick={() => props.onToggleReaction?.("root", root.id, LIKE)}
-        >
-          <ThumbsUp size={17} aria-hidden="true" />
-          <span>{likes}</span>
-        </button>
+        <span className="community-post-card-like">
+          <button
+            type="button"
+            className={`community-post-card-action${liked ? " is-active" : ""}`}
+            aria-pressed={liked}
+            aria-label={liked ? "Unlike" : "Like"}
+            disabled={!props.onToggleReaction}
+            onClick={() => props.onToggleReaction?.("root", root.id, LIKE)}
+          >
+            <ThumbsUp size={17} aria-hidden="true" />
+          </button>
+          {/* The count names who liked it: pictures and names, each opening their profile. */}
+          <ReactorsHover target={{ type: "root", id: root.id }} emoji={LIKE} count={likes}
+            signature={`${LIKE}${likes}`} variant="faces">
+            <button
+              type="button"
+              className="community-post-card-like-count"
+              disabled={likes === 0}
+              aria-label={likes === 1 ? "1 like: see who" : `${likes} likes: see who`}
+            >
+              {likes}
+            </button>
+          </ReactorsHover>
+        </span>
         <button type="button" className="community-post-card-action" aria-label={`${root.reply_count} comments`} onClick={open}>
           <MessageSquare size={17} aria-hidden="true" />
           <span>{root.reply_count}</span>
@@ -226,11 +247,28 @@ function PostComposer(props: CommunityPostsFeedProps) {
   );
 }
 
+// Every word typed in the top bar's search has to appear in the post.
+export function postMatchesSearch(bundle: CommunityInteractionRootBundle, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const haystack = [bundle.root.title ?? "", bundleText(bundle.content_blocks, bundle.root.content_summary)].join(" ").toLowerCase();
+  return words.every((word) => haystack.includes(word));
+}
+
 export function CommunityPostsFeed(props: CommunityPostsFeedProps) {
-  const posts = orderCommunityPosts(props.roots, props.pinnedRoot);
+  const { postSearch, onPostSearch } = useWebCommunityFrame();
+  const searching = postSearch.trim().length > 0;
+  const ordered = orderCommunityPosts(props.roots, props.pinnedRoot);
+  const posts = searching ? ordered.filter((bundle) => postMatchesSearch(bundle, postSearch)) : ordered;
   return (
     <div className="community-posts-feed">
       <PostComposer {...props} />
+      {searching && posts.length > 0 ? (
+        <div className="community-posts-search-status" role="status">
+          <span>{posts.length === 1 ? "1 post" : `${posts.length} posts`} matching "{postSearch.trim()}"</span>
+          <button type="button" className="community-aside-link" onClick={() => onPostSearch("")}>Clear</button>
+        </div>
+      ) : null}
       {props.error && posts.length === 0 ? (
         <div className="community-interaction-state" role="alert">
           <div>{props.error}</div>
@@ -240,6 +278,12 @@ export function CommunityPostsFeed(props: CommunityPostsFeedProps) {
         <div className="community-interaction-state" aria-live="polite">
           <div>Loading posts...</div>
           <div className="community-interaction-loading web-skeleton-pill" aria-hidden="true" />
+        </div>
+      ) : posts.length === 0 && searching ? (
+        <div className="community-interaction-empty">
+          <MessageSquare size={22} aria-hidden="true" />
+          <div>No posts match "{postSearch.trim()}"</div>
+          <button type="button" className="community-aside-link" onClick={() => onPostSearch("")}>Clear search</button>
         </div>
       ) : posts.length === 0 ? (
         <div className="community-interaction-empty">

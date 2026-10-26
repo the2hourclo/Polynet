@@ -45,7 +45,7 @@ look; both follow the member's own Light/Dark choice.
 | `font_body`, `font_heading`, `font_mono` | A name from `COMMUNITY_THEME_FONTS`. Display faces only for headings |
 | `heading_weight` | 300 to 900 |
 | `heading_case` | `none`, `upper` |
-| `type_scale` | 0.9 to 1.2 |
+| `type_scale` | 0.9 to 1.2. Multiplies every text role below |
 | `numerals` | `proportional`, `tabular` |
 | `radius` | 0 to 24 (px) |
 | `corner_style` | `even`, `sketch` |
@@ -54,8 +54,50 @@ look; both follow the member's own Light/Dark choice.
 | `shadow` | `none`, `soft`, `hard` |
 | `density` | `compact`, `comfortable`, `roomy` |
 | `media_plate` | `none`, `light` (frames white-background images in dark schemes) |
-| `course_cover_ratio` | `auto` (Polynet's fixed height), `16:9`, `3:2`, `4:3`, `1:1`, `21:9` |
-| `course_card_size` | `default` (two columns), `small`, `medium`, `large` (cards at least 220, 300 or 420px wide, as many columns as fit) |
+| `course_cover_ratio` | `16:9` (the default), `auto` (Polynet's fixed height), `3:2`, `4:3`, `1:1`, `21:9` |
+| `course_card_size` | `medium` is the default; `default` (the page style's own columns), `small`, `medium`, `large` (cards at least 200, 260 or 360px wide; the catalog widens up to 90rem and each row fits as many as the screen has room for) |
+| `course_columns` | `auto` (fit to screen by Card size), or `1`–`4` cards per row on desktop (rows wrap before a card is narrower than 160px). Overrides the page style's columns; picking a Card size in Customize sets it back to `auto` |
+| `course_columns_phone` | `1` or `2` cards per row on phones |
+| `course_gap` | `default` (the page style's own spacing), `tight`, `roomy` |
+| `course_card_style` | `classroom` (the default: the course-community card, picture on top, title in the heading font, two lines of description and a slim progress line, with a quiet frame and room to breathe), `cover` (picture on top), `list` (a row with a small picture on the right, thin dividers), `overlay` (title on the picture), `text` (no picture, editorial) |
+| `course_card_pills` | `hide` or `show` small pills: lesson count and In progress / Done / Locked |
+| `course_card_description` | `show` or `hide` each course's short description |
+| `course_card_progress` | `bar`, `ring` or `fraction` ("3/6 lessons") |
+| `course_card_edge` | `border` (a hairline frame, the default), `shadow` (a soft shadow that lifts on hover) or `none` (open cover and text, like a magazine). Applies to the cover and title-on-cover card styles |
+| `course_card_panel` | `shade` (default: a clear step from the card, darker on light schemes and lighter on dark ones), `tint`, `accent`, `plain`, `custom`. The text panel under a boxed card's cover; its text stays readable |
+| `course_card_panel_color` | `"#RRGGBB"` used when `course_card_panel` is `custom`, else `""` |
+| `course_cover_plate` | `none`, `tint` (light schemes: covers are printed onto a soft wash of the accent, so pale drawings and screenshots match) |
+| `course_cover_fit` | `crop` (covers fill the box, framed by each course's focus and zoom), `whole` (each cover shows in full, centred in the box; for wide banners with words on them) |
+| `banner_name` | `show` (the name sits over the side column's banner), `hide` (the banner artwork already shows it) |
+| `channels_look` | Draft. `current` (Polynet's Channels look), `quiet` (plain side panel, one centred column), `reader` (reading column, courses as a post list), `publication` (masthead with logo, name and Invite; editorial course cards). Only the Channels layout uses it |
+| `chat_view` | `centered` (the look's reading column, with joins and dates centred) or `wide` (messages run full width from the left edge, with avatar and name on the left and notices, dates and the message box lined up on the left). Members can pick their own in the Display menu |
+| `rail_size` | Draft. `standard`, `large` (bigger community icons in the far-left rail while this community is open) |
+| `sibling_communities` | `hide` (default), `show` (lists the owner's other communities, "More from this creator", at the foot of the chat's members panel) |
+| `pods_place` | `aside` (default: a "Your pods" card at the top of Classroom's right column), `header` (a stack of faces in the Classroom header that opens the pods list) |
+| `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
+
+Ready-made course card looks (Classroom, the default, plus Classic, Lifted,
+Magazine, Gallery, Archive and Compact) live in `shared/communityCourseCardLooks.ts`. Each one sets only the
+`course_card_*`, `course_card_size`, `course_columns`, `course_cover_ratio`
+and `course_gap` tokens. To apply one, write its tokens through the theme
+draft save.
+
+## Text roles
+
+Community text uses eleven sizes, compiled as `--pn-type-<role>` from
+`COMMUNITY_TYPE_ROLES` times `type_scale`: `display` 32 (page and lesson
+titles, shrinking to 26 on narrow screens), `title` 24, `heading` 22,
+`subheading` 18, `reading` 16 (lesson text), `body` 15 (messages, card
+titles), `ui` 14, `small` 13, `label` 12, `meta` 11, `micro` 10. Corners
+follow `--pn-radius-scale` (the theme's `radius` over Polynet's 16px).
+
+`styles/community-theme-map.css` is generated from all of Polynet's CSS by
+`scripts/generate_community_theme_map.ts`: every fixed `font-size` becomes its
+nearest role and every fixed `border-radius` scales with the theme, so one Look
+setting moves the whole community. Regenerate it after changing app CSS; a test
+fails while it is out of date. `community-theme-hooks.css` holds the
+hand-picked rules that override the map (for example lesson titles use
+`display`). Communities without a theme keep Polynet's exact sizes.
 
 ## Validation
 

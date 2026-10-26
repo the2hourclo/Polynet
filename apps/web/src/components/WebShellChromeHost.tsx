@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
@@ -11,12 +13,19 @@ import { WebCommunityRail } from "./WebCommunityRail";
 import { WebMobileCommunityShell } from "./WebMobileCommunityShell";
 import { WebMobileGlobalShell } from "./WebMobileGlobalShell";
 import { WebCommunityNavSurface } from "./WebCommunityNavSurface";
-import { WebSettingsSidebar } from "./WebSettingsSidebar";
 import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
-import { useWebCommunityLayout } from "../controllers/useWebCommunityLayout";
+import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controllers/useWebCommunityLayout";
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityAside } from "./WebCommunityAside";
 import { WebCommunityTopNav } from "./WebCommunityTopNav";
+import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
+import type { AppTheme } from "../../../../shared/theme";
+import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
+import { WebAccountSettingsButton } from "./WebAccountSettingsButton";
+import { useDraftLook } from "../controllers/useDraftLook";
+import { courseCardLookWords } from "./ResourceCourseCatalog";
+import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
+import { setMemberPickEverywhere, useMemberPickEverywhere } from "../controllers/communityLookPreference";
 import type {
   MobileOverlay,
   WebCommunityShellProps,
@@ -39,9 +48,19 @@ export type WebShellChromeHostProps = {
   isGlobalSettings: boolean;
   mainSurface: ReactNode;
   globalOverlays: ReactNode;
+  /** Replaces the community nav and page while the member owes welcome forms. */
+  welcomeSurface?: ReactNode;
+  /** The welcome as a pop-up: shown over the community page, which stays open behind it. */
+  welcomeOverlay?: ReactNode;
   // A manager's session, for the draft theme preview; null for everyone else.
   themeDraftSession?: unknown;
   memberSession?: unknown;
+  // The arrangement this member sees ("top" is Classroom). With it the
+  // community agent floats at the bottom right instead of being a tab.
+  onCommunityLayoutPositionChange?: (position: "top" | "side") => void;
+  onOpenCommunityAgent?: () => void;
+  appTheme?: AppTheme;
+  onChooseAppTheme?: (theme: AppTheme) => void;
 };
 
 // Every page inside a community takes its theme, its owner pages included, so
@@ -58,9 +77,24 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   "community_about",
   "community_agent",
   "community_workflows",
+  "community_funnels",
+  // Your settings take the look of the community you came from, so leaving
+  // a community for your own settings doesn't change colours (Rashid).
+  "global_settings",
 ]);
 
+// ?pods=aside|header previews the other pods placement (screenshots).
+const PODS_PLACE_OVERRIDE: "aside" | "header" | null = (() => {
+  try {
+    const value = new URLSearchParams(window.location.search).get("pods");
+    return value === "aside" || value === "header" ? value : null;
+  } catch {
+    return null;
+  }
+})();
+
 export function WebShellChromeHost(props: WebShellChromeHostProps) {
+  const pickEverywhere = useMemberPickEverywhere();
   const communityTheme = useWebCommunityThemeStyle(
     COMMUNITY_THEMED_DESTINATIONS.has(props.communityShell.destination.kind)
       ? props.communityShell.activeCommunity?.id ?? null
@@ -68,11 +102,22 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     { draftSession: props.themeDraftSession ?? null },
   );
   const communityThemeAttribute = communityTheme.attribute;
+  // The owner's default from Customize, or this browser's Display menu pick.
+  const canTryLooks = Boolean(props.communityShell.canManageMembersActiveCommunity);
+  const draftLookState = useDraftLook(communityTheme.theme, { canPick: canTryLooks });
+  const draftLook = draftLookState.look;
   // The community's layout applies wherever its own navigation shows, owner
   // tools included, so the tab bar doesn't jump between pages.
-  const { layout: communityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
+  const { layout: publishedCommunityLayout, ready: communityLayoutReady } = useWebCommunityLayout(
     props.communityShell.activeCommunity?.id ?? null,
     { draftSession: props.themeDraftSession ?? null },
+  );
+  // What this member sees: their Classroom/Channels pick where the owner
+  // offers one, else the owner's layout.
+  const { layout: communityLayout, choice: communityLayoutChoice } = useWebCommunityLayoutChoice(
+    props.communityShell.activeCommunity?.id ?? null,
+    props.memberSession ?? null,
+    publishedCommunityLayout,
   );
   // Members and About are pages only where the community's layout shows them.
   // Elsewhere their links keep landing on chat, as before layouts existed.
@@ -85,6 +130,13 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   useEffect(() => {
     if (layoutHidesActiveTab) onSelectCommunityTab("chat");
   }, [layoutHidesActiveTab, onSelectCommunityTab]);
+  const activeCommunityId = props.communityShell.activeCommunity?.id ?? null;
+  const [postSearchState, setPostSearchState] = useState<{ communityId: string | null; query: string }>({ communityId: null, query: "" });
+  const postSearch = postSearchState.communityId === activeCommunityId ? postSearchState.query : "";
+  const setPostSearch = useCallback(
+    (query: string) => setPostSearchState({ communityId: activeCommunityId, query }),
+    [activeCommunityId],
+  );
   const communityFrame: WebCommunityFrame = {
     layout: communityLayout,
     community: props.communityShell.activeCommunity,
@@ -93,6 +145,21 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     canInvite: props.communityShell.canViewMembersActiveCommunity,
     onSelectTab: props.communityShell.onSelectCommunityTab,
     onCopyJoinLink: props.communityShell.onCopyCommunityJoinLink,
+    postSearch,
+    onPostSearch: setPostSearch,
+    layoutChoice: communityLayoutChoice,
+    displayMode: communityTheme.followsMemberMode && props.appTheme && props.onChooseAppTheme
+      ? {
+          current: communityTheme.theme && !pickEverywhere && !(communityTheme.theme.schemes.light && communityTheme.theme.schemes.dark)
+            ? (communityTheme.theme.schemes.dark ? "dark" : "light")
+            : props.appTheme,
+          onChoose: (theme: AppTheme) => {
+            setMemberPickEverywhere(true);
+            props.onChooseAppTheme!(theme);
+          },
+        }
+      : null,
+    pods: null,
   };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&
@@ -110,6 +177,21 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     props.showMobileAppShell &&
     showMobileGlobalShell &&
     props.communityShell.destination.kind === "discover";
+  const welcome = props.welcomeSurface ?? null;
+  const pageSurface = props.welcomeOverlay ? <>{props.mainSurface}{props.welcomeOverlay}</> : props.mainSurface;
+  const isTopCommunityNav =
+    !props.showMobileAppShell &&
+    props.communityShell.showDesktopCommunityNav &&
+    !welcome &&
+    communityLayout.navigation.position === "top";
+  // Channels keeps Polynet's bar above the page; the Display menu sits at its
+  // right, where Classroom's tab bar has it. Everyone can pick the chat view,
+  // so it always shows.
+  const sideBarDisplayMenu =
+    !props.showMobileAppShell &&
+    props.communityShell.showDesktopCommunityNav &&
+    !welcome &&
+    !isTopCommunityNav ? <WebCommunityDisplayMenu placement="bar" look={draftLookState} canTryLooks={canTryLooks} /> : null;
   const shellHeader = props.showMobileAppShell ? (
     isMobileDedicatedRoot || isMobileDiscoverRoot ? null : (
       <WebMobileTopBar
@@ -118,16 +200,36 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       />
     )
   ) : (
-    <WebDesktopShellHeader {...props.desktopHeader} />
+    <WebDesktopShellHeader
+      {...props.desktopHeader}
+      trailing={<>{sideBarDisplayMenu}<WebAccountSettingsButton communityShell={props.communityShell} placement="bar" /></>}
+      communityTheme={isTopCommunityNav ? null : communityThemeAttribute}
+    />
   );
-
-  const isTopCommunityNav =
-    !props.showMobileAppShell &&
-    props.communityShell.showDesktopCommunityNav &&
-    communityLayout.navigation.position === "top";
-  const desktopCommunityNav = props.communityShell.showDesktopCommunityNav ? (
-    isTopCommunityNav ? (
-      <WebCommunityTopNav communityShell={props.communityShell} />
+  const onLayoutPositionChange = props.onCommunityLayoutPositionChange;
+  useEffect(() => {
+    onLayoutPositionChange?.(isTopCommunityNav ? "top" : "side");
+  }, [isTopCommunityNav, onLayoutPositionChange]);
+  // Classroom has no agent page: an agent link opens the floating agent over
+  // the community's home tab.
+  const onOpenCommunityAgent = props.onOpenCommunityAgent;
+  const agentTabInTopLayout = isTopCommunityNav && activeCommunityTab === "agent";
+  useEffect(() => {
+    if (!agentTabInTopLayout) return;
+    onSelectCommunityTab(communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home);
+    onOpenCommunityAgent?.();
+  }, [agentTabInTopLayout, onSelectCommunityTab, onOpenCommunityAgent, communityLayout.navigation.home]);
+  // Classroom: Settings and Workflows open full screen under a slim bar.
+  const isTopOwnerPage = isTopCommunityNav && isCommunityOwnerPage(props.communityShell.communityTab);
+  const desktopCommunityNav = props.communityShell.showDesktopCommunityNav && !welcome ? (
+    isTopOwnerPage ? (
+      <WebCommunityOwnerBar
+        communityShell={props.communityShell}
+        homeTab={communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home}
+        trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} canTryLooks={canTryLooks} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>}
+      />
+    ) : isTopCommunityNav ? (
+      <WebCommunityTopNav communityShell={props.communityShell} trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} canTryLooks={canTryLooks} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>} />
     ) : (
       <WebCommunityNavSurface
         communityShell={props.communityShell}
@@ -135,14 +237,86 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       />
     )
   ) : null;
+  // Draft Substack-feel looks for Channels (see useDraftLook); off in Classroom.
+  const channelsFeelAttribute = desktopCommunityNav && !isTopCommunityNav && draftLook.feel !== "current" ? draftLook.feel : undefined;
+  // Wide chat: messages full width from the left edge, in either layout.
+  const chatViewAttribute = desktopCommunityNav && draftLook.chatView === "wide" ? "wide" : undefined;
+  // Draft rail looks, set on <html> so the rail and the frame around the
+  // community both see them. The rail reads the community's colours, copied
+  // from the themed surface, so it never wears the theme's fonts.
+  const railColorAttribute = draftLook.railColor !== "polynet" && communityThemeAttribute ? draftLook.railColor : null;
+  const railSizeAttribute = draftLook.railSize === "large" ? "large" : null;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (railSizeAttribute) root.dataset.railSize = railSizeAttribute;
+    else delete root.dataset.railSize;
+  }, [railSizeAttribute]);
+  useEffect(() => {
+    const root = document.documentElement;
+    const names = ["--bg-workspace", "--pn-accent", "--pn-on-accent", "--text-primary"];
+    const clear = () => {
+      delete root.dataset.railColor;
+      names.forEach((name) => root.style.removeProperty(`--rail-feel-${name.slice(2)}`));
+    };
+    if (!railColorAttribute || !communityThemeAttribute) {
+      clear();
+      return;
+    }
+    let frame = 0;
+    let tries = 0;
+    const copy = () => {
+      const surface = document.querySelector<HTMLElement>(`[data-community-theme="${CSS.escape(communityThemeAttribute)}"]`);
+      const style = surface ? getComputedStyle(surface) : null;
+      if (!style || !style.getPropertyValue("--pn-accent").trim()) {
+        if (tries++ < 60) frame = window.requestAnimationFrame(copy);
+        return;
+      }
+      names.forEach((name) => root.style.setProperty(`--rail-feel-${name.slice(2)}`, style.getPropertyValue(name).trim()));
+      root.dataset.railColor = railColorAttribute;
+    };
+    copy();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      clear();
+    };
+  }, [railColorAttribute, communityThemeAttribute, communityTheme.theme]);
+  // Course card style, pills, description and progress from the theme (set in
+  // Customize), on <html> for styles/course-cards.css.
+  const courseCardsAttribute = communityThemeAttribute ? courseCardLookWords(communityTheme.theme) : null;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (courseCardsAttribute) root.dataset.courseCards = courseCardsAttribute;
+    else delete root.dataset.courseCards;
+  }, [courseCardsAttribute]);
+  // Classroom shows invite-only channels as pods instead of topic chips.
+  const podChannels = isTopCommunityNav
+    ? props.communityShell.communityChannels.filter((channel) => channel.access_mode === "restricted").sort((a, b) => a.position - b.position)
+    : [];
+  communityFrame.pods = isTopCommunityNav ? {
+    place: PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside",
+    pods: podChannels,
+    unread: Object.fromEntries(podChannels.map((channel) => [channel.slug, Boolean(props.communityShell.communityChannelIndicators[channel.slug]?.chat)])),
+    selectedSlug: props.communityShell.communityTab === "chat" ? props.communityShell.selectedCommunityChannelSlug || null : null,
+    onOpen: (channel) => {
+      props.communityShell.onSelectCommunityTab("chat");
+      props.communityShell.onSelectCommunityChannel(channel);
+    },
+    onLeave: () => {
+      const home = props.communityShell.communityChannels.find((channel) => channel.is_general)
+        ?? props.communityShell.communityChannels.find((channel) => channel.access_mode !== "restricted");
+      if (home) props.communityShell.onSelectCommunityChannel(home);
+    },
+  } : null;
+  const showPodsCard = Boolean(communityFrame.pods && communityFrame.pods.place === "aside" && podChannels.length > 0);
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
-  const mobileGlobalShellContent = isMobileCommunityHome ? (
+  const hasCommunityAside = communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat");
+  const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
       presentation="mobile-home"
     />
-  ) : isMobileDedicatedRoot ? null : props.mainSurface;
+  ) : isMobileDedicatedRoot ? null : pageSurface);
   const mobileGlobalShellLabel = isMobileCommunityHome
     ? "Community home"
     : props.communityShell.mobileRootPage === "agent"
@@ -164,7 +338,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     >
       {mobileGlobalShellContent}
     </WebMobileGlobalShell>
-  ) : props.mainSurface;
+  ) : welcome ?? pageSurface;
   // On desktop the community surface below carries the theme. Elsewhere the
   // page is wrapped without a box of its own, so layout is unchanged.
   const themedMainSurface =
@@ -175,19 +349,24 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     ) : unthemedMainSurface;
   // With the top tab bar the page sits under it, beside the layout's aside.
   const mainSurface = isTopCommunityNav ? (
-    <div className={`community-top-body${communityAsideBlocks.length > 0 ? " has-aside" : ""}`}>
+    <div className={`community-top-body${hasCommunityAside ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
       <div className="community-top-main">{themedMainSurface}</div>
-      <WebCommunityAside blocks={communityAsideBlocks} />
+      {hasCommunityAside ? <WebCommunityAside blocks={communityAsideBlocks} pods={communityFrame.pods} /> : null}
+    </div>
+  ) : channelsFeelAttribute === "publication" ? (
+    <div className="channels-feel-body">
+      <WebChannelsFeelMasthead tab={activeCommunityTab} home={communityLayout.navigation.home} />
+      {themedMainSurface}
     </div>
   ) : themedMainSurface;
-  const desktopSettingsSidebar = (
-    <WebSettingsSidebar settingsSidebar={props.settingsSidebar} />
-  );
-  const desktopFrameMode = desktopCommunityNav
+  // Your settings bring their own menu (WebYourSettingsNav), so the frame
+  // has one column there too.
+  // Channels: Settings swaps the community's menu for its own (with a way
+  // back), like Substack, instead of showing two menus side by side.
+  const settingsReplacesNav = Boolean(desktopCommunityNav) && !isTopCommunityNav && props.communityShell.communityTab === "settings";
+  const desktopFrameMode = desktopCommunityNav && !settingsReplacesNav
     ? isTopCommunityNav ? "community-top" : "community"
-    : props.isGlobalSettings
-      ? "settings"
-      : "single";
+    : "single";
 
   const { rootClassName: chromeRootClassName, shellClassName } = buildWebShellChromeClassNames({
     showMobileAppShell: props.showMobileAppShell,
@@ -230,29 +409,37 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
         {props.communityShell.showDesktopCommunityRail ? (
           <div
             className={`product-shell-surface product-shell-surface--${desktopFrameMode}`}
-            data-community-theme={desktopCommunityNav ? communityThemeAttribute ?? undefined : undefined}
+            data-community-theme={desktopCommunityNav || props.isGlobalSettings ? communityThemeAttribute ?? undefined : undefined}
+            data-channels-feel={channelsFeelAttribute}
+            data-chat-view={chatViewAttribute}
           >
-            {desktopFrameMode === "settings" ? desktopSettingsSidebar : null}
-            {desktopCommunityNav}
+            {settingsReplacesNav ? null : desktopCommunityNav}
             {mainSurface}
           </div>
         ) : desktopCommunityNav ? (
           <div
-            className={`product-shell-surface product-shell-surface--${isTopCommunityNav ? "community-top" : "community"}`}
+            className={`product-shell-surface product-shell-surface--${settingsReplacesNav ? "single" : isTopCommunityNav ? "community-top" : "community"}`}
             data-community-theme={communityThemeAttribute ?? undefined}
+            data-channels-feel={channelsFeelAttribute}
+            data-chat-view={chatViewAttribute}
           >
-            {desktopCommunityNav}
+            {settingsReplacesNav ? null : desktopCommunityNav}
             {mainSurface}
           </div>
         ) : (
-          <>
-            {desktopSettingsSidebar}
-            {mainSurface}
-          </>
+          mainSurface
         )}
       </div>
 
-      {props.globalOverlays}
+      {communityThemeAttribute ? (
+        // Inside a community, Messages, the floating agent and other overlays
+        // take its look too, in either layout.
+        <div className="community-theme-scope-overlays" data-community-theme={communityThemeAttribute} style={{ display: "contents" }}>
+          {props.globalOverlays}
+        </div>
+      ) : (
+        props.globalOverlays
+      )}
     </div>
     </WebCommunityFrameContext.Provider>
   );

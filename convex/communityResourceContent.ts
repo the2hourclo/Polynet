@@ -93,6 +93,76 @@ export async function hydrateCommunityResourceBody(
   };
 }
 
+// A pause this long between saves starts a new version in the history.
+export const COMMUNITY_RESOURCE_REVISION_SESSION_GAP_MS = 10 * 60 * 1000;
+export const COMMUNITY_RESOURCE_REVISION_KEEP = 40;
+
+export type CommunityResourceRevisionLike = {
+  _id: any;
+  communityId: any;
+  resourceId: any;
+  title: string;
+  bodyMd: string;
+  bodyChars: number;
+  bodyHash: string;
+  savedAt: number;
+  createdAt: number;
+};
+
+export async function listCommunityResourceRevisionRows(
+  ctx: { db: any },
+  resourceId: any,
+  limit = COMMUNITY_RESOURCE_REVISION_KEEP,
+): Promise<CommunityResourceRevisionLike[]> {
+  return (await ctx.db
+    .query("communityResourceRevisions" as any)
+    .withIndex("by_resource_createdAt", (q: any) => q.eq("resourceId", resourceId))
+    .order("desc")
+    .take(limit)) as CommunityResourceRevisionLike[];
+}
+
+// Keeps the body about to be replaced as a version, once per editing session
+// (or always, for a restore, so a restore can itself be undone).
+async function keepCommunityResourceRevision(
+  ctx: { db: any },
+  args: {
+    communityId: any;
+    resourceId: any;
+    nextBodyHash: string | null;
+    previousBodyMd: string;
+    previousSavedAt: number;
+    previousTitle?: string;
+    nowMs: number;
+    force?: boolean;
+  },
+): Promise<void> {
+  if (!args.previousBodyMd.trim()) return;
+  const previousHash = await sha256HexText(args.previousBodyMd);
+  if (previousHash === args.nextBodyHash) return;
+  const recent = await listCommunityResourceRevisionRows(ctx, args.resourceId, COMMUNITY_RESOURCE_REVISION_KEEP + 5);
+  const latest = recent[0] ?? null;
+  if (!args.force && latest && args.nowMs - latest.createdAt < COMMUNITY_RESOURCE_REVISION_SESSION_GAP_MS) return;
+  if (latest?.bodyHash === previousHash) return;
+  let title = args.previousTitle;
+  if (title === undefined) {
+    const resource = (await ctx.db.get(args.resourceId)) as { title?: string } | null;
+    title = String(resource?.title ?? "");
+  }
+  await ctx.db.insert("communityResourceRevisions" as any, {
+    communityId: args.communityId,
+    resourceId: args.resourceId,
+    title,
+    bodyMd: args.previousBodyMd,
+    bodyChars: args.previousBodyMd.trim().length,
+    bodyHash: previousHash,
+    savedAt: args.previousSavedAt,
+    createdAt: args.nowMs,
+  });
+  for (const stale of recent.slice(COMMUNITY_RESOURCE_REVISION_KEEP - 1)) {
+    await ctx.db.delete(stale._id);
+  }
+}
+
 export async function writeCommunityResourceBodyContent(
   ctx: { db: any },
   args: {
@@ -102,6 +172,10 @@ export async function writeCommunityResourceBodyContent(
     nowMs: number;
     maxChars?: number;
     resourceUpdatedAt?: number;
+    /** The title the replaced body had, when the caller has already changed it. */
+    previousTitle?: string;
+    /** Always keep the replaced body as a version (a restore). */
+    forceRevision?: boolean;
   },
 ): Promise<{
   bodyMd: string | null;
@@ -116,6 +190,17 @@ export async function writeCommunityResourceBodyContent(
     ? Math.floor(args.resourceUpdatedAt)
     : args.nowMs;
   const existing = await getCommunityResourceContentRow(ctx, args.resourceId);
+  const legacy = existing ? null : (await ctx.db.get(args.resourceId)) as { bodyMd?: string; updatedAt?: number } | null;
+  await keepCommunityResourceRevision(ctx, {
+    communityId: args.communityId,
+    resourceId: args.resourceId,
+    nextBodyHash: bodyMd ? await sha256HexText(bodyMd) : null,
+    previousBodyMd: String(existing?.bodyMd ?? legacy?.bodyMd ?? ""),
+    previousSavedAt: Number(existing?.updatedAt ?? legacy?.updatedAt ?? args.nowMs),
+    previousTitle: args.previousTitle,
+    nowMs: args.nowMs,
+    force: args.forceRevision,
+  });
   if (!bodyMd) {
     if (existing) await ctx.db.delete(existing._id as any);
     await ctx.db.patch(args.resourceId as any, {
@@ -174,4 +259,8 @@ export async function deleteCommunityResourceBodyContent(
 ): Promise<void> {
   const existing = await getCommunityResourceContentRow(ctx, resourceId);
   if (existing) await ctx.db.delete(existing._id as any);
+  // The page is gone, so its history goes with it.
+  for (const revision of await listCommunityResourceRevisionRows(ctx, resourceId, COMMUNITY_RESOURCE_REVISION_KEEP + 5)) {
+    await ctx.db.delete(revision._id);
+  }
 }

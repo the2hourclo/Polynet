@@ -44,6 +44,62 @@ export type CommunityThemeV1 = {
   // image shows is the course's own cover framing (focus and zoom).
   course_cover_ratio: "auto" | "16:9" | "3:2" | "4:3" | "1:1" | "21:9";
   course_card_size: "default" | "small" | "medium" | "large";
+  // Cards per row: "auto" lets Card size (or the page style) decide; a number
+  // fixes it on desktop, wrapping only when cards would get narrower than
+  // 160px. Phones show one or two per row. "default" spacing between cards is
+  // the page style's own.
+  course_columns: "auto" | "1" | "2" | "3" | "4";
+  course_columns_phone: "1" | "2";
+  course_gap: "default" | "tight" | "roomy";
+  // How each course card looks, after Substack's post cards and archive:
+  // "cover" (picture on top), "list" (a row with a small picture on the
+  // right), "overlay" (the title on the picture), "text" (no picture). Pills
+  // are small lesson-count and status labels; progress shows as a bar, a ring
+  // or "3/6 lessons".
+  course_card_style: "classroom" | "cover" | "list" | "overlay" | "text";
+  course_card_pills: "hide" | "show";
+  course_card_description: "show" | "hide";
+  course_card_progress: "bar" | "ring" | "fraction";
+  course_card_edge: "border" | "shadow" | "none";
+  // The colour of the text panel under a boxed card's cover: "shade" (a clear
+  // step from the card, a little darker on light schemes and lighter on dark
+  // ones, like a classic course card), "tint" (a faint wash), "accent" (a soft
+  // wash of the accent), "plain" (the card colour) or "custom", which uses
+  // course_card_panel_color. Text on the panel stays readable either way.
+  course_card_panel: "shade" | "tint" | "accent" | "plain" | "custom";
+  // "#RRGGBB" for course_card_panel "custom"; "" otherwise.
+  course_card_panel_color: string;
+  // "tint" prints course covers onto a soft wash of the accent (light schemes),
+  // so pale drawings and dark screenshots share one colour.
+  course_cover_plate: "none" | "tint";
+  // "whole" shows each cover in full inside the cover box (wide banners with
+  // words on them), instead of cropping it to fill the box.
+  course_cover_fit: "crop" | "whole";
+  // "hide" when the banner artwork already carries the community's name, so
+  // the side column doesn't print the name on top of it.
+  banner_name: "show" | "hide";
+  // Draft options (2026-10-25), kept until a default is picked. How the
+  // Channels layout's pages are laid out: "current" is Polynet's look; the
+  // others take after Substack ("quiet" admin, "reader" reading view,
+  // "publication" site with a masthead). Classroom ignores it.
+  channels_look: "current" | "quiet" | "reader" | "publication";
+  // How chat messages sit on the page: "centered" keeps the look's reading
+  // column (joins and dates centred); "wide" runs every message full width
+  // from the left edge, with notices, dates and the message box lined up on
+  // the left too. Members can pick their own in the Display menu.
+  chat_view: "centered" | "wide";
+  // The far-left community rail while this community is open: its icon size,
+  // and "polynet" (Polynet's own rail), "blend" (the page colour), "tint" (a
+  // wash of the accent) or "brand" (solid accent).
+  rail_size: "standard" | "large";
+  rail_color: "polynet" | "blend" | "tint" | "brand";
+  // The "More from this creator" list of the owner's other communities at
+  // the foot of the chat's members panel. Off unless the owner turns it on.
+  sibling_communities: "hide" | "show";
+  // Where Classroom shows a member's pods (their invite-only rooms): a card
+  // at the top of the right column, or a stack of faces in the header that
+  // opens the list. Channels lists them with the other channels either way.
+  pods_place: "aside" | "header";
 };
 
 export type CommunityThemeProblem = {
@@ -56,8 +112,8 @@ export type CommunityThemeResult =
   | { ok: true; theme: CommunityThemeV1 }
   | { ok: false; problems: CommunityThemeProblem[] };
 
-// Faces a theme may use. "polynet" faces ship with Polynet (Excalifont is
-// still to be added; the AIEB preview inlines it); "google" faces load
+// Faces a theme may use. "polynet" faces ship with Polynet (Excalifont from
+// apps/web/public/fonts/excalifont.woff2); "google" faces load
 // from Google Fonts; "system" faces are installed on the device. Display faces
 // are for headings only: long text set in them is hard to read.
 type CommunityThemeFont = {
@@ -114,8 +170,27 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   shadow: "none",
   density: "comfortable",
   media_plate: "none",
-  course_cover_ratio: "auto",
-  course_card_size: "default",
+  course_cover_ratio: "16:9",
+  course_card_size: "medium",
+  course_columns: "auto",
+  course_columns_phone: "1",
+  course_gap: "default",
+  course_card_style: "classroom",
+  course_card_pills: "hide",
+  course_card_description: "show",
+  course_card_progress: "bar",
+  course_card_edge: "border",
+  course_card_panel: "shade",
+  course_card_panel_color: "",
+  course_cover_plate: "none",
+  course_cover_fit: "crop",
+  banner_name: "show",
+  channels_look: "current",
+  chat_view: "centered",
+  rail_size: "standard",
+  rail_color: "polynet",
+  sibling_communities: "hide",
+  pods_place: "aside",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -142,6 +217,24 @@ const ENUMS = {
   media_plate: ["none", "light"],
   course_cover_ratio: ["auto", "16:9", "3:2", "4:3", "1:1", "21:9"],
   course_card_size: ["default", "small", "medium", "large"],
+  course_columns: ["auto", "1", "2", "3", "4"],
+  course_columns_phone: ["1", "2"],
+  course_gap: ["default", "tight", "roomy"],
+  course_card_style: ["classroom", "cover", "list", "overlay", "text"],
+  course_card_pills: ["hide", "show"],
+  course_card_description: ["show", "hide"],
+  course_card_progress: ["bar", "ring", "fraction"],
+  course_card_edge: ["border", "shadow", "none"],
+  course_card_panel: ["shade", "tint", "accent", "plain", "custom"],
+  course_cover_plate: ["none", "tint"],
+  course_cover_fit: ["crop", "whole"],
+  banner_name: ["show", "hide"],
+  channels_look: ["current", "quiet", "reader", "publication"],
+  chat_view: ["centered", "wide"],
+  rail_size: ["standard", "large"],
+  rail_color: ["polynet", "blend", "tint", "brand"],
+  sibling_communities: ["hide", "show"],
+  pods_place: ["aside", "header"],
 } as const;
 
 const RANGES = {
@@ -152,7 +245,7 @@ const RANGES = {
 } as const;
 
 const KNOWN_KEYS = new Set<string>([
-  "version", "schemes", "font_body", "font_heading", "font_mono",
+  "version", "schemes", "font_body", "font_heading", "font_mono", "course_card_panel_color",
   ...Object.keys(ENUMS), ...Object.keys(RANGES),
 ]);
 
@@ -212,6 +305,35 @@ export function nearestPassingColor(color: string, against: string, ratio: numbe
     if (contrastRatio(candidate, against) >= ratio) return candidate;
   }
   return null;
+}
+
+// Grey text floors, measured against the card surface. Dark schemes get
+// higher floors: a grey that passes on paper still reads as grey-on-black.
+const TEXT_FLOORS: Record<CommunityThemeScheme, { secondary: number; muted: number; faint: number }> = {
+  light: { secondary: 7, muted: 4.5, faint: 4.5 },
+  dark: { secondary: 15, muted: 12, faint: 9 },
+};
+
+// Secondary, muted and faint text for a scheme, each lifted (toward the text
+// colour's end) until it meets its floor on both the page and the card.
+export function communityTextLevels(c: CommunityThemeColors, scheme: CommunityThemeScheme) {
+  const floors = TEXT_FLOORS[scheme];
+  const text = parseHex(c.text);
+  const muted = parseHex(c.muted);
+  const background = parseHex(c.background);
+  const lift = (start: Rgb | null, ratio: number) => {
+    if (!start || !text) return c.muted;
+    for (let step = 0; step <= 100; step += 1) {
+      const candidate = toHex(mix(start, text, step / 100));
+      if (contrastRatio(candidate, c.surface) >= ratio && contrastRatio(candidate, c.background) >= ratio) return candidate;
+    }
+    return c.text;
+  };
+  return {
+    secondary: lift(text && muted ? mix(muted, text, 0.7) : null, floors.secondary),
+    muted: lift(muted, floors.muted),
+    faint: lift(muted && background ? mix(muted, background, 0.25) : null, floors.faint),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -346,6 +468,21 @@ export function normalizeCommunityTheme(raw: unknown): CommunityThemeResult {
     }
     (theme as Record<string, unknown>)[key] = value;
   }
+  if (raw.course_card_panel_color !== undefined) {
+    const value = typeof raw.course_card_panel_color === "string" ? raw.course_card_panel_color.trim() : null;
+    if (value === null || (value !== "" && !parseHex(value))) {
+      problems.push({ path: "course_card_panel_color", message: "course_card_panel_color is a colour like \"#2B2B2B\", or \"\" for none." });
+    } else {
+      theme.course_card_panel_color = value.toUpperCase();
+    }
+  }
+  if (theme.course_card_panel === "custom" && !theme.course_card_panel_color) {
+    problems.push({
+      path: "course_card_panel_color",
+      message: "A custom card panel needs a colour.",
+      suggestion: "Set course_card_panel_color to a colour like \"#2B2B2B\", or pick another course_card_panel.",
+    });
+  }
 
   return problems.length ? { ok: false, problems } : { ok: true, theme };
 }
@@ -396,11 +533,71 @@ function shadows(theme: CommunityThemeV1, scheme: CommunityThemeScheme): { card:
 const DENSITY = { compact: 0.85, comfortable: 1, roomy: 1.15 } as const;
 
 // Minimum card width per size; "default" keeps Polynet's two-column catalog.
-const COURSE_CARD_MIN_WIDTH = { small: 220, medium: 300, large: 420 } as const;
+const COURSE_CARD_MIN_WIDTH = { small: 200, medium: 260, large: 360 } as const;
 
 function courseColumns(theme: CommunityThemeV1): string {
+  if (theme.course_columns !== "auto") return fixedCourseColumns(Number(theme.course_columns));
   if (theme.course_card_size === "default") return "repeat(2, minmax(0, 1fr))";
   return `repeat(auto-fill, minmax(min(100%, ${COURSE_CARD_MIN_WIDTH[theme.course_card_size]}px), 1fr))`;
+}
+
+// At most `count` cards per row. Each column is at least its share of the row
+// less the widest gap (2.5rem), so `count` always fit, and the row wraps
+// before a card gets narrower than 160px.
+function fixedCourseColumns(count: number): string {
+  if (count === 1) return "minmax(0, 1fr)";
+  return `repeat(auto-fill, minmax(max(min(100%, 160px), calc((100% - ${count - 1} * 2.5rem) / ${count})), 1fr))`;
+}
+
+const COURSE_GAP = { tight: "0.75rem", roomy: "2.5rem" } as const;
+
+// Every text size inside a community is one of these roles, so one text-size
+// setting moves all of them together. Sizes are Polynet's defaults at 100%.
+export const COMMUNITY_TYPE_ROLES = {
+  display: 32, title: 24, heading: 22, subheading: 18, reading: 16, body: 15, ui: 14, small: 13, label: 12, meta: 11, micro: 10,
+} as const;
+
+// What each role renders at, at 100%. The roles above are the sizes Polynet's
+// CSS is written in; communities show them a step larger, close to Skool's
+// reading sizes (16 body, 13 smallest), with the small end raised the most.
+export const COMMUNITY_TYPE_SIZES: Record<keyof typeof COMMUNITY_TYPE_ROLES, number> = {
+  display: 34, title: 26, heading: 23, subheading: 20, reading: 17, body: 16, ui: 16, small: 15, label: 13, meta: 13, micro: 11,
+};
+
+function typeRoles(scale: number): Record<string, string> {
+  const px = (size: number) => `${Math.round(size * scale * 10) / 10}px`;
+  const roles: Record<string, string> = {};
+  for (const [role, size] of Object.entries(COMMUNITY_TYPE_SIZES)) roles[`--pn-type-${role}`] = px(size);
+  // Page titles still shrink on narrow screens, at the same proportions.
+  roles["--pn-type-display"] = `clamp(${px(26)}, ${Math.round(3 * scale * 100) / 100}vw, ${px(COMMUNITY_TYPE_SIZES.display)})`;
+  return roles;
+}
+
+// The text panel under a boxed course card's cover. Presets are mixes of the
+// scheme's own colours, so they follow its text colours; a custom colour gets
+// whichever text colour reads on it.
+function courseCardPanel(
+  theme: CommunityThemeV1,
+  c: CommunityThemeColors,
+  scheme: CommunityThemeScheme,
+): { background: string; text: string; muted: string } {
+  const mix = (a: string, pct: number, b: string) => `color-mix(in srgb, ${a} ${pct}%, ${b})`;
+  const own = { text: c.text, muted: mix(c.text, 72, c.surface) };
+  switch (theme.course_card_panel) {
+    case "plain": return { background: c.surface, ...own };
+    case "tint": return { background: mix(c.accent, 4, mix(c.text, 2.5, c.surface)), ...own };
+    case "accent": return { background: mix(c.accent, 14, c.surface), ...own };
+    case "custom": {
+      const rgb = parseHex(theme.course_card_panel_color);
+      if (!rgb) break;
+      const background = toHex(rgb);
+      const text = contrastRatio(c.text, background) >= 4.5 ? c.text : contrastRatio("#111111", background) >= contrastRatio("#FFFFFF", background) ? "#111111" : "#FFFFFF";
+      return { background, text, muted: mix(text, 72, background) };
+    }
+    default: break;
+  }
+  // A clear step down from the card (Rashid, 2026-10-26: "a darker shade").
+  return { background: mix(c.text, scheme === "dark" ? 14 : 10, c.surface), ...own };
 }
 
 // The variables a community area gets for one scheme: the public --pn-* set
@@ -413,16 +610,23 @@ export function communityThemeVariables(
   const c = theme.schemes[scheme];
   if (!c) throw new Error(`The theme has no ${scheme} scheme.`);
   const font = (name: string) => COMMUNITY_THEME_FONTS[name]?.stack ?? COMMUNITY_THEME_FONTS["IBM Plex Sans"].stack;
-  const link = nearestPassingColor(c.accent, c.background, 4.5) ?? c.text;
+  // Accent-coloured text sits on the page and on cards, so it passes on both.
+  const onPage = nearestPassingColor(c.accent, c.background, 4.5);
+  const link = (onPage && nearestPassingColor(onPage, c.surface, 4.5)) ?? c.text;
   const shadow = shadows(theme, scheme);
   const upper = theme.heading_case === "upper";
   const plate = theme.media_plate === "light" && scheme === "dark";
+  const coverTint = theme.course_cover_plate === "tint" && scheme === "light";
+  const sizedCourseGrid = theme.course_columns === "auto" && theme.course_card_size !== "default";
+  const ownerCourseGrid = sizedCourseGrid || theme.course_columns !== "auto";
+  const grey = communityTextLevels(c, scheme);
+  const panel = courseCardPanel(theme, c, scheme);
 
   const pn: Record<string, string> = {
     "--pn-background": c.background,
     "--pn-surface": c.surface,
     "--pn-text": c.text,
-    "--pn-muted": c.muted,
+    "--pn-muted": grey.muted,
     "--pn-border": c.border,
     "--pn-accent": c.accent,
     "--pn-on-accent": c.on_accent,
@@ -436,7 +640,10 @@ export function communityThemeVariables(
     "--pn-heading-case": upper ? "uppercase" : "none",
     "--pn-heading-tracking": upper ? "0.04em" : "normal",
     "--pn-type-scale": String(theme.type_scale),
+    ...typeRoles(theme.type_scale),
     "--pn-numerals": theme.numerals === "tabular" ? "tabular-nums" : "normal",
+    // Polynet's own corners scale with the theme's radius (16px is Polynet's default).
+    "--pn-radius-scale": String(Math.round((theme.radius / DEFAULT_COMMUNITY_THEME.radius) * 1000) / 1000),
     "--pn-radius": `${theme.radius}px`,
     "--pn-radius-card": cardRadius(theme),
     "--pn-radius-card-top": cardTopRadius(theme),
@@ -447,9 +654,26 @@ export function communityThemeVariables(
     "--pn-space": String(DENSITY[theme.density]),
     "--pn-media-plate": plate ? "#F4F4F0" : "transparent",
     "--pn-media-plate-pad": plate ? "8px" : "0px",
+    "--pn-cover-plate": coverTint ? `color-mix(in srgb, ${c.accent} 9%, ${c.surface})` : "var(--bg-card-alt)",
+    "--pn-cover-blend": coverTint ? "multiply" : "normal",
+    "--pn-course-panel": panel.background,
+    "--pn-course-panel-text": panel.text,
+    "--pn-course-panel-muted": panel.muted,
     "--pn-course-columns": courseColumns(theme),
+    // Set only when the owner picked them, so page styles keep their own
+    // columns and spacing otherwise ("initial" makes var() use its fallback).
+    "--pn-course-columns-owner": ownerCourseGrid ? courseColumns(theme) : "initial",
+    // A picked card size fills the screen: the catalog widens (up to 90rem)
+    // and each row fits as many cards of that size as there is room for.
+    "--pn-course-catalog-max-owner": sizedCourseGrid ? "90rem" : "initial",
+    "--pn-course-columns-phone": `repeat(${theme.course_columns_phone}, minmax(0, 1fr))`,
+    "--pn-course-gap-owner": theme.course_gap === "default" ? "initial" : COURSE_GAP[theme.course_gap],
     "--pn-course-cover-ratio": theme.course_cover_ratio === "auto" ? "auto" : theme.course_cover_ratio.replace(":", " / "),
     "--pn-course-cover-height": theme.course_cover_ratio === "auto" ? "clamp(118px, 17vw, 158px)" : "auto",
+    "--pn-banner-name": theme.banner_name === "hide" ? "hidden" : "visible",
+    "--pn-siblings-display": theme.sibling_communities === "show" ? "flex" : "none",
+    // With no name to carry, the dark fade only has to hold the icons.
+    "--pn-banner-scrim": theme.banner_name === "hide" ? "0.45" : "1",
     // <polynet-account> on community sites.
     "--polynet-accent": c.accent,
     "--polynet-on-accent": c.on_accent,
@@ -483,13 +707,13 @@ export function communityThemeVariables(
     "--text-primary": c.text,
     "--text-ink-primary": c.text,
     "--text-selected": c.text,
-    "--text-secondary": mixed(c.text, 70, c.muted),
-    "--text-ink-secondary": mixed(c.text, 70, c.muted),
-    "--text-muted": c.muted,
-    "--text-ink-muted": c.muted,
-    "--text-faint": mixed(c.muted, 75, c.background),
-    "--text-ink-faint": mixed(c.muted, 75, c.background),
-    "--icon-default": c.muted,
+    "--text-secondary": grey.secondary,
+    "--text-ink-secondary": grey.secondary,
+    "--text-muted": grey.muted,
+    "--text-ink-muted": grey.muted,
+    "--text-faint": grey.faint,
+    "--text-ink-faint": grey.faint,
+    "--icon-default": grey.muted,
     "--icon-hover": c.text,
     "--border-default": c.border,
     "--stroke-default": c.border,
@@ -522,6 +746,19 @@ export function communityThemeVariables(
     "--chat-link": link,
     "--text-link-hover": mixed(link, 84, c.text),
     "--chat-link-hover": mixed(link, 84, c.text),
+    // Polynet defines these at :root from its own text colour, so without them
+    // a dark community inside a light Polynet showed messages in Polynet's
+    // dark ink on the community's dark cards.
+    // Text on an accent fill (badges, active chips); unset, it fell back to white.
+    "--text-on-accent": c.on_accent,
+    "--chat-author-text": c.text,
+    "--chat-body-text": c.text,
+    "--chat-meta-text": grey.muted,
+    "--chat-system-text": grey.faint,
+    "--composer-focus-ring": mixed(c.text, 44, "transparent"),
+    "--accent-primary": c.accent,
+    "--surface-app": c.background,
+    "--surface-header": c.background,
     "--bg-button": c.button,
     "--bg-button-hover": mixed(c.button, 88, c.background),
     "--bg-button-text": c.on_button,
@@ -530,6 +767,11 @@ export function communityThemeVariables(
     "--conversation-primary-action-foreground": c.on_button,
     "--hover-overlay": mixed(c.text, 6, "transparent"),
     "--active-overlay": mixed(c.text, 10, "transparent"),
+    // Polynet's shared corner sizes, at the theme's radius. Scaled exactly like
+    // --pn-radius-scale corners, so rows that use either one match.
+    "--radius-sm": `calc(8px * var(--pn-radius-scale))`,
+    "--radius-md": `calc(14px * var(--pn-radius-scale))`,
+    "--radius-lg": `calc(16px * var(--pn-radius-scale))`,
     "--font-sans": font(theme.font_body),
     "--font-mono": font(theme.font_mono),
   };
@@ -555,6 +797,13 @@ export function compileCommunityThemeCss(theme: CommunityThemeV1, scope: string)
         block(scope, communityThemeVariables(theme, "dark"), "dark"),
         block(`:root[data-theme="light"] ${scope}`, communityThemeVariables(theme, "light"), "light"),
       ];
+  // A cover's framing is written inline (StableFramedMedia), so showing it
+  // whole has to outrank that framing. The bands around it are the media
+  // plate when the theme has one (images drawn on white get white-ish bands),
+  // otherwise the cover's own background.
+  if (theme.course_cover_fit === "whole") {
+    parts.push(`${scope} .resource-course-card-cover-image {\n  inset: 0 !important;\n  width: 100% !important;\n  height: 100% !important;\n  object-fit: contain !important;\n  padding: 0 !important;\n}`);
+  }
   return `/* Community theme v${theme.version}; compiled, do not edit. */\n${parts.join("\n\n")}\n`;
 }
 

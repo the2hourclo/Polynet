@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { communityThemeWithBothSchemes } from "../../../../shared/communityThemePalettes";
+import { useMemberPickEverywhere } from "./communityLookPreference";
 import {
   compileCommunityThemeCss,
   communityThemeFontStylesheetUrl,
@@ -15,6 +17,20 @@ const FONT_ELEMENT_ID = "polynet-community-theme-font";
 /** Fired after a manager publishes, so the open community picks up its new look. */
 export const COMMUNITY_THEME_PUBLISHED_EVENT = "polynet:community-theme-published";
 
+// Settings → Appearance → Customize shows the real community in a same-origin
+// frame opened with this query flag. The editor posts its unsaved draft to the
+// frame, which wears it in place of the published look. Read once at load, so
+// the frame stays a preview while the owner clicks around inside it.
+export const APPEARANCE_PREVIEW_PARAM = "appearance_preview";
+export const APPEARANCE_PREVIEW_THEME_MESSAGE = "polynet:appearance-preview-theme";
+export const APPEARANCE_PREVIEW_READY_MESSAGE = "polynet:appearance-preview-ready";
+export const IS_APPEARANCE_PREVIEW_FRAME = (() => {
+  try {
+    return window.parent !== window && new URLSearchParams(window.location.search).has(APPEARANCE_PREVIEW_PARAM);
+  } catch {
+    return false;
+  }
+})();
 // `polynet dev` opens the community with ?design=draft and saves each edit to
 // the draft; the preview re-reads it this often, so changes show within seconds.
 const DRAFT_PREVIEW_POLL_MS = 1500;
@@ -53,7 +69,7 @@ function removeHeadElement(id: string) {
 export function useWebCommunityThemeStyle(
   communityId: string | null,
   options: { draftSession?: unknown } = {},
-): { attribute: string | null; previewingDraft: boolean } {
+): { attribute: string | null; theme: CommunityThemeV1 | null; previewingDraft: boolean; followsMemberMode: boolean } {
   const [loaded, setLoaded] = useState<{ communityId: string; theme: CommunityThemeV1 | null; draft: boolean } | null>(null);
   const draftSession = options.draftSession ?? null;
   const wantsDraft = Boolean(draftSession) && draftPreviewRequested();
@@ -101,13 +117,33 @@ export function useWebCommunityThemeStyle(
     };
   }, [communityId, draftSession, wantsDraft]);
 
-  const current = loaded && loaded.communityId === communityId ? loaded : null;
-  const theme = current?.theme ?? null;
+  const [preview, setPreview] = useState<{ communityId: string; theme: CommunityThemeV1 } | null>(null);
+  useEffect(() => {
+    if (!IS_APPEARANCE_PREVIEW_FRAME || !communityId) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== window.parent || event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; communityId?: string; theme?: CommunityThemeV1 } | null;
+      if (data?.type === APPEARANCE_PREVIEW_THEME_MESSAGE && data.communityId === communityId && data.theme) {
+        setPreview({ communityId, theme: data.theme });
+      }
+    };
+    window.addEventListener("message", onMessage);
+    window.parent.postMessage({ type: APPEARANCE_PREVIEW_READY_MESSAGE, communityId }, window.location.origin);
+    return () => window.removeEventListener("message", onMessage);
+  }, [communityId]);
 
+  const current = loaded && loaded.communityId === communityId ? loaded : null;
+  const theme = preview && preview.communityId === communityId ? preview.theme : current?.theme ?? null;
+
+  const pickEverywhere = useMemberPickEverywhere();
   useEffect(() => {
     if (!communityId || !theme) return;
     const style = upsertHeadElement<HTMLStyleElement>(STYLE_ELEMENT_ID, "style");
-    style.textContent = compileCommunityThemeCss(theme, `[data-community-theme="${CSS.escape(communityId)}"]`);
+    // Once a member picks Light or Dark themselves, it wins over a one-version
+    // look: they see its twin. The Customize preview shows exactly the version
+    // being edited.
+    const shown = IS_APPEARANCE_PREVIEW_FRAME || !pickEverywhere ? theme : communityThemeWithBothSchemes(theme);
+    style.textContent = compileCommunityThemeCss(shown, `[data-community-theme="${CSS.escape(communityId)}"]`);
     const fontUrl = communityThemeFontStylesheetUrl(theme);
     if (fontUrl) {
       const link = upsertHeadElement<HTMLLinkElement>(FONT_ELEMENT_ID, "link");
@@ -118,10 +154,16 @@ export function useWebCommunityThemeStyle(
       removeHeadElement(STYLE_ELEMENT_ID);
       removeHeadElement(FONT_ELEMENT_ID);
     };
-  }, [communityId, theme]);
+  }, [communityId, theme, pickEverywhere]);
 
   return {
     attribute: communityId && theme ? communityId : null,
+    // The look in force (published, draft or the editor's preview), for the
+    // settings the shell applies itself, such as the Channels look and rail.
+    theme: communityId ? theme : null,
     previewingDraft: Boolean(communityId && current?.draft),
+    // Every look offers Light/Dark (choosing one in a one-version look shows
+    // its twin). False until the theme is read, so the choice doesn't flash.
+    followsMemberMode: Boolean(communityId && (current || theme)),
   };
 }

@@ -3,7 +3,9 @@ import { CalendarDays, Check, Link2, Users } from "lucide-react";
 import type { CommunityLayoutAsideBlock } from "../../../../shared/communityLayout";
 import { listCloudCommunityEvents, type CloudCommunityEvent } from "../../../../shared/cloudCommunityEventsGateway";
 import { UserAvatar } from "../../../../shared/UserAvatar";
+import { WebCommunityCreators } from "./WebCommunityCreators";
 import { communityJoinUrl, useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
+import { WebCommunityPodsCard, type WebCommunityPodsFrame } from "./WebCommunityPods";
 
 // Blocks a layout can place beside the chat page. Each reads data Polynet
 // already has: the community's own profile and its events.
@@ -57,6 +59,7 @@ export function WebCommunityCard() {
           <h2 className="community-card-block-name">{community.name}</h2>
         </div>
         {community.one_liner ? <p className="community-card-block-description">{community.one_liner}</p> : null}
+        <WebCommunityCreators communityId={community.id} onShowChat={() => frame.onSelectTab("chat")} />
         {typeof frame.memberCount === "number" ? (
           <button type="button" className="community-card-block-stat" onClick={() => frame.onSelectTab("members")}>
             <Users size={16} aria-hidden="true" />
@@ -149,10 +152,12 @@ export function WebCommunityUpcomingEvents() {
   );
 }
 
-export function WebCommunityAside({ blocks }: { blocks: CommunityLayoutAsideBlock[] }) {
-  if (blocks.length === 0) return null;
+export function WebCommunityAside({ blocks, pods }: { blocks: CommunityLayoutAsideBlock[]; pods?: WebCommunityPodsFrame | null }) {
+  const showPods = Boolean(pods && pods.place === "aside" && pods.pods.length > 0);
+  if (blocks.length === 0 && !showPods) return null;
   return (
     <aside className="community-aside" aria-label="Community sidebar">
+      {showPods ? <WebCommunityPodsCard pods={pods!} /> : null}
       {blocks.map((block) =>
         block === "community_card" ? <WebCommunityCard key={block} /> : <WebCommunityUpcomingEvents key={block} />,
       )}

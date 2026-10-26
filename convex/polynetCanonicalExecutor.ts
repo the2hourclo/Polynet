@@ -1,3 +1,6 @@
+import { BUILDER_SETTING_OPERATIONS, builderSettingArgs, builderSettingInput, builderSettingOperation, readBuilderSettings, readBuilderWorkflowTemplates } from "./polynetBuilderSettings";
+import { MEMBER_SELF_OPERATIONS, memberSelfInput, memberSelfOperation } from "./polynetMemberSelfSettings";
+import { applyCommunityClientView } from "../shared/communityClientViews";
 import { api, internal } from "./_generated/api";
 import { hashSiteFile, publishSite, readSitesConfig, startSiteUpload, uploadSiteFiles } from "./communitySiteDeploy";
 import { siteFileMimeType, siteHostname, siteScriptName, validateSiteManifest } from "./communitySites";
@@ -79,12 +82,26 @@ const SITE_DEPLOY_MAX_FILES = 200;
 const SITE_DEPLOY_MAX_BYTES = 5 * 1024 * 1024;
 const FORM_SUBMIT_OPERATION = "community.form.submit";
 const REACT_OPERATION = "community.interaction.react";
+// Cards on posts (convex/communityPostCards.ts): anyone who can post starts a poll and
+// votes; an owner's agent shares a published Form; members answer a shared Form.
+const POLL_CREATE_OPERATION = "community.interaction.poll.create";
+const POLL_VOTE_OPERATION = "community.interaction.poll.vote";
+const POST_FORM_ANSWER_OPERATION = "community.interaction.form.answer";
+const POST_FORM_SHARE_OPERATION = "community.interaction.form.share";
+const POST_CARD_MEMBER_OPERATIONS = [POLL_CREATE_OPERATION, POLL_VOTE_OPERATION, POST_FORM_ANSWER_OPERATION];
 // A member marks their own lesson progress; locks come from lesson gates.
 const RESOURCE_PROGRESS_OPERATION = "community.resource.progress.set";
 const SELF_FORMS_DIRECTORY = "/members/me/forms/";
 const SELF_PROGRESS_PATH = "/members/me/progress.json";
 const LESSON_RESPONSE_OPERATION = "community.resource.response.set";
 const BUILDER_PROGRESS_DIRECTORY = "/builder/progress/";
+// The owner's client list and the owner's own client properties (convex/communityClients.ts).
+const BUILDER_CLIENTS_DIRECTORY = "/builder/clients/";
+const CLIENT_PROPERTY_DEFINE_OPERATION = "community.client.property.define";
+const CLIENT_VALUE_SET_OPERATION = "community.client.value.set";
+const CLIENT_SETTINGS_SET_OPERATION = "community.client.settings.set";
+const CLIENT_EVENT_RECORD_OPERATION = "community.client.event.record";
+const CLIENT_OPERATIONS = [CLIENT_PROPERTY_DEFINE_OPERATION, CLIENT_VALUE_SET_OPERATION, CLIENT_SETTINGS_SET_OPERATION, CLIENT_EVENT_RECORD_OPERATION];
 // A community's look (shared/communityDesignContract.ts): the founder's own agent
 // or `polynet dev` reads each design record, saves drafts and publishes, like the
 // app's editor. Theme and layout are separate records, so one never resets the other.
@@ -114,7 +131,29 @@ const DESIGN_OPERATIONS = DESIGN_KINDS.flatMap(kind =>
 const designKindOf = (operation: string) => DESIGN_KINDS.find(kind =>
   operation === designSaveOperation(kind) || (designPublishes(kind) && operation === designPublishOperation(kind)));
 const designKindAt = (localPath: string) => DESIGN_KINDS.find(kind => DESIGN_RECORDS[kind].path === localPath);
+// Every other Settings save (convex/polynetBuilderSettings.ts), read from one document.
+const BUILDER_SETTINGS_PATH = "/builder/settings.json";
+const BUILDER_WORKFLOW_TEMPLATES_PATH = "/builder/workflow-templates.json";
+const BUILDER_WORKFLOW_RUNS_PATH = "/builder/workflow-runs.json";
+const BUILDER_TRACKS_PATH = "/builder/tracks.json";
+const BUILDER_OFFERS_PATH = "/builder/offers.json";
+const BUILDER_PODS_PATH = "/builder/pods.json";
+const BUILDER_EVENTS_PATH = "/builder/events.json";
+const BUILDER_TEST_RUNS_PATH = "/builder/test-runs.json";
+const SETTING_OPERATIONS = BUILDER_SETTING_OPERATIONS.map(spec => spec.operation);
+// A member's own profile, notifications and Display pick, changed only by
+// that member or an agent acting for them (convex/polynetMemberSelfSettings.ts).
+const SELF_OPERATIONS = MEMBER_SELF_OPERATIONS.map(spec => spec.operation);
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
+
+// Every operation polynet_call can run (each still checks who may), and every
+// builder document an agent reads; the parity test holds the app to these.
+export const POLYNET_CALL_OPERATIONS: string[] = [...MEMBER_CAPABILITIES, REACT_OPERATION, ...POST_CARD_MEMBER_OPERATIONS,
+  POST_FORM_SHARE_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION,
+  ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...CLIENT_OPERATIONS, ...DESIGN_OPERATIONS, ...SETTING_OPERATIONS, ...SELF_OPERATIONS];
+export const POLYNET_BUILDER_DOCUMENT_PATHS: string[] = [...DESIGN_KINDS.map(kind => DESIGN_RECORDS[kind].path), BUILDER_SETTINGS_PATH,
+  BUILDER_WORKFLOW_TEMPLATES_PATH, BUILDER_WORKFLOW_RUNS_PATH, BUILDER_TRACKS_PATH, BUILDER_OFFERS_PATH, BUILDER_PODS_PATH, BUILDER_EVENTS_PATH,
+  BUILDER_TEST_RUNS_PATH, BUILDER_PROGRESS_DIRECTORY, BUILDER_CLIENTS_DIRECTORY, POLYNET_BUILDER_RESOURCES_DIRECTORY_PATH];
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
   "community.funnel.update_draft" as const;
@@ -714,9 +753,17 @@ function capabilityDocument(args: {
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isReactCapability = args.operation === REACT_OPERATION &&
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
+  const isPostCardCapability = POST_CARD_MEMBER_OPERATIONS.includes(args.operation) &&
+    args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
+  const isFormShareCapability = args.operation === POST_FORM_SHARE_OPERATION &&
+    args.evidenceSurface === "external_mcp" &&
+    args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
   const isProgressCapability = (args.operation === RESOURCE_PROGRESS_OPERATION || args.operation === LESSON_RESPONSE_OPERATION) &&
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isWorkflowApprovalCapability = args.operation === APPROVE_MILESTONE_OPERATION &&
+    args.evidenceSurface === "external_mcp" &&
+    args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
+  const isClientCapability = CLIENT_OPERATIONS.includes(args.operation) &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
   const isSiteDeployCapability = args.operation === SITE_DEPLOY_OPERATION &&
@@ -725,7 +772,13 @@ function capabilityDocument(args: {
   const isDesignCapability = DESIGN_OPERATIONS.includes(args.operation) &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
-  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isProgressCapability && !isSiteDeployCapability && !isDesignCapability) {
+  const isSettingCapability = SETTING_OPERATIONS.includes(args.operation) &&
+    args.evidenceSurface === "external_mcp" &&
+    args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
+  // Any agent working for the signed-in person, the online Builder included.
+  const isSelfCapability = SELF_OPERATIONS.includes(args.operation) &&
+    args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_app";
+  if (!isSelfCapability && !isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isPostCardCapability && !isFormShareCapability && !isProgressCapability && !isSiteDeployCapability && !isClientCapability && !isDesignCapability && !isSettingCapability) {
     return null;
   }
   const operationDefinition: Record<string, unknown> = {
@@ -733,7 +786,7 @@ function capabilityDocument(args: {
     version: 1,
     tool: "polynet_call",
     target: `/communities/${args.target.communitySlug}/capabilities/${args.operation}.json`,
-    authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability || isDesignCapability ? "builder" : "member",
+    authority_lane: isFormShareCapability || isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability || isClientCapability || isDesignCapability || isSettingCapability ? "builder" : "member",
     idempotency_required: true,
   };
   if (isProgressCapability && args.operation === LESSON_RESPONSE_OPERATION) {
@@ -752,11 +805,85 @@ function capabilityDocument(args: {
       refusals: { lesson_locked: "a gate in an earlier stage is not done yet",
         lesson_elements_incomplete: "a required button, checklist or quiz in the lesson is not finished" },
       effects: ["set_own_lesson_progress"], forbidden_effects: ["set_progress_for_someone_else", "advance_workflow_milestone"] };
+  } else if (isPostCardCapability && args.operation === POLL_CREATE_OPERATION) {
+    operationDefinition.input = { required: ["question", "options"],
+      channel: "a channel slug from /channels/; the General channel when left out",
+      question: "up to 300 characters", options: "2 to 10 different choices, each up to 120 characters",
+      multiple: "true lets people pick more than one option (default false)",
+      result: "{ ref }: the new post. Votes are public: everyone in the channel sees the counts and who voted",
+      effects: ["post_poll"], forbidden_effects: ["vote_for_someone_else"] };
+  } else if (isPostCardCapability && args.operation === POLL_VOTE_OPERATION) {
+    operationDefinition.input = { required: ["ref", "options"],
+      ref: "interaction:root:<id> of a post whose card is a poll (see card in channel listings)",
+      options: "the option keys (o1, o2, ...) or labels you choose: one unless the poll is multiple; [] takes your vote back",
+      result: "the poll with counts, voters and your choices",
+      refusals: { poll_closed: "the poll was closed", poll_choice_invalid: "not one of the poll's options" },
+      effects: ["set_own_poll_vote"], forbidden_effects: ["vote_for_someone_else"] };
+  } else if (isPostCardCapability && args.operation === POST_FORM_ANSWER_OPERATION) {
+    operationDefinition.input = { required: ["ref", "answers"],
+      ref: "interaction:root:<id> of a post whose card is a form; the card lists its questions",
+      answers: 'question key -> answer. Text: a string. single_choice: the option index as a string ("0"). multiple_choice: a list of index strings',
+      submit: "true sends the answers (final); false saves a draft (default true)",
+      expected_revision: "the revision from your last save; 0 for a first save (default 0)",
+      result: "{ revision, submitted }",
+      refusals: { form_already_submitted: "you already sent answers to this form", form_answer_conflict: "your answers changed elsewhere; use the newer revision" },
+      effects: ["save_own_form_answers"], forbidden_effects: ["answer_for_someone_else"] };
+  } else if (isFormShareCapability) {
+    operationDefinition.input = { required: ["form_key"],
+      form_key: "a published form's key from the builder's Forms",
+      channel: "a channel slug from /channels/; the General channel when left out",
+      note: "a short line above the form (up to 1000 characters)",
+      answers_visible_to: "everyone (default: members see each other's answers) or builders (members only see who answered)",
+      result: "{ ref }: the new post with the form on it",
+      refusals: { post_form_unpublished: "publish the form first", post_form_not_found: "no form with that key" },
+      effects: ["post_form"], forbidden_effects: ["edit_form", "assign_form_to_workflow"] };
   } else if (isReactCapability) {
     operationDefinition.input = { required: ["ref", "emoji", "on"],
       ref: "interaction:root:<id> or interaction:reply:<id> from a channel or thread listing",
       emoji: "up to 32 characters", on: "true adds your reaction, false removes it",
       effects: ["set_own_reaction"], forbidden_effects: ["react_as_someone_else"] };
+  } else if (isClientCapability && args.operation === CLIENT_PROPERTY_DEFINE_OPERATION) {
+    operationDefinition.input = {
+      required: [],
+      name: "a new property's name, or a new name for an existing one (up to 60 characters)",
+      type: "for a new property: text, number, select, multi_select, date, checkbox or url",
+      options: "select and multi_select: the choices, up to 30",
+      key: "an existing property's key from the client list, to change it",
+      position: "an existing property's column order (a number)",
+      archive: "not here: removing a property is community.client.property.archive, which the owner applies",
+      result: "the property, with its key",
+      refusals: { client_property_name_taken: "another property has that name", client_property_limit_reached: "50 properties at most",
+        client_property_not_found: "no property with that key" },
+      effects: ["define_owner_client_property"], forbidden_effects: ["edit_member_facts", "change_membership", "change_billing"],
+    };
+  } else if (isClientCapability && args.operation === CLIENT_EVENT_RECORD_OPERATION) {
+    operationDefinition.input = {
+      required: ["membership_ref", "type"],
+      membership_ref: `membership:<id> from ${BUILDER_CLIENTS_DIRECTORY}`,
+      type: "flagged, note, drafted or contacted",
+      body: "what you noticed, the note, the draft, or what was sent (required except for flagged; up to 2000 characters)",
+      channel: "contacted only: email, message, call or other",
+      result: "the logged entry; it shows on the client's timeline and as last_flagged_at / last_contacted_at in the list",
+      guidance: "Record contact only after it really happened. Check last_contacted_at first so nobody contacts the same person twice.",
+      effects: ["log_client_action"], forbidden_effects: ["send_email", "message_member", "change_membership"],
+    };
+  } else if (isClientCapability && args.operation === CLIENT_SETTINGS_SET_OPERATION) {
+    operationDefinition.input = {
+      required: ["stuck_days"],
+      stuck_days: "days without progress (a lesson finished, a form submitted, a stage moved) before an active client counts as stuck; 1 to 365, default 7",
+      result: "the saved rule",
+      effects: ["set_client_rules"], forbidden_effects: ["message_member", "change_membership"],
+    };
+  } else if (isClientCapability) {
+    operationDefinition.input = {
+      required: ["membership_ref", "key", "value"],
+      membership_ref: `membership:<id> from ${BUILDER_CLIENTS_DIRECTORY}`,
+      key: "a property key from the client list",
+      value: "text: a string. number: a number. checkbox: true or false. date: YYYY-MM-DD. url: http(s) link. select: one option. multi_select: a list of options. null clears it.",
+      result: "the stored value",
+      refusals: { client_property_value_invalid: "the value does not fit the property", community_client_not_found: "no client with that membership" },
+      effects: ["set_owner_client_property"], forbidden_effects: ["edit_member_facts", "change_membership", "change_billing", "message_member"],
+    };
   } else if (isSiteDeployCapability) {
     operationDefinition.input = {
       required: ["files"],
@@ -768,6 +895,10 @@ function capabilityDocument(args: {
       effects: ["publish_community_site"],
       forbidden_effects: ["server_code", "change_access", "deploy_other_community"],
     };
+  } else if (isSettingCapability) {
+    operationDefinition.input = builderSettingInput(builderSettingOperation(args.operation)!);
+  } else if (isSelfCapability) {
+    operationDefinition.input = memberSelfInput(memberSelfOperation(args.operation)!);
   } else if (isDesignCapability) {
     const kind = designKindOf(args.operation)!;
     const record = DESIGN_RECORDS[kind];
@@ -890,6 +1021,38 @@ async function executeCanonicalList(args: {
           kind: "document", type: "member_progress_report" })) }),
         courses: page.courses, next_cursor: page.next_cursor, truncated: page.next_cursor !== null || page.truncated,
         guidance: "Private member progress. Do not post it in shared channels." } };
+    } catch {
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    }
+  }
+
+  if (target.localPath.startsWith(BUILDER_CLIENTS_DIRECTORY)) {
+    // /builder/clients/views/<key>/ lists one saved view's members.
+    const viewKey = /^\/builder\/clients\/views\/([a-z0-9_]{1,40})\/?$/.exec(target.localPath)?.[1] ?? null;
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent" || (target.localPath !== BUILDER_CLIENTS_DIRECTORY && !viewKey)) {
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    }
+    try {
+      const [page, saved] = await Promise.all([
+        args.ctx.runQuery((internal as any).communityClients.listClientsInternal,
+          { userId: args.userId, communityId: target.communityId,
+            ...(typeof args.input.cursor === "string" ? { cursor: args.input.cursor } : {}) }),
+        args.ctx.runQuery((internal as any).communityClients.listClientViewsInternal, { userId: args.userId, communityId: target.communityId }),
+      ]);
+      // A view's key narrows this page to the members that view shows, filtered the same way as the Members page.
+      const view = viewKey ? saved.views.find((row: { key: string }) => row.key === viewKey) : null;
+      if (viewKey && !view) return canonicalError("client_view_not_found", `No view with that key. Views are listed in ${BUILDER_CLIENTS_DIRECTORY}.`);
+      const clients = view ? applyCommunityClientView(page.clients, view, Date.now()) : page.clients;
+      return { ok: true, value: { ...virtualDirectory({ path: absolutePath, searchable: false, writable: false,
+        entries: clients.map((client: { membership_id: string }) => ({
+          ...client, ref: `membership:${client.membership_id}`,
+          path: mountedPath(target.communitySlug, `${BUILDER_CLIENTS_DIRECTORY}${client.membership_id}.json`),
+          dossier_path: mountedPath(target.communitySlug, `${WORKFLOW_MEMBERS_DIRECTORY}${client.membership_id}.md`),
+          kind: "document", type: "community_client" })) }),
+        properties: page.properties, fields: page.fields, views: saved.views, ...(view ? { view: view.key } : {}),
+        stuck_days: page.stuck_days, next_cursor: page.next_cursor,
+        truncated: page.next_cursor !== null || page.lessons_truncated,
+        guidance: `Private client records. Do not post them in shared channels. Change your own properties with ${CLIENT_PROPERTY_DEFINE_OPERATION} and ${CLIENT_VALUE_SET_OPERATION}; member facts belong to the member and cannot be edited here. List one view's members at ${BUILDER_CLIENTS_DIRECTORY}views/<key>/ (each page filtered the same way the Members page filters it). Save views with community.client.view.save; change or message many members at once with community.client.bulk, which the owner applies.` } };
     } catch {
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
@@ -1188,7 +1351,7 @@ async function executeCanonicalList(args: {
       ...(args.evidenceSurface === "community_funnel_builder"
         ? []
         : MEMBER_CAPABILITIES),
-      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...DESIGN_OPERATIONS].filter(operation => capabilityDocument({ target, operation,
+      ...POLYNET_CALL_OPERATIONS.filter(operation => !(MEMBER_CAPABILITIES as readonly string[]).includes(operation)).filter(operation => capabilityDocument({ target, operation,
         evidenceSurface: args.evidenceSurface, principalKind: args.principalKind })),
     ];
     return {
@@ -1244,7 +1407,16 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, POLYNET_JOIN_REQUESTS_DIRECTORY_PATH), kind: "directory", type: "builder", name: "Pending admission requests" },
           { path: mountedPath(target.communitySlug, WORKFLOW_MEMBERS_DIRECTORY), kind: "directory", type: "builder", name: "Member workflow context and form responses" },
           { path: mountedPath(target.communitySlug, BUILDER_PROGRESS_DIRECTORY), kind: "directory", type: "builder", name: "Member course progress" },
+          { path: mountedPath(target.communitySlug, BUILDER_CLIENTS_DIRECTORY), kind: "directory", type: "builder", name: "Clients: every member, past members included, with status, stage, progress, approved facts and your own properties" },
           ...DESIGN_KINDS.map(kind => ({ path: mountedPath(target.communitySlug, DESIGN_RECORDS[kind].path), kind: "document", type: "builder", name: DESIGN_RECORDS[kind].name })),
+          { path: mountedPath(target.communitySlug, BUILDER_SETTINGS_PATH), kind: "document", type: "builder", name: "Settings: general, sales page, welcome, workflows, forms, access, agent and channels" },
+          { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_TEMPLATES_PATH), kind: "document", type: "builder", name: "Workflow templates: ready-made stage plans (agent-led journey)" },
+          { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_RUNS_PATH), kind: "document", type: "builder", name: "Run history: the latest automation runs, each with its steps, status and errors (Workflows → Run history)" },
+          { path: mountedPath(target.communitySlug, BUILDER_TRACKS_PATH), kind: "document", type: "builder", name: "Skill tracks: the community's roadmaps, their stages, steps and opening rules" },
+          { path: mountedPath(target.communitySlug, BUILDER_OFFERS_PATH), kind: "document", type: "builder", name: "Offers: the ladder from the base membership up, prices, members on each, and which private channels each opens" },
+          { path: mountedPath(target.communitySlug, BUILDER_PODS_PATH), kind: "document", type: "builder", name: "Pods: each invite-only channel with who's in it, and how to start one, add people and set where Classroom shows pods" },
+          { path: mountedPath(target.communitySlug, BUILDER_EVENTS_PATH), kind: "document", type: "builder", name: "Events: the calendar, cancelled ones included, with each event's id" },
+          { path: mountedPath(target.communitySlug, BUILDER_TEST_RUNS_PATH), kind: "document", type: "builder", name: "Test runs: the test members running now (Workflows → Test a member)" },
           {
             path: mountedPath(
               target.communitySlug,
@@ -1464,6 +1636,18 @@ async function executeCanonicalRead(args: {
     }
   }
 
+  if (target.localPath.startsWith(BUILDER_CLIENTS_DIRECTORY)) {
+    const match = /^\/builder\/clients\/([A-Za-z0-9]+)\.json$/.exec(target.localPath);
+    if (!match || !target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    try {
+      const payload = await args.ctx.runQuery((internal as any).communityClients.readClientTimelineInternal,
+        { userId: args.userId, communityId: target.communityId, membershipId: match[1] });
+      return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+        writable: false, searchable: false } };
+    } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
+  }
+
   if (target.localPath.startsWith(BUILDER_PROGRESS_DIRECTORY)) {
     const match = /^\/builder\/progress\/([A-Za-z0-9]+)\.json$/.exec(target.localPath);
     if (!match || !target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
@@ -1475,6 +1659,78 @@ async function executeCanonicalRead(args: {
       return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
         writable: false, searchable: false } };
     } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
+  }
+
+  if (target.localPath === BUILDER_WORKFLOW_TEMPLATES_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload: readBuilderWorkflowTemplates() }),
+      writable: false, searchable: false } };
+  }
+
+  // Workflows → Run history, the same read the owner's tab uses.
+  if (target.localPath === BUILDER_WORKFLOW_RUNS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityWorkflowRunHistory.listBuilderWorkflowRunHistory,
+      { authSubject: args.authSubject, userId: args.userId, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_OFFERS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityOffers.listCommunityOffers,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_PODS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityPods.listBuilderPods,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_EVENTS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityEvents.listCommunityEvents,
+      { authSubject: args.authSubject, communityId: target.communityId, includeCancelled: true, limit: 100,
+        startIso: new Date(Date.now() - 30 * 86400000).toISOString() });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath,
+      payload: { contract: "polynet.builder_events.v1", guidance: "From 30 days ago on. Change one with community.event.save and its id.", events: payload } }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_TEST_RUNS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityTestMembers.listTestMembers,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_TRACKS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityLessonTracks.listCommunityLessonTracks,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_SETTINGS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await readBuilderSettings(args.ctx, { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
   }
 
   const designKind = designKindAt(target.localPath);
@@ -2306,6 +2562,103 @@ async function executeCanonicalWrite(args: {
   );
 }
 
+const POST_CARD_REFUSALS: Record<string, string> = {
+  poll_question_required: "Write the poll's question.",
+  poll_question_too_long: "The question is over 300 characters.",
+  poll_options_count: "A poll needs 2 to 10 options.",
+  poll_option_too_long: "An option is over 120 characters.",
+  poll_options_duplicate: "Each option needs to be different.",
+  poll_closed: "This poll is closed.",
+  poll_choice_invalid: "Pick the poll's own options (one unless it allows several).",
+  poll_not_found: "That post has no poll.",
+  post_form_not_found: "That form or post isn't available.",
+  post_form_unpublished: "Publish the form before sharing it.",
+  form_already_submitted: "You already sent answers to this form.",
+  form_answer_conflict: "Your answers changed elsewhere; save with the newer revision.",
+  community_channel_posting_restricted: "You can't post in that channel.",
+};
+
+function postCardRefusal(error: unknown, fallback: string): PolynetCanonicalExecutionResult {
+  const text = error instanceof Error ? error.message : String(error);
+  const code = Object.keys(POST_CARD_REFUSALS).find((key) => text.includes(key));
+  if (code) return canonicalError(code, POST_CARD_REFUSALS[code]!);
+  // Form answer checks (shared/communityFormAnswers.ts) speak for themselves.
+  if (/^(Please answer|Invalid|Unknown question)|: /.test(text)) return canonicalError("invalid_form_answers", text.slice(0, 300));
+  return canonicalError("interaction_unavailable", fallback);
+}
+
+async function executePostCardCall(args: {
+  ctx: any; userId: string; principalKind: PolynetPrincipalKind; target: ResolvedCommunityTarget;
+  operation: string; rawInput: Record<string, unknown>; idempotencyKey: string;
+}): Promise<PolynetCanonicalExecutionResult> {
+  const { rawInput, operation, target } = args;
+  const allowed: Record<string, string[]> = {
+    [POLL_CREATE_OPERATION]: ["channel", "question", "options", "multiple"],
+    [POLL_VOTE_OPERATION]: ["ref", "options"],
+    [POST_FORM_ANSWER_OPERATION]: ["ref", "answers", "submit", "expected_revision"],
+    [POST_FORM_SHARE_OPERATION]: ["form_key", "channel", "note", "answers_visible_to"],
+  };
+  if (target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json` ||
+      Object.keys(rawInput).some((key) => !allowed[operation]!.includes(key)))
+    return canonicalError("invalid_tool_args", `Allowed fields: ${allowed[operation]!.join(", ")}.`);
+  const postsCard = operation === POLL_CREATE_OPERATION || operation === POST_FORM_SHARE_OPERATION;
+  if (postsCard) {
+    if (!target.authority.canWriteParticipation) return canonicalError("community_write_forbidden", "This principal cannot post in community chat.");
+    if (!args.idempotencyKey) return canonicalError("idempotency_key_required", "An idempotency key is required.");
+    const slug = typeof rawInput.channel === "string" ? rawInput.channel.trim() : "";
+    const channel = slug ? await resolveRepositoryChannel({ ctx: args.ctx, userId: args.userId, principalKind: args.principalKind, target, slug }) : null;
+    if (slug && !channel) return canonicalError("semantic_not_found", "Channel path not found or not accessible.");
+    const shared = {
+      trustedUserId: args.userId,
+      communityId: target.communityId,
+      ...(channel?.id ? { channelId: channel.id } : {}),
+      idempotencyKey: `polynet:${args.principalKind}:${args.idempotencyKey}`,
+      // An agent posts as the community agent for its member, as polynet_write does.
+      asCommunityAgent: args.principalKind !== "community_app",
+    };
+    try {
+      const value = operation === POLL_CREATE_OPERATION
+        ? await args.ctx.runMutation((internal as any).communityPostCards.createPollPostForTrustedUserInternal, {
+            ...shared, question: String(rawInput.question ?? ""),
+            options: Array.isArray(rawInput.options) ? rawInput.options.map((option) => String(option)) : [],
+            multiple: rawInput.multiple === true })
+        : await args.ctx.runMutation((internal as any).communityPostCards.createFormPostForTrustedUserInternal, {
+            ...shared, formKey: String(rawInput.form_key ?? ""), note: typeof rawInput.note === "string" ? rawInput.note : "",
+            answersVisibleTo: rawInput.answers_visible_to === "builders" ? "builders" : "everyone" });
+      return { ok: true, value: { ref: `interaction:root:${value.root_id}`, deduped: value.deduped } };
+    } catch (error) { return postCardRefusal(error, "The post could not be made."); }
+  }
+  const ref = parseCommunityInteractionEvidenceRef(rawInput.ref);
+  if (!ref || ref.objectType !== "root") return canonicalError("invalid_tool_args", "ref must be interaction:root:<id> of the post with the card.");
+  if (operation === POLL_VOTE_OPERATION) {
+    if (!Array.isArray(rawInput.options) || rawInput.options.length > 10 || !rawInput.options.every((option) => typeof option === "string"))
+      return canonicalError("invalid_tool_args", "options must be a list of option keys or labels.");
+    try {
+      // Labels are matched to keys against the poll itself, so agents can vote by what they read.
+      const card = await args.ctx.runQuery((internal as any).communityPostCards.readPollForTrustedUserInternal,
+        { trustedUserId: args.userId, rootId: String(ref.objectId) });
+      const keys = (rawInput.options as string[]).map((choice) => {
+        const wanted = choice.trim().toLowerCase();
+        return card.options.find((option: { key: string; label: string }) => option.key === choice || option.label.toLowerCase() === wanted)?.key ?? choice;
+      });
+      const value = await args.ctx.runMutation((internal as any).communityPostCards.votePostPollForTrustedUserInternal,
+        { trustedUserId: args.userId, rootId: String(ref.objectId), optionKeys: keys });
+      return { ok: true, value };
+    } catch (error) { return postCardRefusal(error, "That poll is not available."); }
+  }
+  const answers = rawInput.answers;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers) ||
+      !Object.values(answers).every((value) => typeof value === "string" || Array.isArray(value) && value.every((item) => typeof item === "string")))
+    return canonicalError("invalid_tool_args", "answers must map question keys to a string or a list of strings.");
+  const expected = rawInput.expected_revision ?? 0;
+  if (!Number.isSafeInteger(expected) || (expected as number) < 0) return canonicalError("invalid_tool_args", "expected_revision must be a whole number.");
+  try {
+    const value = await args.ctx.runMutation((internal as any).communityPostCards.savePostFormAnswersForTrustedUserInternal, {
+      trustedUserId: args.userId, rootId: String(ref.objectId), answers, expectedRevision: expected, submit: rawInput.submit !== false });
+    return { ok: true, value };
+  } catch (error) { return postCardRefusal(error, "That form is not available."); }
+}
+
 async function executeCanonicalCall(args: {
   ctx: any;
   authSubject: string;
@@ -2383,6 +2736,71 @@ async function executeCanonicalCall(args: {
       return { ok: true, value };
     } catch { return canonicalError("workflow_approval_unavailable", "Observed milestone not available or approval not authorized."); }
   }
+  if (CLIENT_OPERATIONS.includes(operation)) {
+    if (args.principalKind !== "external_mcp" || target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json`) {
+      return canonicalError("operation_not_found", "Operation is not discoverable or authorized for this community.");
+    }
+    const clientError = (error: unknown) => {
+      const code = /^(client_property_[a-z_]+|client_event_[a-z_]+|client_stuck_days_invalid|community_client_not_found)/.exec(String((error as Error)?.message ?? ""))?.[1];
+      return code ? canonicalError(code, "The client property change was refused.") : canonicalError("client_unavailable", "Client records are not available.");
+    };
+    const base = { communityId: target.communityId, userId: args.userId };
+    const mutate = (name: string, mutationArgs: Record<string, unknown>) =>
+      (receipt: Record<string, unknown>) => args.ctx.runMutation((internal as any).communityClients[name], { ...base, ...mutationArgs, receipt });
+    let run: (receipt: Record<string, unknown>) => Promise<{ deduped?: boolean; result: Record<string, unknown> }>;
+    if (operation === CLIENT_EVENT_RECORD_OPERATION) {
+      const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
+      if (!member || typeof rawInput.type !== "string" ||
+          (rawInput.body !== undefined && typeof rawInput.body !== "string") ||
+          (rawInput.channel !== undefined && typeof rawInput.channel !== "string") ||
+          Object.keys(rawInput).some(key => !["membership_ref", "type", "body", "channel"].includes(key)))
+        return canonicalError("invalid_tool_args", "A membership_ref and a type (flagged, note, drafted or contacted) are required.");
+      run = mutate("recordClientEventInternal", { membershipId: member[1], type: rawInput.type, via: "agent",
+        ...(rawInput.body !== undefined ? { body: rawInput.body } : {}), ...(rawInput.channel !== undefined ? { channel: rawInput.channel } : {}) });
+    } else if (operation === CLIENT_SETTINGS_SET_OPERATION) {
+      if (typeof rawInput.stuck_days !== "number" || Object.keys(rawInput).some(key => key !== "stuck_days"))
+        return canonicalError("invalid_tool_args", "stuck_days (a number of days) is required.");
+      run = mutate("setClientSettingsInternal", { stuckDays: rawInput.stuck_days });
+    } else if (operation === CLIENT_VALUE_SET_OPERATION) {
+      const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
+      if (!member || typeof rawInput.key !== "string" || !("value" in rawInput) ||
+          Object.keys(rawInput).some(key => !["membership_ref", "key", "value"].includes(key)))
+        return canonicalError("invalid_tool_args", "A membership_ref, a property key and a value (or null) are required.");
+      run = mutate("setClientPropertyValueInternal", { membershipId: member[1], key: rawInput.key, value: rawInput.value, via: "agent" });
+    } else {
+      if (Object.keys(rawInput).some(key => !["key", "name", "type", "options", "position", "archive"].includes(key)))
+        return canonicalError("invalid_tool_args", "Only key, name, type, options, position and archive are accepted.");
+      // Removing a property hides every member's value, so the owner applies it.
+      if (rawInput.archive === true)
+        return canonicalError("invalid_tool_args", "Propose it with community.client.property.archive; the owner applies it in the app.");
+      run = typeof rawInput.key !== "string"
+        ? mutate("createClientPropertyInternal", { name: rawInput.name, type: rawInput.type, ...(rawInput.options !== undefined ? { options: rawInput.options } : {}) })
+        : mutate("updateClientPropertyInternal", { key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
+            ...(rawInput.options !== undefined ? { options: rawInput.options } : {}),
+            ...(rawInput.position !== undefined ? { position: rawInput.position } : {}) });
+    }
+    // A retry with the same key returns the first answer instead of writing again,
+    // so a lost reply never records a second event or overwrites a newer edit.
+    // The change completes its receipt in the same transaction.
+    const receiptArgs = { ...args, input: { operation, input: rawInput }, target, toolName: "polynet_call" as const,
+      idempotencyKey: `community-client:${idempotencyKey}` };
+    const reservation = await reserveMutatingOperation(receiptArgs);
+    if (!reservation.ok) return reservation.result;
+    if (reservation.status === "completed") return { ok: true, value: reservation.completedValue };
+    try {
+      const completed = await run({
+        attempt: { communityId: target.communityId, userId: args.userId, principalKind: args.principalKind, toolName: "polynet_call",
+          idempotencyKey: receiptArgs.idempotencyKey, requestFingerprint: reservation.requestFingerprint, attemptToken: reservation.attemptToken },
+        value: { deduped: false, receipt: canonicalReceipt({ toolName: "polynet_call", principalKind: args.principalKind, target, idempotencyKey, deduped: false }) },
+      });
+      return { ok: true, value: completed.deduped === true ? replayedOperationValue(completed.result) : completed.result };
+    } catch (error) {
+      const refused = clientError(error);
+      await failMutatingOperation({ ...receiptArgs, requestFingerprint: reservation.requestFingerprint, attemptToken: reservation.attemptToken,
+        errorCode: refused.ok ? "client_unavailable" : refused.code, errorMessage: refused.ok ? "" : refused.message });
+      return refused;
+    }
+  }
   if (operation === RESOURCE_PROGRESS_OPERATION) {
     const ref = parseCommunityResourceEvidenceRef(rawInput.ref);
     const status = rawInput.status;
@@ -2431,6 +2849,9 @@ async function executeCanonicalCall(args: {
       return { ok: true, value };
     } catch { return canonicalError("interaction_unavailable", "That post is not available to react to."); }
   }
+  if (POST_CARD_MEMBER_OPERATIONS.includes(operation) || operation === POST_FORM_SHARE_OPERATION) {
+    return await executePostCardCall({ ...args, target, operation, rawInput, idempotencyKey });
+  }
   if (operation === FORM_SUBMIT_OPERATION) {
     const request = typeof rawInput.form_request_ref === "string" ? /^form-request:([A-Za-z0-9]+)$/.exec(rawInput.form_request_ref) : null;
     const versionRef = typeof rawInput.form_version_ref === "string" ? /^form-version:([A-Za-z0-9]+)$/.exec(rawInput.form_version_ref) : null;
@@ -2452,6 +2873,55 @@ async function executeCanonicalCall(args: {
       return String(error).includes("form_payload_too_large")
         ? canonicalError("form_payload_too_large", "Assigned form or answers exceed the 24000-character adapter budget.")
         : canonicalError("form_request_unavailable", "Form request not available or submission not authorized.");
+    }
+  }
+  const self = memberSelfOperation(operation);
+  if (self) {
+    if (args.principalKind === "community_app" || target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json`)
+      return canonicalError("operation_not_found", "Operation is not discoverable or authorized for this community.");
+    // Signed in as the caller, so it only ever changes the caller's own choices.
+    const call = builderSettingArgs(self, rawInput, { authSubject: args.authSubject, userId: args.userId, communityId: target.communityId });
+    if (!call.ok) return canonicalError("invalid_tool_args", call.message);
+    try {
+      const result = await (self.kind === "action" ? args.ctx.runAction(self.ref, call.args) : args.ctx.runMutation(self.ref, call.args));
+      return { ok: true, value: { ok: true, operation, result: result ?? null } };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return canonicalError("setting_refused", message.replace(/^.*Uncaught Error: /s, "").split("\n")[0].slice(0, 300));
+    }
+  }
+  const setting = builderSettingOperation(operation);
+  if (setting) {
+    if (args.principalKind !== "external_mcp" || target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json`)
+      return canonicalError("operation_not_found", "Operation is not discoverable or authorized for this community.");
+    const current = setting.merge === "community_settings"
+      ? await args.ctx.runQuery((api as any).communityLifecycle.getCommunitySettings,
+        { authSubject: args.authSubject, communityId: target.communityId }).catch(() => null)
+      : null;
+    const call = builderSettingArgs(setting, rawInput, { authSubject: args.authSubject, userId: args.userId,
+      communityId: target.communityId, current });
+    if (!call.ok) return canonicalError("invalid_tool_args", `${call.message} Read ${BUILDER_SETTINGS_PATH} for current values.`);
+    if (setting.review === "owner_apply") {
+      // Proposed only: the owner applies it in the app.
+      const { authSubject: _authSubject, userId: _userId, ...proposed } = call.args;
+      try {
+        const proposal = await args.ctx.runMutation((internal as any).communitySettingProposals.stageSettingProposalInternal, {
+          userId: args.userId, communityId: target.communityId, operation, args: proposed,
+          ...(typeof rawInput.note === "string" && rawInput.note.trim() ? { note: rawInput.note.trim() } : {}),
+          idempotencyKey: idempotencyKey || `${operation}:${JSON.stringify(proposed)}` });
+        return { ok: true, value: { ok: true, operation, kind: "community_setting_change_proposed", review: "owner_apply",
+          result: proposal, guidance: "Nothing has changed yet. The owner applies or rejects this in the app within 24 hours." } };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return canonicalError("setting_refused", message.replace(/^.*Uncaught Error: /s, "").split("\n")[0].slice(0, 300));
+      }
+    }
+    try {
+      const result = await (setting.kind === "action" ? args.ctx.runAction(setting.ref, call.args) : args.ctx.runMutation(setting.ref, call.args));
+      return { ok: true, value: { ok: true, operation, result: result ?? null } };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return canonicalError("setting_refused", message.replace(/^.*Uncaught Error: /s, "").split("\n")[0].slice(0, 300));
     }
   }
   const designOperationKind = designKindOf(operation);

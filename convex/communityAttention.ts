@@ -94,6 +94,8 @@ function isSkippableCommunityAccessError(error: unknown): boolean {
     "community_not_found",
     "community_forbidden",
     "community_entitlement_required",
+    // Held by that community's welcome flow: it has no attention for them yet.
+    "community_welcome_required",
   ]).has(message);
 }
 

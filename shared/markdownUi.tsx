@@ -9,6 +9,8 @@ import { parseEmbedUrl, StableMediaEmbedFrame, type ParsedEmbed } from "./linkEm
 import { COMMUNITY_EMBED_LANGUAGE, parseCommunityEmbedBlock } from "./communityEmbed";
 import { LESSON_ELEMENT_LANGUAGE_PREFIX } from "./communityLessonElementMarkdown";
 import { CommunityEmbedFrame, CommunityEmbedPlaceholder, type CommunityEmbedContext } from "./communityEmbedUi";
+import { lessonCallout, lessonCalloutType, LESSON_CALLOUT_MARKER } from "./lessonCallouts";
+import { LessonCalloutIcon } from "./lessonCalloutUi";
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import css from "highlight.js/lib/languages/css";
@@ -116,6 +118,7 @@ function getEmbedProviderLabel(provider: ParsedEmbed["provider"]): string {
   if (provider === "wistia") return "Wistia";
   if (provider === "vimeo") return "Vimeo";
   if (provider === "loom") return "Loom";
+  if (provider === "descript") return "Descript";
   return "Video";
 }
 
@@ -605,6 +608,36 @@ function normalizeMathMarkdown(text: string): string {
   return nextLines.join("\n");
 }
 
+type MdNode = { type: string; value?: string; children?: MdNode[]; data?: { hProperties?: Record<string, unknown> } };
+
+// "> [!TIP]" quotes become callouts: the marker is taken off the text and
+// kept as data-callout for the blockquote renderer below.
+function remarkLessonCallouts() {
+  const visit = (node: MdNode) => {
+    node.children?.forEach(visit);
+    if (node.type !== "blockquote") return;
+    const paragraph = node.children?.[0];
+    const first = paragraph?.type === "paragraph" ? paragraph.children?.[0] : undefined;
+    if (!paragraph || first?.type !== "text") return;
+    const match = LESSON_CALLOUT_MARKER.exec(first.value ?? "");
+    const type = match ? lessonCalloutType(match[1]) : null;
+    if (!match || !type) return;
+    let rest = (first.value ?? "").slice(match[0].length);
+    // "> [!TIP] Title": the rest of the marker's line is the title.
+    let title = "";
+    const lineEnd = rest.indexOf("\n");
+    if (lineEnd > 0 || (lineEnd < 0 && rest && paragraph.children?.length === 1)) {
+      title = (lineEnd < 0 ? rest : rest.slice(0, lineEnd)).trim();
+      rest = lineEnd < 0 ? "" : rest.slice(lineEnd);
+    }
+    first.value = rest.replace(/^\n/, "");
+    if (!first.value) paragraph.children?.shift();
+    if (!paragraph.children?.length) node.children?.shift();
+    node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataCallout: type, dataCalloutTitle: title || undefined } };
+  };
+  return (tree: MdNode) => visit(tree);
+}
+
 export function renderMarkdown(text: string, options?: MarkdownRenderOptions): ReactNode {
   const requestedHeadingLevelOffset = options?.headingLevelOffset ?? 0;
   const headingLevelOffset = Number.isFinite(requestedHeadingLevelOffset)
@@ -627,7 +660,21 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
         </a>
       );
     },
-    blockquote({ children }) {
+    blockquote({ node, children }) {
+      const type = lessonCalloutType(node?.properties?.dataCallout);
+      const rawTitle = node?.properties?.dataCalloutTitle;
+      const title = typeof rawTitle === "string" ? rawTitle : "";
+      if (type) {
+        return (
+          <aside className={`md-callout is-${type}`} role="note" aria-label={title || lessonCallout(type).label}>
+            <span className="md-callout-icon" aria-hidden="true"><LessonCalloutIcon type={type} /></span>
+            <div className="md-callout-main">
+              {title ? <p className="md-callout-title">{title}</p> : null}
+              <div className="md-callout-body">{children}</div>
+            </div>
+          </aside>
+        );
+      }
       return <blockquote className="md-blockquote">{children}</blockquote>;
     },
     code(props) {
@@ -645,6 +692,10 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
       }
       if (language === COMMUNITY_EMBED_LANGUAGE) {
         return renderCommunityEmbed(raw, options?.communityEmbeds ?? null);
+      }
+      // Words to copy (a prompt for an AI, or a name to paste): never a diagram or code, whatever arrows they hold.
+      if (language === "prompt" || language === "copy") {
+        return <ArtifactBlock label={language === "prompt" ? "Prompt" : "Paste this"} text={raw} extension="txt" onCopyText={options?.onCopyCode} />;
       }
       if (!hasExplicitCodeLanguage(language) && looksLikeDiagram(raw)) {
         return (
@@ -688,8 +739,9 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
     hr() {
       return <hr className="md-hr" />;
     },
-    ol({ children }) {
-      return <ol className="md-list">{children}</ol>;
+    ol({ children, start }) {
+      // A list that picks up after a paragraph ("2. …") keeps its number.
+      return <ol className="md-list" start={typeof start === "number" && start !== 1 ? start : undefined}>{children}</ol>;
     },
     p({ children }) {
       if (options?.embedStandaloneMedia) {
@@ -740,7 +792,7 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
     <ReactMarkdown
       components={components}
       rehypePlugins={[rehypeKatex]}
-      remarkPlugins={[remarkGfm, remarkMath]}
+      remarkPlugins={[remarkGfm, remarkMath, remarkLessonCallouts]}
       skipHtml
     >
       {normalizeMathMarkdown(text)}

@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Pencil,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   EmojiPickerButton,
@@ -134,6 +135,8 @@ export type WebCommunityInteractionProjectionProps = {
   canManageCommunityMembers?: boolean;
   canReviewCommunityJoinRequests?: boolean;
   communityJoinReviewMode?: "paid" | "free_auto" | "free_approval" | null;
+  /** Shown under the members list, e.g. the owner's other communities. */
+  rosterFooter?: ReactNode;
   communityJoinRequests?: CommunityAdmissionJoinRequest[] | null;
   isLoadingCommunityJoinRequests?: boolean;
   communityJoinRequestsError?: string | null;
@@ -143,7 +146,7 @@ export type WebCommunityInteractionProjectionProps = {
   canViewMemberPlanDetails?: boolean;
   isActiveCommunityOwner?: boolean;
   communityInitials?: (value: string) => string;
-  onSetCommunityMemberRole?: (membershipId: string, role: "admin" | "moderator" | "member") => Promise<void> | void;
+  onSetCommunityMemberRole?: (membershipId: string, role: "co_creator" | "admin" | "moderator" | "member") => Promise<void> | void;
   onRemoveCommunityMember?: (membershipId: string) => Promise<void> | void;
   onBanCommunityMember?: (membershipId: string) => Promise<void> | void;
   loadMemberBillingHistory?: (membershipId: string) => Promise<CloudCommunityMemberBillingHistory | null>;
@@ -171,7 +174,9 @@ import {
 } from "./communityInteractionFeed";
 import { interactionMentionsViewer } from "../controllers/communityMentionAttention";
 import { CommunityPinnedRootSurface } from "./CommunityPinnedRootSurface";
-import { CommunityPostsFeed } from "./CommunityPostsFeed";
+import { CommunityPostsFeed, splitPostTitle } from "./CommunityPostsFeed";
+import { PostCardView, postCardTitle } from "./CommunityPostCard";
+import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 
 export function resolveSelectedCommunityInteractionRoot(
   roots: CommunityInteractionRootBundle[],
@@ -196,6 +201,7 @@ export function communityInteractionRootHasRichContent(
 
 
 export function WebCommunityInteractionProjection(props: WebCommunityInteractionProjectionProps) {
+  const agentName = useCommunityAgentName(props.activeCommunityName);
   const hasChannelContext = Boolean(props.communityId && props.activeChannel);
   // The Members page is the member list kept open.
   const peopleOpen = Boolean((props.peopleOpen || props.surface === "members") && hasChannelContext);
@@ -517,7 +523,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
     props.selectedRootId,
   );
   const selectedRootLabel = selectedRoot
-    ? actorLabel(selectedRoot.root, props.displayName, props.activeCommunityName)
+    ? actorLabel(selectedRoot.root, props.displayName, agentName)
     : "";
   const selectedRootText = selectedRoot
     ? stripSharedAttachmentSummary(
@@ -540,6 +546,11 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
   // dialog, instead of squeezing the page beside a drawer.
   const detailAsDialog = hasDetailPanel && !isMobileThreadPage && (isPostsPresentation || props.surface === "members");
   const closeDetail = props.profilePanel ? props.onCloseProfile : props.onCloseDrawer;
+  // A post opened as a dialog reads like an article: its title on top (or its
+  // first line, the same way its card shows it), then the byline and body.
+  const dialogPost = detailAsDialog && selectedRoot
+    ? (selectedRoot.post_card ? { title: postCardTitle(selectedRoot), body: "" } : splitPostTitle(selectedRoot.root.title, selectedRootText))
+    : null;
   useEffect(() => {
     if (!detailAsDialog) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -608,7 +619,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             openLabel={`View full pinned post by ${actorLabel(
               props.pinnedRoot.root,
               props.displayName,
-              props.activeCommunityName,
+              agentName,
             )}`}
           >
             <CommunityInteractionFeedList
@@ -725,7 +736,16 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           className={`community-interaction-drawer community-interaction-thread-drawer${isMobileThreadPage ? " community-interaction-thread-page" : ""}`}
           aria-label={isMobileThreadPage ? "Thread" : "Thread replies"}
         >
-          {!isMobileThreadPage ? <div className="community-interaction-drawer-back">
+          {detailAsDialog ? (
+            <div className="community-post-dialog-bar">
+              <span className="community-post-dialog-channel">
+                {props.activeChannel?.name ? `# ${props.activeChannel.name}` : "Post"}
+              </span>
+              <button type="button" className="community-post-dialog-close" onClick={props.onCloseDrawer} aria-label="Close post">
+                <X size={20} strokeWidth={2} aria-hidden="true" />
+              </button>
+            </div>
+          ) : !isMobileThreadPage ? <div className="community-interaction-drawer-back">
             <button
               className="back-to-workspace"
               type="button"
@@ -740,6 +760,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           </div> : null}
           <div className="community-interaction-drawer-scroll" ref={drawerScrollRef}>
             <div className="community-interaction-drawer-root">
+              {dialogPost?.title ? <h2 className="community-post-dialog-title">{dialogPost.title}</h2> : null}
               <div className="community-interaction-thread-anchor">
                 <ProfileHoverCard
                   userId={selectedRoot.root.actor_user_id}
@@ -784,11 +805,13 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                     ) : null}
                     <span>{props.formatChatTime(selectedRoot.root.created_at)}</span>
                   </div>
-                  {selectedRoot.root.title ? (
+                  {selectedRoot.root.title && !dialogPost ? (
                     <div className="community-interaction-title">{selectedRoot.root.title}</div>
                   ) : null}
-                  <InteractionContent
-                    text={selectedRootText}
+                  {selectedRoot.post_card ? (
+                    <PostCardView bundle={selectedRoot} showQuestion={!dialogPost} />
+                  ) : <InteractionContent
+                    text={dialogPost ? dialogPost.body : selectedRootText}
                     renderTextWithLinks={props.renderTextWithLinks}
                     mentionContext={{
                       mentions: selectedRoot.mentions ?? [],
@@ -799,7 +822,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                       onMessageUser: props.onMessageUser,
                       getAvatarColor: props.getAvatarColor,
                       getInitials: props.getInitials,
-                      communityAgentDisplayName: props.activeCommunityName,
+                      communityAgentDisplayName: agentName,
                     }}
                     afterBody={(
                       <InteractionAttachments
@@ -807,12 +830,14 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                         onOpenImage={props.onOpenCommunityChatLightbox}
                       />
                     )}
-                  />
+                  />}
                   <div className="community-interaction-thread-anchor-actions">
                     <ReactionSummary
                       rows={selectedRoot.root.reaction_summary}
                       viewerEmojis={selectedRoot.root.viewer_emojis}
                       onToggle={(emoji) => props.onToggleReaction?.("root", selectedRoot.root.id, emoji)}
+                      target={{ type: "root", id: selectedRoot.root.id }}
+                      whoVariant={isPostsPresentation ? "faces" : "names"}
                     />
                     <EmojiPickerButton
                       className="community-interaction-reaction-add"
@@ -834,12 +859,20 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                 <div className="community-interaction-loading web-skeleton-pill" aria-hidden="true" />
               </div>
             ) : props.replies.length === 0 ? (
-              <div className="community-interaction-drawer-empty">No replies yet.</div>
+              <div className="community-interaction-drawer-empty">
+                {detailAsDialog ? "No comments yet. Start the conversation below." : "No replies yet."}
+              </div>
             ) : (
+              <>
+              {detailAsDialog ? (
+                <div className="community-post-dialog-comments-label">
+                  {props.replies.length === 1 ? "1 comment" : `${props.replies.length} comments`}
+                </div>
+              ) : null}
               <div className="community-interaction-reply-list">
                 {props.replies.map((bundle) => {
                   const reply = bundle.reply;
-                  const label = actorLabel(reply, props.displayName, props.activeCommunityName);
+                  const label = actorLabel(reply, props.displayName, agentName);
                   const profile = reply.actor_user_id ? props.profilesByUserId[reply.actor_user_id] ?? null : null;
                   const body = stripSharedAttachmentSummary(
                     bundleText(bundle.content_blocks, reply.content_summary),
@@ -851,7 +884,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                     reply.actor_type === "community_agent"
                       ? {
                           userId: "community_agent",
-                          displayName: props.activeCommunityName,
+                          displayName: agentName,
                           handle: null,
                           avatarUrl: null,
                           kind: "community_agent",
@@ -955,7 +988,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                                 onMessageUser: props.onMessageUser,
                                 getAvatarColor: props.getAvatarColor,
                                 getInitials: props.getInitials,
-                                communityAgentDisplayName: props.activeCommunityName,
+                                communityAgentDisplayName: agentName,
                               }}
                               afterBody={(
                                 <InteractionAttachments
@@ -986,6 +1019,8 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                             rows={reply.reaction_summary}
                             viewerEmojis={reply.viewer_emojis}
                             onToggle={(emoji) => props.onToggleReaction?.("reply", reply.id, emoji)}
+                            target={{ type: "reply", id: reply.id }}
+                            whoVariant={isPostsPresentation ? "faces" : "names"}
                           />
                         )}
                       </div>
@@ -993,6 +1028,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                   );
                 })}
               </div>
+              </>
             )}
           </div>
           {!props.floatingComposers ? (
@@ -1040,6 +1076,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           displayName: props.displayName,
         }}
         admission={props.admission}
+        footer={props.rosterFooter}
         key={`${props.communityId}:${props.activeChannel?.id ?? "general"}`}
         communityName={props.activeCommunityName} presenceSummary={props.presenceSummary} isLoadingPresence={props.isLoadingCommunityPresence}
         currentUserId={props.currentUserId} onMessageUser={props.onMessageUser}

@@ -5,12 +5,32 @@
    the community's look. Shape tokens are applied in community-theme-hooks.css.
    Without a "top" layout none of these classes render. */
 
-/* Frame: tab bar above, page below. */
-@media (min-width: 641px) {
-  .product-shell-surface--community-top {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
+/* Frame: tab bar above, page below. The top layout only renders in the
+   desktop shell, whatever the window width, so these rules hold at any width. */
+.product-shell-surface--community-top {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+/* The tab bar is the whole header: its first row carries search, messages and
+   notifications, so Polynet's own 48px top bar folds away. */
+.app-root.community-layout-top {
+  grid-template-rows: 0 minmax(0, 1fr);
+}
+
+.app-root.community-layout-top:has(> .community-theme-draft-banner) {
+  grid-template-rows: auto 0 minmax(0, 1fr);
+}
+
+.app-root.community-layout-top > .app-topbar {
+  visibility: hidden;
+  overflow: hidden;
+}
+
+/* The top bar can be position: fixed and take no grid cell; pin the shell
+   to the last row either way. */
+.app-root.community-layout-top > .app-shell {
+  grid-row: -2 / -1;
 }
 
 .community-top-nav {
@@ -51,7 +71,7 @@
   width: 36px;
   height: 36px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--accent-brand);
   color: var(--text-on-accent, #fff);
   font-size: 13px;
@@ -75,14 +95,331 @@
   white-space: nowrap;
 }
 
+.community-top-nav-search {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 440px;
+  min-width: 140px;
+  height: 40px;
+  margin: 0 auto;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-muted);
+  box-sizing: border-box;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.community-top-nav-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent-brand) 60%, transparent);
+  background: var(--surface-card, var(--bg-card));
+}
+
+.community-top-nav-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.community-top-nav-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.community-top-nav-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.community-top-nav-search-clear {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.community-top-nav-search-clear:hover {
+  color: var(--text-primary);
+}
+
+.community-top-nav-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.community-top-nav-actions .direct-messages-topbar-button,
+.community-top-nav-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.community-top-nav-actions .direct-messages-topbar-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.community-top-nav-actions .direct-messages-topbar-button:hover,
+.community-top-nav-actions .direct-messages-topbar-button.active,
+.community-top-nav-icon:hover,
+.community-top-nav-icon.is-open {
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  color: var(--text-primary);
+}
+
+.community-top-nav-icon-badge {
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-attention, var(--accent-brand));
+  color: var(--text-on-accent, #fff);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.community-top-nav-menu {
+  position: relative;
+}
+
+.community-notifications-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(480px, 70vh);
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-card, var(--bg-card));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+/* The Display menu (WebCommunityDisplayMenu): drawn on the page body at a
+   fixed spot under its button, with two-line options and a check on the
+   selected one. */
+.community-display-panel {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-card, var(--bg-card));
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.community-display-panel [role="group"] + [role="group"] {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-muted, var(--border-default));
+}
+
+.community-display-group {
+  padding: 6px 10px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.community-display-option {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.community-display-option:hover,
+.community-display-option:focus-visible {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  outline: none;
+}
+
+.community-display-option:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus-ring, var(--accent-brand));
+}
+
+.community-display-option-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-secondary);
+}
+
+.community-display-option.is-selected .community-display-option-icon {
+  background: color-mix(in srgb, var(--accent-brand) 14%, transparent);
+  color: var(--accent-brand);
+}
+
+.community-display-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.community-display-option-text strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.community-display-option-text span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.community-display-option-check {
+  color: var(--accent-brand);
+}
+
+.community-notifications-group {
+  padding: 10px 16px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.community-notifications-list + .community-notifications-group {
+  border-top: 1px solid var(--border-muted, var(--border-default));
+}
+
+.community-notifications-head {
+  padding: 14px 16px 6px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.community-notifications-empty {
+  margin: 0;
+  padding: 8px 16px 18px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.community-notifications-list {
+  margin: 0;
+  padding: 0 6px 6px;
+  list-style: none;
+}
+
+.community-notification {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.community-notification:hover {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.community-notification.is-unseen {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.community-notification-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-brand) 14%, transparent);
+  color: var(--accent-brand);
+}
+
+.community-notification-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-notification-time {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.community-posts-search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .community-top-nav-invite {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
-  padding: 7px 14px;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--border-default);
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-primary);
   font: inherit;
@@ -162,9 +499,10 @@
 
 .community-category-chip {
   position: relative;
-  padding: 6px 14px;
+  height: 32px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   color: var(--text-secondary);
   font: inherit;
@@ -414,8 +752,11 @@
   gap: 4px;
   flex: none;
   margin-left: auto;
-  color: var(--text-muted);
-  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-brand) 20%, transparent);
+  color: var(--text-primary);
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -451,7 +792,7 @@
 .community-post-card-preview {
   display: -webkit-box;
   overflow: hidden;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 15px;
   line-height: 1.5;
   -webkit-box-orient: vertical;
@@ -508,7 +849,7 @@
 }
 
 .community-post-card-action.is-active {
-  color: var(--accent-brand);
+  color: var(--text-link, var(--accent-brand));
 }
 
 .community-post-card-action.is-active svg {
@@ -534,9 +875,10 @@
 
 .community-posts-load-more {
   align-self: center;
-  padding: 8px 16px;
+  height: 32px;
+  padding: 0 14px;
   border: 1px solid var(--post-border);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface-card, var(--bg-card));
   color: var(--text-primary);
   font: inherit;
@@ -601,7 +943,7 @@
   width: 40px;
   height: 40px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--accent-brand);
   color: var(--text-on-accent, #fff);
   font-size: 14px;
@@ -621,7 +963,7 @@
 
 .community-card-block-description {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -774,7 +1116,7 @@
 .community-about-main {
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface-card, var(--bg-card));
 }
 
@@ -799,7 +1141,7 @@
 
 .community-about-one-liner {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 16px;
 }
 
@@ -876,7 +1218,7 @@
   gap: 6px;
   padding: 20px 16px 16px;
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--surface-card, var(--bg-card));
   text-align: center;
 }
@@ -968,44 +1310,401 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* The dialog sizes to the post: short posts get a short dialog, long ones stop
+   at 88% of the window and scroll inside, with the reply box always in view at
+   the bottom. Laid out like an article page: a slim bar, title, byline, body,
+   then the comments. */
 .community-interaction-projection.detail-as-dialog > .community-interaction-drawer {
   position: fixed;
   top: 6vh;
-  bottom: 6vh;
   left: 50%;
   z-index: 41;
-  width: min(760px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100vw - 32px));
+  max-height: 88vh;
   transform: translateX(-50%);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
-  border-radius: 14px;
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+  border-radius: 12px;
   background: var(--surface-card, var(--bg-card));
   box-shadow: 0 24px 64px color-mix(in srgb, #000 30%, transparent);
+}
+
+.community-post-dialog-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 8px 0 24px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+}
+
+.community-post-dialog-channel {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-post-dialog-close {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.community-post-dialog-close:hover {
+  background: var(--hover-overlay, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  color: var(--text-primary);
+}
+
+.community-post-dialog-close:focus-visible {
+  outline: 2px solid var(--accent-brand);
+  outline-offset: -2px;
 }
 
 .community-interaction-projection.detail-as-dialog > .community-interaction-drawer .back-path {
   display: none;
 }
 
-.community-interaction-projection.detail-as-dialog .community-interaction-thread-anchor .community-interaction-title {
-  margin: 6px 0 4px;
-  font-size: 22px;
-  font-weight: 650;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-}
-
+/* A profile keeps its floating back arrow; a post has the bar above. */
 .community-interaction-projection.detail-as-dialog .community-interaction-drawer-scroll {
   padding-right: 24px;
   padding-left: 24px;
 }
 
+.community-interaction-projection.detail-as-dialog .community-interaction-thread-drawer .community-interaction-drawer-scroll {
+  flex: 0 1 auto;
+  padding: 0;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-drawer-root {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+}
+
+.community-post-dialog-title {
+  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-family: var(--pn-font-heading, inherit);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+/* Byline: avatar beside the name and time; the body below runs the full
+   width of the dialog instead of sitting in the avatar's column. */
+.community-interaction-projection.detail-as-dialog .community-interaction-thread-anchor {
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  row-gap: 16px;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-thread-anchor-content {
+  display: contents;
+}
+
+.community-interaction-projection.detail-as-dialog
+  .community-interaction-thread-anchor-content
+  > :not(.community-interaction-meta-row) {
+  grid-column: 1 / -1;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-thread-anchor .community-interaction-meta-row {
+  align-items: baseline;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-thread-anchor .community-interaction-body {
+  margin: 0;
+  gap: 14px;
+  color: var(--text-primary);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-thread-anchor-actions {
+  margin-top: 0;
+}
+
+.community-post-dialog-comments-label {
+  padding: 16px 24px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-reply-list {
+  padding: 4px 12px 12px;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-reply .community-interaction-body {
+  color: var(--text-primary);
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-drawer-empty {
+  min-height: 0;
+  padding: 20px 24px;
+  align-items: flex-start;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-drawer-composer {
+  position: relative;
+  flex: none;
+  margin-bottom: 0;
+  padding: 12px 16px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+  background: var(--surface-card, var(--bg-card));
+}
+
+.community-interaction-projection.detail-as-dialog .community-interaction-drawer-composer::before {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .community-interaction-projection.detail-as-dialog > .community-interaction-drawer {
+    top: 16px;
+    max-height: calc(100dvh - 32px);
+  }
+
+  .community-interaction-projection.detail-as-dialog .community-interaction-drawer-root {
+    padding: 16px;
+  }
+
+  .community-post-dialog-title {
+    font-size: 21px;
+  }
+}
+
 .community-post-card-last-reply {
-  color: var(--accent-brand);
+  color: var(--text-link, var(--accent-brand));
   font-weight: 500;
 }
 
 /* An avatar with a picture shows no fill colour around it. */
 :is(.community-top-nav-avatar, .community-card-block-avatar).has-image {
   background: transparent;
+}
+
+/* Narrow windows: search folds into an icon that opens it across the row,
+   Invite keeps only its icon, and the name gives way first. */
+.community-top-nav-search-toggle {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .community-top-nav-identity {
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .community-top-nav-search {
+    display: none;
+  }
+
+  .community-top-nav-search-toggle {
+    display: grid;
+    margin-left: auto;
+  }
+
+  .community-top-nav-identity.is-search-open > :not(.community-top-nav-search) {
+    display: none;
+  }
+
+  .community-top-nav-identity.is-search-open > .community-top-nav-search {
+    display: flex;
+    max-width: none;
+    margin: 0;
+  }
+
+  .community-top-nav-invite > span {
+    display: none;
+  }
+
+  .community-top-nav-invite {
+    width: 40px;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+  }
+
+  .community-top-nav-tabs,
+  .community-top-nav-chips {
+    padding: 0 12px;
+  }
+
+  /* Tabs that run past the edge fade out, so it reads as "scroll for more". */
+  .community-top-nav-tabs {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+    padding-right: 40px;
+  }
+
+  .community-top-nav-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .community-notifications-panel {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .community-top-nav-name {
+    display: none;
+  }
+}
+
+/* Classroom: the owner's pages (Settings, Workflows) open full screen under a
+   slim bar instead of the tab bar (WebCommunityOwnerBar). */
+.community-owner-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-card, var(--bg-card));
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+.community-owner-bar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0 0.75rem 0 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.community-owner-bar-back:hover { background: var(--bg-card-hover); }
+.community-owner-bar-back:focus-visible { outline: 2px solid var(--accent-brand); outline-offset: 2px; }
+.community-owner-bar-divider { width: 1px; height: 1.5rem; background: var(--border-default); }
+.community-owner-bar-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  background: var(--accent-brand);
+  color: var(--text-on-accent, #fff);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.community-owner-bar-avatar-image { width: 100%; height: 100%; object-fit: cover; }
+.community-owner-bar-title { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.community-owner-bar-community {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.community-owner-bar-page { font-size: 0.9375rem; font-weight: 700; white-space: nowrap; }
+.community-owner-bar-tools { display: flex; align-items: center; margin-left: auto; }
+.community-layout-centered .community-top-body.is-owner-page,
+.community-top-body.is-owner-page { max-width: none; }
+@media (max-width: 640px) {
+  .community-owner-bar { padding: 0 0.75rem; gap: 0.5rem; }
+  .community-owner-bar-back span, .community-owner-bar-community { display: none; }
+}
+
+/* Channels: the Display menu sits after Messages in the bar above the page,
+   so surfaces under that bar keep clear of both buttons. */
+.app-root:has(.app-topbar .community-display-bar-button) {
+  --web-topbar-right-action-safe-inset: 106px;
+}
+
+.app-topbar .icon-button.community-display-bar-button {
+  width: 34px;
+  height: 34px;
+}
+
+.app-topbar .icon-button.community-display-bar-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.app-root:not(.mobile-shell) .app-topbar .community-display-bar-button {
+  transform: translate(-4px, 4px);
+}
+
+/* Settings sits at the far right of that bar (WebAccountSettingsButton), in
+   place of the rail's bottom gear; one more button of clearance. */
+.app-root:has(.app-topbar .account-settings-bar-button) {
+  --web-topbar-right-action-safe-inset: 106px;
+}
+.app-root:has(.app-topbar .account-settings-bar-button):has(.app-topbar .community-display-bar-button) {
+  --web-topbar-right-action-safe-inset: 146px;
+}
+.app-topbar .icon-button.account-settings-bar-button { width: 34px; height: 34px; }
+.app-topbar .icon-button.account-settings-bar-button svg { width: 20px; height: 20px; }
+.app-root:not(.mobile-shell) .app-topbar .account-settings-bar-button { transform: translate(-4px, 4px); }
+
+/* Your picture sits after the gear (WebAccountSettingsButton) and opens your
+   settings on your profile (Rashid, 2026-10-26). */
+.community-profile-button .community-profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+.community-profile-button .community-profile-avatar-image { width: 100%; height: 100%; object-fit: cover; }
+.community-profile-button .community-profile-avatar svg { width: 16px; height: 16px; }
+.community-profile-button.is-open .community-profile-avatar,
+.community-profile-button.active .community-profile-avatar { box-shadow: 0 0 0 2px var(--accent-brand, var(--text-primary)); }
+.app-root:has(.app-topbar .account-settings-bar-button + .community-profile-button) {
+  --web-topbar-right-action-safe-inset: 146px;
+}
+.app-root:has(.app-topbar .account-settings-bar-button + .community-profile-button):has(.app-topbar .community-display-bar-button) {
+  --web-topbar-right-action-safe-inset: 186px;
+}
+
+/* View as member sits first in that group, on pages that offer it (today
+   Knowledge's Resources tab). On, it keeps its icon size, so nothing in the
+   bar moves onto the page's tabs, and gets a tinted ring; the page shows a
+   "Member view" banner with an Exit button (Rashid, 2026-10-26). */
+.community-member-view-button.is-on {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 14%, transparent);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-brand, var(--text-primary)) 40%, transparent);
+}
+.app-root:has(.app-topbar .community-member-view-button) {
+  --web-topbar-right-action-safe-inset: 226px;
 }

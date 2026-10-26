@@ -18,6 +18,7 @@ import type {
   UserProfile as SharedUserProfile,
 } from "../../../../shared/communityTypes";
 import { fetchCloudProfileCommunityContext } from "../../../../shared/cloudProfilesGateway";
+import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import {
   searchCloudCommunityMentionCandidates,
   type CloudCommunityMentionCandidateRow,
@@ -35,7 +36,9 @@ import {
   type WebCommunityInteractionProjectionProps,
 } from "./WebCommunityInteractionProjection";
 import { WebCommunityProfilePanel } from "./WebCommunityProfilePanel";
+import { COMMUNITY_OPEN_PROFILE_EVENT, takePendingCommunityProfile } from "./WebCommunityCreators";
 import { CommunityComposerControls } from "./CommunityComposerControls";
+import { FormShareDialog, PollComposerDialog, PostPeopleContext } from "./CommunityPostCard";
 import { resolveWebCommunityChatPresentationMode } from "../controllers/resolveWebCommunityChatPresentationMode";
 import {
   continueCommunityComposerList,
@@ -244,6 +247,8 @@ export type WebCommunityChatPanelProps = {
   onOpenDirectMessageFromCommunity?: (targetUserId: string, communityId: string) => void;
   sessionUserId: string | null;
   canPostMessages: boolean;
+  /** Owners and admins can also share one of the community's Forms from "+". */
+  canShareForms?: boolean;
   isProfileSetupComplete: boolean;
   canMentionEverybody: boolean;
   /** Authoritative community member count for the @everybody row copy. */
@@ -314,6 +319,7 @@ export type WebCommunityChatPanelProps = {
 };
 
 export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
+  const communityAgentName = useCommunityAgentName(props.activeCommunity?.name);
   const { upsertCommunityVisualIdentities } =
     useCommunityVisualIdentityRegistryActions();
   const {
@@ -379,6 +385,7 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
   const canPresentComposer = canPostMessages && !isProfileSetupGateActive;
   const canUseComposer = canPresentComposer;
   const canUseCommunityAttachments = canUseComposer;
+  const [postCardDialog, setPostCardDialog] = useState<"poll" | "form" | null>(null);
   const [profilePanelUserId, setProfilePanelUserId] = useState<string | null>(null);
   const [profileCommunityContextByUserId, setProfileCommunityContextByUserId] = useState<
     Record<string, ProfileCommunityContext>
@@ -569,9 +576,9 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
         }
       : null;
     // The community agent is taggable inside its own community, pinned first and
-    // always badged. V0 token/name = the community's own name; the backend stores
-    // the stable (communityId, community_agent) identity.
-    const agentDisplayName = String(activeCommunity?.name ?? "").trim();
+    // always badged. Its token/name is the owner's name for the agent, else the
+    // community's; the backend stores the stable (communityId, community_agent) identity.
+    const agentDisplayName = communityAgentName.trim();
     const agentCandidate: MentionCandidate | null = agentDisplayName
       ? {
           userId: "community_agent",
@@ -583,7 +590,7 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
       : null;
     return { agentCandidate, everybodyCandidate, memberCandidates };
   }, [
-    activeCommunity?.name,
+    communityAgentName,
     canMentionEverybody,
     displayName,
     everybodyMemberCount,
@@ -742,6 +749,23 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
     interactionProjection?.onCloseDrawer();
     setProfilePanelUserId(userId);
   }, [interactionProjection]);
+  const postPeople = useMemo(() => ({
+    getAvatarColor, getInitials, profilesByUserId, onOpenProfile: handleOpenCommunityProfile, agentName: communityAgentName,
+  }), [getAvatarColor, getInitials, profilesByUserId, handleOpenCommunityProfile, communityAgentName]);
+  // Creator names elsewhere in the community (the community card, About)
+  // open their profile here.
+  useEffect(() => {
+    const pending = takePendingCommunityProfile();
+    if (pending) handleOpenCommunityProfile(pending);
+    const onOpen = (event: Event) => {
+      const userId = (event as CustomEvent<{ userId?: string }>).detail?.userId;
+      if (!userId) return;
+      event.preventDefault();
+      handleOpenCommunityProfile(userId);
+    };
+    window.addEventListener(COMMUNITY_OPEN_PROFILE_EVENT, onOpen);
+    return () => window.removeEventListener(COMMUNITY_OPEN_PROFILE_EVENT, onOpen);
+  }, [handleOpenCommunityProfile]);
   const handleSelectCommunityRoot = useCallback((rootId: string) => {
     setProfilePanelUserId(null);
     interactionProjection?.onSelectRoot(rootId);
@@ -1287,6 +1311,8 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
             isSendingCommunityMessage
           }
           onAttach={() => fileInputRef.current?.click()}
+          onPoll={() => setPostCardDialog("poll")}
+          onForm={props.canShareForms ? () => setPostCardDialog("form") : undefined}
           onMention={mainMention.begin}
           onEmoji={insertMainComposerEmoji}
           voiceControl={isPostsComposer ? null : (
@@ -1462,6 +1488,14 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
 
   return (
     <CommunityChannelSessionContext.Provider value={session && activeCommunity ? { session, communityId: activeCommunity.id } : null}>
+    <PostPeopleContext.Provider value={postPeople}>
+      {postCardDialog && activeCommunity ? (postCardDialog === "poll" ? (
+        <PollComposerDialog communityId={activeCommunity.id} channelId={interactionProjection?.activeChannel?.id ?? null}
+          channelName={interactionProjection?.activeChannel?.name ?? null} onClose={() => setPostCardDialog(null)} />
+      ) : (
+        <FormShareDialog communityId={activeCommunity.id} channelId={interactionProjection?.activeChannel?.id ?? null}
+          channelName={interactionProjection?.activeChannel?.name ?? null} onClose={() => setPostCardDialog(null)} />
+      )) : null}
       <div
         className={`community-chat community-member-chat community-attachment-drop-surface${isCommunityAttachmentDragOver ? " drag-over" : ""}`}
         onDrop={canUseCommunityAttachments ? onCommunityAttachmentDrop : undefined}
@@ -1582,6 +1616,7 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
       </div>
 
       <WebCommunityChatLightboxModal {...lightboxModalProps} />
+    </PostPeopleContext.Provider>
     </CommunityChannelSessionContext.Provider>
   );
 }

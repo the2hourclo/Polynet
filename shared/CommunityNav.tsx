@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   GitFork,
+  Megaphone,
   GripVertical,
   Hash,
   LockKeyhole,
@@ -629,6 +630,19 @@ export const CommunityNav = memo(function CommunityNav({
                 <GitFork size={18} strokeWidth={1.7} />
               </span>
               Workflows
+            </button>
+          )}
+          {canManageMembersActiveCommunity && (
+            <button
+              className={showActiveSelection && communityTab === "funnels" ? "nav-item active" : "nav-item"}
+              type="button"
+              onClick={() => onSelectTab("funnels")}
+              title="Funnels"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                <Megaphone size={18} strokeWidth={1.7} />
+              </span>
+              Funnels
             </button>
           )}
           {canViewActiveCommunityAnalytics && (
