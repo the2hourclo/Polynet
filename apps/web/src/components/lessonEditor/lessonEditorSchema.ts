@@ -48,6 +48,12 @@ export const LessonBlockquote = Blockquote.extend({
         parseHTML: (element: HTMLElement) => element.getAttribute("data-callout"),
         renderHTML: (attributes: { callout?: string | null }) => (attributes.callout ? { "data-callout": attributes.callout } : {}),
       },
+      /** The callout's own title, typed by the author: `> [!TIP] Title`. */
+      calloutTitle: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-callout-title"),
+        renderHTML: (attributes: { calloutTitle?: string | null }) => (attributes.calloutTitle ? { "data-callout-title": attributes.calloutTitle } : {}),
+      },
     };
   },
 });

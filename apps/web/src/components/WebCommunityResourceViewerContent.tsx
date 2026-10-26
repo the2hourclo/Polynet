@@ -340,7 +340,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       }
     : null;
   const isEmpty = !embed && !hasBody && !verificationLink;
-  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyFocusAtRef = useRef<{ x: number; y: number } | null>(null);
   const canEdit = Boolean(editor?.canEdit);
   const isEditing = Boolean(editor?.isEditing);
@@ -529,14 +529,25 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const renderTitleContent = () => {
     if (isTitleEditing && editor) {
       return (
-        <input
+        // Edited in place like Substack's: the title's own size and wrapping,
+        // no box, and Enter moves on to the text.
+        <textarea
           ref={titleInputRef}
           className="resource-viewer-title-input"
           value={editor.titleInput}
           placeholder="Lesson title"
-          onChange={(event) => editor.onChangeTitle(event.target.value)}
+          rows={1}
+          aria-label="Lesson title"
+          onChange={(event) => editor.onChangeTitle(event.target.value.replace(/\s*\n\s*/g, " "))}
           onFocus={() => editor.onSetActiveField("title")}
-          onKeyDown={handleEditableKeyDown}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.metaKey && !event.ctrlKey) {
+              event.preventDefault();
+              editor.onSetActiveField("body");
+              return;
+            }
+            handleEditableKeyDown(event);
+          }}
         />
       );
     }

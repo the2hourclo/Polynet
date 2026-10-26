@@ -206,7 +206,9 @@ function filterSlashItems(query: string, followAlong: boolean): SlashItem[] {
   const q = query.trim().toLowerCase();
   const offered = followAlong ? SLASH_ITEMS : SLASH_ITEMS.filter((item) => !FOLLOW_ALONG_KEYS.has(item.key));
   if (!q) return offered;
-  return offered.filter((item) => `${item.title} ${item.keywords}`.toLowerCase().includes(q));
+  const matches = offered.filter((item) => `${item.title} ${item.keywords}`.toLowerCase().includes(q));
+  // "/h2" puts Heading 2 first, whatever else mentions it.
+  return [...matches.filter((item) => item.key === q), ...matches.filter((item) => item.key !== q)];
 }
 
 type SlashState = { items: SlashItem[]; index: number; rect: DOMRect | null };
@@ -252,6 +254,10 @@ function slashExtension(bridge: SlashBridge) {
           editor: this.editor,
           pluginKey: slashKey,
           char: "/",
+          // Like Notion, "/" opens the menu anywhere in a line, even right after
+          // a word, and the chosen type turns that whole line into it
+          // ("Set up the app/h2" + Enter makes the line a heading).
+          allowedPrefixes: null,
           allow: ({ state, range }) => {
             const $from = state.doc.resolve(range.from);
             return $from.parent.type.name === "paragraph" || $from.parent.type.name === "heading";

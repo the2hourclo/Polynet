@@ -186,4 +186,16 @@ describe("community resource markdown rendering", () => {
     expect(markup).toContain("Open the terminal");
     expect(markup).not.toContain("language-checklist");
   });
+  it("shows a callout's typed title and icon, never its type's name", () => {
+    const titled = renderResourceMarkdown("> [!TIP] One tool first\n> Connect one tool before the next.");
+    expect(titled).toContain('class="md-callout is-tip"');
+    expect(titled).toContain('<p class="md-callout-title">One tool first</p>');
+    expect(titled).toContain("Connect one tool before the next.");
+    expect(titled).not.toContain("[!TIP]");
+    expect(titled).not.toContain(">Tip<");
+    const untitled = renderResourceMarkdown("> [!WARNING]\n> Keys stay out of the chat.");
+    expect(untitled).not.toContain("md-callout-title");
+    expect(untitled).not.toContain(">Warning<");
+    expect(untitled).toContain("Keys stay out of the chat.");
+  });
 });

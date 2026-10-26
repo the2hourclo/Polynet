@@ -1126,9 +1126,9 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 }
 /* The page decides the layout here, not the reader's own width. */
 .community-knowledge-page[data-reading] .knowledge-resource-reader { container-name: none; }
-/* From 68rem the three columns fit: the text column gives up width (down to
-   36rem) before the contents column folds away. */
-@container lesson-page (min-width: 68rem) {
+/* From 70rem the three columns fit: the text column gives up width (down to
+   about 34rem) before the contents column folds away. */
+@container lesson-page (min-width: 70rem) {
   .community-knowledge-page[data-reading] .knowledge-resource-reader {
     --lesson-reading-measure: min(var(--knowledge-reading-measure), calc(100cqi - 2 * var(--lesson-outline-span)));
     container-type: normal;
@@ -1171,3 +1171,18 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
 }
+
+/* The course outline reads more easily (Rashid, 2026-10-26): a wider column
+   and slightly smaller titles that wrap to three lines before they're cut. */
+.community-knowledge-page[data-reading] { --lesson-outline-width: 16rem; }
+@container lesson-page (min-width: 58.0625rem) and (max-width: 69.9375rem) {
+  .community-knowledge-page[data-reading] .resource-course-workspace { grid-template-columns: var(--lesson-outline-width) minmax(0, 1fr); }
+}
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-main { gap: 0.625rem; padding: 0.4375rem 0.625rem; min-height: 2.25rem; }
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-title {
+  font-size: 0.84375rem;
+  line-height: 1.4;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-status { width: 1rem; height: 1rem; }
