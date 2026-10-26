@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { useCommunityThemeScope } from "./useCommunityThemeScope";
 
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import type { CloudCommunityMemberSuccessDossier } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
@@ -76,6 +77,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
   onRetryAction?: (snapshot: CloudCommunityMemberSuccessDossier, automationKey: string) => Promise<{ status: string; error_code?: string }>;
   onOpenServiceChannel: (channelId: string) => void;
 }) {
+  const themeScope = useCommunityThemeScope();
   const dialogRef = useRef<HTMLElement | null>(null);
   const [approving, setApproving] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
@@ -157,7 +159,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
     };
   }, [props.isOpen]);
 
-  if (!props.isOpen) return null;
+  if (!props.isOpen) return themeScope.marker;
   const dossier = props.dossier;
   const factsByKind = new Map<string, string[]>();
   for (const fact of dossier?.approved_community_context ?? []) {
@@ -192,7 +194,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
     }
   };
 
-  return createPortal(
+  return <>{themeScope.marker}{createPortal(themeScope.scope(
     <div
       className="modal-overlay workflow-member-dossier-overlay"
       onMouseDown={props.onClose}
@@ -520,6 +522,5 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
         </div>
       </section>
     </div>,
-    document.body,
-  );
+    ), document.body)}</>;
 }
