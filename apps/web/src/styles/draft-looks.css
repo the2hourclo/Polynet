@@ -1059,8 +1059,8 @@ html:root[data-rail-color="blend"] .product-shell-surface {
    every look and in Classroom: the outline, then a centred ~680px reading
    column (about 70 characters) with even margins. */
 .community-knowledge-page[data-reading] {
-  --pn-reading-measure: 42.5rem;
-  --pn-reading-gutter: clamp(1rem, 3vw, 2.5rem);
+  --knowledge-reading-measure: 42.5rem;
+  --knowledge-reading-gutter: clamp(1rem, 3vw, 2.5rem);
 }
 .product-shell-surface[data-channels-feel] .community-knowledge-page[data-reading],
 .product-shell-surface .community-knowledge-page[data-reading] {
@@ -1070,10 +1070,10 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 }
 .community-knowledge-page[data-reading] .resources-panel {
   container-type: inline-size;
-  padding-inline: var(--pn-reading-gutter);
+  padding-inline: var(--knowledge-reading-gutter);
 }
 .community-knowledge-page[data-reading] .knowledge-resource-reader {
-  --lesson-reading-measure: var(--pn-reading-measure);
+  --lesson-reading-measure: var(--knowledge-reading-measure);
 }
 .community-knowledge-page[data-reading] .knowledge-resource-reader .resource-viewer-content {
   padding-inline: 0;
