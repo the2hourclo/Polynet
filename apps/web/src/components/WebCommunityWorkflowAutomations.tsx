@@ -1,6 +1,6 @@
 import {
-  BookOpen, Bot, CalendarDays, Clock, CreditCard, DoorOpen, FileText, FlaskConical, GitBranch, Hourglass, Lock,
-  MessageSquare, PenLine, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Webhook, type LucideIcon,
+  BookOpen, Bot, CalendarDays, ChevronDown, Clock, CreditCard, DoorOpen, FileText, GitBranch, Hourglass, Lock,
+  MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Webhook, X, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -24,45 +24,46 @@ import { workflowActionPhrase, workflowConditionPhrase, workflowDurationLabel, w
 // settings on the right. An automation is a rule plus the rules that wait for
 // it, so this is a view over the stage rules the engine already runs.
 
-type Family = "people" | "learn" | "forms" | "time" | "outside" | "agent" | "send" | "change" | "logic";
-type Option = { family: Family; icon: LucideIcon; label: string; type?: string };
+type Option = { icon: LucideIcon; label: string; hint?: string; type?: string };
 
-const TRIGGERS: Array<{ family: Family; name: string; options: Option[] }> = [
-  { family: "people", name: "People", options: [
-    { family: "people", icon: DoorOpen, label: "Someone joins", type: "member_joined" },
-    { family: "people", icon: ShoppingBag, label: "Someone buys a package" },
-    { family: "people", icon: CreditCard, label: "A payment fails or they cancel" },
-    { family: "people", icon: UserCog, label: "A member record changes" },
+// Trigger kinds are told apart by icon and group, never by colour: the
+// community's accent marks only what's selected (polynet-ui/airtable-study).
+const TRIGGERS: Array<{ name: string; options: Option[] }> = [
+  { name: "Members", options: [
+    { icon: DoorOpen, label: "Someone joins", hint: "Only the first stage starts here", type: "member_joined" },
+    { icon: ShoppingBag, label: "Buys a package" },
+    { icon: CreditCard, label: "Payment fails or they cancel" },
+    { icon: UserCog, label: "Member record matches conditions" },
   ] },
-  { family: "learn", name: "Learning", options: [
-    { family: "learn", icon: BookOpen, label: "Finishes a lesson", type: "lesson_completed" },
-    { family: "learn", icon: Trophy, label: "Finishes a course", type: "course_completed" },
-    { family: "learn", icon: Route, label: "Finishes a track", type: "track_completed" },
+  { name: "Learning", options: [
+    { icon: BookOpen, label: "Finishes a lesson", type: "lesson_completed" },
+    { icon: Trophy, label: "Finishes a course", type: "course_completed" },
+    { icon: Route, label: "Finishes a track", type: "track_completed" },
+    { icon: MessageSquare, label: "Posts in a channel", type: "member_contributed" },
   ] },
-  { family: "forms", name: "Forms and posts", options: [
-    { family: "forms", icon: FileText, label: "Sends back a form", type: "form_submitted" },
-    { family: "forms", icon: MessageSquare, label: "Posts in a channel", type: "member_contributed" },
+  { name: "Forms", options: [
+    { icon: FileText, label: "Sends back a form", hint: "Runs once per member per form", type: "form_submitted" },
   ] },
-  { family: "time", name: "Time", options: [
-    { family: "time", icon: Clock, label: "Time in this stage", type: "milestone_elapsed" },
-    { family: "time", icon: CalendarDays, label: "On a date" },
-    { family: "time", icon: Repeat, label: "Every day or week" },
+  { name: "Time", options: [
+    { icon: Clock, label: "After some time in this stage", type: "milestone_elapsed" },
+    { icon: CalendarDays, label: "At a scheduled time", hint: "Every day, every week, or one date" },
+    { icon: Repeat, label: "On a date in their record", hint: "e.g. 3 days before renewal" },
   ] },
-  { family: "outside", name: "Another app", options: [
-    { family: "outside", icon: Webhook, label: "A booking, payment or Zap" },
+  { name: "Outside", options: [
+    { icon: Webhook, label: "A webhook is received", hint: "From Zapier, Make, or your own app" },
   ] },
 ];
 
-const ACTIONS: Record<WorkflowActionType, Option> = {
-  prompt_agent: { family: "agent", icon: Bot, label: "Agent sends a message" },
-  request_form: { family: "send", icon: FileText, label: "Send a form" },
-  create_service_channel: { family: "send", icon: Lock, label: "Open a private room" },
-  set_client_property: { family: "change", icon: PenLine, label: "Update member record" },
+const ACTIONS: Record<WorkflowActionType, Option & { group: string }> = {
+  prompt_agent: { group: "Talk to them", icon: Bot, label: "Agent sends a message", hint: "In their private room" },
+  request_form: { group: "Talk to them", icon: FileText, label: "Send a form" },
+  set_client_property: { group: "Change things", icon: PenLine, label: "Update member record", hint: "Writes to the Members database" },
+  create_service_channel: { group: "Change things", icon: Lock, label: "Open a private room", hint: "Just them, you and the agent" },
 };
 
 function triggerOption(type: WorkflowTriggerType): Option {
   for (const group of TRIGGERS) for (const option of group.options) if (option.type === type) return option;
-  return { family: "logic", icon: GitBranch, label: "After an earlier step" };
+  return { icon: GitBranch, label: "After an earlier step" };
 }
 
 type Chain = { root: WorkflowAutomationDraft; steps: WorkflowAutomationDraft[] };
@@ -112,6 +113,8 @@ export function WebCommunityWorkflowAutomations(props: Props) {
   const [drafts, setDrafts] = useState<Record<string, WorkflowAutomationDraft[]>>({});
   const [selection, setSelection] = useState<Selection | null>(null);
   const [saveIssue, setSaveIssue] = useState<string | null>(null);
+  // The panel shows the trigger or action list in place of the settings while choosing.
+  const [picking, setPicking] = useState(false);
 
   const rulesOf = (milestone: CommunityMemberWorkflowMilestone): WorkflowAutomationDraft[] =>
     drafts[milestone.key] ?? milestone.automations.map(toWorkflowAutomationDraft);
@@ -153,6 +156,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       action: { key: newRuleKey("action"), type: "prompt_agent", prompt: "" } });
     setRules(milestone.key, [...rulesOf(milestone), rule]);
     setSelection({ stageKey: milestone.key, ruleKey: rule.key, part: "trigger" });
+    setPicking(true);
   };
   const addAction = (kind: "action" | "wait" | "condition") => {
     if (!stage || !chain) return;
@@ -162,6 +166,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       action: { key: newRuleKey("action"), type: "prompt_agent", prompt: "" } });
     setRules(stage.key, [...rules, rule]);
     setSelection({ stageKey: stage.key, ruleKey: rule.key, part: kind === "action" ? "action" : kind });
+    setPicking(kind === "action");
   };
   const removeSelected = () => {
     if (!stage || !selected) return;
@@ -205,14 +210,13 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     }
   };
 
-  const card = (rule: WorkflowAutomationDraft, part: Selection["part"], option: Option, kind: string, value: string, number?: number) => {
+  const card = (rule: WorkflowAutomationDraft, part: Selection["part"], option: Option, kind: string, value: string, detail?: string) => {
     const Icon = option.icon;
     const pressed = selection?.ruleKey === rule.key && selection.part === part;
-    return <button type="button" className={`pn-au-step is-${option.family}`} aria-pressed={pressed}
-      onClick={() => stage && setSelection({ stageKey: stage.key, ruleKey: rule.key, part })}>
-      {number ? <span className="pn-au-num">{number}</span> : null}
-      <span className="pn-au-icon"><Icon size={18} strokeWidth={2} aria-hidden="true" /></span>
-      <span className="pn-au-step-text"><small>{kind}</small><span>{value}</span></span>
+    return <button type="button" className="pn-au-step" aria-pressed={pressed}
+      onClick={() => { setPicking(false); if (stage) setSelection({ stageKey: stage.key, ruleKey: rule.key, part }); }}>
+      <span className="pn-au-icon"><Icon size={16} strokeWidth={2} aria-hidden="true" /></span>
+      <span className="pn-au-step-text"><small>{kind}</small><strong>{value}</strong>{detail ? <span>{detail}</span> : null}</span>
     </button>;
   };
 
@@ -234,106 +238,138 @@ export function WebCommunityWorkflowAutomations(props: Props) {
   const thenCards = chain ? chain.steps.flatMap((rule, index) => {
     const out = [];
     const wait = rule.trigger.type === "previous_action_completed" ? rule.trigger.delayMinutes ?? 0 : 0;
-    if (wait) out.push(card(rule, "wait", { family: "logic", icon: Hourglass, label: "Wait" }, "Wait", `${workflowDurationLabel(wait)}`, ++number));
-    if (rule.condition) out.push(card(rule, "condition", { family: "logic", icon: GitBranch, label: "Only if" }, "Only if", capitalize(workflowConditionPhrase(rule.condition, names).replace(/^if /, "")), ++number));
+    if (wait) out.push(card(rule, "wait", { icon: Hourglass, label: "Wait" }, `${++number} · Wait`, workflowDurationLabel(wait)));
+    if (rule.condition) out.push(card(rule, "condition", { icon: GitBranch, label: "Only if" }, `${++number} · Only if`, capitalize(workflowConditionPhrase(rule.condition, names).replace(/^if /, "")), "Otherwise the steps after it are skipped"));
     const option = ACTIONS[rule.action.type];
-    out.push(card(rule, "action", option, option.label, actionDetail(rule), ++number));
+    out.push(card(rule, "action", option, `${++number} · Then`, option.label, actionDetail(rule)));
     return out.map((element, inner) => <li key={`${rule.key}-${inner}-${index}`}>{element}</li>);
   }) : [];
+  const stepNumber = (() => {
+    if (!chain || !selected) return 0;
+    let n = 0;
+    for (const rule of chain.steps) {
+      if (rule.trigger.type === "previous_action_completed" && rule.trigger.delayMinutes) n++;
+      if (rule.condition) n++;
+      n++;
+      if (rule.key === selected.key) return n;
+    }
+    return 0;
+  })();
 
   const earlierFor = (rule: WorkflowAutomationDraft) => rules.slice(0, Math.max(0, rules.indexOf(rule)));
+  const newTarget = stage ?? stages[0] ?? null;
+  const selectedTrigger = selected ? triggerOption(selected.trigger.type) : null;
+  const selectedAction = selected ? ACTIONS[selected.action.type] : null;
+  const typePick = (option: Option) => {
+    const Icon = option.icon;
+    return <button type="button" className="pn-au-typepick" aria-expanded={picking} onClick={() => setPicking((open) => !open)}>
+      <Icon size={16} strokeWidth={2} aria-hidden="true" />
+      <span><strong>{option.label}</strong>{option.hint ? <small>{option.hint}</small> : null}</span>
+      <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
+    </button>;
+  };
 
   return <div className="pn-au">
     <nav className="pn-au-list" aria-label="Automations">
+      <div className="pn-au-listhead">
+        <h2>Automations</h2>
+        <button type="button" className="pn-au-ghost" disabled={props.isSaving || !newTarget}
+          onClick={() => newTarget && addAutomation(newTarget)} aria-label="New automation">
+          <Plus size={16} strokeWidth={2} aria-hidden="true" /> New</button>
+      </div>
       {stages.map((milestone, index) => {
         const chains = chainsByStage.get(milestone.key) ?? [];
         const count = props.memberCounts.get(milestone.key) ?? 0;
         return <section key={milestone.key} className="pn-au-section">
           <header>
-            <span><small>Stage {props.milestones.indexOf(milestone) + 1}{drafts[milestone.key] ? " · unsaved" : ""}</small>{milestone.name || `Stage ${index + 1}`}</span>
-            <button type="button" className="pn-wf-link" onClick={() => props.onEditStage(milestone.key)} aria-label={`Edit the ${milestone.name} stage`}>Edit</button>
+            <span className="pn-au-group">While in {milestone.name || `stage ${index + 1}`}{drafts[milestone.key] ? " · unsaved" : ""}</span>
+            <span className="pn-au-count" title={count === 1 ? "1 member here" : `${count} members here`}>{count}</span>
+            <button type="button" className="pn-au-iconbtn" onClick={() => props.onEditStage(milestone.key)}
+              aria-label={`Stage settings for ${milestone.name}`} title="Rename, goal, delete">
+              <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" /></button>
           </header>
-          <p className="pn-au-section-meta">{count === 1 ? "1 member here" : `${count} members here`}</p>
           {chains.map((item) => {
             const option = triggerOption(item.root.trigger.type);
             const Icon = option.icon;
             const first = ACTIONS[item.root.action.type].label;
             const more = item.steps.length - 1;
-            return <button key={item.root.key} type="button" className={`pn-au-item is-${option.family}`}
+            return <button key={item.root.key} type="button" className="pn-au-item"
               aria-current={chain?.root.key === item.root.key}
-              onClick={() => setSelection({ stageKey: milestone.key, ruleKey: item.root.key, part: "trigger" })}>
-              <span className="pn-au-icon is-small"><Icon size={14} strokeWidth={2} aria-hidden="true" /></span>
+              onClick={() => { setPicking(false); setSelection({ stageKey: milestone.key, ruleKey: item.root.key, part: "trigger" }); }}>
+              <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span className="pn-au-item-text"><span>{capitalize(workflowTriggerPhrase(item.root, names).replace(/^When /, ""))}</span>
                 <small>{first}{more ? ` + ${more} more` : ""}</small></span>
             </button>;
           })}
-          <button type="button" className="pn-au-new" disabled={props.isSaving} onClick={() => addAutomation(milestone)}>
-            <Plus size={14} strokeWidth={2} aria-hidden="true" /> New automation</button>
+          {!chains.length ? <p className="pn-au-none">No automations in this stage.</p> : null}
         </section>;
       })}
-      <button type="button" className="pn-au-new is-stage" disabled={props.isSaving} onClick={props.onAddStage}>
-        <Plus size={14} strokeWidth={2} aria-hidden="true" /> Add a stage</button>
+      <button type="button" className="pn-au-ghost is-stage" disabled={props.isSaving} onClick={props.onAddStage}>
+        <Plus size={16} strokeWidth={2} aria-hidden="true" /> Add stage</button>
     </nav>
 
-    <main className="pn-au-flow" aria-label="Selected automation">
-      {chain && stage ? <>
-        <header className="pn-au-flow-head">
-          <div><h2>{capitalize(workflowTriggerPhrase(chain.root, names))}</h2>
-            <p>Runs while a member is in {stage.name}.</p></div>
-          {props.onTestStage ? <button type="button" className="workflow-secondary-button" onClick={() => props.onTestStage?.(stage.key, stageIndex)}>
-            <FlaskConical size={15} strokeWidth={2} aria-hidden="true" /> Test with a test member</button> : null}
-        </header>
-        <p className="pn-au-label">When</p>
-        {(() => { const option = triggerOption(chain.root.trigger.type); return card(chain.root, "trigger", option, option.label,
-          triggerDetail(chain.root)); })()}
-        <span className="pn-au-line" aria-hidden="true" />
-        <p className="pn-au-label">Then</p>
-        <ol className="pn-au-then">{thenCards}</ol>
-        <div className="pn-au-add">
-          <button type="button" onClick={() => addAction("action")}><Plus size={14} aria-hidden="true" /> Add action</button>
-          <button type="button" onClick={() => addAction("wait")}><Hourglass size={14} aria-hidden="true" /> Wait, then act</button>
-          <button type="button" onClick={() => addAction("condition")}><GitBranch size={14} aria-hidden="true" /> Only if…</button>
-        </div>
-      </> : <div className="pn-au-empty"><strong>No automations yet</strong><p>Pick a stage on the left and add one.</p></div>}
+    <main className="pn-au-main" aria-label="Selected automation">
+      {chain && stage ? <header className="pn-au-head">
+        <div><h2>{capitalize(workflowTriggerPhrase(chain.root, names))}</h2>
+          <p>While in {stage.name} · {chain.steps.length === 1 ? "1 step" : `${chain.steps.length} steps`}</p></div>
+        {props.onTestStage ? <button type="button" className="pn-au-btn" onClick={() => props.onTestStage?.(stage.key, stageIndex)}>
+          <Play size={14} strokeWidth={2} aria-hidden="true" /> Test</button> : null}
+      </header> : null}
       {dirtyStages.length || saveIssue || props.error ? <div className="pn-au-savebar" role="status">
-        <span>{saveIssue ?? props.error ?? "You have unsaved changes."}</span>
-        <button type="button" className="workflow-secondary-button" disabled={props.isSaving} onClick={() => { setDrafts({}); setSaveIssue(null); }}>Discard</button>
-        <button type="button" className="pn-wf-primary" disabled={props.isSaving || !dirtyStages.length} onClick={() => void saveAll()}>{props.isSaving ? "Saving…" : "Save changes"}</button>
+        <span>{saveIssue ?? props.error ?? "You changed this automation. Members keep the live version until you update."}</span>
+        <button type="button" className="pn-au-ghost" disabled={props.isSaving} onClick={() => { setDrafts({}); setSaveIssue(null); }}>Discard changes</button>
+        <button type="button" className="pn-wf-primary is-small" disabled={props.isSaving || !dirtyStages.length} onClick={() => void saveAll()}>{props.isSaving ? "Updating…" : "Update"}</button>
       </div> : null}
+      <div className="pn-au-flow">
+        {chain && stage ? <>
+          {(() => { const option = triggerOption(chain.root.trigger.type); return card(chain.root, "trigger", option, "When", option.label, triggerDetail(chain.root)); })()}
+          <ol className="pn-au-then">{thenCards}</ol>
+          <div className="pn-au-add">
+            <button type="button" className="pn-au-btn" onClick={() => addAction("action")}><Plus size={14} aria-hidden="true" /> Add action</button>
+            <button type="button" className="pn-au-btn" onClick={() => addAction("wait")}><Hourglass size={14} aria-hidden="true" /> Wait</button>
+            <button type="button" className="pn-au-btn" onClick={() => addAction("condition")}><GitBranch size={14} aria-hidden="true" /> Only if</button>
+          </div>
+        </> : <div className="pn-au-empty"><strong>No automation open</strong><p>Pick one on the left, or press New.</p></div>}
+      </div>
     </main>
 
-    <aside className="pn-au-panel" aria-label="Settings for the selected card">
-      {selected && stage && selection ? <>
-        {selection.part === "trigger" ? <>
-          <p className="pn-au-label">Trigger</p>
-          {TRIGGERS.map((group) => <div key={group.name} className={`pn-au-family is-${group.family}`}>
-            <h4>{group.name}</h4>
-            {group.options.map((option) => {
-              const Icon = option.icon;
-              const allowed = option.type && (option.type !== "member_joined" || stageIndex === 0);
-              return <button key={option.label} type="button" className="pn-au-option" disabled={!allowed}
-                aria-pressed={option.type === selected.trigger.type}
-                title={option.type === "member_joined" && stageIndex !== 0 ? "Only the first stage can start when someone joins" : undefined}
-                onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected)) : null; if (next) updateRule(next); }}>
-                <span className="pn-au-icon is-small"><Icon size={14} strokeWidth={2} aria-hidden="true" /></span>
-                <span>{option.label}</span>{!option.type ? <em>Soon</em> : null}
-              </button>;
-            })}
-          </div>)}
-        </> : selection.part === "action" ? <>
-          <p className="pn-au-label">Action</p>
-          <div className="pn-au-family">
-            {workflowActionChoices(selected.trigger.type).map((type) => {
+    <aside className="pn-au-panel" aria-label="Settings for the selected step">
+      {selected && stage && selection ? picking && (selection.part === "trigger" || selection.part === "action") ? <>
+        <div className="pn-au-panelhead"><span className="pn-au-group">{selection.part === "trigger" ? "Choose a trigger" : "Choose an action"}</span>
+          <button type="button" className="pn-au-iconbtn" onClick={() => setPicking(false)} aria-label="Close"><X size={16} aria-hidden="true" /></button></div>
+        {selection.part === "trigger" ? TRIGGERS.map((group) => <div key={group.name} className="pn-au-family">
+          <span className="pn-au-group">{group.name}</span>
+          {group.options.map((option) => {
+            const Icon = option.icon;
+            const allowed = option.type && (option.type !== "member_joined" || stageIndex === 0);
+            return <button key={option.label} type="button" className="pn-au-option" disabled={!allowed}
+              aria-pressed={option.type === selected.trigger.type}
+              title={option.type === "member_joined" && stageIndex !== 0 ? "Only the first stage can start when someone joins" : undefined}
+              onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected)) : null; if (next) { updateRule(next); setPicking(false); } }}>
+              <Icon size={16} strokeWidth={2} aria-hidden="true" />
+              <span><strong>{option.label}</strong>{option.hint ? <small>{option.hint}</small> : null}</span>{!option.type ? <em>Soon</em> : null}
+            </button>;
+          })}
+        </div>) : (() => {
+          const choices = workflowActionChoices(selected.trigger.type);
+          const groups = ["Talk to them", "Change things"].filter((group) => choices.some((type) => ACTIONS[type].group === group));
+          return groups.map((group) => <div key={group} className="pn-au-family">
+            <span className="pn-au-group">{group}</span>
+            {choices.filter((type) => ACTIONS[type].group === group).map((type) => {
               const option = ACTIONS[type];
               const Icon = option.icon;
-              return <button key={type} type="button" className={`pn-au-option is-${option.family}`} aria-pressed={selected.action.type === type}
-                onClick={() => updateRule(replaceWorkflowDraftAction(selected, type))}>
-                <span className="pn-au-icon is-small"><Icon size={14} strokeWidth={2} aria-hidden="true" /></span><span>{option.label}</span>
+              return <button key={type} type="button" className="pn-au-option" aria-pressed={selected.action.type === type}
+                onClick={() => { updateRule(replaceWorkflowDraftAction(selected, type)); setPicking(false); }}>
+                <Icon size={16} strokeWidth={2} aria-hidden="true" /><span><strong>{option.label}</strong>{option.hint ? <small>{option.hint}</small> : null}</span>
               </button>;
             })}
-          </div>
-        </> : null}
-        <p className="pn-au-label">Settings</p>
+          </div>);
+        })()}
+      </> : <>
+        <span className="pn-au-group">{selection.part === "trigger" ? "Trigger" : selection.part === "wait" ? `Step ${stepNumber} · Wait`
+          : selection.part === "condition" ? "Only if" : `Step ${stepNumber} · Action`}</span>
+        {selection.part === "trigger" && selectedTrigger ? typePick(selectedTrigger) : null}
+        {selection.part === "action" && selectedAction ? typePick(selectedAction) : null}
         <WebCommunityWorkflowAutomationEditor key={`${selected.key}:${selected.trigger.type}:${selected.action.type}`}
           automation={selected} index={rules.indexOf(selected)} earlierSteps={earlierFor(selected)}
           canAddJoin={stageIndex === 0} catalog={props.catalog} forms={props.forms} expanded hideHeading hideTypeSelects
@@ -341,7 +377,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
           onToggle={() => {}} onRemove={removeSelected} onChange={updateRule} />
         <button type="button" className="pn-au-delete" disabled={props.isSaving} onClick={removeSelected}>
           <Trash2 size={14} aria-hidden="true" /> {selected.key === chain?.root.key ? "Delete this automation" : "Delete this step"}</button>
-      </> : <p className="pn-wf-muted">Pick a card to change it.</p>}
+      </> : <p className="pn-wf-muted">Pick a step to change it.</p>}
     </aside>
   </div>;
 }

@@ -80,7 +80,6 @@
 [data-community-theme] :is(
   h1, h2, h3,
   .community-knowledge-header h1,
-  .workflow-milestone-column-header h2,
   .resource-viewer-title
 ) {
   font-family: var(--pn-font-heading);
@@ -91,7 +90,6 @@
 
 /* Cards */
 [data-community-theme] :is(
-  .workflow-milestone-column,
   .workflow-member-stub
 ) {
   border-width: var(--pn-border-width);

@@ -159,6 +159,7 @@ import type * as communityWikiArchitect from "../communityWikiArchitect.js";
 import type * as communityWorkflowAssessmentCore from "../communityWorkflowAssessmentCore.js";
 import type * as communityWorkflowCompletionCore from "../communityWorkflowCompletionCore.js";
 import type * as communityWorkflowGoalReviewCore from "../communityWorkflowGoalReviewCore.js";
+import type * as communityWorkflowRunHistory from "../communityWorkflowRunHistory.js";
 import type * as composioConnectionAdapter from "../composioConnectionAdapter.js";
 import type * as creatorCommerce from "../creatorCommerce.js";
 import type * as criticalAudit from "../criticalAudit.js";
@@ -432,6 +433,7 @@ declare const fullApi: ApiFromModules<{
   communityWorkflowAssessmentCore: typeof communityWorkflowAssessmentCore;
   communityWorkflowCompletionCore: typeof communityWorkflowCompletionCore;
   communityWorkflowGoalReviewCore: typeof communityWorkflowGoalReviewCore;
+  communityWorkflowRunHistory: typeof communityWorkflowRunHistory;
   composioConnectionAdapter: typeof composioConnectionAdapter;
   creatorCommerce: typeof creatorCommerce;
   criticalAudit: typeof criticalAudit;

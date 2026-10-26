@@ -614,6 +614,8 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     workflow_templates: { path: "/builder/workflow-templates.json", available: ["agent_led_journey"] },
     // Skill tracks (the Roadmap's several roadmaps) live at /builder/tracks.json.
     tracks: { path: "/builder/tracks.json" },
+    // Workflows → Run history: the latest automation runs with their steps.
+    workflow_runs: { path: "/builder/workflow-runs.json" },
     // Changes waiting for the owner's Apply, and recent outcomes.
     proposals,
   };

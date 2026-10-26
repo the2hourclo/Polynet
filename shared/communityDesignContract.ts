@@ -42,16 +42,15 @@ export const COMMUNITY_DESIGN_SURFACES = {
     tokens: ["font_heading", "heading_weight", "heading_case"],
     classes: [
       "community-knowledge-header",
-      "workflow-milestone-column-header",
       "resource-course-outline-title",
       "resource-course-card-heading",
       "resource-viewer-title",
     ],
   },
   cards: {
-    label: "Course cards, workflow columns and member cards",
+    label: "Course cards and member cards",
     tokens: ["radius", "corner_style", "border_width", "shadow"],
-    classes: ["resource-course-card", "resource-course-create-card", "workflow-milestone-column", "workflow-member-stub"],
+    classes: ["resource-course-card", "resource-course-create-card", "workflow-member-stub"],
   },
   buttons: {
     label: "Primary buttons",

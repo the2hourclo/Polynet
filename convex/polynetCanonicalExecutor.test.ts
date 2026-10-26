@@ -650,6 +650,7 @@ const modules = import.meta.glob([
   "./communityResources.ts",
   "./communityResourceProgress.ts",
   "./communityLessonTracks.ts",
+  "./communityWorkflowRunHistory.ts",
   "./communityClients.ts",
   "./communityThemes.ts",
   "./communityLayouts.ts",
@@ -4524,4 +4525,22 @@ test("hard-to-undo Settings changes are only proposed by the agent and happen wh
   await t.run(async ctx => { await ctx.db.patch(late.result.proposal_id, { expiresAt: Date.now() - 1 }); });
   await expect(asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
     { ...ownerScope, proposalId: late.result.proposal_id })).rejects.toThrow("setting_proposal_expired");
+});
+
+test("an owner's agent reads Run history at /builder/workflow-runs.json and members cannot", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => executePolynetCanonicalTool({
+    ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+    principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+  });
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const listing = await owner("polynet_list", { path: `/communities/${community}/builder/` });
+  expect(JSON.stringify(listing)).toContain("/builder/workflow-runs.json");
+  const read = await owner("polynet_read", { path: `/communities/${community}/builder/workflow-runs.json` });
+  expect(read.ok).toBe(true);
+  expect(JSON.parse((read as any).value.body)).toEqual({ runs: [], truncated: false });
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  expect((await member("polynet_read", { path: `/communities/${community}/builder/workflow-runs.json` })).ok).toBe(false);
 });

@@ -1,4 +1,4 @@
-import { FlaskConical, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
+import { Play, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { WORKFLOW_SECTIONS, workflowSectionFromSearch, workflowSectionUrl, type WorkflowSection } from "../../../../shared/workflowSection";
@@ -16,7 +16,6 @@ import type {
 } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import { WebCommunityWorkflowMemberDossierModal } from "./WebCommunityWorkflowMemberDossierModal";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { WebCommunityWorkflowMemberStub } from "./WebCommunityWorkflowMemberStub";
 import { WebCommunityWorkflowMilestoneModal } from "./WebCommunityWorkflowMilestoneModal";
 import type { WorkflowCatalog } from "./WebCommunityWorkflowAutomationEditor";
 import "./WebCommunityWorkflowsSection.css";
@@ -32,6 +31,7 @@ import { WebCommunityClientAccessPanel } from "./WebCommunityAccess";
 import { WebCommunityMembers } from "./WebCommunityMembers";
 import { WebCommunityAgentLedJourney } from "./WebCommunityAgentLedJourney";
 import { WebCommunityWorkflowAutomations } from "./WebCommunityWorkflowAutomations";
+import { WebCommunityWorkflowRunHistory } from "./WebCommunityWorkflowRunHistory";
 import type { AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 import "./WebCommunityWorkflowsPage.css";
@@ -144,26 +144,44 @@ export function WebCommunityWorkflowsSection(
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  const tabs = WORKFLOW_SECTIONS.map(id => ({ id, label: id === "test" ? "Test run" : id === "clients" ? "Members" : id[0].toUpperCase() + id.slice(1), disabled: switching }));
+  const tabs = WORKFLOW_SECTIONS.map(id => ({ id, label: SECTION_LABELS[id], disabled: switching }));
+  // Tests show up in Run history, under Tests, as soon as one starts.
+  const [runsFilter, setRunsFilter] = useState<"all" | "tests">(() => new URLSearchParams(window.location.search).get("section") === "test" ? "tests" : "all");
+  const [testError, setTestError] = useState<string | null>(null);
+  const testStage = (milestoneKey: string | null) => {
+    if (!props.testRun) return;
+    setTestError(null);
+    startTestRunInNewTab(props.testRun, milestoneKey).then(() => { setRunsFilter("tests"); void select("runs"); },
+      (caught) => setTestError(testRunErrorMessage(caught)));
+  };
+  const milestones = props.board?.milestones ?? [];
   // Page header and underlined section tabs, after Substack's dashboard.
   return <div className="workflow-page workflow-sections pn-wf">
-    <header className="pn-wf-header">
-      <h1>Workflows</h1>
-      <p>How members move through your community: its stages, forms, welcome page and who is where.</p>
+    <header className="pn-wf-header pn-wf-header-row">
+      <div>
+        <h1>Workflows</h1>
+        <p>What happens to members automatically, from joining to their first win.</p>
+      </div>
+      {props.testRun ? <button type="button" className="workflow-secondary-button pn-wf-test" onClick={() => testStage(null)}>
+        <Play size={15} strokeWidth={2} aria-hidden="true" /> Test as a new member</button> : null}
     </header>
+    {testError ? <p role="alert" className="test-run-error pn-wf-test-error">{testError}</p> : null}
     <WebPlatformTabList tabs={tabs} activeTab={section} onSelectTab={(next, meta) => void select(next, meta.source === "keyboard")}
       ariaLabel="Workflow sections" idPrefix="workflow-sections" className="pn-wf-tabs" />
     <div className="workflow-section-content" role="tabpanel" id={platformTabPanelId("workflow-sections", section)} aria-labelledby={platformTabId("workflow-sections", section)}>
-      {section === "workflows" ? <WorkflowBoard {...props} onOpenWelcome={() => void select("welcome")} onOpenTest={() => void select("test")} />
+      {section === "workflows" ? <WorkflowBoard {...props} onTestStage={props.testRun ? testStage : undefined} />
         : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
           forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
           onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
           onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
-        : section === "test" ? props.testRun
-          ? <WebCommunityTestRun key={props.testRun.communityId} {...props.testRun}
-            stages={(props.board?.milestones ?? []).filter((m) => m.key && m.name.trim()).map((m) => ({ key: m.key, name: m.name }))}
-            onOpenRecord={(membershipId) => { void select("workflows"); props.onOpenMemberDossier(membershipId); }} />
-          : <p role="status">Only the community's owner and admins can run tests.</p>
+        : section === "runs" ? props.testRun
+          ? <WebCommunityWorkflowRunHistory key={`${props.testRun.communityId}:${runsFilter}`} context={props.testRun}
+            milestones={milestones} names={{ channels: props.channels }} initialFilter={runsFilter}
+            onOpenMember={props.onOpenMemberDossier}
+            testRun={<WebCommunityTestRun key={props.testRun.communityId} {...props.testRun}
+              stages={milestones.filter((m) => m.key && m.name.trim()).map((m) => ({ key: m.key, name: m.name }))}
+              onOpenRecord={props.onOpenMemberDossier} />} />
+          : <p role="status">Only the community's owner and admins can see runs.</p>
         : section === "clients" ? props.access
           ? <WebCommunityMembers key={props.access.scopeKey} gateway={props.access} />
           : <p role="status">Only the community's owner and admins can see members.</p>
@@ -171,17 +189,35 @@ export function WebCommunityWorkflowsSection(
         ? <WebCommunityForms key={props.forms.scopeKey} gateway={props.forms} leaveGuard={beforeLeave} />
         : <p role="status">Forms are unavailable.</p>}
     </div>
+    <WebCommunityWorkflowMemberDossierModal
+      formResponses={props.forms?.responses && props.memberDossier ? <WebCommunityFormResponses key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.forms} membershipId={props.memberDossier.membership_id} evidenceKey={JSON.stringify(props.memberDossier.submitted_form_evidence)} /> : null}
+      access={props.access && props.memberDossier ? <WebCommunityClientAccessPanel key={`${props.access.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.access} membershipId={props.memberDossier.membership_id} /> : null}
+      courseProgress={props.forms?.courseProgress && props.memberDossier ? <WebCommunityMemberCourseProgress key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} load={props.forms.courseProgress} membershipId={props.memberDossier.membership_id} /> : null}
+      isOpen={Boolean(props.selectedMembershipId)}
+      dossier={props.memberDossier}
+      isLoading={props.isMemberDossierLoading}
+      error={props.memberDossierError}
+      onClose={props.onCloseMemberDossier}
+      onRetry={props.onRetryMemberDossier}
+      channels={props.channels}
+      channelsUnavailable={props.channelsUnavailable}
+      isServiceChannelSaving={props.isServiceChannelSaving}
+      serviceChannelError={props.serviceChannelError}
+      onSetServiceChannel={props.onSetServiceChannel}
+      onForceMove={props.onForceMove}
+      onApproveMilestone={props.onApproveMilestone}
+      onRetryGoalReview={props.onRetryGoalReview}
+      onRetryAction={props.onRetryAction}
+      onOpenServiceChannel={props.onOpenServiceChannel}
+    />
   </div>;
 }
 
-function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcome: () => void; onOpenTest: () => void }) {
-  const [testError, setTestError] = useState<string | null>(null);
-  // "Test this": a test member starts in the stage, the community opens as them, and Test run shows the sequence.
-  const testStage = (milestoneKey: string | null) => {
-    if (!props.testRun) return;
-    setTestError(null);
-    startTestRunInNewTab(props.testRun, milestoneKey).then(() => props.onOpenTest(), (caught) => setTestError(testRunErrorMessage(caught)));
-  };
+const SECTION_LABELS: Record<WorkflowSection, string> = {
+  workflows: "Automations", runs: "Run history", clients: "Members", forms: "Forms", welcome: "Welcome page",
+};
+
+function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?: (milestoneKey: string | null) => void }) {
   const [publishedForms, setPublishedForms] = useState<Array<{ key: string; name: string }>>([]);
   const [formsState, setFormsState] = useState<"loading" | "ready" | "error">("loading");
   const [formsRetry, setFormsRetry] = useState(0);
@@ -224,7 +260,6 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
   }, [props.members]);
 
   const [openTo, setOpenTo] = useState<{ automationKey?: string; addStep?: boolean } | null>(null);
-  const [boardView, setBoardView] = useState<"automations" | "members">("automations");
   const openMilestone = (milestoneKey: string, to: { automationKey?: string; addStep?: boolean } | null = null) => {
     props.onClearActionError();
     setOpenTo(to);
@@ -297,114 +332,15 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
         className="community-panel community-utility-panel workflow-pipeline-shell"
         aria-label="Workflow board"
       >
-        <div className="pn-wf-board-bar">
-          <div className="pn-wf-view-switch" role="tablist" aria-label="Show the workflow as">
-            {(["automations", "members"] as const).map((view) => <button key={view} type="button" role="tab"
-              aria-selected={boardView === view} onClick={() => setBoardView(view)}>{view === "automations" ? "Automations" : "Members"}</button>)}
-          </div>
-          <div className="pn-wf-board-actions">
-            <button type="button" className="workflow-secondary-button" onClick={addMilestone}
-              disabled={props.isSaving || !props.board || props.board.milestones.length >= COMMUNITY_MEMBER_WORKFLOW_MAX_MILESTONES}>
-              <Plus size={15} strokeWidth={2} aria-hidden="true" /> Add stage
-            </button>
-            {props.testRun ? <button type="button" className="pn-wf-primary" onClick={() => testStage(null)}>
-              <FlaskConical size={15} strokeWidth={2} aria-hidden="true" /> Test as a new member
-            </button> : null}
-          </div>
-        </div>
-        {props.board ? <p className="pn-wf-note">
-          {props.board.welcome_gate ? "The welcome page is on, so new members finish it before the community opens." : "The welcome page is off."}
-          {" "}<button type="button" className="pn-wf-link" onClick={props.onOpenWelcome}>Edit welcome page</button>
-        </p> : null}
-        {testError ? <p role="alert" className="test-run-error">{testError}</p> : null}
-        {boardView === "automations" ? <>
-          <WebCommunityWorkflowAutomations milestones={milestones} forms={publishedForms} channels={props.channels}
-            channelsUnavailable={props.channelsUnavailable} catalog={catalog} isSaving={props.isSaving} error={editingMilestone ? null : props.actionError}
-            memberCounts={new Map([...membersByMilestone].map(([key, members]) => [key, members.length]))}
-            onSaveStage={(milestone, automations) => props.onUpdateMilestone(milestone.key, milestone.name, automations,
-              milestone.instructions, milestone.goal, milestone.requireHumanApproval)}
-            onEditStage={(key) => openMilestone(key)} onAddStage={addMilestone}
-            onTestStage={props.testRun ? (key, index) => testStage(index === 0 ? null : key) : undefined} />
-          {props.onApplyAgentLedJourney && formsState !== "loading" ? <WebCommunityAgentLedJourney milestones={props.board?.milestones ?? null}
-            publishedForms={publishedForms} isSaving={props.isSaving} onApply={props.onApplyAgentLedJourney} /> : null}
-        </> : <>
-        <div className="workflow-board-stage">
-        <div className="workflow-milestone-canvas" aria-label="Member success milestones">
-          {milestones.map((milestone, index) => {
-            const members = membersByMilestone.get(milestone.key) ?? [];
-            const incomplete = !milestone.name.trim();
-            return (
-              <section className="workflow-milestone-column" key={milestone.key || "blank-milestone"}>
-                <header className="workflow-milestone-column-header">
-                  <div>
-                    <span className="workflow-milestone-position">{index + 1}</span>
-                    <h2>{milestone.name.trim() || `Milestone ${index + 1}`}</h2>
-                  </div>
-                  <div className="workflow-milestone-column-actions">
-                    <span className="pn-wf-count" aria-label={`${members.length} members`}>{members.length}</span>
-                    {!incomplete ? (
-                      <button
-                        className="workflow-milestone-edit-button"
-                        type="button"
-                        onClick={() => openMilestone(milestone.key)}
-                        aria-label={`Edit ${milestone.name}`}
-                      >
-                        <MoreHorizontal size={18} aria-hidden="true" />
-                      </button>
-                    ) : null}
-                  </div>
-                </header>
-                <div className="workflow-milestone-column-body">
-                  {incomplete ? (
-                    <button
-                      className="workflow-milestone-setup-button"
-                      type="button"
-                      onClick={() => openMilestone("")}
-                    >
-                      <Plus size={17} aria-hidden="true" />
-                      Set up milestone
-                    </button>
-                  ) : members.length > 0 ? (
-                    members.map((member) => (
-                      <WebCommunityWorkflowMemberStub
-                        key={member.membership_id}
-                        member={member}
-                        onOpen={() => props.onOpenMemberDossier(member.membership_id)}
-                      />
-                    ))
-                  ) : (
-                    <p className="workflow-milestone-empty">No members yet</p>
-                  )}
-                  {!incomplete && props.testRun ? (
-                    <button type="button" className="workflow-secondary-button test-run-workflow-button"
-                      onClick={() => testStage(index === 0 ? null : milestone.key)}
-                      aria-label={`Test the ${milestone.name} stage as a test member`}>
-                      <FlaskConical size={14} strokeWidth={2} aria-hidden="true" />
-                      Test this stage
-                    </button>
-                  ) : null}
-                </div>
-              </section>
-            );
-          })}
-          <button
-            className="workflow-add-milestone-button"
-            type="button"
-            disabled={
-              props.isSaving ||
-              !props.board ||
-              props.board.milestones.length >= COMMUNITY_MEMBER_WORKFLOW_MAX_MILESTONES
-            }
-            onClick={addMilestone}
-            aria-label="Add stage"
-            title="Add stage"
-          >
-            <Plus size={16} strokeWidth={2} aria-hidden="true" />
-            <span>Add stage</span>
-          </button>
-        </div>
-        </div>
-        </>}
+        <WebCommunityWorkflowAutomations milestones={milestones} forms={publishedForms} channels={props.channels}
+          channelsUnavailable={props.channelsUnavailable} catalog={catalog} isSaving={props.isSaving} error={editingMilestone ? null : props.actionError}
+          memberCounts={new Map([...membersByMilestone].map(([key, members]) => [key, members.length]))}
+          onSaveStage={(milestone, automations) => props.onUpdateMilestone(milestone.key, milestone.name, automations,
+            milestone.instructions, milestone.goal, milestone.requireHumanApproval)}
+          onEditStage={(key) => openMilestone(key)} onAddStage={addMilestone}
+          onTestStage={props.onTestStage ? (key, index) => props.onTestStage?.(index === 0 ? null : key) : undefined} />
+        {props.onApplyAgentLedJourney && formsState !== "loading" ? <WebCommunityAgentLedJourney milestones={props.board?.milestones ?? null}
+          publishedForms={publishedForms} isSaving={props.isSaving} onApply={props.onApplyAgentLedJourney} /> : null}
 
         {props.hasMore ? (
           <button
@@ -416,7 +352,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
             {props.isLoadingMore ? "Loading…" : "Load more members"}
           </button>
         ) : props.totalCount !== null && props.members.length > 0 ? (
-          <p className="workflow-board-footnote">{props.totalCount} members</p>
+          <p className="workflow-board-footnote">{props.totalCount} members in all</p>
         ) : null}
         {!editingMilestone && props.actionError ? (
           <p className="workflow-error" role="alert">{props.actionError}</p>
@@ -448,27 +384,6 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
         onSave={saveMilestone}
         onDelete={deleteEditingMilestone}
         openTo={openTo}
-      />
-      <WebCommunityWorkflowMemberDossierModal
-        formResponses={props.forms?.responses && props.memberDossier ? <WebCommunityFormResponses key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.forms} membershipId={props.memberDossier.membership_id} evidenceKey={JSON.stringify(props.memberDossier.submitted_form_evidence)} /> : null}
-        access={props.access && props.memberDossier ? <WebCommunityClientAccessPanel key={`${props.access.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.access} membershipId={props.memberDossier.membership_id} /> : null}
-        courseProgress={props.forms?.courseProgress && props.memberDossier ? <WebCommunityMemberCourseProgress key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} load={props.forms.courseProgress} membershipId={props.memberDossier.membership_id} /> : null}
-        isOpen={Boolean(props.selectedMembershipId)}
-        dossier={props.memberDossier}
-        isLoading={props.isMemberDossierLoading}
-        error={props.memberDossierError}
-        onClose={props.onCloseMemberDossier}
-        onRetry={props.onRetryMemberDossier}
-        channels={props.channels}
-        channelsUnavailable={props.channelsUnavailable}
-        isServiceChannelSaving={props.isServiceChannelSaving}
-        serviceChannelError={props.serviceChannelError}
-        onSetServiceChannel={props.onSetServiceChannel}
-        onForceMove={props.onForceMove}
-        onApproveMilestone={props.onApproveMilestone}
-        onRetryGoalReview={props.onRetryGoalReview}
-        onRetryAction={props.onRetryAction}
-        onOpenServiceChannel={props.onOpenServiceChannel}
       />
     </div>
   );
