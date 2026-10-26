@@ -32,7 +32,10 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   // A write on a path (another step follows it, or it follows another step) counts too.
   const followed = new Set(milestone.automations.flatMap(rule =>
     rule.trigger.type === "previous_action_completed" ? [rule.trigger.predecessorActionKey] : []));
+  // A step that runs on an offer change only happens to the members who buy or
+  // leave that offer, so it never holds anyone's stage open.
   const work = milestone.automations.filter(rule => !workflowRuleIsNudge(rule)
+    && rule.trigger.type !== "offer_started" && rule.trigger.type !== "offer_ended"
     && (rule.action.type !== "set_client_property" || finishes(rule) || followed.has(rule.action.key)
       || rule.trigger.type === "previous_action_completed"));
   if (!work.length) return { actions: [], all_actions_complete: false, scan_truncated: false };

@@ -108,6 +108,8 @@ import type * as communityLegacyAttachmentUploads from "../communityLegacyAttach
 import type * as communityBrands from "../communityBrands.js";
 import type * as communityLayouts from "../communityLayouts.js";
 import type * as communityLessonTracks from "../communityLessonTracks.js";
+import type * as communityOfferAccessCore from "../communityOfferAccessCore.js";
+import type * as communityOffers from "../communityOffers.js";
 import type * as communityLessonValidators from "../communityLessonValidators.js";
 import type * as communityLifecycle from "../communityLifecycle.js";
 import type * as communityLive from "../communityLive.js";
@@ -382,6 +384,8 @@ declare const fullApi: ApiFromModules<{
   communityBrands: typeof communityBrands;
   communityLayouts: typeof communityLayouts;
   communityLessonTracks: typeof communityLessonTracks;
+  communityOfferAccessCore: typeof communityOfferAccessCore;
+  communityOffers: typeof communityOffers;
   communityLessonValidators: typeof communityLessonValidators;
   communityLifecycle: typeof communityLifecycle;
   communityLive: typeof communityLive;

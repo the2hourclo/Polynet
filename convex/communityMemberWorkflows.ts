@@ -128,6 +128,8 @@ const automationInputValidator = v.object({
     v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
     v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
     v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
   ),
   action: v.union(
     v.object({ key: v.optional(v.string()), type: v.literal("create_service_channel") }),
@@ -271,7 +273,8 @@ function normalizeAutomations(
       || (input.trigger.type === "member_joined" && action.type !== "create_service_channel" && action.type !== "request_form")) throw new Error("workflow_join_action_invalid");
     // Lesson and course completion request a Form, write a property, or ask the
     // agent (through a timer that starts the moment the lesson is done).
-    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed")
+    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed"
+        || input.trigger.type === "offer_started" || input.trigger.type === "offer_ended")
       && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent") {
       throw new Error("lesson_trigger_action_invalid");
     }
@@ -313,6 +316,8 @@ function normalizeAutomations(
         : input.trigger.type === "lesson_completed" ? { type: "lesson_completed", ...(input.trigger.resourceId ? { resourceId: input.trigger.resourceId } : {}) }
         : input.trigger.type === "course_completed" ? { type: "course_completed", ...(input.trigger.moduleId ? { moduleId: input.trigger.moduleId } : {}) }
         : input.trigger.type === "track_completed" ? { type: "track_completed", ...(input.trigger.trackKey ? { trackKey: input.trigger.trackKey } : {}) }
+        : input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
+        ? { type: input.trigger.type, ...(input.trigger.offerKey ? { offerKey: input.trigger.offerKey } : {}) }
         : input.trigger.type === "milestone_elapsed"
         ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowDelayMinutes(input.trigger.delayMinutes), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
         : { type: "member_contributed", ...(input.trigger.channelId !== undefined ? { channelId: input.trigger.channelId } : {}) },
@@ -484,6 +489,13 @@ export const updateBuilderWorkflowMilestone = mutation({
           .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", trackKey))
           .unique();
         if (!track || track.archivedAt) throw new Error("workflow_track_unavailable");
+      }
+      if ((automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended") && automation.trigger.offerKey) {
+        const offerKey = automation.trigger.offerKey;
+        const offer = await ctx.db.query("communityOffers")
+          .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", offerKey))
+          .unique();
+        if (!offer || offer.archivedAt) throw new Error("workflow_offer_unavailable");
       }
     }
     for (const formKey of new Set(milestone.automations.flatMap(a => [
@@ -1679,6 +1691,44 @@ export const handleLessonCompletedInternal = internalMutation({
         for (const automation of trackRules.filter(a => a.trigger.type === "track_completed" && (!a.trigger.trackKey || a.trigger.trackKey === track.key))) {
           results.push(await runRule(automation, `track_completed:${track.key}:${membership._id}:${membership.activationSequence ?? 0}`));
         }
+      }
+    }
+    return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
+  },
+});
+
+// A member moved onto or off an offer (joined on it, upgraded, downgraded,
+// left). The sync that saw the change is the receipt, so a replay never runs a
+// rule twice; buying the same offer again later is a new change.
+export const handleOfferChangedInternal = internalMutation({
+  args: { communityId: v.id("communities"), userId: v.id("users"), membershipId: v.id("communityMemberships"),
+    activationSequence: v.number(), started: v.array(v.string()), ended: v.array(v.string()), at: v.number() },
+  handler: async (ctx, args) => {
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    if (!workflow || workflow.milestones.length < 1) return { status: "workflow_ineligible" as const };
+    const membership = await ctx.db.get(args.membershipId);
+    // Someone who left the community entirely has no steps left to run; a downgrade keeps them in.
+    if (!membership || membership.communityId !== args.communityId || !communityMembershipRowIsActive(membership)
+      || Number(membership.activationSequence ?? 0) !== args.activationSequence) return { status: "membership_ineligible" as const };
+    const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+    const current = resolveCurrentMilestone({ workflow, membership, state });
+    if (current.completedAt) return { status: "workflow_completed" as const };
+    const automations = (current.milestone as CommunityMemberWorkflowMilestone).automations;
+    const results = [];
+    const runRule = async (automation: CommunityMemberWorkflowAutomation, receipt: string) => {
+      if (automation.action.type !== "prompt_agent") return executeWorkflowAutomation({ ctx, workflow, membership, current, automation, timerReceiptRef: receipt });
+      const timer = await startWorkflowSourceTimer({ ctx, workflow, membership, current, transitionSeq: Number(state?.transitionSeq ?? 0),
+        automation, startedAt: Date.now(), sourceRef: receipt });
+      return { status: await runWorkflowTimerNow(ctx, timer) ? "agent_started" as const : "already_executed" as const };
+    };
+    for (const [type, keys] of [["offer_started", args.started], ["offer_ended", args.ended]] as const) {
+      if (!keys.length) continue;
+      for (const automation of automations.filter(a => a.trigger.type === type)) {
+        const wanted = (automation.trigger as { offerKey?: string }).offerKey;
+        // "Any offer" runs once per change, not once per offer in the ladder.
+        const offerKey = wanted ? keys.find((key) => key === wanted) : keys[keys.length - 1];
+        if (!offerKey) continue;
+        results.push(await runRule(automation, `${type}:${offerKey}:${membership._id}:${args.activationSequence}:${args.at}`));
       }
     }
     return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };

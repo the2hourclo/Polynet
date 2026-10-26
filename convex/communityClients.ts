@@ -60,7 +60,14 @@ async function listActiveProperties(ctx: any, communityId: any) {
 }
 
 function projectProperty(row: any) {
-  return { key: row.key as string, name: row.name as string, type: row.type, options: row.options as string[], position: row.position as number };
+  return { key: row.key as string, name: row.name as string, type: row.type, options: row.options as string[], position: row.position as number,
+    ...(row.system ? { system: row.system as "offer" } : {}) };
+}
+
+// Polynet keeps a system property (the member's offers) from the records that
+// own it; the owner can move it but never edit, archive or overwrite it.
+function requireOwnerEditable(row: any) {
+  if (row.system) throw new CommunityClientError("client_property_system");
 }
 
 async function requireMembershipInCommunity(ctx: any, communityId: any, membershipId: string) {
@@ -121,6 +128,7 @@ const updatePropertyArgs = {
 async function updateProperty(ctx: any, args: any) {
   await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
   const row = await findProperty(ctx, args.communityId, args.key);
+  if (args.name !== undefined || args.options !== undefined) requireOwnerEditable(row);
   const patch: Record<string, unknown> = { updatedAt: Date.now() };
   if (args.name !== undefined) {
     const { name } = normalizeCommunityClientPropertyDraft({ name: args.name, type: row.type, options: row.options });
@@ -144,6 +152,7 @@ const archivePropertyArgs = { ...managerArgs, key: v.string() };
 async function archiveProperty(ctx: any, args: any) {
   await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
   const row = await findProperty(ctx, args.communityId, args.key);
+  requireOwnerEditable(row);
   const nowMs = Date.now();
   await ctx.db.patch(row._id, { archivedAt: nowMs, updatedAt: nowMs });
   return { archived: row.key };
@@ -160,6 +169,7 @@ export async function setValue(ctx: any, args: any) {
   await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
   const membership = await requireMembershipInCommunity(ctx, args.communityId, args.membershipId);
   const property = await findProperty(ctx, args.communityId, args.key);
+  requireOwnerEditable(property);
   return writeValue(ctx, { communityId: args.communityId, membership, property, actorUserId: args.userId,
     via: args.via ?? "web", value: normalizeCommunityClientPropertyValue(property, args.value) });
 }
@@ -177,7 +187,7 @@ export async function writeMappedFormAnswers(ctx: any, args: {
     const property = await ctx.db.query("communityClientProperties")
       .withIndex("by_community_key", (q: any) => q.eq("communityId", args.communityId).eq("key", question.clientPropertyKey))
       .unique();
-    if (!property || property.archivedAt) continue;
+    if (!property || property.archivedAt || property.system) continue;
     const answer = args.answers[question.key];
     let value = null;
     let fits = communityClientPropertyAcceptsQuestion(property.type, question.type);

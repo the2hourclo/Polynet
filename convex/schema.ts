@@ -1178,6 +1178,9 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("archived")),
     position: v.number(),
     pinnedRootId: v.optional(v.id("communityInteractionRoots")),
+    /** Who gets this channel by offer (communityOffers keys). Members on one of these
+     *  offers, or on a higher one that includes it, are added and removed automatically. */
+    offerAudience: v.optional(v.array(v.string())),
     createdByUserId: v.optional(v.id("users")),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1197,6 +1200,8 @@ export default defineSchema({
     membershipId: v.optional(v.id("communityMemberships")),
     membershipActivationSequence: v.optional(v.number()),
     status: v.union(v.literal("active"), v.literal("revoked")),
+    /** Added because of the member's offer (the channel's offerAudience); the offer sync only removes these. */
+    viaOffer: v.optional(v.boolean()),
     createdByUserId: v.id("users"),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1221,6 +1226,8 @@ export default defineSchema({
       ),
     ),
     pricePointId: v.optional(v.id("communityPricePoints")),
+    /** The offers this member had at the last offer sync (communityOffers keys), so a change can start Workflow steps. */
+    heldOfferKeys: v.optional(v.array(v.string())),
     active: v.optional(v.boolean()),
     activationSequence: v.optional(v.number()),
     activatedAt: v.optional(v.number()),
@@ -1322,6 +1329,8 @@ export default defineSchema({
             v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
             v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
             v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
+            v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
+            v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
             v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
             v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
           ),
@@ -1406,7 +1415,7 @@ export default defineSchema({
     milestoneEnteredAt: v.number(),
     workflowRevision: v.number(),
     automationKey: v.string(),
-    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed"), v.literal("lesson_completed"), v.literal("course_completed"), v.literal("track_completed")),
+    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed"), v.literal("lesson_completed"), v.literal("course_completed"), v.literal("track_completed"), v.literal("offer_started"), v.literal("offer_ended")),
     // Optional for historical runs. New runs capture the condition that matched.
     triggerSnapshot: v.optional(v.union(
       v.object({ type: v.literal("member_joined") }),
@@ -1416,6 +1425,8 @@ export default defineSchema({
       v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
       v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
       v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
+            v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
+            v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
       v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
     )),
     triggerReceiptRef: v.string(),
@@ -1708,8 +1719,30 @@ export default defineSchema({
     .index("by_visitor_hash_createdAt", ["visitorKeyHash", "createdAt"])
     .index("by_visitor_scope_bucket", ["visitorKeyHash", "pathKind", "scopeKey", "visitBucketStartAt"]),
 
+  // The packages a community sells, as a ladder: an offer includes every offer
+  // ranked below it. The base offer (rank 0) is priced by the community's
+  // current price points; higher offers own their price points (offerId).
+  communityOffers: defineTable({
+    communityId: v.id("communities"),
+    key: v.string(),
+    name: v.string(),
+    blurb: v.optional(v.string()),
+    rank: v.number(),
+    isBase: v.optional(v.boolean()),
+    showOnSalesPage: v.boolean(),
+    archivedAt: v.optional(v.number()),
+    createdByUserId: v.id("users"),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_key", ["communityId", "key"]),
+
   communityPricePoints: defineTable({
     communityId: v.id("communities"),
+    /** Set on a higher offer's own prices; these are never the community's isCurrent price. */
+    offerId: v.optional(v.id("communityOffers")),
     billingPeriod: v.string(),
     name: v.string(),
     description: v.optional(v.string()),
@@ -2954,6 +2987,8 @@ export default defineSchema({
     ),
     options: v.array(v.string()),
     position: v.number(),
+    /** Kept by Polynet, not the owner: "offer" lists the offers a member has. */
+    system: v.optional(v.literal("offer")),
     archivedAt: v.optional(v.number()),
     createdByUserId: v.id("users"),
     createdAt: v.number(),
@@ -3108,6 +3143,8 @@ export default defineSchema({
     reason: v.string(),
     grantedByUserId: v.id("users"),
     grantedVia: v.union(v.literal("web"), v.literal("agent")),
+    /** The offer this access is for (communityOffers key); the base offer when unset. */
+    offerKey: v.optional(v.string()),
     endJobId: v.optional(v.id("_scheduled_functions")),
     endedAt: v.optional(v.number()),
     endedByUserId: v.optional(v.id("users")),

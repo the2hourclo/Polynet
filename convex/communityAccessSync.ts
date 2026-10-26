@@ -6,6 +6,7 @@ import {
   normalizeIdValue,
 } from "./communityCore";
 import { communityIsActive } from "../shared/communityLifecycle";
+import { syncCommunityMemberOffers } from "./communityOfferAccessCore";
 import {
   communityAccessForIntegration,
   deriveCommunityMemberAccess,
@@ -203,6 +204,8 @@ export async function syncCommunityAccessForUser(ctx: any, args: {
   reason: string;
   onlyIntegrationId?: any;
 }): Promise<{ enqueued: number }> {
+  // What the member's offer unlocks moves with the same writes (the periodic sweep is integration-only).
+  if (!args.onlyIntegrationId) await syncCommunityMemberOffers(ctx, { communityId: args.communityId, userId: args.userId, nowMs: args.nowMs });
   let integrations = await listActiveCommunityAccessIntegrations(ctx, args.communityId);
   if (args.onlyIntegrationId) {
     integrations = integrations.filter((row: any) => normalizeIdValue(row._id) === normalizeIdValue(args.onlyIntegrationId));
@@ -272,6 +275,7 @@ export function projectCommunityAccessGrant(row: any) {
     granted_via: row.grantedVia,
     ended_at: toIso(row.endedAt),
     ended_reason: row.endedReason ?? null,
+    offer_key: row.offerKey ?? null,
   };
 }
 
