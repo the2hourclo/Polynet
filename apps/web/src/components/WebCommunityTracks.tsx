@@ -74,30 +74,42 @@ export function communityContinueTrack(tracks: readonly CommunityTrackView[]) {
     ?? null;
 }
 
-const STATUS_LABEL: Record<CommunityTrackView["status"], string> = { locked: "Locked", open: "Open", in_progress: "In progress", done: "Done" };
+const ACTION_LABEL: Record<CommunityTrackView["status"], string> = { locked: "Locked", open: "Start", in_progress: "Continue", done: "Review" };
 
 function TrackCover({ track }: { track: CommunityTrackView }) {
   if (track.cover_url) return <img className="track-card-cover" src={track.cover_url} alt="" />;
-  return <span className="track-card-cover" data-locked={track.open ? undefined : ""} aria-hidden="true">{track.open ? null : <Lock size={16} />}</span>;
+  // No cover yet: the track's initial on a soft tint of the community colour.
+  return (
+    <span className="track-card-cover" data-locked={track.open ? undefined : ""} aria-hidden="true">
+      {track.open ? track.title.trim().charAt(0).toUpperCase() : <Lock size={18} />}
+    </span>
+  );
 }
 
 function TrackCard({ track, onOpen, onEdit }: { track: CommunityTrackView; onOpen: () => void; onEdit?: () => void }) {
   const percent = track.step_count ? Math.round((track.done_count / track.step_count) * 100) : 0;
-  const detail = !track.open
+  const meta = !track.open
     ? track.opens_reason
     : track.status === "done"
-      ? `${track.step_count} steps · all done`
-      : `${track.stages.length} ${track.stages.length === 1 ? "stage" : "stages"} · ${track.step_count} steps${track.done_count ? ` · ${track.done_count} done` : ""}`;
+      ? `${track.step_count} lessons · all done`
+      : track.status === "in_progress"
+        ? `${track.done_count} of ${track.step_count} lessons done`
+        : `${track.stages.length} ${track.stages.length === 1 ? "stage" : "stages"} · ${track.step_count} lessons`;
   return (
     <li className="track-card" data-status={track.status}>
       <button type="button" className="track-card-main" onClick={onOpen}>
         <TrackCover track={track} />
         <span className="track-card-copy">
           <strong>{track.title}</strong>
-          <span>{detail}</span>
+          {track.summary && track.open ? <span className="track-card-summary">{track.summary}</span> : null}
+          <span className="track-card-meta">{meta}</span>
           {track.status === "in_progress" ? <span className="track-card-bar" aria-hidden="true"><i style={{ width: `${percent}%` }} /></span> : null}
         </span>
-        <span className="track-card-status">{track.status === "done" ? <><Check size={13} /> Done</> : STATUS_LABEL[track.status]}</span>
+        <span className="track-card-action">
+          {track.status === "done" ? <Check size={15} aria-hidden="true" /> : track.open ? null : <Lock size={14} aria-hidden="true" />}
+          {ACTION_LABEL[track.status]}
+          {track.open ? <ArrowRight size={15} aria-hidden="true" /> : null}
+        </span>
       </button>
       {onEdit ? (
         <button type="button" className="track-card-edit" onClick={onEdit} aria-label={`Edit ${track.title}`}><Pencil size={14} /></button>

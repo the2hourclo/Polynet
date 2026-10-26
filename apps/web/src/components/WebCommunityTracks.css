@@ -1,66 +1,79 @@
 /* Knowledge -> Roadmap with skill tracks: the tracks home, the picker above a
    track's board, a closed track, and the owner's track editor. One reading
    column, community colours, nothing that competes with the board below. */
-.track-home, .track-header, .track-locked, .track-opens { width: 100%; max-width: var(--pn-reading-measure, 42.5rem); margin-inline: auto; }
-.track-home { display: grid; gap: 28px; padding: 4px 0 32px; }
+/* The tracks home, a closed track and "what this opens" share the board's
+   column (the page is 55rem with a 24px gutter), so nothing jumps sideways
+   between the home, a track and its lessons. */
+.community-knowledge-page:has(.track-home) { max-width: 55rem; width: 100%; margin-inline: auto; }
+.track-home, .track-locked, .lesson-board-panel > .track-opens, .lesson-board-panel > .track-header {
+  box-sizing: border-box; width: 100%; padding-inline: 24px;
+}
+.track-home { display: grid; gap: 36px; padding-top: 12px; padding-bottom: 48px; }
 
 .track-continue {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; width: 100%;
-  padding: 18px 20px; border: 0; border-radius: var(--pn-radius-card, 12px); font: inherit; text-align: left; cursor: pointer;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; width: 100%;
+  padding: 22px 24px; border: 0; border-radius: var(--pn-radius-card, 14px); font: inherit; text-align: left; cursor: pointer;
   color: var(--pn-on-accent, var(--text-on-accent, #fff)); background: var(--pn-accent, var(--accent-brand));
 }
-.track-continue > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.track-continue > span:first-child { display: grid; gap: 4px; min-width: 0; }
 .track-continue small { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
-.track-continue strong { font-family: var(--pn-font-heading, inherit); font-size: 19px; font-weight: 600; line-height: 1.3; }
-.track-continue em { font-style: normal; font-size: 13px; opacity: 0.85; }
+.track-continue strong { font-family: var(--pn-font-heading, inherit); font-size: 21px; font-weight: var(--pn-heading-weight, 600); line-height: 1.25; }
+.track-continue em { font-style: normal; font-size: 14px; opacity: 0.85; }
 .track-continue-go {
-  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid currentColor; border-radius: 999px;
-  font-size: 14px; font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px;
+  font-size: 15px; font-weight: 600; white-space: nowrap;
+  color: var(--pn-accent, var(--accent-brand)); background: var(--pn-on-accent, #fff);
 }
 .track-continue:hover { filter: brightness(1.05); }
-.track-continue:focus-visible, .track-card-main:focus-visible, .track-picker button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.track-continue:focus-visible, .track-card-main:focus-visible, .track-picker button:focus-visible { outline: 2px solid var(--focus-ring, var(--accent-brand)); outline-offset: 2px; }
 
-.track-group { display: grid; gap: 10px; }
-.track-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.track-group { display: grid; gap: 14px; }
+.track-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; }
 .track-group-head h2 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
 .track-new, .track-title-edit {
-  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border-default); border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border-default); border-radius: 999px;
   font: inherit; font-size: 13px; color: var(--text-primary); background: transparent; cursor: pointer;
 }
 .track-new:hover, .track-title-edit:hover { background: var(--hover-overlay); }
-.track-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.track-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .track-card { display: flex; align-items: center; gap: 6px; }
 .track-card > .track-card-main { flex: 1; min-width: 0; }
 .track-card-main {
-  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%;
-  padding: 12px 14px; border: 1px solid var(--border-default); border-radius: var(--pn-radius-card, 12px);
+  display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 18px; width: 100%;
+  padding: 18px 20px; border: 1px solid var(--border-default); border-radius: var(--pn-radius-card, 14px);
   font: inherit; text-align: left; color: var(--text-primary); background: var(--surface-card, var(--surface-panel)); cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
-.track-card-main:hover { border-color: var(--border-strong); }
-.track-card[data-status="locked"] .track-card-main { background: var(--hover-overlay); }
+.track-card-main:hover { border-color: color-mix(in srgb, var(--accent-brand) 45%, var(--border-default)); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06); }
+.track-card[data-status="locked"] .track-card-main { background: transparent; border-style: dashed; }
+.track-card[data-status="locked"] .track-card-main:hover { box-shadow: none; }
 .track-card-cover {
-  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 10px; object-fit: cover; color: var(--text-secondary);
-  background: linear-gradient(135deg, var(--accent-brand), color-mix(in srgb, var(--accent-brand) 18%, transparent));
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; object-fit: cover;
+  font-family: var(--pn-font-heading, inherit); font-size: 22px; font-weight: 700; color: var(--accent-brand);
+  background: color-mix(in srgb, var(--accent-brand) 14%, transparent);
 }
-.track-card-cover[data-locked] { background: transparent; border: 1px dashed var(--border-strong); }
-.track-card-copy { display: grid; gap: 2px; min-width: 0; }
-.track-card-copy strong { font-family: var(--pn-font-heading, inherit); font-size: 16px; font-weight: 600; line-height: 1.3; }
-.track-card-copy > span { font-size: 13px; color: var(--text-secondary); }
-.track-card-bar { display: block; max-width: 220px; height: 4px; margin-top: 6px; overflow: hidden; border-radius: 2px; background: var(--hover-overlay); }
-.track-card-bar i { display: block; height: 100%; background: var(--accent-brand); }
-.track-card-status {
-  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; white-space: nowrap;
-  font-size: 12px; font-weight: 600; color: var(--text-secondary); background: var(--hover-overlay);
+.track-card-cover[data-locked] { color: var(--text-secondary); background: var(--hover-overlay); }
+.track-card-copy { display: grid; gap: 4px; min-width: 0; }
+.track-card-copy strong { font-family: var(--pn-font-heading, inherit); font-size: 17px; font-weight: var(--pn-heading-weight, 600); line-height: 1.3; }
+.track-card-summary { overflow: hidden; font-size: 14px; line-height: 1.45; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.track-card-meta { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.track-card[data-status="locked"] .track-card-copy strong { color: var(--text-secondary); }
+.track-card-bar { display: block; height: 4px; margin-top: 4px; overflow: hidden; border-radius: 2px; background: var(--border-default); }
+.track-card-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent-brand); }
+.track-card-action {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 14px; font-weight: 600; color: var(--text-secondary);
 }
-.track-card[data-status="in_progress"] .track-card-status { color: var(--accent-brand); background: color-mix(in srgb, var(--accent-brand) 12%, transparent); }
-.track-card[data-status="done"] .track-card-status { color: var(--text-on-accent, #fff); background: var(--accent-brand); }
+.track-card[data-status="open"] .track-card-action, .track-card[data-status="in_progress"] .track-card-action { color: var(--text-link, var(--accent-brand)); }
+.track-card-main:hover .track-card-action svg:last-child { transform: translateX(2px); }
+.track-card-action svg { transition: transform 150ms ease; }
 .track-card-edit {
   display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px;
   color: var(--text-secondary); background: transparent; cursor: pointer;
 }
 .track-card-edit:hover { background: var(--hover-overlay); color: var(--text-primary); }
 
-.track-header { display: grid; gap: 10px; margin-bottom: 16px; }
+.track-header { display: grid; gap: 12px; margin: 4px 0 24px; }
 .track-picker { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
 .track-picker button {
   display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 5px 12px; border: 1px solid var(--border-default); border-radius: 999px;
@@ -69,9 +82,10 @@
 .track-picker button[aria-current="true"] { color: var(--surface-card, #fff); background: var(--text-primary); border-color: var(--text-primary); }
 .track-picker .track-picker-home { border-color: transparent; padding-left: 4px; }
 .track-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.track-title h2 { margin: 0; font-family: var(--pn-font-heading, inherit); font-weight: var(--pn-heading-weight, 700); font-size: 26px; line-height: 1.2; color: var(--text-primary); text-wrap: balance; }
+.track-header .track-picker { margin-bottom: 10px; }
+.track-title h2 { margin: 0; font-family: var(--pn-font-heading, inherit); font-weight: var(--pn-heading-weight, 700); font-size: 30px; line-height: 1.2; color: var(--text-primary); text-wrap: balance; }
 .track-title-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.track-summary { margin: 0; font-size: 15px; color: var(--text-secondary); }
+.track-summary { margin: 0; max-width: 40rem; font-size: 16px; line-height: 1.5; color: var(--text-secondary); }
 
 .track-locked { display: grid; gap: 14px; }
 .track-locked-reason {
@@ -84,7 +98,7 @@
 .track-locked-stages em { font-style: normal; font-size: 13px; color: var(--text-secondary); }
 .track-locked-dot { display: grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid var(--border-default); border-radius: 50%; font-size: 12px; color: var(--text-secondary); }
 
-.track-opens { display: grid; gap: 10px; margin-top: 24px; }
+.track-opens { display: grid; gap: 12px; margin-top: 8px; padding-bottom: 48px; }
 .track-opens h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
 .track-opens ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .track-opens button {
@@ -137,9 +151,12 @@
 .track-add { justify-self: start; font-size: 13px; }
 
 @media (max-width: 640px) {
-  .track-card-main { grid-template-columns: 40px minmax(0, 1fr); }
-  .track-card-cover { width: 40px; height: 40px; }
-  .track-card-status { grid-column: 2; justify-self: start; }
+  .track-home, .track-locked, .lesson-board-panel > .track-opens, .lesson-board-panel > .track-header { padding-inline: 16px; }
+  .track-home { gap: 28px; }
+  .track-card-main { grid-template-columns: 44px minmax(0, 1fr); gap: 14px; padding: 16px; }
+  .track-card-cover { width: 44px; height: 44px; border-radius: 12px; font-size: 18px; }
+  .track-card-action { grid-column: 2; justify-self: start; }
+  .track-title h2 { font-size: 24px; }
   .track-continue { grid-template-columns: 1fr; }
   .track-continue-go { justify-self: start; }
   .track-rule { grid-template-columns: minmax(0, 1fr) 30px; }

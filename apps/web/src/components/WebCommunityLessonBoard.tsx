@@ -2,29 +2,25 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEven
 import {
   ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Circle, CircleDot, GripVertical, Lock, PenLine, Plus,
 } from "lucide-react";
-import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import {
   computeCommunityLessonStages,
-  projectCommunityLessonBody,
   type CommunityLessonProgressStatus,
   type CommunityLessonStage,
 } from "../../../../shared/communityLessonContract";
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
 import { WebCommunityResourceViewerContent, type WebLessonActivity } from "./WebCommunityResourceViewerContent";
-import { WebPlatformTabList } from "./WebPlatformChoiceControls";
 import type { CommunityResource } from "./communityResourcesContracts";
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import "./WebCommunityLessonBoard.css";
 
 // Knowledge -> Roadmap: the same lesson pages as Resources, read top to bottom as
 // one journey of stages. A stage stays locked until the gate lesson before it is
-// done; opening a lesson shows it as a step of its stage, with the member's
-// platform section and Mark done / Next. Progress is the member's own, from the
+// done; opening a lesson shows it in the same reader as Resources, with the
+// track's outline and Mark done / Next. Progress is the member's own, from the
 // store the site SDK's progress()/setProgress() use. Owners edit the journey in
 // place: rename and reorder stages and lessons, add either, and open a lesson in
 // the Resources editor. Edits are the lessons' own stage fields.
 
-const PLATFORM_KEY = "polynet-lesson-platform";
 const STATUS_LABEL: Record<CommunityLessonProgressStatus, string> = { not_started: "To do", in_progress: "In progress", done: "Done" };
 const KIND_LABEL: Record<string, string> = { build: "Build", lesson: "Watch", checkpoint: "Checkpoint" };
 const NEW_STAGE_NAME = "New stage";
@@ -53,10 +49,6 @@ function byOrder(a: BoardLesson, b: BoardLesson) {
   return (a.resource.lesson?.order ?? 0) - (b.resource.lesson?.order ?? 0) || a.resource.title.localeCompare(b.resource.title);
 }
 
-function readPlatform() {
-  try { return localStorage.getItem(PLATFORM_KEY) || ""; } catch { return ""; }
-}
-
 /** The resources with the owner's unsaved moves laid over them, so the board moves at once. */
 function withPending(resources: readonly CommunityResource[], pending: ReadonlyMap<string, RoadmapLessonUpdate>) {
   if (!pending.size) return resources;
@@ -80,6 +72,10 @@ export function WebCommunityLessonBoard(props: {
   editing?: RoadmapEditing | null;
   // Shown above the progress strip, for a track's title and picker.
   header?: ReactNode;
+  // The track's name, at the top of an open lesson's outline.
+  title?: string;
+  // True while a lesson is open, so the page can lay out for reading.
+  onReadingChange?: (reading: boolean) => void;
 }) {
   const { progress, editing } = props;
   const [pending, setPending] = useState<Map<string, RoadmapLessonUpdate>>(() => new Map());
@@ -88,15 +84,15 @@ export function WebCommunityLessonBoard(props: {
   const resources = useMemo(() => withPending(props.resources, pending), [props.resources, pending]);
   const lessons = useMemo(() => communityBoardLessons(resources), [resources]);
   const [openRef, setOpenRef] = useState<string | null>(null);
-  const [platform, setPlatform] = useState(readPlatform);
+  const onReadingChange = props.onReadingChange;
+  useEffect(() => {
+    onReadingChange?.(openRef !== null);
+    return () => onReadingChange?.(false);
+  }, [openRef, onReadingChange]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   // A lesson the owner just added opens with its title ready to type.
   const [renameId, setRenameId] = useState<string | null>(null);
-  const choosePlatform = (key: string) => {
-    setPlatform(key);
-    try { localStorage.setItem(PLATFORM_KEY, key); } catch { /* storage can be blocked */ }
-  };
 
   const statusOf = (ref: string): CommunityLessonProgressStatus => progress.statusByRef[ref] ?? "not_started";
   const doneRefs = new Set(lessons.filter((lesson) => statusOf(lesson.ref) === "done").map((lesson) => lesson.ref));
@@ -138,27 +134,30 @@ export function WebCommunityLessonBoard(props: {
 
   const opened = openRef ? lessons.find((lesson) => lesson.ref === openRef) ?? null : null;
   if (opened) {
-    const stageLessons = inStage(opened.resource.lesson?.stage ?? "");
     const ordered = stages.flatMap((stage) => inStage(stage.name));
     const at = ordered.findIndex((lesson) => lesson.ref === opened.ref);
     const prev = ordered[at - 1] ?? null;
     const next = ordered[at + 1] ?? null;
     const done = statusOf(opened.ref) === "done";
+    const canNext = next && !isLocked(next.ref);
     return (
       <WebCommunityLessonStep
         key={opened.ref}
         lesson={opened}
+        title={props.title ?? "Roadmap"}
+        outline={stages.map((stage) => ({ name: stage.name, lessons: inStage(stage.name).map((lesson) => ({
+          ref: lesson.ref, title: lesson.resource.title, done: statusOf(lesson.ref) === "done", locked: isLocked(lesson.ref),
+        })) }))}
+        doneCount={doneRefs.size}
+        total={lessons.length}
         lessonActivity={props.lessonActivity ?? null}
-        step={stageLessons.findIndex((lesson) => lesson.ref === opened.ref) + 1}
-        steps={stageLessons.length}
-        stageDone={stageLessons.filter((lesson) => statusOf(lesson.ref) === "done").length}
         done={done}
-        platform={platform}
-        onPlatform={choosePlatform}
+        onOpen={(ref) => { const lesson = lessons.find((item) => item.ref === ref); if (lesson && !isLocked(ref)) open(lesson); }}
         onBack={() => setOpenRef(null)}
         onToggleDone={() => setStatus(opened, done ? "in_progress" : "done")}
         onPrev={prev ? () => open(prev) : null}
-        onNext={next && !isLocked(next.ref) ? () => { if (!done && props.signedIn) setStatus(opened, "done"); open(next); } : null}
+        onNext={canNext ? () => { if (!done && props.signedIn) setStatus(opened, "done"); open(next); } : null}
+        nextTitle={canNext ? next.resource.title : null}
         onEdit={editing ? () => editing.editLesson(opened.resource) : null}
       />
     );
@@ -567,82 +566,108 @@ function InlineName(props: {
   );
 }
 
-// One lesson as a step of its stage: the member picks their platform once, sees
-// "Step n of N", and the body is the lesson contract's projection (intro, the
-// chosen platform's section, slides) in Polynet's own resource reader.
+type StepOutline = Array<{ name: string; lessons: Array<{ ref: string; title: string; done: boolean; locked: boolean }> }>;
+
+// A lesson opened from the roadmap reads exactly like one in Resources: the
+// track's outline on the left, the lesson in the middle, Contents on the right.
 function WebCommunityLessonStep(props: {
   lesson: BoardLesson;
-  step: number;
-  steps: number;
-  stageDone: number;
+  title: string;
+  outline: StepOutline;
+  doneCount: number;
+  total: number;
   done: boolean;
-  platform: string;
-  onPlatform: (key: string) => void;
+  onOpen: (ref: string) => void;
   onBack: () => void;
   onToggleDone: () => void;
   onPrev: (() => void) | null;
   onNext: (() => void) | null;
+  nextTitle: string | null;
   onEdit: (() => void) | null;
   lessonActivity?: WebLessonActivity | null;
 }) {
   const { resource } = props.lesson;
-  const fields = resource.lesson;
-  const projection = useMemo(() => projectCommunityLessonBody(resource.body_md ?? ""), [resource.body_md]);
-  const variant = projection.variants.find((item) => item.key === props.platform) ?? projection.variants[0] ?? null;
-  const slides = projection.slides.map((slide) => `![${slide.alt}](${slide.image})\n\n${slide.note_md}`).join("\n\n");
-  const body = [projection.intro_md, variant?.body_md, slides ? `## Slides\n\n${slides}` : ""].filter(Boolean).join("\n\n");
-  const kind = fields?.gate ? "Checkpoint" : KIND_LABEL[fields?.kind ?? ""] ?? "Step";
-  const tabs = projection.variants.map((item) => ({ id: item.key, label: item.label }));
+  // Open beside the lesson; on a phone it folds into a bar above it.
+  const [outlineOpen, setOutlineOpen] = useState(() => typeof window === "undefined" || !window.matchMedia("(max-width: 900px)").matches);
+  const topRef = useRef<HTMLDivElement | null>(null);
+  // A new lesson starts at its top, without jumping when it's already in view.
+  useEffect(() => {
+    const top = topRef.current;
+    if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: "start" });
+  }, [resource.id]);
   return (
-    <div className="community-panel community-utility-panel resources-panel lesson-board-step-page">
-      <div className="lesson-board-step-top">
-        <button className="resources-back-btn" type="button" onClick={props.onBack}>
-          <ArrowLeft aria-hidden="true" />
-          <span>Back to roadmap</span>
-        </button>
-        <div className="lesson-board-step-top-right">
+    <div className="community-panel community-utility-panel resources-panel lesson-board-step-page" ref={topRef}>
+      <div className="knowledge-workspace resource-course-workspace">
+        <aside className={`knowledge-resource-rail resource-course-outline lesson-step-outline${outlineOpen ? " is-open" : ""}`} aria-label={`${props.title} lessons`}>
+          <button className="lesson-step-back" type="button" onClick={props.onBack}>
+            <ArrowLeft aria-hidden="true" /> <span>Roadmap</span>
+          </button>
+          <button className="resource-course-outline-header" type="button" aria-expanded={outlineOpen}
+            aria-controls="lesson-step-navigation" onClick={() => setOutlineOpen((current) => !current)}>
+            <span className="resource-course-outline-title" title={props.title}>{props.title}</span>
+            <span className="resource-course-outline-count">{props.total} lessons<ChevronDown aria-hidden="true" /></span>
+          </button>
+          <div className="resource-course-outline-progress">
+            <span className="resource-course-card-progress-track" role="progressbar" aria-label={`${props.title} progress`}
+              aria-valuemin={0} aria-valuemax={props.total} aria-valuenow={props.doneCount}>
+              <span style={{ width: `${props.total ? Math.round((props.doneCount / props.total) * 100) : 0}%` }} />
+            </span>
+            <span>{props.doneCount} of {props.total} done</span>
+          </div>
+          <div id="lesson-step-navigation" className="resource-course-outline-scroll" hidden={!outlineOpen}>
+            <nav className="knowledge-resource-list" aria-label={`${props.title} lesson navigation`}>
+              {props.outline.map((stage) => (
+                <div className="lesson-step-outline-stage" key={stage.name}>
+                  <p className="lesson-step-outline-stage-name">{stage.name}</p>
+                  {stage.lessons.map((item) => {
+                    const active = item.ref === props.lesson.ref;
+                    return (
+                      <div key={item.ref} className={`knowledge-resource-item${active ? " is-active" : ""}${item.locked ? " is-locked" : ""}`}>
+                        <button className="knowledge-resource-item-main" type="button" aria-current={active ? "page" : undefined}
+                          disabled={item.locked} onClick={() => props.onOpen(item.ref)}>
+                          <span className={`knowledge-resource-item-status${item.done ? " is-done" : ""}`} role="img"
+                            aria-label={item.done ? "Done" : item.locked ? "Not open yet" : "Not done"}>
+                            {item.done ? <Check aria-hidden="true" /> : item.locked ? <Lock aria-hidden="true" /> : null}
+                          </span>
+                          <span className="knowledge-resource-item-copy">
+                            <span className="knowledge-resource-item-topline">
+                              <span className="knowledge-resource-item-title" title={item.title}>{item.title}</span>
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </div>
           {props.onEdit ? (
-            <button type="button" className="lesson-journey-edit" onClick={props.onEdit}>
+            <button type="button" className="lesson-journey-edit lesson-step-edit" onClick={props.onEdit}>
               <PenLine size={14} aria-hidden="true" /> Edit lesson
             </button>
           ) : null}
-          <span className="lesson-board-stage-badge">{fields?.stage}</span>
-        </div>
-      </div>
-      {tabs.length > 1 && variant ? (
-        <div className="lesson-board-platform-row">
-          <span>I build in:</span>
-          <WebPlatformTabList
-            tabs={tabs}
-            activeTab={variant.key}
-            onSelectTab={props.onPlatform}
-            ariaLabel="I build in"
-            idPrefix="lesson-board-platform"
-            style={buildPlatformSwitcherStyle(tabs.length, tabs.findIndex((tab) => tab.id === variant.key))}
-          />
-        </div>
-      ) : null}
-      <div className="lesson-board-step-progress">
-        <strong>Step <em>{props.step}</em> of {props.steps}</strong>
-        <div className="lesson-board-step-bar" aria-hidden="true">
-          <span style={{ width: `${props.steps ? (props.stageDone / props.steps) * 100 : 0}%` }} />
-        </div>
-      </div>
-      <article className="lesson-board-step-card">
-        <span className="lesson-board-kind-badge">{kind}</span>
+        </aside>
         <div className="knowledge-resource-reader">
-          <WebCommunityResourceViewerContent resource={{ ...resource, body_md: body }} lessonActivity={props.lessonActivity ?? null} />
-        </div>
-        <div className="lesson-board-step-nav">
-          {props.onPrev ? <button type="button" className="lesson-board-text-button" onClick={props.onPrev}>← Back</button> : <span />}
-          <div className="lesson-board-step-nav-right">
-            <button type="button" className="lesson-board-text-button" onClick={props.onToggleDone}>
-              {props.done ? "Mark as not done" : "Mark as done"}
-            </button>
-            {props.onNext ? <button type="button" className="lesson-board-primary-button" onClick={props.onNext}>Next →</button> : null}
+          <WebCommunityResourceViewerContent resource={resource} lessonActivity={props.lessonActivity ?? null} />
+          <div className="lesson-step-footer-wrap">
+            <nav className="lesson-step-footer" aria-label="Lesson steps">
+              <div className="lesson-step-footer-row">
+                <button type="button" className={`lesson-step-done${props.done ? " is-done" : ""}`} aria-pressed={props.done} onClick={props.onToggleDone}>
+                  <span className="lesson-step-done-box" aria-hidden="true">{props.done ? <Check /> : null}</span>
+                  {props.done ? "Done" : "Mark as done"}
+                </button>
+                {props.onNext ? (
+                  <button type="button" className="lesson-step-next" onClick={props.onNext}>
+                    <span><small>Next</small>{props.nextTitle}</span><ArrowRight aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
+              {props.onPrev ? <button type="button" className="lesson-step-link" onClick={props.onPrev}><ArrowLeft aria-hidden="true" /> Previous lesson</button> : null}
+            </nav>
           </div>
         </div>
-      </article>
+      </div>
     </div>
   );
 }
