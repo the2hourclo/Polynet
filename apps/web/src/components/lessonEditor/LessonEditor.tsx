@@ -5,9 +5,9 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import { Extension, type Range } from "@tiptap/core";
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from "@tiptap/suggestion";
 import { Placeholder } from "@tiptap/extensions";
-import { NodeSelection, PluginKey, TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Fragment, Slice, type Node as PMNode } from "@tiptap/pm/model";
-import type { EditorView } from "@tiptap/pm/view";
+import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import {
   AppWindow,
   ArrowDown,
@@ -216,6 +216,30 @@ type SlashBridge = {
   set: (state: SlashState | null) => void;
   followAlong: boolean;
 };
+
+// "### In Cowork" (and Claude Code, Codex…) starts a platform's steps; members
+// see them as "I build in" tabs. In the editor the heading shows as a clear
+// section marker, so the owner sees where each platform's steps begin.
+const PLATFORM_HEADING_TEXT = /^In \S/;
+const platformSectionExtension = Extension.create({
+  name: "lessonPlatformSections",
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      key: new PluginKey("lessonPlatformSections"),
+      props: {
+        decorations(state) {
+          const decorations: Decoration[] = [];
+          state.doc.forEach((node, offset) => {
+            if (node.type.name === "heading" && node.attrs.level === 3 && PLATFORM_HEADING_TEXT.test(node.textContent)) {
+              decorations.push(Decoration.node(offset, offset + node.nodeSize, { class: "lesson-editor-platform-heading", "data-platform-label": "Members on this platform see" }));
+            }
+          });
+          return DecorationSet.create(state.doc, decorations);
+        },
+      },
+    })];
+  },
+});
 
 const slashKey = new PluginKey("lessonSlash");
 
@@ -818,6 +842,7 @@ export default function LessonEditor(props: LessonEditorProps) {
       showOnlyCurrent: true,
     }),
     slashExtension(bridge.current),
+    platformSectionExtension,
     Extension.create({
       name: "lessonKeys",
       addKeyboardShortcuts: () => ({

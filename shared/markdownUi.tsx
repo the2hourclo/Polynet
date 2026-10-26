@@ -118,6 +118,7 @@ function getEmbedProviderLabel(provider: ParsedEmbed["provider"]): string {
   if (provider === "wistia") return "Wistia";
   if (provider === "vimeo") return "Vimeo";
   if (provider === "loom") return "Loom";
+  if (provider === "descript") return "Descript";
   return "Video";
 }
 

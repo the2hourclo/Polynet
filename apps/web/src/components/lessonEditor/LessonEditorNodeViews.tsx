@@ -226,7 +226,7 @@ export function LessonVideoView({ node, updateAttributes, deleteNode, selected }
           ref={inputRef}
           className="lesson-editor-field"
           value={draft}
-          placeholder="Paste a YouTube, Loom, Vimeo or Wistia link"
+          placeholder="Paste a YouTube, Loom, Vimeo, Wistia or Descript link"
           aria-label="Video link"
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => {
@@ -237,7 +237,7 @@ export function LessonVideoView({ node, updateAttributes, deleteNode, selected }
           <button type="submit" className="lesson-editor-button is-primary" disabled={!draftOk}>Embed</button>
         ) : null}
       </form>
-      {draft.trim() && !draftOk ? <p className="lesson-editor-block-problem">Polynet plays YouTube, Loom, Vimeo and Wistia links.</p> : null}
+      {draft.trim() && !draftOk ? <p className="lesson-editor-block-problem">Polynet plays YouTube, Loom, Vimeo, Wistia and Descript links.</p> : null}
     </BlockChrome>
   );
 }
