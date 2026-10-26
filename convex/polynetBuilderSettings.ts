@@ -657,6 +657,8 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     tracks: { path: "/builder/tracks.json" },
     // Offers and which private channels each one opens.
     offers: { path: "/builder/offers.json" },
+    // Pods (Classroom's private rooms): who's in each, and how to change them.
+    pods: { path: "/builder/pods.json" },
     // Workflows → Run history: the latest automation runs with their steps.
     workflow_runs: { path: "/builder/workflow-runs.json" },
     // Changes waiting for the owner's Apply, and recent outcomes.

@@ -1,7 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, normalizeIdValue, resolvePublicUserId,
-  resolveUserIdForAuthenticatedRequest } from "./communityCore";
+import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, normalizeIdValue, requireCommunityManager,
+  resolvePublicUserId, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 import { resolveAuthorizedCommunityChannel } from "./communityChannelCore";
 import { getCommunityChannelCapabilities, resolveCommunityChannelActor } from "./communityChannelAccess";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
@@ -16,6 +16,7 @@ const MAX_PODS_PER_CALL = 12;
 const MAX_GRANTS_READ = 200;
 const MAX_MEMBERSHIPS_READ = 1000;
 const MAX_FACES = 12;
+const MAX_BUILDER_PODS = 100;
 
 type PodPerson = {
   user_id: string;
@@ -38,27 +39,7 @@ export const listPodPeople = query({
     const community = (await ctx.db.get(args.communityId))!;
     const channelIds = [...new Set(args.channelIds.map(String))].slice(0, MAX_PODS_PER_CALL);
 
-    // Admins can see every pod, so they are read once for all of them.
-    let admins: Array<{ userId: any }> | null = null;
-    const loadAdmins = async () => {
-      if (admins) return admins;
-      const rows = await ctx.db.query("communityMemberships")
-        .withIndex("by_community", (q) => q.eq("communityId", args.communityId)).take(MAX_MEMBERSHIPS_READ);
-      admins = rows.filter((row) => row.role === "admin" && communityMembershipRowIsActive(row) && row.userId !== community.ownerId);
-      return admins;
-    };
-    const person = async (personId: any, role: PodPerson["role"]): Promise<PodPerson> => {
-      const presence = await ctx.db.query("communityPresence")
-        .withIndex("by_community_user", (q) => q.eq("communityId", args.communityId).eq("userId", personId)).first();
-      return {
-        user_id: (await resolvePublicUserId(ctx, personId)) ?? String(personId),
-        role,
-        profile: await resolveUserProfileDisplayProjection(ctx, personId),
-        last_seen_at: presence?.lastSeenAt ?? null,
-        active_until: presence?.activeUntil ?? null,
-      };
-    };
-
+    const loadAdmins = adminsReader(ctx, args.communityId, community.ownerId);
     const pods = [];
     for (const channelId of channelIds) {
       let channel;
@@ -69,36 +50,100 @@ export const listPodPeople = query({
         continue;
       }
       if (channel.accessMode !== "restricted") continue;
-      const roles = new Map<string, { id: any; role: PodPerson["role"] }>();
-      roles.set(normalizeIdValue(community.ownerId), { id: community.ownerId, role: "owner" });
-      for (const admin of await loadAdmins()) roles.set(normalizeIdValue(admin.userId), { id: admin.userId, role: "admin" });
-      const grants = await ctx.db.query("communityChannelParticipants")
-        .withIndex("by_channel_principal", (q) => q.eq("channelId", channel._id as any)).take(MAX_GRANTS_READ);
-      let agent = false;
-      for (const grant of grants) {
-        if (grant.status !== "active" || grant.communityId !== args.communityId) continue;
-        if (grant.principalKey === "community_agent") { agent = true; continue; }
-        if (!grant.principalKey.startsWith("user:")) continue;
-        const grantedUserId = grant.principalKey.slice("user:".length);
-        if (roles.has(grantedUserId)) continue;
-        const membership = await getUniqueCommunityMembershipByPair({ ctx, communityId: args.communityId, userId: grantedUserId });
-        if (!membership || !communityMembershipRowIsActive(membership)
-          || normalizeIdValue(grant.membershipId) !== normalizeIdValue(membership._id)
-          || grant.membershipActivationSequence !== Math.max(0, Math.floor(Number(membership.activationSequence ?? 0)))) continue;
-        roles.set(grantedUserId, { id: membership.userId, role: membership.role === "admin" ? "admin" : "member" });
-      }
-      if (agent) {
-        const agentActor = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId, kind: "community_agent" });
-        agent = (await getCommunityChannelCapabilities({ ctx, channel, actor: agentActor })).canRead;
-      }
-      // Invited members first, then admins, then the owner: the faces a member
-      // recognises as "their" pod lead the stack.
-      const order = { member: 0, admin: 1, owner: 2 } as const;
-      const everyone = [...roles.values()].sort((a, b) => order[a.role] - order[b.role]);
+      const { everyone, agent } = await podAudience(ctx, { community, channel, userId, loadAdmins });
       const people = [];
-      for (const entry of everyone.slice(0, MAX_FACES)) people.push(await person(entry.id, entry.role));
+      for (const entry of everyone.slice(0, MAX_FACES)) people.push(await podPerson(ctx, args.communityId, entry.id, entry.role));
       pods.push({ channel_id: String(channel._id), people, people_count: everyone.length, agent });
     }
     return { pods };
+  },
+});
+
+// Admins can see every pod, so they are read once per call.
+function adminsReader(ctx: any, communityId: any, ownerId: any) {
+  let admins: Array<{ userId: any }> | null = null;
+  return async () => {
+    if (admins) return admins;
+    const rows = await ctx.db.query("communityMemberships")
+      .withIndex("by_community", (q: any) => q.eq("communityId", communityId)).take(MAX_MEMBERSHIPS_READ);
+    admins = rows.filter((row: any) => row.role === "admin" && communityMembershipRowIsActive(row) && row.userId !== ownerId);
+    return admins!;
+  };
+}
+
+// Everyone who can see a pod, invited members first, then admins, then the
+// owner: the faces a member recognises as "their" pod lead the stack.
+async function podAudience(ctx: any, args: { community: any; channel: any; userId: any; loadAdmins: () => Promise<Array<{ userId: any }>> }) {
+  const { community, channel } = args;
+  const roles = new Map<string, { id: any; role: PodPerson["role"] }>();
+  roles.set(normalizeIdValue(community.ownerId), { id: community.ownerId, role: "owner" });
+  for (const admin of await args.loadAdmins()) roles.set(normalizeIdValue(admin.userId), { id: admin.userId, role: "admin" });
+  const grants = await ctx.db.query("communityChannelParticipants")
+    .withIndex("by_channel_principal", (q: any) => q.eq("channelId", channel._id)).take(MAX_GRANTS_READ);
+  let agent = false;
+  for (const grant of grants) {
+    if (grant.status !== "active" || grant.communityId !== community._id) continue;
+    if (grant.principalKey === "community_agent") { agent = true; continue; }
+    if (!grant.principalKey.startsWith("user:")) continue;
+    const grantedUserId = grant.principalKey.slice("user:".length);
+    if (roles.has(grantedUserId)) continue;
+    const membership = await getUniqueCommunityMembershipByPair({ ctx, communityId: community._id, userId: grantedUserId });
+    if (!membership || !communityMembershipRowIsActive(membership)
+      || normalizeIdValue(grant.membershipId) !== normalizeIdValue(membership._id)
+      || grant.membershipActivationSequence !== Math.max(0, Math.floor(Number(membership.activationSequence ?? 0)))) continue;
+    roles.set(grantedUserId, { id: membership.userId, role: membership.role === "admin" ? "admin" : "member" });
+  }
+  if (agent) {
+    const agentActor = await resolveCommunityChannelActor({ ctx, communityId: community._id, userId: args.userId, kind: "community_agent" });
+    agent = (await getCommunityChannelCapabilities({ ctx, channel, actor: agentActor })).canRead;
+  }
+  const order = { member: 0, admin: 1, owner: 2 } as const;
+  return { everyone: [...roles.values()].sort((a, b) => order[a.role] - order[b.role]), agent };
+}
+
+async function podPerson(ctx: any, communityId: any, personId: any, role: PodPerson["role"]): Promise<PodPerson> {
+  const presence = await ctx.db.query("communityPresence")
+    .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", personId)).first();
+  return {
+    user_id: (await resolvePublicUserId(ctx, personId)) ?? String(personId),
+    role,
+    profile: await resolveUserProfileDisplayProjection(ctx, personId),
+    last_seen_at: presence?.lastSeenAt ?? null,
+    active_until: presence?.activeUntil ?? null,
+  };
+}
+
+// /builder/pods.json: every pod with who's in it, for the owner's agent. The
+// user ids are the ones community.channel.participant.set takes.
+export const listBuilderPods = query({
+  args: { communityId: v.id("communities"), userId: v.optional(v.id("users")), authSubject: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    const { community } = await requireCommunityManager({ ctx, communityId: args.communityId, userId });
+    const channels = await ctx.db.query("communityChannels")
+      .withIndex("by_community_access_status_position", (q) => q.eq("communityId", args.communityId).eq("accessMode", "restricted").eq("status", "active"))
+      .take(MAX_BUILDER_PODS);
+    const loadAdmins = adminsReader(ctx, args.communityId, community.ownerId);
+    const pods = [];
+    for (const channel of channels) {
+      const { everyone, agent } = await podAudience(ctx, { community, channel, userId, loadAdmins });
+      const people = [];
+      for (const entry of everyone) {
+        const profile = await resolveUserProfileDisplayProjection(ctx, entry.id);
+        // role "member" was invited; the owner and admins see every pod anyway.
+        people.push({ user_id: String(entry.id), name: profile.display_name, role: entry.role });
+      }
+      pods.push({ channel_id: String(channel._id), slug: channel.slug, name: channel.name, people, agent_in_pod: agent });
+    }
+    return {
+      contract: "polynet.builder_pods.v1",
+      guidance: "Pods are the invite-only channels, shown in Classroom with the faces of everyone who can see them. "
+        + "Start one with community.channel.create (access_mode \"restricted\"); add or remove a member with "
+        + "community.channel.participant.set (target { kind: \"member\", userId }) and the agent with target { kind: \"community_agent\" }. "
+        + "The owner and admins can see every pod. Where Classroom shows pods is the theme token pods_place "
+        + "(\"aside\": top of the right column, \"header\": a faces button in the header): change it in /builder/theme.json with community.theme.save_draft, then community.theme.publish.",
+      pods,
+      truncated: channels.length === MAX_BUILDER_PODS,
+    };
   },
 });
