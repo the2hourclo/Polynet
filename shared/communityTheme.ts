@@ -61,6 +61,14 @@ export type CommunityThemeV1 = {
   course_card_description: "show" | "hide";
   course_card_progress: "bar" | "ring" | "fraction";
   course_card_edge: "border" | "shadow" | "none";
+  // The colour of the text panel under a boxed card's cover: "shade" (a clear
+  // step from the card, a little darker on light schemes and lighter on dark
+  // ones, like a classic course card), "tint" (a faint wash), "accent" (a soft
+  // wash of the accent), "plain" (the card colour) or "custom", which uses
+  // course_card_panel_color. Text on the panel stays readable either way.
+  course_card_panel: "shade" | "tint" | "accent" | "plain" | "custom";
+  // "#RRGGBB" for course_card_panel "custom"; "" otherwise.
+  course_card_panel_color: string;
   // "tint" prints course covers onto a soft wash of the accent (light schemes),
   // so pale drawings and dark screenshots share one colour.
   course_cover_plate: "none" | "tint";
@@ -172,6 +180,8 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   course_card_description: "show",
   course_card_progress: "bar",
   course_card_edge: "border",
+  course_card_panel: "shade",
+  course_card_panel_color: "",
   course_cover_plate: "none",
   course_cover_fit: "crop",
   banner_name: "show",
@@ -215,6 +225,7 @@ const ENUMS = {
   course_card_description: ["show", "hide"],
   course_card_progress: ["bar", "ring", "fraction"],
   course_card_edge: ["border", "shadow", "none"],
+  course_card_panel: ["shade", "tint", "accent", "plain", "custom"],
   course_cover_plate: ["none", "tint"],
   course_cover_fit: ["crop", "whole"],
   banner_name: ["show", "hide"],
@@ -234,7 +245,7 @@ const RANGES = {
 } as const;
 
 const KNOWN_KEYS = new Set<string>([
-  "version", "schemes", "font_body", "font_heading", "font_mono",
+  "version", "schemes", "font_body", "font_heading", "font_mono", "course_card_panel_color",
   ...Object.keys(ENUMS), ...Object.keys(RANGES),
 ]);
 
@@ -457,6 +468,21 @@ export function normalizeCommunityTheme(raw: unknown): CommunityThemeResult {
     }
     (theme as Record<string, unknown>)[key] = value;
   }
+  if (raw.course_card_panel_color !== undefined) {
+    const value = typeof raw.course_card_panel_color === "string" ? raw.course_card_panel_color.trim() : null;
+    if (value === null || (value !== "" && !parseHex(value))) {
+      problems.push({ path: "course_card_panel_color", message: "course_card_panel_color is a colour like \"#2B2B2B\", or \"\" for none." });
+    } else {
+      theme.course_card_panel_color = value.toUpperCase();
+    }
+  }
+  if (theme.course_card_panel === "custom" && !theme.course_card_panel_color) {
+    problems.push({
+      path: "course_card_panel_color",
+      message: "A custom card panel needs a colour.",
+      suggestion: "Set course_card_panel_color to a colour like \"#2B2B2B\", or pick another course_card_panel.",
+    });
+  }
 
   return problems.length ? { ok: false, problems } : { ok: true, theme };
 }
@@ -547,6 +573,32 @@ function typeRoles(scale: number): Record<string, string> {
   return roles;
 }
 
+// The text panel under a boxed course card's cover. Presets are mixes of the
+// scheme's own colours, so they follow its text colours; a custom colour gets
+// whichever text colour reads on it.
+function courseCardPanel(
+  theme: CommunityThemeV1,
+  c: CommunityThemeColors,
+  scheme: CommunityThemeScheme,
+): { background: string; text: string; muted: string } {
+  const mix = (a: string, pct: number, b: string) => `color-mix(in srgb, ${a} ${pct}%, ${b})`;
+  const own = { text: c.text, muted: mix(c.text, 72, c.surface) };
+  switch (theme.course_card_panel) {
+    case "plain": return { background: c.surface, ...own };
+    case "tint": return { background: mix(c.accent, 4, mix(c.text, 2.5, c.surface)), ...own };
+    case "accent": return { background: mix(c.accent, 14, c.surface), ...own };
+    case "custom": {
+      const rgb = parseHex(theme.course_card_panel_color);
+      if (!rgb) break;
+      const background = toHex(rgb);
+      const text = contrastRatio(c.text, background) >= 4.5 ? c.text : contrastRatio("#111111", background) >= contrastRatio("#FFFFFF", background) ? "#111111" : "#FFFFFF";
+      return { background, text, muted: mix(text, 72, background) };
+    }
+    default: break;
+  }
+  return { background: mix(c.text, scheme === "dark" ? 9 : 6, c.surface), ...own };
+}
+
 // The variables a community area gets for one scheme: the public --pn-* set
 // (also what custom sites and <polynet-account> read) and Polynet's internal
 // variables derived from it.
@@ -567,6 +619,7 @@ export function communityThemeVariables(
   const sizedCourseGrid = theme.course_columns === "auto" && theme.course_card_size !== "default";
   const ownerCourseGrid = sizedCourseGrid || theme.course_columns !== "auto";
   const grey = communityTextLevels(c, scheme);
+  const panel = courseCardPanel(theme, c, scheme);
 
   const pn: Record<string, string> = {
     "--pn-background": c.background,
@@ -602,6 +655,9 @@ export function communityThemeVariables(
     "--pn-media-plate-pad": plate ? "8px" : "0px",
     "--pn-cover-plate": coverTint ? `color-mix(in srgb, ${c.accent} 9%, ${c.surface})` : "var(--bg-card-alt)",
     "--pn-cover-blend": coverTint ? "multiply" : "normal",
+    "--pn-course-panel": panel.background,
+    "--pn-course-panel-text": panel.text,
+    "--pn-course-panel-muted": panel.muted,
     "--pn-course-columns": courseColumns(theme),
     // Set only when the owner picked them, so page styles keep their own
     // columns and spacing otherwise ("initial" makes var() use its fallback).

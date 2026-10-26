@@ -1,6 +1,7 @@
-import { Settings, UserRound } from "lucide-react";
+import { Eye, EyeOff, Settings, UserRound } from "lucide-react";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
 import { UserAvatar } from "../../../../shared/UserAvatar";
+import { setMemberViewOn, useMemberView, useMemberViewInTopBar } from "./memberViewStore";
 
 // The top right holds two buttons, like Substack (Rashid, 2026-10-26): inside
 // a community the gear opens that community's settings (Your membership for
@@ -9,6 +10,9 @@ import { UserAvatar } from "../../../../shared/UserAvatar";
 
 export function WebAccountSettingsButton(props: { communityShell: WebCommunityShellProps; placement: "top" | "bar" }) {
   const shell = props.communityShell;
+  const memberView = useMemberView();
+  const showMemberView = shell.showDesktopCommunityRail && memberView.offered;
+  useMemberViewInTopBar(showMemberView);
   if (!shell.showDesktopCommunityRail) return null;
 
   const community = shell.activeCommunity;
@@ -24,6 +28,20 @@ export function WebAccountSettingsButton(props: { communityShell: WebCommunitySh
 
   return (
     <>
+      {/* Owners see the page as members do; on, it says so in words. */}
+      {showMemberView ? (
+        <button
+          type="button"
+          className={buttonClass(memberView.on, ` community-member-view-button${memberView.on ? " is-on" : ""}`)}
+          aria-pressed={memberView.on}
+          aria-label={memberView.on ? "Exit member view" : "View as member"}
+          title={memberView.on ? "Back to editing" : "See this page as members see it"}
+          onClick={() => setMemberViewOn(!memberView.on)}
+        >
+          {memberView.on ? <EyeOff size={18} strokeWidth={2} aria-hidden="true" /> : <Eye size={20} strokeWidth={2} aria-hidden="true" />}
+          {memberView.on ? <span className="community-member-view-label">Member view</span> : null}
+        </button>
+      ) : null}
       {showGear ? (
         <button
           type="button"

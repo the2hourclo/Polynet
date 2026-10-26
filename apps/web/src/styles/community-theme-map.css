@@ -3014,6 +3014,9 @@
 [data-community-theme] .community-profile-button .community-profile-avatar {
   font-size: var(--pn-type-meta);
 }
+[data-community-theme] .community-member-view-label {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .deferred-youtube:not(.is-too-narrow) {
   border-radius: calc(12px * var(--pn-radius-scale, 1));
 }
