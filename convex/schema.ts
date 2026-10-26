@@ -1288,6 +1288,7 @@ export default defineSchema({
       /** The page as blocks with "Next" breaks (shared/communityWelcomeLayout.ts); message and media before it existed. */
       layout: v.optional(v.array(v.union(
         v.object({ type: v.literal("text"), markdown: v.string() }),
+        v.object({ type: v.literal("choice"), prompt: v.string(), options: v.array(v.object({ label: v.string(), hint: v.string(), markdown: v.string() })) }),
         v.object({ type: v.literal("form"), formKey: v.string() }),
         v.object({ type: v.literal("lesson"), resourceId: v.string() }),
         v.object({ type: v.literal("next") }),

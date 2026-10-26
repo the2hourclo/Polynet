@@ -206,3 +206,20 @@
 /* Controls line up with the middle of a break and the top line of a step card. */
 .welcome-settings-block.is-next :is(.welcome-settings-gutter, .welcome-settings-block-end) { padding-top: 16px; }
 .welcome-settings-block:is(.is-form, .is-lesson) :is(.welcome-settings-gutter, .welcome-settings-block-end) { padding-top: 16px; }
+
+/* A choice block: the question, a tab per card, then the open card's fields. */
+.welcome-settings-choice { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 6px 8px; padding: 16px 18px; border: 1px solid var(--border-default); border-radius: calc(12px * var(--pn-radius-scale, 1)); background: var(--bg-card, transparent); }
+.welcome-settings-choice:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.welcome-settings-choice-head { display: flex; align-items: center; gap: 12px; }
+.welcome-settings-choice-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.welcome-settings-choice-field > span { color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.welcome-settings-choice-field input, .welcome-settings-choice-text { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-workspace); color: var(--text-primary); font: inherit; font-size: 14px; }
+.welcome-settings-choice-text { resize: none; font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 13px; line-height: 1.55; min-height: 96px; }
+.welcome-settings-choice-field input:focus, .welcome-settings-choice-text:focus { outline: none; border-color: var(--accent-brand, var(--accent-primary)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 18%, transparent); }
+.welcome-settings-choice-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.welcome-settings-choice-tabs button { padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.welcome-settings-choice-tabs button.is-active { border-color: var(--accent-brand, var(--accent-primary)); background: color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 10%, transparent); }
+.welcome-settings-choice-tabs .welcome-settings-choice-add { display: inline-flex; align-items: center; gap: 4px; border-style: dashed; color: var(--text-secondary); }
+.welcome-settings-choice-card { display: flex; flex-direction: column; gap: 10px; }
+.welcome-settings-choice-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.welcome-settings-choice-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--text-secondary); font-size: 12px; }

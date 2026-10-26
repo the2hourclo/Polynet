@@ -467,6 +467,18 @@
 [data-community-theme] .community-welcome :is(.community-welcome-media, .community-welcome-message) .md-media-embed-caption {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .community-welcome-choice-prompt {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .community-welcome-choice-card strong {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .community-welcome-choice-card small {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-welcome-choice-empty {
+  font-size: var(--pn-type-ui);
+}
 [data-community-theme] .community-sales-title {
   font-size: var(--pn-type-title);
 }
@@ -698,6 +710,23 @@
 }
 [data-community-theme] .welcome-settings-preview-lesson {
   border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-choice-field > span {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .welcome-settings-choice-field input,
+[data-community-theme] .welcome-settings-choice-text {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .welcome-settings-choice-text {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .welcome-settings-choice-tabs button {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .welcome-settings-choice-foot {
+  font-size: var(--pn-type-label);
 }
 [data-community-theme] .pn-wf-tabs > button[aria-selected="true"]::after {
   border-radius: calc(1px * var(--pn-radius-scale, 1));
