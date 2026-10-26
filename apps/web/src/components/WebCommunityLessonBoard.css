@@ -163,6 +163,14 @@ input.lesson-journey-lesson-title { flex: 1; }
 }
 .lesson-step-back:hover { color: var(--text-primary); }
 .lesson-step-back svg { width: 15px; height: 15px; }
+/* Back, title, progress, the lesson list (which scrolls), Edit. */
+.lesson-step-outline.resource-course-outline { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+.lesson-step-outline .resource-course-outline-header { overflow: visible; padding-block: 2px; }
+/* Started but not done: a half-filled ring in the community colour. */
+.lesson-step-outline .knowledge-resource-item-status.is-started {
+  border-color: var(--accent-brand);
+  background: linear-gradient(90deg, var(--accent-brand) 50%, transparent 50%);
+}
 .lesson-step-outline-stage + .lesson-step-outline-stage { margin-top: 14px; }
 .lesson-step-outline-stage-name {
   margin: 0 0 4px; padding: 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
