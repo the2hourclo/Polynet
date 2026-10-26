@@ -285,3 +285,35 @@
   .pn-profile-editor-photo .pn-profile-editor-avatar { width: 4.5rem; height: 4.5rem; }
 }
 .pn-display-everywhere { border-top: 1px solid var(--border-default); }
+
+/* Billing: a row per community with its plan as a badge and its one action
+   on the right; the price sits in the card's header (Rashid, 2026-10-26). */
+.pn-billing-price { display: flex; flex-direction: column; align-items: flex-end; gap: 0.125rem; text-align: right; }
+.pn-billing-price strong { font-size: 1.0625rem; font-weight: 700; line-height: 1.5rem; color: var(--text-primary); }
+.pn-billing-price span { font-size: 0.75rem; color: var(--text-secondary); }
+.pn-billing-community .pn-settings-row-head { justify-content: flex-start; gap: 0.75rem; }
+.pn-billing-community .pn-settings-row-text { flex: 1; }
+.pn-billing-community .pn-settings-label { font-size: 0.9375rem; }
+.pn-billing-avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--pn-set-r);
+  background: var(--bg-card-hover, var(--bg-card-alt, var(--hover-overlay)));
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.pn-billing-card .pn-settings-row .pn-settings-inline-error { flex: 1; }
+.pn-billing-card .pn-settings-loading { padding: 1rem 1.25rem; }
+.pn-billing-disclosure { border-top: 1px solid var(--border-muted, var(--border-default)); font-size: 0.75rem; }
+.pn-billing-recovery-error { padding: 0 1.25rem 1rem; }
+.pn-billing-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+@media (max-width: 640px) {
+  .pn-billing-price { align-items: flex-start; text-align: left; }
+  .pn-billing-community .pn-settings-row-head { flex-wrap: wrap; }
+  .pn-billing-community .pn-settings-row-control { width: 100%; }
+  .pn-billing-community .pn-settings-row-control .pn-settings-button { width: 100%; }
+}
