@@ -28,18 +28,18 @@ export function WebAccountSettingsButton(props: { communityShell: WebCommunitySh
 
   return (
     <>
-      {/* Owners see the page as members do; on, it says so in words. */}
+      {/* Owners see the page as members do. On, it stays an icon so the bar
+          doesn't shift; the page itself says "Member view" (Rashid, 2026-10-26). */}
       {showMemberView ? (
         <button
           type="button"
           className={buttonClass(memberView.on, ` community-member-view-button${memberView.on ? " is-on" : ""}`)}
           aria-pressed={memberView.on}
           aria-label={memberView.on ? "Exit member view" : "View as member"}
-          title={memberView.on ? "Back to editing" : "See this page as members see it"}
+          title={memberView.on ? "Exit member view" : "See this page as members see it"}
           onClick={() => setMemberViewOn(!memberView.on)}
         >
-          {memberView.on ? <EyeOff size={18} strokeWidth={2} aria-hidden="true" /> : <Eye size={20} strokeWidth={2} aria-hidden="true" />}
-          {memberView.on ? <span className="community-member-view-label">Member view</span> : null}
+          {memberView.on ? <EyeOff size={20} strokeWidth={2} aria-hidden="true" /> : <Eye size={20} strokeWidth={2} aria-hidden="true" />}
         </button>
       ) : null}
       {showGear ? (

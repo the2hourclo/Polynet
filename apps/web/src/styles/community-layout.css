@@ -1696,22 +1696,15 @@
 }
 
 /* View as member sits first in that group, on pages that offer it (today
-   Knowledge). On, it widens into a pill that says "Member view", so an owner
-   can't forget they're looking as a member (Rashid, 2026-10-26). */
+   Knowledge's Resources tab). On, it keeps its icon size, so nothing in the
+   bar moves onto the page's tabs, and gets a tinted ring; the page shows a
+   "Member view" banner with an Exit button (Rashid, 2026-10-26). */
 .community-member-view-button.is-on {
-  width: auto !important;
-  gap: 6px;
-  padding-inline: 10px 12px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 14%, transparent);
   color: var(--text-primary);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-brand, var(--text-primary)) 40%, transparent);
 }
-.community-member-view-button.is-on svg { width: 16px !important; height: 16px !important; }
-.community-member-view-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .app-root:has(.app-topbar .community-member-view-button) {
   --web-topbar-right-action-safe-inset: 226px;
-}
-.app-root:has(.app-topbar .community-member-view-button.is-on) {
-  --web-topbar-right-action-safe-inset: 316px;
 }

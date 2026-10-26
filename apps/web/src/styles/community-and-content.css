@@ -9900,6 +9900,24 @@ button.chat-reply-quote:hover {
   color: var(--bg-button-text, #fff);
 }
 
+/* Member view is on from the top bar: the page says so, with a way out. */
+.resources-member-view-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 10%, var(--bg-card, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-brand, var(--text-primary)) 30%, transparent);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+.resources-member-view-banner > svg { flex: none; width: 1rem; height: 1rem; }
+.resources-member-view-banner > span { flex: 1; min-width: 0; }
+.resources-member-view-banner > span > strong { font-weight: 600; }
+.resources-member-view-banner > button { flex: none; }
+
 .resources-preview-mode-control {
   display: inline-flex;
   align-items: center;

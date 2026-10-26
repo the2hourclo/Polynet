@@ -35,6 +35,9 @@ type CommunityResourcesPanelProps = {
   lessonActivity?: WebLessonActivity | null;
   // Open this lesson in the editor (from the Roadmap's "Edit lesson"); a new key asks again.
   editRequest?: { resourceId: string; key: number } | null;
+  // False while this panel is mounted but hidden (another Knowledge tab is open),
+  // so the top bar doesn't offer a member view this page can't show.
+  memberViewOffered?: boolean;
 };
 
 const MODULE_DRAG_MIME = "application/x-polynet-community-resource-module";
@@ -369,7 +372,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     useState<WebCommunityResourceInlineEditorField | null>(null);
   // View as member lives in the top bar; this page offers it to owners.
   const memberView = useMemberView();
-  useOfferMemberView(capabilities.canOperateResources);
+  useOfferMemberView(capabilities.canOperateResources && props.memberViewOffered !== false);
   const isPreviewMode = capabilities.canOperateResources && memberView.on;
   const setIsPreviewMode = setMemberViewOn;
   const [isCourseOutlineOpen, setIsCourseOutlineOpen] = useState(() => !isNarrowViewport());
@@ -885,6 +888,13 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   return (
     <>
       <div className="community-panel community-utility-panel resources-panel">
+        {isPreviewMode && memberView.inTopBar ? (
+          <div className="resources-member-view-banner" role="status">
+            <EyeOff aria-hidden="true" />
+            <span><strong>Member view.</strong> You're seeing this page as your members do.</span>
+            <button type="button" className="resources-preview-pill" onClick={() => setIsPreviewMode(false)}>Exit</button>
+          </div>
+        ) : null}
         {/* Members on the catalog have nothing here, so the row isn't drawn. */}
         {selectedModule || (capabilities.canOperateResources && !memberView.inTopBar) ? <div className="feed-header-row">
           <div className="feed-header-copy">
