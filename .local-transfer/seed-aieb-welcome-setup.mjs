@@ -1,5 +1,5 @@
 // Puts "Set up your AI Employee Builder" first on the AIEB welcome page of the
-// local build: a choice of app (Codex, Claude Code, Cowork), each with its steps.
+// local build: a choice of app (Codex or Claude Code), each with its steps.
 // Run from the polynet-local repo root (the convex dev deployment must be up):
 //   node .local-transfer/seed-aieb-welcome-setup.mjs [community-slug]
 // Safe to run again: it replaces its own screen and keeps the rest of the page.
@@ -61,30 +61,11 @@ After each step, tell me whether it worked, or show the error and how you're fix
 3. **Connect.** When Claude Code shows **Connect**, click it. ${CONNECT}
 4. **Check it.** Type \`/check-setup\`. You want three green ticks: plugin installed, connection live, membership active.`;
 
-const cowork = `1. **Add the plugin.** In the Claude desktop app open **Customize → Personal plugins → + → Add marketplace**, paste this, then click **Sync**:
-
-\`\`\`copy
-the2hourclo/aieb-thin-plugin
-\`\`\`
-
-2. **Install AI Employee Builder.** Claude shows a red "make sure you trust this plugin" notice for every plugin not made by Anthropic. This one is ours.
-3. **Open a Project with a folder.** Choose **New chat → Project → Add folder** and pick a permanent folder for your business. Then run:
-
-\`\`\`copy
-/ai-employee-builder:setup-aieb
-\`\`\`
-
-4. **Connect.** If Claude shows an AIEB **Connect** button, click it. ${CONNECT}
-5. **Check it.** Claude names your folder and confirms your workspace is saved there. Not sure? Type \`/check-setup\`.
-
-https://www.youtube.com/watch?v=tJxjOVBJIwc`;
-
 const setupScreen = [
   { type: "text", markdown: INTRO },
   { type: "choice", prompt: PROMPT, options: [
     { label: "ChatGPT Codex", hint: "Recommended if you're new. The Codex app or CLI.", markdown: codex },
     { label: "Claude Code", hint: "VS Code or your terminal, for full control.", markdown: claudeCode },
-    { label: "Claude Cowork", hint: "The simplest. The Claude desktop app, all point and click.", markdown: cowork },
   ] },
 ];
 
