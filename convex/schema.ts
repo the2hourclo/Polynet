@@ -1338,6 +1338,7 @@ export default defineSchema({
               propertyKey: v.string(),
               value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
             }),
+            v.object({ key: v.string(), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
           ),
         })),
       }),
@@ -1440,6 +1441,7 @@ export default defineSchema({
         type: v.literal("move_member"),
         destination: v.literal("next_or_complete"),
       }),
+      v.object({ key: v.string(), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
     ),
     status: v.union(
       v.literal("running"),
@@ -2826,12 +2828,17 @@ export default defineSchema({
     mentionsLastSeenAt: v.optional(v.number()),
     resourcesLastSeenAt: v.optional(v.number()),
     eventsLastSeenAt: v.optional(v.number()),
+    // Automation emails (Workflows → Send an email): the member's unsubscribe
+    // link carries this token, and opting out stops this community's ones.
+    workflowEmailToken: v.optional(v.string()),
+    workflowEmailsOptedOutAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_community", ["communityId"])
-    .index("by_community_user", ["communityId", "userId"]),
+    .index("by_community_user", ["communityId", "userId"])
+    .index("by_workflowEmailToken", ["workflowEmailToken"]),
 
   // One durable, monotonic position per member and community chat stream.
   // The requested position is always re-authorized and clamped to the

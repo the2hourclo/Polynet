@@ -53,11 +53,35 @@ export type CommunityMemberWorkflowSetClientPropertyAction = {
   value: string | number | boolean | string[] | null;
 };
 
+/**
+ * An email the owner writes, sent to the member from Polynet. {first_name},
+ * {name} and {community} fill in per member; every email carries an
+ * unsubscribe link for this community's automation emails.
+ */
+export type CommunityMemberWorkflowSendEmailAction = {
+  key: string;
+  type: "send_email";
+  subject: string;
+  body: string;
+};
+
 export type CommunityMemberWorkflowAction =
   | { key: string; type: "create_service_channel" }
   | { key: string; type: "request_form"; formKey: string }
   | CommunityMemberWorkflowPromptAgentAction
-  | CommunityMemberWorkflowSetClientPropertyAction;
+  | CommunityMemberWorkflowSetClientPropertyAction
+  | CommunityMemberWorkflowSendEmailAction;
+
+export const COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH = 150;
+export const COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH = 5000;
+export const COMMUNITY_MEMBER_WORKFLOW_EMAIL_FIELDS = ["first_name", "name", "community"] as const;
+
+/** Fills {first_name}, {name} and {community}; any other {word} stays as typed. */
+export function fillWorkflowEmailFields(text: string, values: { name: string; community: string }): string {
+  const first = values.name.trim().split(/\s+/)[0] ?? "";
+  const fields: Record<string, string> = { first_name: first || "there", name: values.name.trim() || "there", community: values.community };
+  return text.replace(/\{(first_name|name|community)\}/g, (_, key: string) => fields[key]);
+}
 
 /** "Only if": the step runs when the member's client property matches; otherwise
  * it is skipped (counted as done) and every step after it on that path is skipped too. */
@@ -242,8 +266,8 @@ export function workflowSequenceIssue(rules: CommunityMemberWorkflowAutomation[]
   const earlier: CommunityMemberWorkflowAutomation[] = [];
   for (const rule of rules) {
     if (rule.trigger.type === "previous_action_completed") {
-      if (rule.action.type !== "request_form" && rule.action.type !== "prompt_agent" && rule.action.type !== "set_client_property")
-        return "A step after another step can ask the agent, request a form or set a client property";
+      if (rule.action.type !== "request_form" && rule.action.type !== "prompt_agent" && rule.action.type !== "set_client_property" && rule.action.type !== "send_email")
+        return "A step after another step can ask the agent, send an email, request a form or update the member record";
       const predecessorKey = rule.trigger.predecessorActionKey;
       const predecessor = earlier.find((item) => item.action.key === predecessorKey);
       if (!predecessor) return "Choose an earlier step for this one to follow";

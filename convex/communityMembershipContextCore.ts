@@ -270,7 +270,7 @@ async function readMembershipContextRecords(args: {
     ]);
   // Property writes are bookkeeping; the client timeline shows them.
   const recentWorkflowActivity = await Promise.all(
-    workflowRunRows.filter((run) => run.actionSnapshot.type !== "set_client_property").map(async (run) => {
+    workflowRunRows.filter((run) => run.actionSnapshot.type !== "set_client_property" && run.actionSnapshot.type !== "send_email").map(async (run) => {
       // History pagination is presentation only, never outcome authority.
       // A missing or mismatched linked record does not establish live work.
       const validActionResult =

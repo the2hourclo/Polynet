@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronRight, CircleDot, FileText, GitBranch, Lock, PenLine, type LucideIcon } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, CircleDot, FileText, GitBranch, Lock, Mail, PenLine, type LucideIcon } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CommunityMemberWorkflowAutomation, CommunityMemberWorkflowMilestone } from "../../../../shared/communityMemberWorkflow";
 import {
@@ -16,7 +16,7 @@ import { workflowActionPhrase, workflowTriggerPhrase, type WorkflowStepNames } f
 
 const STEP_ICONS: Record<string, LucideIcon> = {
   prompt_agent: Bot, request_form: FileText, set_client_property: PenLine, create_service_channel: Lock,
-  move_member: GitBranch, evaluate_goal: CircleDot,
+  move_member: GitBranch, evaluate_goal: CircleDot, send_email: Mail,
 };
 const STATUS_WORDS = { done: "Done", failed: "Failed", running: "Running", waiting: "Waiting" } as const;
 
@@ -47,6 +47,15 @@ const ERRORS: Record<string, string> = {
   founder_usage_exhausted: "The agent is out of credits.",
   provider_execution_deadline_exceeded: "The agent took too long to answer.",
   agent_loop_unhandled: "The agent ran into an error.",
+  workflow_email_unsubscribe_unavailable: "Email isn't set up on this Polynet yet, so nothing was sent.",
+};
+
+// Finished steps that didn't do the usual thing, in words.
+const RESULT_NOTES: Record<string, string> = {
+  email_opted_out: "Not sent: they unsubscribed from this community's emails.",
+  email_not_sent: "Not sent: they have no verified email address.",
+  email_previewed: "Previewed by Autoplay, not sent.",
+  agent_previewed: "Previewed by Autoplay, not sent.",
 };
 
 function errorText(code: string | null): string {
@@ -92,7 +101,7 @@ export function WebCommunityWorkflowRunHistory(props: Props) {
     const rule = rules.get(automationKey);
     if (rule) return capitalize(workflowActionPhrase(rule, props.names));
     return actionType === "prompt_agent" ? "Agent sent a message" : actionType === "request_form" ? "Sent a form"
-      : actionType === "set_client_property" ? "Updated the member record" : actionType === "create_service_channel" ? "Opened a private room" : "A step";
+      : actionType === "set_client_property" ? "Updated the member record" : actionType === "send_email" ? "Sent an email" : actionType === "create_service_channel" ? "Opened a private room" : "A step";
   };
 
   return <div className="pn-runs">
@@ -135,6 +144,7 @@ export function WebCommunityWorkflowRunHistory(props: Props) {
                         <span><strong>{stepName(step.automation_key, step.action_type)}</strong>
                           {step.status === "failed" ? <small className="is-error">{errorText(step.error_code)}</small>
                             : step.skipped ? <small>Skipped: its Only if didn't match.</small>
+                            : step.result_code && RESULT_NOTES[step.result_code] ? <small>{RESULT_NOTES[step.result_code]}</small>
                             : step.status === "running" ? <small>Running now</small>
                             : <small>Done {when(step.finished_at ?? step.created_at)}</small>}</span>
                         <span className={`pn-runs-dot is-${step.status === "failed" ? "failed" : step.status === "running" ? "running" : step.skipped ? "skipped" : "done"}`} aria-hidden="true" />

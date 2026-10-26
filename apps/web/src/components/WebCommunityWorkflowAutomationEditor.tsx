@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useId, useState } from "react";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition } from "../../../../shared/communityMemberWorkflow";
+import { COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition } from "../../../../shared/communityMemberWorkflow";
 import { workflowActionPhrase, workflowDurationLabel } from "./workflowStepSentences";
 import { WorkflowChannelPicker } from "./WorkflowChannelPicker";
 import { applyWorkflowTriggerType, replaceWorkflowDraftAction, type WorkflowTriggerType, workflowAutomationIssue, workflowTriggerIssue, workflowChannelLabel, type WorkflowAutomationDraft } from "./workflowMilestoneDraft";
@@ -206,6 +206,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const triggerLabel = isSequence ? `${waitMinutes ? `${workflowDurationLabel(waitMinutes)} after` : "After"} ${(() => { const step = earlierSteps.find((item) => item.action.key === predecessorKey); return step ? `“${stepLabel(step).slice(0, 60)}”` : "an earlier step"; })()}` : isJoin ? "Member joins for the first time"
     : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this stage` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
+    : automation.action.type === "send_email" ? "Send an email"
     : automation.action.type === "create_service_channel" ? "Create private channel" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
 
   return (
@@ -315,13 +316,14 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
           {triggerReady && !props.hideTypeSelects ? <label>Then
             <select value={actionSelected ? automation.action.type : ""} disabled={props.disabled} onChange={event => {
               const type = event.target.value;
-              if (type !== "create_service_channel" && type !== "prompt_agent" && type !== "request_form" && type !== "set_client_property") return;
+              if (type !== "create_service_channel" && type !== "prompt_agent" && type !== "request_form" && type !== "set_client_property" && type !== "send_email") return;
               props.onChange(replaceWorkflowDraftAction(automation, type));
               props.creation?.onActionSelected();
             }}>
               <option value="" disabled>Choose an action</option>
               {isJoin ? <option value="create_service_channel">Create private channel</option> : <option value="prompt_agent">Ask community agent</option>}
               {!isForm ? <option value="request_form">Request form</option> : null}
+              {!isJoin ? <option value="send_email">Send an email</option> : null}
               {!isJoin ? <option value="set_client_property">Set client property</option> : null}
             </select>
           </label> : null}
@@ -338,6 +340,19 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
             {property && automation.action.type === "set_client_property" ? <PropertyValueField id={`${id}-property-value`} property={property} value={automation.action.value}
               disabled={props.disabled} onChange={(value) => props.onChange({ ...automation, action: { key: automation.action.key, type: "set_client_property", propertyKey, value } })} /> : null}
             <p className="workflow-field-hint">Writes this value on the member's client record. You'll see it in the client's timeline as set by Workflow.</p>
+          </> : automation.action.type === "send_email" ? <>
+            <label>Subject
+              <input value={automation.action.subject} maxLength={COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH} disabled={props.disabled}
+                placeholder="Welcome to {community}, {first_name}"
+                onChange={(event) => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "send_email" }>), subject: event.target.value } })} />
+            </label>
+            <label><span id={`${id}-email-label`}>Message</span>
+              <textarea rows={7} maxLength={COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH} value={automation.action.body} disabled={props.disabled}
+                aria-labelledby={`${id}-email-label`} aria-describedby={`${id}-email-help`} placeholder={"Hi {first_name},\n\nWrite what they should read in their inbox."}
+                onChange={(event) => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "send_email" }>), body: event.target.value } })} />
+            </label>
+            <p className="workflow-field-hint" id={`${id}-email-help`}>{"{first_name}"}, {"{name}"} and {"{community}"} fill in for each member.
+              Every email has an unsubscribe link, and a test member's copy comes to you.</p>
           </> : automation.action.type === "create_service_channel" ? <p className="workflow-field-hint">Creates a private service channel for the member, community managers, and community agent.</p> : automation.action.type === "request_form" ? <label>Form<select value={automation.action.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, action: { key: automation.action.key, type: "request_form", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select><small>Shown privately in the member’s community sidebar. No channel is required. One request per rule and stage visit.</small></label> : automation.action.type === "prompt_agent" ? (
             <>
               <label>

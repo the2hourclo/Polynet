@@ -271,6 +271,7 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     a.type === "request_form" ? `Send the ${await formName(a.formKey)} form`
     : a.type === "create_service_channel" ? "Open a private channel with them"
     : a.type === "prompt_agent" ? `Agent: ${String(a.prompt ?? "").slice(0, 160)}${String(a.prompt ?? "").length > 160 ? "…" : ""}`
+    : a.type === "send_email" ? `Email them: ${String(a.subject ?? "")}`
     : a.type === "set_client_property" ? `Set ${a.propertyKey} to ${a.value === null ? "empty" : Array.isArray(a.value) ? a.value.join(", ") : String(a.value)}`
     : String(a.type ?? "action").replace(/_/g, " ");
   const predecessor = trigger.type === "previous_action_completed"
@@ -347,6 +348,10 @@ export const getTestRunSequence = query({
           due_at: timer ? new Date(timer.dueAt).toISOString() : null,
           error: run?.status === "failed" ? String(run.errorCode ?? "unknown").replace(/_/g, " ") : null,
           note: run?.actionResult?.resultCode === "agent_previewed" ? "Previewed, not sent"
+            : run?.actionResult?.resultCode === "email_previewed" ? "Previewed, not sent"
+            : run?.actionResult?.resultCode === "email_queued" ? "A test copy went to your inbox"
+            : run?.actionResult?.resultCode === "email_opted_out" ? "Not sent: they unsubscribed"
+            : run?.actionResult?.resultCode === "email_not_sent" ? "Not sent: no verified email address"
             : run?.actionResult?.resultCode === "condition_skipped" ? "Skipped: its “only if” didn't match"
             : run?.actionResult?.resultCode === "path_skipped" ? "Skipped: the step before it was skipped" : null,
         });
