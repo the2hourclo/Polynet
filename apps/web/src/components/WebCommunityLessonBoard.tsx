@@ -76,6 +76,10 @@ export function WebCommunityLessonBoard(props: {
   title?: string;
   // True while a lesson is open, so the page can lay out for reading.
   onReadingChange?: (reading: boolean) => void;
+  // Lessons the track keeps closed besides its checkpoints (a sold track's lessons past the free one).
+  extraLocked?: ReadonlySet<string>;
+  // Opens this lesson (a new key opens it again), for buttons outside the board.
+  openRequest?: { ref: string; key: number } | null;
 }) {
   const { progress, editing } = props;
   const [pending, setPending] = useState<Map<string, RoadmapLessonUpdate>>(() => new Map());
@@ -93,13 +97,21 @@ export function WebCommunityLessonBoard(props: {
   const [saveError, setSaveError] = useState<string | null>(null);
   // A lesson the owner just added opens with its title ready to type.
   const [renameId, setRenameId] = useState<string | null>(null);
+  const requestKey = props.openRequest?.key;
+  useEffect(() => {
+    if (props.openRequest) setOpenRef(props.openRequest.ref);
+    // Only a new request opens the lesson; the ref alone changing is the same request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey]);
 
   const statusOf = (ref: string): CommunityLessonProgressStatus => progress.statusByRef[ref] ?? "not_started";
   const doneRefs = new Set(lessons.filter((lesson) => statusOf(lesson.ref) === "done").map((lesson) => lesson.ref));
-  const { stages, lockedRefs } = computeCommunityLessonStages({
+  const computed = computeCommunityLessonStages({
     lessons: lessons.map((lesson) => ({ ref: lesson.ref, lesson: lesson.resource.lesson ?? null })),
     doneRefs,
   });
+  const { stages } = computed;
+  const lockedRefs = props.extraLocked?.size ? new Set([...computed.lockedRefs, ...props.extraLocked]) : computed.lockedRefs;
   const inStage = (name: string) => lessons.filter((lesson) => lesson.resource.lesson?.stage === name).sort(byOrder);
   const titleOf = (ref: string | null) => lessons.find((lesson) => lesson.ref === ref)?.resource.title ?? "an earlier step";
   // Owners can open any lesson to check it; the lock is the member's.

@@ -63,6 +63,7 @@ import {
   writeCommunityResourceBodyContent,
 } from "./communityResourceContent";
 import { recordCommunityActivityEventBestEffort } from "./communityActivity";
+import { readCommunityPaidLockedLessonIds } from "./communityLessonTracks";
 import {
   requireSafeCommunitySourceFetcherEndpoint,
   requireSafeCommunitySourceUrl,
@@ -6470,13 +6471,20 @@ export const listCommunityResources = query({
     );
     const userIdCache = new Map<string, string | null>();
     const moduleNameCache = new Map<string, string | null>();
+    // Lessons in a track sold through an offer the member doesn't have: listed
+    // (so the Roadmap can show what's inside) without their text.
+    const paid = canManageResources ? new Set<string>() : await readCommunityPaidLockedLessonIds(ctx, args.communityId, userId);
     return await Promise.all(
       rows
         .slice()
         .filter((row) => canManageResources || communityResourceIsLiveModulePage(row, liveModuleIds))
         .sort(compareCommunityResources)
         .slice(0, limit)
-        .map((row) => mapCommunityResourceRowWithBody(ctx, row, { canManage: canManageResources }, userIdCache, moduleNameCache)),
+        .map(async (row) => {
+          if (!paid.has(normalizeIdValue(row._id))) return await mapCommunityResourceRowWithBody(ctx, row, { canManage: canManageResources }, userIdCache, moduleNameCache);
+          const mapped = await mapCommunityResourceRow(ctx, { ...row, bodyMd: undefined }, userIdCache, moduleNameCache, { canManage: false });
+          return { ...mapped, body_md: null, url: null, file_key: null, lesson_elements: [], lesson: row.lesson ? { ...row.lesson, video_url: undefined } : null, paywalled: true };
+        }),
     );
   },
 });
