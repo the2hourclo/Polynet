@@ -33,7 +33,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   const followed = new Set(milestone.automations.flatMap(rule =>
     rule.trigger.type === "previous_action_completed" ? [rule.trigger.predecessorActionKey] : []));
   const work = milestone.automations.filter(rule => !workflowRuleIsNudge(rule)
-    && (rule.action.type !== "set_client_property" || finishes(rule) || followed.has(rule.action.key)
+    && ((rule.action.type !== "set_client_property" && rule.action.type !== "send_email") || finishes(rule) || followed.has(rule.action.key)
       || rule.trigger.type === "previous_action_completed"));
   if (!work.length) return { actions: [], all_actions_complete: false, scan_truncated: false };
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
@@ -53,6 +53,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       automation_key: rule.key, action_key: rule.action.key, action_type: rule.action.type as WorkflowActionProgress["actions"][number]["action_type"],
       label: rule.action.type === "request_form" ? `Request ${form?.name ?? "selected form"}`
         : rule.action.type === "prompt_agent" ? `Ask agent: ${rule.action.prompt.slice(0, 120)}${rule.action.prompt.length > 120 ? "…" : ""}`
+        : rule.action.type === "send_email" ? `Email: ${rule.action.subject}`
         : propertyKey ? `${finished}, then set ${property?.name ?? propertyKey}` : "Create private channel",
       status: "unavailable", evidence: null,
     };
@@ -110,7 +111,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
               }
             }
           }
-        } else if (rule.action.type === "set_client_property") {
+        } else if (rule.action.type === "set_client_property" || rule.action.type === "send_email") {
           if (run.finishedAt !== undefined) evidence = { run_id: String(run._id), source_id: String(run._id), completed_at: run.finishedAt };
         } else if (rule.action.type === "create_service_channel") {
           const destination = await resolveMemberServiceChannel({ ctx, membership });

@@ -19,6 +19,8 @@ import {
   COMMUNITY_MEMBER_WORKFLOW_MAX_AUTOMATIONS_PER_MILESTONE,
   COMMUNITY_MEMBER_WORKFLOW_MAX_MILESTONES,
   COMMUNITY_MEMBER_WORKFLOW_MIN_MILESTONES,
+  COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH,
+  COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH,
   normalizeCommunityMemberWorkflowActionKey,
   normalizeCommunityMemberWorkflowAutomationKey,
   normalizeCommunityMemberWorkflowMilestoneKey,
@@ -68,6 +70,7 @@ import { intakeCommunityAgentWorkflowAction } from "./communityAgentConciergeCor
 import { resolveNotificationRecipientSource } from "./communityNotificationAccess";
 import { bindMemberServiceChannel } from "./communityMemberServiceChannelCore";
 import { testMemberAutoplayIsOn } from "./communityTestMemberCore";
+import { sendWorkflowEmail } from "./communityWorkflowEmailCore";
 
 // Departed members' positions cleared per call; past this the call clears a
 // batch and asks the caller to call again (the gateway does), so any number clears.
@@ -144,8 +147,17 @@ const automationInputValidator = v.object({
       propertyKey: v.string(),
       value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
     }),
+    v.object({ key: v.optional(v.string()), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
   ),
 });
+
+function normalizeWorkflowEmailAction(key: string, input: { subject: string; body: string }): CommunityMemberWorkflowAction {
+  const subject = String(input.subject ?? "").replace(/\s+/g, " ").trim();
+  const body = String(input.body ?? "").replace(/\r\n?/g, "\n").trim();
+  if (!subject || subject.length > COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH) throw new Error("workflow_email_subject_invalid");
+  if (!body || body.length > COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH) throw new Error("workflow_email_body_invalid");
+  return { key, type: "send_email", subject, body };
+}
 
 function normalizeExpectedRevision(value: unknown): number {
   const revision = Number(value);
@@ -264,6 +276,7 @@ function normalizeAutomations(
         : input.action.type === "request_form" ? { key: actionKey, type: "request_form", formKey: input.action.formKey }
         : input.action.type === "set_client_property"
         ? { key: actionKey, type: "set_client_property", propertyKey: String(input.action.propertyKey).trim(), value: input.action.value }
+        : input.action.type === "send_email" ? normalizeWorkflowEmailAction(actionKey, input.action)
         : { key: actionKey, type: "create_service_channel" };
     if (action.type === "set_client_property" && !action.propertyKey) throw new Error("client_property_required");
     if ((action.type === "request_form" && !action.formKey.trim()) || (input.trigger.type === "form_submitted" && !input.trigger.formKey.trim())) throw new Error("form_required");
@@ -272,7 +285,7 @@ function normalizeAutomations(
     // Lesson and course completion request a Form, write a property, or ask the
     // agent (through a timer that starts the moment the lesson is done).
     if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed")
-      && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent") {
+      && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent" && action.type !== "send_email") {
       throw new Error("lesson_trigger_action_invalid");
     }
     // A nudge is an agent check-in; nothing else may skip holding the stage.
@@ -1545,6 +1558,16 @@ async function executeWorkflowAutomation(args: {
       await args.ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.reconcileCompletedWorkflowActionsInternal, { workflowRunId });
       return { status: "client_property_set" as const, workflow_run_id: String(workflowRunId), key: result.key, replayed: false };
     }
+    if (args.automation.action.type === "send_email") {
+      // Queued, opted out or not sendable, the step is done: an email never holds a member up.
+      const email = await sendWorkflowEmail(args.ctx, { communityId: args.workflow.communityId, membership: args.membership,
+        action: args.automation.action, workflowRunId, autoplay: await testMemberAutoplayIsOn(args.ctx, args.membership.userId, nowMs), nowMs });
+      await args.ctx.db.patch(workflowRunId, { status: "finished", actionResult: {
+        actionKey: args.automation.action.key, status: "complete", resultCode: email.resultCode,
+      }, finishedAt: nowMs, updatedAt: nowMs });
+      await args.ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.reconcileCompletedWorkflowActionsInternal, { workflowRunId });
+      return { status: email.resultCode, workflow_run_id: String(workflowRunId), replayed: false };
+    }
     if (args.automation.action.type === "prompt_agent") {
       // Autoplay tests the sequence without sending: the step is marked as a preview.
       if (await testMemberAutoplayIsOn(args.ctx, args.membership.userId, nowMs)) {
@@ -1604,7 +1627,7 @@ async function executeWorkflowAutomation(args: {
     const capacityRejected = args.automation.action.type === "request_form" && errorCode === "form_pending_limit_reached";
     // A property that was archived or changed since the save fails the run, not
     // the lesson, form or post that triggered it.
-    const propertyRejected = args.automation.action.type === "set_client_property";
+    const propertyRejected = args.automation.action.type === "set_client_property" || args.automation.action.type === "send_email";
     if (!capacityRejected && !propertyRejected && (args.workflowTimerId || args.automation.action.type !== "prompt_agent")) throw error;
     await args.ctx.db.patch(workflowRunId, {
       status: "failed",
