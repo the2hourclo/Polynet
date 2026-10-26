@@ -1120,13 +1120,19 @@ html:root[data-rail-color="blend"] .product-shell-surface {
    stays beside the lesson and Contents folds into the menu above the text;
    narrower still, the outline becomes the bar above the lesson. */
 .community-knowledge-page[data-reading] {
-  --lesson-outline-width: 15rem;
-  --lesson-side-gap: 2.5rem;
+  --lesson-outline-width: 14rem;
+  --lesson-side-gap: 2rem;
   --lesson-outline-span: calc(var(--lesson-outline-width) + var(--lesson-side-gap));
 }
 /* The page decides the layout here, not the reader's own width. */
 .community-knowledge-page[data-reading] .knowledge-resource-reader { container-name: none; }
-@container lesson-page (min-width: 77.5rem) {
+/* From 68rem the three columns fit: the text column gives up width (down to
+   36rem) before the contents column folds away. */
+@container lesson-page (min-width: 68rem) {
+  .community-knowledge-page[data-reading] .knowledge-resource-reader {
+    --lesson-reading-measure: min(var(--knowledge-reading-measure), calc(100cqi - 2 * var(--lesson-outline-span)));
+    container-type: normal;
+  }
   .community-knowledge-page[data-reading] .resource-course-workspace {
     grid-template-columns: var(--lesson-outline-width) minmax(0, 1fr);
     gap: var(--lesson-side-gap);
