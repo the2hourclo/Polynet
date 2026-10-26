@@ -1111,6 +1111,7 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
             <WebCommunityOffersSettings
               key={resolvedActiveCommunity.id}
               communityId={resolvedActiveCommunity.id}
+              communitySlug={resolvedActiveCommunity.slug}
               session={props.session}
               isOwner={isOwnerSettingsLayer}
               onOpenPricing={() => selectAnchor("settings-access")}

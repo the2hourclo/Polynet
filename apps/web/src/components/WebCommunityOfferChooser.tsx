@@ -101,9 +101,15 @@ function periodFor(offer: CommunityVisitorOffer, preferred: CommunityBillingPeri
 
 export function WebCommunityOfferChooser(props: { choice: CommunityOfferChoice; preferredPeriod: CommunityBillingPeriod | null }) {
   const { choice } = props;
-  if (!choice.offers.length) return null;
+  const shown = choice.offers.length > 0;
+  // Settings › Offers links here with #offers.
+  useEffect(() => {
+    if (!shown || typeof window === "undefined" || window.location.hash !== "#offers") return;
+    document.getElementById("offers")?.scrollIntoView({ block: "center" });
+  }, [shown]);
+  if (!shown) return null;
   return (
-    <fieldset className="pn-offer-chooser">
+    <fieldset className="pn-offer-chooser" id="offers">
       <legend>Choose your offer</legend>
       {choice.offers.map((offer, index) => {
         const price = offer.prices.find((item) => item.billing_period === props.preferredPeriod) ?? offer.prices[0] ?? null;
