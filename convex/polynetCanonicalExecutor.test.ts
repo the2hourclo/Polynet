@@ -10,6 +10,7 @@ afterEach(() => {vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.useRealTimers();})
 
 import { api, internal } from "./_generated/api";
 import { executePolynetCanonicalTool } from "./polynetCanonicalExecutor";
+import { communityTracksFinishedByLesson } from "./communityLessonTracks";
 import { executeRetrievalHarnessTool } from "./runtimeAgentLoop";
 import schema from "./schema";
 import { connectWithAdapter, verifyWithAdapter, revokeWithAdapter, integrationAttemptAlias } from "./communityIntegrationActions";
@@ -3858,6 +3859,10 @@ test("owners add a follow-on skill track that opens after a checkpoint, and memb
   expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...member, resourceId: ids.content, status: "done" }))
     .toMatchObject({ ok: true });
   await expect(asMember.query(api.communityLessonTracks.listCommunityLessonTracks, member)).rejects.toThrow();
+  // Finishing a track's last step is what the Workflow trigger "When they finish a track" reads.
+  expect(await t.run(async (ctx) => await communityTracksFinishedByLesson(ctx, fixture.communityId, fixture.memberId, ids.content)))
+    .toEqual([{ key: "content", title: "Content Employee" }]);
+  expect(await t.run(async (ctx) => await communityTracksFinishedByLesson(ctx, fixture.communityId, fixture.memberId, ids.gate))).toEqual([]);
 });
 
 test("members answer lesson buttons, checklists and quizzes, and owners see course completion", async () => {

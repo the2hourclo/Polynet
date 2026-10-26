@@ -245,3 +245,23 @@ export const setCommunityLessonTrackArchived = mutation({
     return { key: args.key, archived: args.archived };
   },
 });
+
+/**
+ * The tracks a member has just finished by completing this lesson: tracks that
+ * have the lesson as a step and now have every step done. For the Workflow
+ * trigger "When they finish a track" (handleLessonCompletedInternal).
+ */
+export async function communityTracksFinishedByLesson(ctx: any, communityId: any, userId: any, resourceId: any): Promise<Array<{ key: string; title: string }>> {
+  const lessons = await libraryLessons(ctx, communityId);
+  const tracks = resolveCommunityTrackDefinitions({ stored: await readStoredCommunityTracks(ctx, communityId), lessons });
+  const id = normalizeIdValue(resourceId);
+  const rows = await ctx.db.query("communityResourceProgress")
+    .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", userId)).take(1000);
+  const done = new Set(rows.filter((row: any) => row.status === "done").map((row: any) => normalizeIdValue(row.resourceId)));
+  return tracks
+    .filter((track) => {
+      const steps = track.stages.flatMap((stage) => stage.steps);
+      return steps.some((step) => step.resource_id === id) && steps.every((step) => done.has(step.resource_id));
+    })
+    .map((track) => ({ key: track.key, title: track.title }));
+}
