@@ -20,6 +20,12 @@ function renderResourceMarkdown(markdown: string): string {
 }
 
 describe("community resource markdown rendering", () => {
+  it("keeps a numbered list's number when it picks up after a paragraph", () => {
+    const markup = renderResourceMarkdown("1. First question?\n\nSome answers\n\n2. Second question?");
+    expect(markup).toContain('<ol class="md-list" start="2">');
+    expect(markup).not.toContain('start="1"');
+  });
+
   it("leaves the shared renderer hierarchy unchanged unless a surface opts in", () => {
     const markup = renderToStaticMarkup(
       createElement("div", null, renderMarkdown("# Original heading")),

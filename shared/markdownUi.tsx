@@ -725,8 +725,9 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
     hr() {
       return <hr className="md-hr" />;
     },
-    ol({ children }) {
-      return <ol className="md-list">{children}</ol>;
+    ol({ children, start }) {
+      // A list that picks up after a paragraph ("2. …") keeps its number.
+      return <ol className="md-list" start={typeof start === "number" && start !== 1 ? start : undefined}>{children}</ol>;
     },
     p({ children }) {
       if (options?.embedStandaloneMedia) {
