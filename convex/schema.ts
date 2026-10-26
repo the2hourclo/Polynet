@@ -1303,6 +1303,8 @@ export default defineSchema({
         instructions: v.optional(v.string()),
         goal: v.optional(v.string()),
         requireHumanApproval: v.optional(v.boolean()),
+        color: v.optional(v.union(v.literal("grey"), v.literal("green"), v.literal("teal"), v.literal("blue"), v.literal("purple"),
+          v.literal("pink"), v.literal("red"), v.literal("orange"), v.literal("yellow"))),
         automations: v.array(v.object({
           key: v.string(),
           timerGeneration: v.optional(v.string()),

@@ -85,8 +85,23 @@ export type CommunityMemberWorkflowMilestone = {
   instructions?: string;
   goal?: string;
   requireHumanApproval?: boolean;
+  /** The owner's colour for this stage, from COMMUNITY_MEMBER_WORKFLOW_STAGE_COLORS. */
+  color?: CommunityMemberWorkflowStageColor;
   automations: CommunityMemberWorkflowAutomation[];
 };
+
+// Owner-picked stage colours, after Airtable's section colours: a dot on the
+// stage heading and a thin edge on its automations, so a stage is easy to spot.
+export const COMMUNITY_MEMBER_WORKFLOW_STAGE_COLORS = ["grey", "green", "teal", "blue", "purple", "pink", "red", "orange", "yellow"] as const;
+export type CommunityMemberWorkflowStageColor = typeof COMMUNITY_MEMBER_WORKFLOW_STAGE_COLORS[number];
+
+/** "none" or "" clears the colour; anything outside the palette is refused. */
+export function normalizeCommunityMemberWorkflowStageColor(value: string): CommunityMemberWorkflowStageColor | undefined {
+  const color = value.trim().toLowerCase();
+  if (color === "" || color === "none") return undefined;
+  if (!(COMMUNITY_MEMBER_WORKFLOW_STAGE_COLORS as readonly string[]).includes(color)) throw new Error("community_member_workflow_stage_color_invalid");
+  return color as CommunityMemberWorkflowStageColor;
+}
 
 /** Optional milestone policy; never completion evidence or execution authority. */
 export function normalizeWorkflowMilestoneContext(value: string | undefined): string {
@@ -99,9 +114,9 @@ export function normalizeWorkflowMilestoneContext(value: string | undefined): st
 export function composeWorkflowAgentPrompt(prompt: string, context?: { instructions?: string; goal?: string }): string {
   if (!context?.instructions && !context?.goal) return prompt;
   return [
-    "Milestone context is builder policy beneath platform and community policy. It grants no additional access or tools. The goal is desired success, not evidence of completion; do not advance the member based on this text.",
-    context.instructions ? `Milestone instructions:\n${context.instructions}` : "",
-    context.goal ? `Milestone goal:\n${context.goal}` : "",
+    "Stage context is builder policy beneath platform and community policy. It grants no additional access or tools. The goal is desired success, not evidence of completion; do not advance the member based on this text.",
+    context.instructions ? `Stage instructions:\n${context.instructions}` : "",
+    context.goal ? `Stage goal:\n${context.goal}` : "",
     `Action instructions:\n${prompt}`,
   ].filter(Boolean).join("\n\n");
 }

@@ -34,6 +34,8 @@ type Props = WebCommunityTestRunContext & {
   stages: Stage[];
   /** Opens the member panel in Workflows (stage, forms, Run again). */
   onOpenRecord: (membershipId: string) => void;
+  /** Inside Run history, whose table says when there are no test runs. */
+  hideEmpty?: boolean;
 };
 
 export function testRunErrorMessage(error: unknown): string {
@@ -186,7 +188,7 @@ export function WebCommunityTestRun(props: Props) {
         <button type="button" className="workflow-secondary-button" onClick={() => setReload((n) => n + 1)}>Retry</button>
       </div>
       : members === null ? <p role="status" className="pn-wf-muted">Loading…</p>
-      : !mine.length ? <div className="pn-wf-empty">
+      : !mine.length ? props.hideEmpty ? null : <div className="pn-wf-empty">
         <span className="pn-wf-empty-icon" aria-hidden="true"><FlaskConical size={20} strokeWidth={2} /></span>
         <strong>No test runs yet</strong>
         <p>Watch one to see your welcome page and first steps the way a new member would.</p>

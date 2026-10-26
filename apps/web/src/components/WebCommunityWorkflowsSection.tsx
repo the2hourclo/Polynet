@@ -58,7 +58,7 @@ export type WebCommunityWorkflowsSectionProps = {
   memberDossierError: string | null;
   onReload: () => Promise<unknown> | unknown;
   onLoadMore: () => Promise<unknown> | unknown;
-  onCreateMilestone: (name: string, instructions?: string, goal?: string, requireHumanApproval?: boolean) => Promise<boolean>;
+  onCreateMilestone: (name: string, instructions?: string, goal?: string, requireHumanApproval?: boolean, color?: string) => Promise<boolean>;
   onUpdateMilestone: (
     milestoneKey: string,
     name: string,
@@ -66,6 +66,8 @@ export type WebCommunityWorkflowsSectionProps = {
     instructions?: string,
     goal?: string,
     requireHumanApproval?: boolean,
+    /** Left out keeps the stage's colour; "none" clears it. */
+    color?: string,
   ) => Promise<boolean>;
   onDeleteMilestone: (milestoneKey: string) => Promise<boolean>;
   /** Adds the agent-led journey's stages (Workflows → board card). */
@@ -182,7 +184,7 @@ export function WebCommunityWorkflowsSection(
             onOpenMember={props.onOpenMemberDossier}
             testRun={<WebCommunityTestRun key={props.testRun.communityId} {...props.testRun}
               stages={milestones.filter((m) => m.key && m.name.trim()).map((m) => ({ key: m.key, name: m.name }))}
-              onOpenRecord={props.onOpenMemberDossier} />} />
+              onOpenRecord={props.onOpenMemberDossier} hideEmpty />} />
           : <p role="status">Only the community's owner and admins can see runs.</p>
         : section === "clients" ? props.access
           ? <WebCommunityMembers key={props.access.scopeKey} gateway={props.access} />
@@ -290,7 +292,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
 
   const saveMilestone = async (milestone: CommunityMemberWorkflowMilestone) => {
     const saved = !milestone.key || isCreatingMilestone
-      ? await props.onCreateMilestone(milestone.name, milestone.instructions, milestone.goal, milestone.requireHumanApproval)
+      ? await props.onCreateMilestone(milestone.name, milestone.instructions, milestone.goal, milestone.requireHumanApproval, milestone.color)
       : await props.onUpdateMilestone(
           milestone.key,
           milestone.name,
@@ -298,6 +300,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
           milestone.instructions,
           milestone.goal,
           milestone.requireHumanApproval,
+          milestone.color ?? "none",
         );
     if (saved) closeMilestone();
   };
@@ -378,7 +381,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
         }
         deleteDisabledReason={
           milestones.length <= COMMUNITY_MEMBER_WORKFLOW_MIN_MILESTONES
-            ? "A workflow needs at least one milestone"
+            ? "A workflow needs at least one stage"
             : null
         }
         error={props.actionError}

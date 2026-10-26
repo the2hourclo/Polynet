@@ -79,9 +79,11 @@ export function isWorkflowMilestoneDraftDirty(
   instructions = snapshot?.instructions ?? "",
   goal = snapshot?.goal ?? "",
   requireHumanApproval = snapshot?.requireHumanApproval ?? false,
+  color = snapshot?.color,
 ): boolean {
   return snapshot !== null && (
     name !== snapshot.name
+    || color !== snapshot.color
     || instructions !== (snapshot.instructions ?? "")
     || goal !== (snapshot.goal ?? "")
     || requireHumanApproval !== (snapshot.requireHumanApproval ?? false)

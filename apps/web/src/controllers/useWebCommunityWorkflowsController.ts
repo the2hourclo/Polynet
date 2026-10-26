@@ -624,10 +624,10 @@ export function useWebCommunityWorkflowsController(params: {
       setServiceChannelError(null);
       setDossierRefreshNonce((value) => value + 1);
     },
-    createMilestone: (name: string, instructions?: string, goal?: string, requireHumanApproval?: boolean) =>
+    createMilestone: (name: string, instructions?: string, goal?: string, requireHumanApproval?: boolean, color?: string) =>
       mutateMilestone("community_workflows_create_milestone", (session, communityId, revision) =>
         createCloudCommunityMemberWorkflowMilestone({
-          instructions, goal, requireHumanApproval,
+          instructions, goal, requireHumanApproval, color,
           session,
           communityId,
           expectedRevision: revision,
@@ -641,10 +641,11 @@ export function useWebCommunityWorkflowsController(params: {
       instructions?: string,
       goal?: string,
       requireHumanApproval?: boolean,
+      color?: string,
     ) =>
       mutateMilestone("community_workflows_update_milestone", (session, communityId, revision) =>
         updateCloudCommunityMemberWorkflowMilestone({
-          instructions, goal, requireHumanApproval,
+          instructions, goal, requireHumanApproval, color,
           session,
           communityId,
           expectedRevision: revision,

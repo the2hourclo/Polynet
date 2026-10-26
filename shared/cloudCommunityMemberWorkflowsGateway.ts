@@ -201,6 +201,7 @@ export async function fetchCloudCommunityMemberSuccessDossier<SessionT>(
 export async function createCloudCommunityMemberWorkflowMilestone<SessionT>(
   params: WorkflowGatewayParams<SessionT> & {
     requireHumanApproval?: boolean;
+    color?: string;
     instructions?: string;
     goal?: string;
     communityId: string;
@@ -215,6 +216,7 @@ export async function createCloudCommunityMemberWorkflowMilestone<SessionT>(
     api.communityMemberWorkflows.createBuilderWorkflowMilestone,
     {
       requireHumanApproval: params.requireHumanApproval,
+      color: params.color,
       instructions: params.instructions,
       goal: params.goal,
       authSubject,
@@ -228,6 +230,7 @@ export async function createCloudCommunityMemberWorkflowMilestone<SessionT>(
 export async function updateCloudCommunityMemberWorkflowMilestone<SessionT>(
   params: WorkflowGatewayParams<SessionT> & {
     requireHumanApproval?: boolean;
+    color?: string;
     instructions?: string;
     goal?: string;
     communityId: string;
@@ -244,6 +247,7 @@ export async function updateCloudCommunityMemberWorkflowMilestone<SessionT>(
     api.communityMemberWorkflows.updateBuilderWorkflowMilestone,
     {
       requireHumanApproval: params.requireHumanApproval,
+      color: params.color,
       instructions: params.instructions,
       goal: params.goal,
       authSubject,
