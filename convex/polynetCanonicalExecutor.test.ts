@@ -4745,6 +4745,15 @@ test("an owner's agent runs events, test runs and posts; a member's agent change
   await change("member.display.layout.set", { position: "side" });
   expect(await choice()).toBeNull();
   await expect(change("member.display.layout.set", { position: "side", user_id: fixture.memberId })).rejects.toThrow("invalid_tool_args");
+
+  // Light/Dark is on the account: the member's own agent sets it; the owner's agent sets only the owner's.
+  const look = async (subject: string) => await t.withIdentity({ subject }).query(api.profiles.getMyDisplayPreferences, { authSubject: subject });
+  expect(await look(fixture.memberSubject)).toEqual({ theme: null, look_everywhere: null });
+  await change("member.display.theme.set", { theme: "light", look_everywhere: true }, onlineBuilder);
+  expect(await look(fixture.memberSubject)).toEqual({ theme: "light", look_everywhere: true });
+  await change("member.display.theme.set", { theme: "dark" });
+  expect((await look(fixture.memberSubject)).theme).toBe("light");
+  expect((await look(fixture.ownerSubject)).theme).toBe("dark");
 });
 
 test("an owner's agent builds Workflows through the MCP: a coloured stage, an email step and an Only if with an Otherwise", async () => {

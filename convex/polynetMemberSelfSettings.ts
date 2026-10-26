@@ -18,6 +18,13 @@ export const MEMBER_SELF_OPERATIONS: BuilderSettingOperation[] = [
     required: ["position"], omits: { userId: "always the signed-in member" }, effects: ["set_own_layout_choice"],
   }),
   own({
+    operation: "member.display.theme.set", name: "My Light or Dark pick",
+    calls: "profiles:setMyDisplayPreferences", ref: api.profiles.setMyDisplayPreferences, kind: "mutation",
+    fields: { theme: '"light" or "dark"; follows me to every device and community that lets members choose',
+      look_everywhere: "true: communities made only light or only dark show me their matching version in my pick" },
+    required: [], community: false, effects: ["set_own_light_dark"],
+  }),
+  own({
     operation: "member.notifications.set", name: "Mute this community",
     calls: "communityAdmin:saveCommunityMemberSettings", ref: api.communityAdmin.saveCommunityMemberSettings, kind: "mutation",
     fields: { muted: "true mutes this community's notifications", muted_until_iso: "optional: ISO instant the mute ends, or null for until unmuted" },

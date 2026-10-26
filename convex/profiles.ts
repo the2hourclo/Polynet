@@ -291,6 +291,40 @@ export const setMyProfileCommunityVisibility = mutation({
   },
 });
 
+// A person's own Light/Dark pick. Only they set it: from Display, or through an
+// agent working for them (member.display.theme.set). Nobody sets it for them.
+const projectDisplayPreferences = (detail: ProfileDetailRow | null) => ({
+  theme: (detail as any)?.displayTheme ?? null,
+  look_everywhere: typeof (detail as any)?.displayLookEverywhere === "boolean" ? (detail as any).displayLookEverywhere : null,
+});
+
+export const getMyDisplayPreferences = query({
+  args: { authSubject: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null });
+    return projectDisplayPreferences(await findProfileDetailByUserId(ctx, userId));
+  },
+});
+
+export const setMyDisplayPreferences = mutation({
+  args: {
+    authSubject: v.optional(v.string()),
+    theme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
+    lookEverywhere: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null });
+    const nowMs = Date.now();
+    const patch: Record<string, unknown> = { updatedAt: nowMs };
+    if (args.theme !== undefined) patch.displayTheme = args.theme;
+    if (args.lookEverywhere !== undefined) patch.displayLookEverywhere = args.lookEverywhere;
+    const detail = await findProfileDetailByUserId(ctx, userId);
+    if (detail) await ctx.db.patch(detail._id, patch);
+    else await ctx.db.insert("userProfileDetails", { userId, ...patch, createdAt: nowMs } as any);
+    return projectDisplayPreferences(await findProfileDetailByUserId(ctx, userId));
+  },
+});
+
 export const checkHandleAvailability = query({
   args: {
     authSubject: v.optional(v.string()),
