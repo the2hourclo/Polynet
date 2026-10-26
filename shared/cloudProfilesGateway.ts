@@ -323,3 +323,24 @@ export async function recordMemberTimezoneRpc<SessionT>(
     timezone: params.timezone,
   });
 }
+
+// The member's own Light/Dark pick, kept on their account (null: not set there).
+export type CloudDisplayPreferences = { theme: "light" | "dark" | null; look_everywhere: boolean | null };
+
+export async function fetchCloudMyDisplayPreferences<SessionT>(
+  params: CloudProfilesGatewayParams<SessionT>,
+): Promise<CloudDisplayPreferences> {
+  const { client, authSubject } = await bootstrapConvexUser(params.session);
+  return await client.query("profiles:getMyDisplayPreferences" as any, { authSubject }) as CloudDisplayPreferences;
+}
+
+export async function setCloudMyDisplayPreferences<SessionT>(
+  params: CloudProfilesGatewayParams<SessionT> & { theme?: "light" | "dark"; lookEverywhere?: boolean },
+): Promise<CloudDisplayPreferences> {
+  const { client, authSubject } = await bootstrapConvexUser(params.session);
+  return await client.mutation("profiles:setMyDisplayPreferences" as any, {
+    authSubject,
+    ...(params.theme === undefined ? {} : { theme: params.theme }),
+    ...(params.lookEverywhere === undefined ? {} : { lookEverywhere: params.lookEverywhere }),
+  }) as CloudDisplayPreferences;
+}

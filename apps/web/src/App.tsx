@@ -1,3 +1,4 @@
+import { useAccountDisplayPreferences } from "./controllers/useAccountDisplayPreferences";
 import {
   lazy,
   useCallback,
@@ -349,6 +350,8 @@ export default function App() {
     appTheme,
     setAppTheme,
   } = shellState;
+  // Light/Dark lives on the member's account too, so their own agent can set it.
+  useAccountDisplayPreferences({ session, appTheme, setAppTheme });
   const shouldHydrateAccountSetup =
     shouldHydrateWebRouteAccountSetup({
       publicRoute,

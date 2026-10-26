@@ -967,6 +967,11 @@ export default defineSchema({
     // and public ones they've joined. Both shown unless turned off.
     hideOwnedCommunities: v.optional(v.boolean()),
     hideJoinedCommunities: v.optional(v.boolean()),
+    // Their Light/Dark pick, kept on the account so it follows them to every
+    // device and their own agent can set it. Absent: the browser's pick stands.
+    displayTheme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
+    // "Use my pick in every community" from Display.
+    displayLookEverywhere: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
