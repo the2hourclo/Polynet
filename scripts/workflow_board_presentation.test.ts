@@ -48,7 +48,7 @@ test("milestone views share the draft and progressive creation does not preselec
   expect(automation).toContain('After an earlier step');
   expect(automation).toContain('value={triggerSelected ? automation.trigger.type : ""}');
   expect(automation).toContain('value={actionSelected ? automation.action.type : ""}');
-  expect(automation).toContain('triggerReady ? <label>Then');
+  expect(automation).toContain('triggerReady && !props.hideTypeSelects ? <label>Then');
   expect(editor).not.toContain('Automatic advancement (existing system)');
 });
 
