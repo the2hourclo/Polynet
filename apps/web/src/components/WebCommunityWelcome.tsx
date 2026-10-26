@@ -41,6 +41,11 @@ export function WelcomeScreenView(props: {
   headingLevel?: number;
   /** Where a member's pick on a choice is remembered, so coming back shows the same steps. */
   choiceStorageKey?: string;
+  /** A setup screen (one with a choice) can be skipped and finished later. */
+  onSkip?: () => void;
+  nextLabel?: string;
+  /** The small line over the first screen's title. */
+  kicker?: string;
 }) {
   const screen = props.screens[props.index] ?? null;
   const total = props.screens.length;
@@ -52,7 +57,7 @@ export function WelcomeScreenView(props: {
         <p ref={props.stepRef} tabIndex={-1} className="community-welcome-step">Step {props.index + 1} of {total}</p>
         <span className="community-welcome-progress-track" aria-hidden="true"><span style={{ width: `${((props.index + 1) / total) * 100}%` }} /></span>
       </div> : null}
-      <small>{props.index === 0 ? "Welcome" : props.title}</small>
+      <small>{props.index === 0 ? props.kicker ?? "Welcome" : props.title}</small>
       {props.index === 0 ? <h1 ref={props.titleRef} tabIndex={-1} aria-level={props.headingLevel}>{props.title}</h1> : null}
     </div>
     {screen?.blocks.map((block, index) => block.type === "text"
@@ -61,7 +66,10 @@ export function WelcomeScreenView(props: {
         storageKey={props.choiceStorageKey ? `${props.choiceStorageKey}:${props.index}:${index}` : undefined} />
       : block.type === "next" ? null : <Fragment key={index}>{props.renderStep(block)}</Fragment>)}
     {screen && !screen.step ? <footer className="community-welcome-next">
-      <button type="button" className="platform-save-button" onClick={props.onNext}>Next</button>
+      <button type="button" className="platform-save-button" onClick={props.onNext}>{props.nextLabel ?? "Next"}</button>
+      {props.onSkip && skippableScreen(screen) ? <button type="button" className="community-welcome-skip" onClick={props.onSkip}>
+        <span>Skip for now</span><small>Not at your computer? We'll remind you.</small>
+      </button> : null}
     </footer> : null}
   </>;
 }
@@ -101,7 +109,7 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
             (event.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
           }}>
           <span className="community-welcome-choice-mark" aria-hidden="true">{picked === index ? <Check size={14} /> : null}</span>
-          {item.icon ? <span className="community-welcome-choice-icon" aria-hidden="true"><img src={item.icon} alt="" /></span> : null}
+          {item.icon ? <span className="community-welcome-choice-icon" aria-hidden="true"><ChoiceIconMark icon={item.icon} /></span> : null}
           <span className="community-welcome-choice-text">
             <strong>{item.label}</strong>
             {item.hint ? <small>{item.hint}</small> : null}
@@ -116,6 +124,32 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
 /** The builder's video or image link, shown the way lessons show media. */
 export function welcomeMediaMarkdown(url: string): string {
   return /\.(?:png|jpe?g|gif|webp|avif|svg)(?:[?#].*)?$/i.test(url) ? `![](${url})` : `<${url}>`;
+}
+
+/** A card's logo, drawn in the community's accent colour (its shape is the image's outline). */
+export function ChoiceIconMark(props: { icon: string }) {
+  const url = `url("${props.icon.replace(/"/g, "%22")}")`;
+  return <span className="community-welcome-choice-icon-mark" style={{ maskImage: url, WebkitMaskImage: url }} />;
+}
+
+/** A screen the member can skip and come back to: one with no step and a choice on it (a setup screen). */
+export function skippableScreen(screen: WelcomeScreen): boolean {
+  return !screen.step && screen.blocks.some((block) => block.type === "choice");
+}
+
+// A skipped screen is remembered by its first choice question, so it is still
+// found after the owner adds or moves other screens.
+function screenSignature(screen: WelcomeScreen): string {
+  const choice = screen.blocks.find((block) => block.type === "choice");
+  return choice && choice.type === "choice" ? choice.prompt.trim().toLowerCase() || choice.options.map((o) => o.label).join("|") : "";
+}
+const skippedKey = (communityId: string) => `polynet:welcome-skipped:${communityId}`;
+function readSkipped(communityId: string): string[] {
+  try { const value = JSON.parse(localStorage.getItem(skippedKey(communityId)) ?? "[]"); return Array.isArray(value) ? value.filter((item) => typeof item === "string") : []; }
+  catch { return []; }
+}
+function writeSkipped(communityId: string, list: string[]) {
+  try { if (list.length) localStorage.setItem(skippedKey(communityId), JSON.stringify(list)); else localStorage.removeItem(skippedKey(communityId)); } catch { /* the reminder just won't show */ }
 }
 
 /** The page the member goes through: the saved blocks, or the words, media and steps saved before blocks existed. */
@@ -224,7 +258,9 @@ export function WebCommunityWelcome(props: Props) {
   // Text screens before the next step are read once; past the last step the community opens.
   const lastOwed = screens.reduce((last, screen, at) => (screen.step && stepOwed(screen.step) ? at : last), -1);
   const current = index >= 0 && index <= lastOwed ? index : -1;
-  const moveOn = () => {
+  const moveOn = (skip = false) => {
+    const signature = skip ? screenSignature(screens[current]) : "";
+    if (signature) writeSkipped(props.communityId, [...readSkipped(props.communityId).filter((item) => item !== signature), signature]);
     const next = [...seen, current];
     setSeen(next);
     try { localStorage.setItem(seenKey(props.communityId), JSON.stringify(next)); } catch { /* the page still moves on */ }
@@ -281,7 +317,7 @@ export function WebCommunityWelcome(props: Props) {
   const failed = (error && !formsOwed) || lessonMissing || (pageError && !preparing);
   const popup = props.display === "popup";
   const section = <section className="community-welcome" aria-label={`Welcome to ${props.communityName}`}>
-    {current >= 0 && !preparing ? <WelcomeScreenView title={title} screens={screens} index={current} renderStep={renderStep} onNext={moveOn}
+    {current >= 0 && !preparing ? <WelcomeScreenView title={title} screens={screens} index={current} renderStep={renderStep} onNext={() => moveOn()} onSkip={() => moveOn(true)}
       titleRef={titleRef} stepRef={stepRef} choiceStorageKey={`polynet:welcome-choice:${props.communityId}`} />
       : <>
         <div className="community-welcome-intro"><small>Welcome</small><h1 ref={titleRef} tabIndex={-1}>{title}</h1></div>
@@ -298,19 +334,32 @@ const minimizedKey = (communityId: string) => `polynet:welcome-later:${community
 
 // The welcome as a pop-up over the open community. "Finish later" puts it away
 // for this visit and leaves a pill at the bottom to bring it back.
-export function WelcomePopup(props: { communityId: string; title: string; left: number; children: ReactNode }) {
-  const [later, setLater] = useState(() => { try { return sessionStorage.getItem(minimizedKey(props.communityId)) === "1"; } catch { return false; } });
+export function WelcomePopup(props: {
+  communityId: string; title: string; left: number; children: ReactNode;
+  /** The pill's words, when it isn't "Finish getting started". */
+  pill?: { title: string; detail: string };
+  /** Opens as the pill, and isn't remembered between visits (the skipped-step reminder). */
+  startAway?: boolean;
+  /** Puts the pop-up away from inside, after its last step. */
+  closeRef?: { current: (() => void) | null };
+}) {
+  const remember = !props.startAway;
+  const [later, setLater] = useState(() => {
+    if (props.startAway) return true;
+    try { return sessionStorage.getItem(minimizedKey(props.communityId)) === "1"; } catch { return false; }
+  });
   const dialog = useRef<HTMLDivElement>(null);
   const pill = useRef<HTMLButtonElement>(null);
   const setAway = (away: boolean) => {
     setLater(away);
-    try { if (away) sessionStorage.setItem(minimizedKey(props.communityId), "1"); else sessionStorage.removeItem(minimizedKey(props.communityId)); } catch { /* still works this visit */ }
+    if (remember) try { if (away) sessionStorage.setItem(minimizedKey(props.communityId), "1"); else sessionStorage.removeItem(minimizedKey(props.communityId)); } catch { /* still works this visit */ }
     requestAnimationFrame(() => (away ? pill.current : dialog.current)?.focus());
   };
   useEffect(() => { if (!later) dialog.current?.focus(); }, []);
+  if (props.closeRef) props.closeRef.current = () => setAway(true);
   if (later) return <button ref={pill} type="button" className="community-welcome-pill" onClick={() => setAway(false)}>
     <span className="community-welcome-pill-dot" aria-hidden="true" />
-    <span><strong>Finish getting started</strong><small>{props.left > 1 ? `${props.left} steps left` : "1 step left"}</small></span>
+    <span><strong>{props.pill?.title ?? "Finish getting started"}</strong><small>{props.pill?.detail ?? (props.left > 1 ? `${props.left} steps left` : "1 step left")}</small></span>
   </button>;
   return <div className="community-welcome-popup-backdrop">
     <div ref={dialog} className="community-welcome-popup" role="dialog" aria-modal="true" aria-label={props.title} tabIndex={-1}
@@ -323,8 +372,61 @@ export function WelcomePopup(props: { communityId: string; title: string; left: 
         if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
       }}>
-      <button type="button" className="community-welcome-popup-later" onClick={() => setAway(true)}>Finish later</button>
+      <button type="button" className="community-welcome-popup-later" onClick={() => setAway(true)}>{props.startAway ? "Later" : "Finish later"}</button>
       {props.children}
     </div>
   </div>;
 }
+
+// After the welcome, a setup screen the member skipped waits as a pill at the
+// bottom; it opens that screen in a pop-up until they press Done.
+export function WelcomeSkippedReminder(props: {
+  communityId: string; session: AuthSession;
+  ensureSession: (session: AuthSession, source?: string) => Promise<AuthSession | null>;
+}) {
+  const [skipped, setSkipped] = useState(() => readSkipped(props.communityId));
+  const [page, setPage] = useState<MemberWelcomePage<CommunityResource> | null>(null);
+  const close = useRef<(() => void) | null>(null);
+  const wanted = skipped.length > 0;
+  useEffect(() => {
+    if (!wanted) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const ready = await props.ensureSession(props.session, "community_welcome_reminder");
+        if (!ready) return;
+        const next = await getMemberWelcomePage<AuthSession, CommunityResource>(ready, props.communityId);
+        if (alive) setPage(next);
+      } catch { /* no reminder this time */ }
+    })();
+    return () => { alive = false; };
+  }, [props.session, props.communityId, props.ensureSession, wanted]);
+  const screens = useMemo(() => (page?.layout ? welcomeScreens(page.layout).filter(skippableScreen) : []), [page]);
+  const screen = screens.find((item) => skipped.includes(screenSignature(item))) ?? null;
+  if (!screen) return null;
+  const done = () => {
+    const rest = skipped.filter((item) => item !== screenSignature(screen));
+    writeSkipped(props.communityId, rest);
+    close.current?.();
+    setSkipped(rest);
+  };
+  return <WelcomePopup key={screenSignature(screen)} communityId={props.communityId} title="Finish setting up" left={1} startAway closeRef={close}
+    pill={{ title: "Finish setting up", detail: screenSummary(screen) }}>
+    <section className="community-welcome" aria-label="Finish setting up">
+      <WelcomeScreenView title="Finish setting up" screens={[screen]} index={0} renderStep={() => null} onNext={done} nextLabel="Done" kicker="You skipped this earlier"
+        choiceStorageKey={`polynet:welcome-choice:${props.communityId}:later`} />
+    </section>
+  </WelcomePopup>;
+}
+
+/** A few words for the reminder: the screen's first heading or bold line, else its question. */
+function screenSummary(screen: WelcomeScreen): string {
+  for (const block of screen.blocks) {
+    if (block.type !== "text") continue;
+    const line = /^#{1,6}\s+(.+)$/m.exec(block.markdown)?.[1] ?? /\*\*(.+?)\*\*/.exec(block.markdown)?.[1];
+    if (line) return trimWords(line.replace(/[*_`]/g, "").trim());
+  }
+  const choice = screen.blocks.find((block) => block.type === "choice");
+  return choice && choice.type === "choice" && choice.prompt ? trimWords(choice.prompt) : "You skipped a step";
+}
+function trimWords(text: string): string { return text.length > 56 ? `${text.slice(0, 55).trimEnd()}…` : text; }

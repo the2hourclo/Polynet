@@ -15,7 +15,7 @@ import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflow
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
 import type { CommunityFormDraft } from "../../../../shared/communityForms";
 import { MemberFormRunner } from "./WebCommunityNextStep";
-import { WelcomeScreenView, welcomeMediaMarkdown } from "./WebCommunityWelcome";
+import { ChoiceIconMark, WelcomeScreenView, welcomeMediaMarkdown } from "./WebCommunityWelcome";
 import "./WebCommunityWelcomeSettings.css";
 
 const TITLE_MAX = 120;
@@ -528,7 +528,7 @@ function ChoiceEditor(props: { id: string; prompt: string; options: WelcomeChoic
       <div className="welcome-settings-choice-field">
         <span>Icon</span>
         <div className="welcome-settings-choice-icon-row">
-          <span className="welcome-settings-choice-icon" aria-hidden="true">{option.icon ? <img src={option.icon} alt="" /> : <ImageIcon size={16} />}</span>
+          <span className="welcome-settings-choice-icon" aria-hidden="true">{option.icon ? <ChoiceIconMark icon={option.icon} /> : <ImageIcon size={16} />}</span>
           {option.icon?.startsWith("data:")
             ? <span className="welcome-settings-choice-icon-note">Built-in logo</span>
             : <input value={option.icon ?? ""} aria-label="Icon image link" placeholder="https://… image link (optional)"
@@ -670,7 +670,7 @@ function WelcomePreview(props: {
           <section className="community-welcome community-welcome-preview" aria-label="What a new member sees">
             {finished ? <div className="community-welcome-intro"><small>Welcome</small><h1 tabIndex={-1} aria-level={3}>{props.title}</h1>
               <p className="community-welcome-done">That was the last step. The community opens for the member now.</p></div>
-              : <WelcomeScreenView key={`${index}:${run}`} title={props.title} screens={screens} index={index} renderStep={renderStep} onNext={advance} headingLevel={3} />}
+              : <WelcomeScreenView key={`${index}:${run}`} title={props.title} screens={screens} index={index} renderStep={renderStep} onNext={advance} onSkip={advance} headingLevel={3} />}
           </section>
         </ScaledPreview>
       </div>
