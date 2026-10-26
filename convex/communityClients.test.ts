@@ -12,7 +12,7 @@ import {
   normalizeCommunityClientPropertyDraft,
   normalizeCommunityClientPropertyValue,
 } from "../shared/communityClients";
-import { applyCommunityClientView, communityClientFields, normalizeCommunityClientView, personalizeCommunityClientMessage } from "../shared/communityClientViews";
+import { applyCommunityClientView, communityClientFields, normalizeCommunityClientView, groupCommunityClients, personalizeCommunityClientMessage } from "../shared/communityClientViews";
 
 const modules = import.meta.glob([
   "./communityClients.ts",
@@ -330,5 +330,17 @@ describe("view rules", () => {
     expect(seen("more_than_days_ago")).toEqual(["b", "c"]);
     expect(applyCommunityClientView(rows, { filters: [], match: "all", sort: { field: "last_seen_at", direction: "asc" } }, now).map((row) => row.name)).toEqual(["b", "a", "c"]);
     expect(personalizeCommunityClientMessage("Hi {first_name} ({name})", "Ava Brooks")).toBe("Hi Ava (Ava Brooks)");
+  });
+  test("groups follow the choice order, with the empty group last; only short-list fields can group", () => {
+    expect(normalizeCommunityClientView({ name: "x", group: "prop:tier" }, fields).group).toBe("prop:tier");
+    expect(() => normalizeCommunityClientView({ name: "x", group: "email" }, fields)).toThrow("client_view_invalid");
+    const rows = [
+      { name: "a", status: "cancelled" }, { name: "b", status: "active" }, { name: "c", status: "active", properties: { tier: "VIP" } },
+    ];
+    const status = fields.find((field) => field.key === "status")!;
+    expect(groupCommunityClients(rows, status).map((group) => [group.value, group.rows.map((row) => row.name)]))
+      .toEqual([["active", ["b", "c"]], ["cancelled", ["a"]]]);
+    const tier = fields.find((field) => field.key === "prop:tier")!;
+    expect(groupCommunityClients(rows, tier).map((group) => group.label)).toEqual(["VIP", "No tier"]);
   });
 });
