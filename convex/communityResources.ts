@@ -10193,6 +10193,51 @@ export const saveCommunityResource = mutation({
   },
 });
 
+// Knowledge -> Roadmap editing: a lesson's stage, the stage's place, the
+// lesson's place in it, and its title, for many lessons in one write (renaming
+// or moving a stage touches every lesson in it).
+export const updateCommunityLessonBoard = mutation({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    communityId: v.id("communities"),
+    updates: v.array(v.object({
+      resourceId: v.string(),
+      stage: v.string(),
+      stageOrder: v.optional(v.number()),
+      order: v.optional(v.number()),
+      title: v.optional(v.string()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    await requireCommunityManager({ ctx, communityId: args.communityId, userId });
+    if (args.updates.length > 300) throw new Error("community_lesson_board_too_many");
+    const nowMs = Date.now();
+    for (const update of args.updates) {
+      const resourceId = ctx.db.normalizeId("communityResources", update.resourceId);
+      const row = (resourceId ? await ctx.db.get(resourceId) : null) as CommunityResourceLike | null;
+      if (!row || String(row.communityId) !== String(args.communityId)) throw new Error("community_resource_not_found");
+      if (normalizeResourceRole(row.role) !== "page") throw new Error("community_lesson_board_page_required");
+      const current = (row as any).lesson ?? {};
+      const lesson = normalizeCommunityLessonFields({
+        ...current,
+        stage: update.stage,
+        stage_order: update.stageOrder ?? current.stage_order,
+        order: update.order ?? current.order,
+      });
+      if (!lesson?.stage) throw new Error("community_lesson_board_stage_required");
+      const title = update.title === undefined ? null : normalizeName(update.title);
+      await ctx.db.patch(row._id as any, { lesson, ...(title ? { title } : {}), updatedAt: nowMs });
+      if (title && title !== row.title) {
+        const updated = (await ctx.db.get(row._id as any)) as CommunityResourceLike | null;
+        if (updated) await syncCommunityResourceMemoryProjection(ctx, await hydrateCommunityResourceBody(ctx, updated) ?? updated, nowMs);
+      }
+    }
+    return { ok: true, updated: args.updates.length };
+  },
+});
+
 export const reorderCommunityResources = mutation({
   args: {
     userId: v.optional(v.id("users")),

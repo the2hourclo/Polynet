@@ -1512,6 +1512,20 @@ export async function saveCloudCommunityResource<SessionT, TResult = unknown>(
   return payload as TResult;
 }
 
+export type CloudCommunityLessonBoardUpdate = { resourceId: string; stage: string; stageOrder?: number; order?: number; title?: string };
+
+/** Roadmap editing: stages and lesson order (and titles) for many lessons in one write. */
+export async function updateCloudCommunityLessonBoard<SessionT>(
+  params: CloudCommunityAdminGatewayParams<SessionT> & { communityId: string; updates: CloudCommunityLessonBoardUpdate[] },
+): Promise<void> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  await client.mutation("communityResources:updateCommunityLessonBoard" as any, {
+    authSubject,
+    communityId: params.communityId,
+    updates: params.updates,
+  });
+}
+
 export async function getCloudCommunityResourceBuilderChangesetStatus<SessionT, TResult = unknown>(
   params: CloudCommunityAdminGatewayParams<SessionT> & {
     communityId: string;

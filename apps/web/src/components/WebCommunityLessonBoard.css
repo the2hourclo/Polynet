@@ -1,64 +1,153 @@
-/* Knowledge -> Roadmap: the lessons laid out on the Workflows board, by stage. Only
-   what the Roadmap adds on top of the Workflows board styles. */
+/* Knowledge -> Roadmap: one journey read top to bottom, in the same centred
+   column in every look. A summary with the next lesson sits on top; each stage is
+   a section on a rail with its lessons as quiet rows. Owner tools show on hover
+   and focus. */
 .lesson-board-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-/* The Roadmap uses the whole width in every layout (Channels looks and Classroom
-   cap Knowledge at a reading width) and shows every stage at once: stages wrap
-   into rows instead of scrolling sideways. Substack-style progress sits on top. */
 .product-shell-surface[data-channels-feel] .community-knowledge-page:has(.lesson-board),
 .community-layout-centered .community-top-body:has(.lesson-board),
-.community-knowledge-page:has(.lesson-board) { max-width: none; width: 100%; }
-.lesson-board .workflow-pipeline-shell { overflow-y: auto; }
-.lesson-board .workflow-board-stage { flex: none; width: 100%; }
-.lesson-board .workflow-milestone-canvas {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); align-items: start;
-  gap: 16px; margin-top: 0; padding: 0 0 24px; overflow: visible;
-}
-.lesson-board .workflow-milestone-column { flex: none; overflow: visible; border-color: var(--border-default); border-radius: 12px; background: var(--surface-card, var(--surface-panel)); }
-.lesson-board .workflow-milestone-column-body { gap: 6px; padding: 8px; overflow: visible; }
-/* Lesson titles wrap to two lines instead of being cut off. */
-.lesson-board .workflow-member-stub-copy strong {
-  white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
-}
-.lesson-board .workflow-milestone-column.is-locked { opacity: 0.6; }
-/* Stage states: done stages get a filled check, the current one an accent edge. */
-.lesson-board .workflow-milestone-column.is-current { border-color: var(--accent-brand); box-shadow: 0 0 0 1px var(--accent-brand); }
-.lesson-board .is-done .workflow-milestone-position, .lesson-board .is-current .workflow-milestone-position { width: 24px; height: 24px; font-size: 12px; font-weight: 700; }
-.lesson-board .is-done .workflow-milestone-position { color: var(--text-on-accent, #fff); background: var(--accent-brand); }
-.lesson-board .is-current .workflow-milestone-position { color: var(--text-link, var(--accent-brand)); background: color-mix(in srgb, var(--accent-brand) 14%, transparent); }
-.lesson-board .workflow-member-stub { min-height: 56px; border-color: transparent; box-shadow: none; background: transparent; }
-.lesson-board .workflow-member-stub:hover:not(:disabled) { background: var(--hover-overlay); }
-.lesson-board-lesson-stub.is-next { border-color: color-mix(in srgb, var(--accent-brand) 45%, transparent); background: color-mix(in srgb, var(--accent-brand) 7%, transparent); }
+.community-knowledge-page:has(.lesson-board) { max-width: 55rem; width: 100%; margin-inline: auto; }
+/* The heading lines up with the column; its right side stays clear of the shell icons. */
+.product-shell-surface[data-channels-feel] .community-knowledge-page:has(.lesson-board) .community-knowledge-header { width: auto; margin-inline: 0; padding-left: 24px; }
 
-.lesson-board-progress {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 24px;
-  margin: 0 0 20px; padding: 20px 24px; border: 1px solid var(--border-default); border-radius: 12px;
-  background: var(--surface-card, var(--surface-panel));
-}
-.lesson-board-progress-copy { display: grid; gap: 2px; }
-.lesson-board-progress-copy strong { font-size: 28px; font-weight: 700; line-height: 1.1; color: var(--text-primary); }
-.lesson-board-progress-copy span { font-size: 14px; color: var(--text-secondary); white-space: nowrap; }
-.lesson-board-progress-bar { display: flex; gap: 4px; min-width: 0; }
-.lesson-board-progress-bar > span { flex: 1; height: 8px; overflow: hidden; border-radius: 999px; background: var(--hover-overlay); }
-.lesson-board-progress-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent-brand); transition: width 200ms ease; }
-.lesson-board-next {
-  display: inline-flex; align-items: center; gap: 12px; min-height: 48px; max-width: 360px; padding: 6px 16px; border: 0; border-radius: 8px;
-  font: inherit; text-align: left; cursor: pointer; color: var(--pn-on-accent, var(--text-on-accent, #fff)); background: var(--pn-accent, var(--accent-brand));
-}
-.lesson-board-next > span { display: grid; min-width: 0; overflow: hidden; font-size: 15px; font-weight: 600; line-height: 1.3; }
-.lesson-board-next small { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; }
-.lesson-board-next:hover { filter: brightness(1.05); }
-.lesson-board-next:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.lesson-board-complete { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; color: var(--text-link, var(--accent-brand)); }
-@media (prefers-reduced-motion: reduce) { .lesson-board-progress-bar i { transition: none; } }
-.lesson-board-lesson-stub:disabled { cursor: not-allowed; opacity: 0.7; }
-.lesson-board-lesson-stub.is-gate { border-color: var(--border-strong); }
-.lesson-board-lesson-status {
-  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px;
-  border-radius: 999px; color: var(--text-secondary); background: var(--hover-overlay);
-}
-.lesson-board-lesson-stub[data-status="done"] .lesson-board-lesson-status { color: var(--text-on-accent, #fff); background: var(--accent-brand); }
-.lesson-board-lesson-stub[data-status="in_progress"] .lesson-board-lesson-status { color: var(--text-link, var(--accent-brand)); background: color-mix(in srgb, var(--accent-brand) 14%, transparent); }
+.lesson-journey { box-sizing: border-box; width: 100%; padding: 12px 24px 64px; color: var(--text-primary); }
+.lesson-journey-note { margin: 0 0 16px; padding: 10px 14px; border-radius: 8px; font-size: 14px; color: var(--text-secondary); background: var(--hover-overlay); }
+.lesson-journey-note.is-error { color: var(--text-danger, #b42318); background: color-mix(in srgb, var(--text-danger, #b42318) 8%, transparent); }
 
+/* Progress strip: one segment per stage, sized to its lessons. */
+.lesson-journey-progress { display: grid; gap: 8px; margin: 8px 0 20px; }
+.lesson-journey-progress-label > span:last-child { white-space: nowrap; }
+.lesson-journey-bar { display: flex; gap: 4px; min-width: 0; }
+.lesson-journey-bar > span { flex: 1 1 0; min-width: 6px; height: 6px; overflow: hidden; border-radius: 999px; background: var(--border-default); }
+.lesson-journey-bar > span.is-current { outline: 2px solid color-mix(in srgb, var(--accent-brand) 22%, transparent); outline-offset: 2px; }
+.lesson-journey-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent-brand); transition: width 200ms ease; }
+.lesson-journey-progress-label { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* Next up: the one thing to do. */
+.lesson-journey-next {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; width: 100%; margin-bottom: 24px; padding: 16px 18px;
+  border: 0; border-radius: 12px; font: inherit; text-align: left; cursor: pointer;
+  color: var(--pn-on-accent, var(--text-on-accent, #fff)); background: var(--pn-accent, var(--accent-brand));
+}
+.lesson-journey-next-copy { display: grid; gap: 2px; min-width: 0; }
+.lesson-journey-next-copy small { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; opacity: 0.85; }
+.lesson-journey-next-copy strong { font-family: var(--pn-font-heading, inherit); font-size: 18px; font-weight: var(--pn-heading-weight, 600); line-height: 1.3; text-transform: var(--pn-heading-case, none); }
+.lesson-journey-next-copy > span { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
+.lesson-journey-next-go { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid currentColor; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.lesson-journey-next:hover { filter: brightness(1.05); }
+.lesson-journey-complete { display: flex; align-items: center; gap: 8px; margin: 0 0 24px; padding: 14px 16px; border-radius: 12px; font-weight: 600; color: var(--text-link, var(--accent-brand)); background: color-mix(in srgb, var(--accent-brand) 8%, transparent); }
+
+/* Stages: fold-down rows between hairlines. */
+.lesson-journey-stages { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--border-default); }
+.lesson-journey-stage { border-bottom: 1px solid var(--border-default); }
+.lesson-journey-stage-head { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px 2px; }
+.lesson-journey-marker {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1.5px solid var(--border-strong);
+  border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.lesson-journey-stage[data-state="done"] .lesson-journey-marker { border-color: var(--accent-brand); color: var(--text-on-accent, #fff); background: var(--accent-brand); }
+.lesson-journey-stage[data-state="current"] .lesson-journey-marker { border-color: var(--accent-brand); color: var(--text-link, var(--accent-brand)); }
+.lesson-journey-stage-title { display: grid; gap: 1px; min-width: 0; }
+.lesson-journey-stage-name { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--text-primary); }
+.lesson-journey-stage[data-state="locked"] .lesson-journey-stage-name { font-weight: 500; color: var(--text-secondary); }
+.lesson-journey-stage-meta { font-size: 13px; color: var(--text-secondary); }
+.lesson-journey-stage-tools { display: flex; align-items: center; gap: 4px; flex: none; }
+.lesson-journey-count { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lesson-journey-chevron { color: var(--text-secondary); transition: transform 150ms ease; }
+.lesson-journey-stage[data-open] .lesson-journey-chevron { transform: rotate(180deg); }
+/* The stage name is the toggle; its hit area covers the whole row. */
+.lesson-journey-toggle { padding: 0; border: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; background: none; cursor: pointer; }
+.lesson-journey-toggle::after { content: ""; position: absolute; inset: 0; }
+.lesson-journey-stage-head:has(.lesson-journey-toggle):hover .lesson-journey-stage-name { color: var(--text-link, var(--accent-brand)); }
+.lesson-journey-stage-body { padding: 0 0 12px 40px; }
+
+/* Lessons as quiet rows. */
+.lesson-journey-lessons { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.lesson-journey-lesson { position: relative; display: flex; align-items: center; gap: 4px; border-radius: 10px; }
+.lesson-journey-lesson-main {
+  display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; min-height: 48px; padding: 8px 10px; border: 1px solid transparent;
+  border-radius: 10px; font: inherit; text-align: left; color: inherit; background: none; cursor: pointer;
+}
+button.lesson-journey-lesson-main:hover:not(:disabled) { background: var(--hover-overlay); }
+.lesson-journey-lesson-main:disabled { cursor: not-allowed; opacity: 0.6; }
+.lesson-journey-lesson.is-next .lesson-journey-lesson-main { background: color-mix(in srgb, var(--accent-brand) 10%, transparent); }
+.lesson-journey-lesson.is-next .lesson-journey-lesson-title, .lesson-journey-lesson.is-gate .lesson-journey-lesson-title { font-weight: 600; }
+.lesson-journey-status {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 22px; height: 22px; border-radius: 999px;
+  color: var(--text-secondary); background: var(--hover-overlay);
+}
+.lesson-journey-lesson[data-status="done"] .lesson-journey-status { color: var(--text-on-accent, #fff); background: var(--accent-brand); }
+.lesson-journey-lesson[data-status="in_progress"] .lesson-journey-status { color: var(--text-link, var(--accent-brand)); background: color-mix(in srgb, var(--accent-brand) 14%, transparent); }
+.lesson-journey-lesson-copy { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.lesson-journey-lesson-title { font-size: 15px; font-weight: 500; line-height: 1.35; color: var(--text-primary); }
+.lesson-journey-lesson-copy > span { font-size: 13px; color: var(--text-secondary); }
+.lesson-journey-lesson[data-status="done"] .lesson-journey-lesson-title { font-weight: 500; color: var(--text-secondary); }
+.lesson-journey-lesson-state { flex: none; font-size: 13px; color: var(--text-secondary); }
+.lesson-journey-lesson.is-next .lesson-journey-lesson-state { font-weight: 600; color: var(--text-link, var(--accent-brand)); }
+.lesson-journey-lesson.is-gate .lesson-journey-status { box-shadow: 0 0 0 1px var(--border-strong); }
+
+/* Owner tools: quiet until the row is hovered or focused. */
+.lesson-journey-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px;
+  color: var(--text-secondary); background: none; cursor: pointer;
+}
+.lesson-journey-icon > span { display: inline-flex; }
+.lesson-journey-icon:hover:not(:disabled) { color: var(--text-primary); background: var(--hover-overlay); }
+.lesson-journey-icon:disabled { opacity: 0.35; cursor: default; }
+.lesson-journey-edit {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border-default); border-radius: 8px;
+  font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--text-primary); background: var(--surface-panel, transparent); cursor: pointer;
+}
+.lesson-journey-edit:hover { border-color: var(--border-strong); }
+.lesson-journey-lesson-tools { display: flex; align-items: center; gap: 2px; flex: none; padding-right: 4px; }
+.lesson-journey-grip { position: absolute; left: -18px; display: inline-flex; width: 14px; color: var(--text-secondary); cursor: grab; }
+@media (hover: hover) {
+  /* On a mouse the row keeps its full width; the tools float over its status. */
+  .lesson-journey-lesson-tools {
+    position: absolute; top: 50%; right: 6px; transform: translateY(-50%); padding: 2px; border-radius: 8px;
+    background: var(--surface-panel, var(--surface-card, #fff)); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border-default);
+  }
+  .lesson-journey-lesson-tools, .lesson-journey-grip, .lesson-journey-stage-tools .lesson-journey-icon:not(:last-child) { opacity: 0; transition: opacity 120ms ease; }
+  .lesson-journey-lesson:is(:hover, :focus-within) :is(.lesson-journey-lesson-tools, .lesson-journey-grip),
+  .lesson-journey-stage-head:is(:hover, :focus-within) .lesson-journey-icon { opacity: 1; }
+}
+.lesson-journey-lesson.is-drop-target { box-shadow: inset 0 2px 0 var(--accent-brand); }
+.lesson-journey-lesson[draggable="true"]:active { cursor: grabbing; }
+.lesson-journey-name {
+  display: block; max-width: 100%; padding: 0 4px; margin-left: -4px; border: 0; border-radius: 6px; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; background: none; cursor: text;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.lesson-journey-name:hover { background: var(--hover-overlay); }
+.lesson-journey-name-input {
+  width: 100%; min-width: 0; padding: 2px 6px; margin-left: -6px; border: 1px solid var(--accent-brand); border-radius: 6px;
+  font: inherit; background: var(--surface-panel, #fff); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-brand) 18%, transparent);
+}
+input.lesson-journey-lesson-title { flex: 1; }
+.lesson-journey-add {
+  display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 0; padding: 8px 12px; border: 0; border-radius: 8px;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--text-secondary); background: none; cursor: pointer;
+}
+.lesson-journey-add:hover:not(:disabled) { color: var(--text-primary); background: var(--hover-overlay); }
+.lesson-journey-add:disabled { cursor: progress; }
+.lesson-journey-add-stage { margin-top: 8px; }
+.lesson-journey-empty { padding: 32px 0; text-align: center; color: var(--text-secondary); }
+.lesson-journey-empty h3 { margin: 0 0 6px; font-family: var(--pn-font-heading, inherit); font-size: 20px; color: var(--text-primary); }
+.lesson-journey-empty p { margin: 0 0 12px; font-size: 14px; }
+.lesson-journey :is(button, input):focus-visible { outline: 2px solid var(--focus-ring, var(--accent-brand)); outline-offset: 2px; }
+.lesson-journey .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .lesson-journey-bar i, .lesson-journey-lesson-tools, .lesson-journey-chevron { transition: none; } }
+@media (max-width: 640px) {
+  .product-shell-surface[data-channels-feel] .community-knowledge-page:has(.lesson-board) .community-knowledge-header,
+  .community-knowledge-page:has(.lesson-board) .community-knowledge-header { padding: 20px 16px 0; }
+  .lesson-journey { padding: 12px 16px 48px; }
+  .lesson-journey-stage-body { padding-left: 0; }
+  .lesson-journey-next { grid-template-columns: minmax(0, 1fr); }
+  .lesson-journey-next-go { justify-self: start; }
+  .lesson-journey-lesson-state { display: none; }
+  .lesson-journey-lesson-main { gap: 12px; padding: 8px; }
+  .lesson-journey.is-editing .lesson-journey-lesson { flex-wrap: wrap; }
+  .lesson-journey.is-editing .lesson-journey-lesson-tools { width: 100%; justify-content: flex-end; padding: 0 0 6px; }
+  .lesson-journey-grip { display: none; }
+}
 
 .lesson-board-primary-button {
   padding: 8px 14px; border: 0; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer;
@@ -67,6 +156,7 @@
 
 /* The lesson step page */
 .lesson-board-step-page { max-width: 760px; margin: 0 auto; width: 100%; }
+.lesson-board-step-top-right { display: flex; align-items: center; gap: 8px; }
 .lesson-board-step-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; }
 .lesson-board-stage-badge, .lesson-board-kind-badge { font-family: var(--pn-font-heading, inherit); font-weight: var(--pn-heading-weight, 600); text-transform: var(--pn-heading-case, none); }
 .lesson-board-stage-badge {
@@ -94,7 +184,4 @@
 [data-community-theme] .lesson-board-primary-button {
   border-radius: var(--pn-radius-button); box-shadow: var(--pn-shadow-button);
 }
-@media (max-width: 640px) {
-  .lesson-board-progress { grid-template-columns: minmax(0, 1fr); padding: 16px; }
-  .lesson-board-next { max-width: none; justify-content: space-between; }
-}
+.lesson-journey .lesson-journey-stage-name { font-family: var(--pn-font-heading, inherit); font-size: 16px; font-weight: var(--pn-heading-weight, 600); text-transform: var(--pn-heading-case, none); }

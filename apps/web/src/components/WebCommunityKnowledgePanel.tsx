@@ -5,7 +5,9 @@ import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
 import { createBrowserCommunityEmbedStorage } from "../../../../shared/communityEmbedUi";
 import { CommunityMemoryGraph } from "./CommunityMemoryGraph";
-import { WebCommunityLessonBoard, communityBoardLessons } from "./WebCommunityLessonBoard";
+import { WebCommunityLessonBoard, communityBoardLessons, type RoadmapEditing } from "./WebCommunityLessonBoard";
+import { updateCloudCommunityLessonBoard } from "../../../../shared/cloudCommunityAdminGateway";
+import { resolveUsableSession } from "../../../../shared/ensureUsableSession";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { computeCommunityCourseProgress } from "../../../../shared/communityCourseProgress";
 import type { WebLessonActivity } from "./WebCommunityResourceViewerContent";
@@ -32,8 +34,42 @@ type KnowledgeView = "resources" | "board" | "graph";
 export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const [view, setView] = useState<KnowledgeView>("resources");
   useEffect(() => { setView((current) => (current === "graph" ? "resources" : current)); }, [resources.state.selectedModuleId]);
-  // The Roadmap (view id "board") shows when the community has lesson pages with a stage.
-  const hasBoard = useMemo(() => communityBoardLessons(resources.state.resources).length > 0, [resources.state.resources]);
+  const canManage = resources.capabilities.canOperateResources;
+  // The Roadmap (view id "board") shows when the community has lesson pages with a
+  // stage, and always to owners so they can start one.
+  const hasBoard = useMemo(() => canManage || communityBoardLessons(resources.state.resources).length > 0, [canManage, resources.state.resources]);
+  // "Edit lesson" on the Roadmap opens that lesson in the Resources editor.
+  const [editRequest, setEditRequest] = useState<{ resourceId: string; key: number } | null>(null);
+  const { session: rawSession, ensureSession, communityId } = context;
+  const { retryRead, handleCreateBlankPageDraft } = resources.actions;
+  const resourceList = resources.state.resources;
+  const firstModuleId = resources.state.modules[0]?.id ?? null;
+  const roadmapEditing = useMemo<RoadmapEditing | null>(() => {
+    if (!canManage || !rawSession || !communityId) return null;
+    return {
+      save: async (updates) => {
+        const usable = await resolveUsableSession(rawSession as AuthSession, ensureSession);
+        if (!usable) return false;
+        try {
+          await updateCloudCommunityLessonBoard({ session: usable, communityId, updates });
+        } catch {
+          return false;
+        }
+        await retryRead("resources");
+        return true;
+      },
+      // A new lesson joins the course of a lesson already in its stage.
+      addLesson: async ({ stage, stageOrder, order, nearResourceId }) => {
+        const moduleId = resourceList.find((resource) => resource.id === nearResourceId)?.module_id ?? firstModuleId;
+        if (!moduleId) return null;
+        return handleCreateBlankPageDraft(moduleId, { order, stage, stage_order: stageOrder });
+      },
+      editLesson: (resource) => {
+        setView("resources");
+        setEditRequest({ resourceId: resource.id, key: Date.now() });
+      },
+    };
+  }, [canManage, rawSession, ensureSession, communityId, retryRead, handleCreateBlankPageDraft, resourceList, firstModuleId]);
   const graphOpen = view === "graph" && context.canViewGraph;
   const boardOpen = view === "board" && hasBoard;
   const activeView: KnowledgeView = graphOpen ? "graph" : boardOpen ? "board" : "resources";
@@ -103,7 +139,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
         />
       </div>
       <div hidden={activeView !== "resources"} role="tabpanel" id={platformTabPanelId("community-knowledge", "resources")} aria-labelledby={platformTabId("community-knowledge", "resources")}>
-        <CommunityResourcesPanel {...resources} courseProgress={courseProgress} lessonActivity={lessonActivity} />
+        <CommunityResourcesPanel {...resources} courseProgress={courseProgress} lessonActivity={lessonActivity} editRequest={editRequest} />
       </div>
       {boardOpen ? (
         <div className="lesson-board-panel" role="tabpanel" id={platformTabPanelId("community-knowledge", "board")} aria-labelledby={platformTabId("community-knowledge", "board")}>
@@ -113,6 +149,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
             signedIn={Boolean(context.session)}
             onRequireSignIn={context.requireSignIn}
             lessonActivity={lessonActivity}
+            editing={roadmapEditing}
           />
         </div>
       ) : null}

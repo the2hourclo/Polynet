@@ -117,5 +117,5 @@ export type CommunityResourcesActions = {
     onChangePinned: (value: boolean) => void;
   };
   handleDeleteResource: (resourceId: string) => Promise<boolean> | boolean;
-  handleCreateBlankPageDraft: (moduleId: string, lesson?: { order: number }) => Promise<CommunityResource | null>;
+  handleCreateBlankPageDraft: (moduleId: string, lesson?: { order: number; stage?: string; stage_order?: number }) => Promise<CommunityResource | null>;
 };

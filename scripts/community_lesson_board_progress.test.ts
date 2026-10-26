@@ -22,7 +22,7 @@ function lesson(id: string, title: string, stage: string, stageOrder: number, or
   };
 }
 
-function renderBoard(statusByRef: Record<string, "not_started" | "in_progress" | "done">) {
+function renderBoard(statusByRef: Record<string, "not_started" | "in_progress" | "done">, owner = false) {
   const resources = [
     lesson("l1", "Set up your workspace", "Start", 1, 1),
     lesson("l2", "Map your week", "Start", 1, 2),
@@ -34,27 +34,43 @@ function renderBoard(statusByRef: Record<string, "not_started" | "in_progress" |
   };
   return renderToStaticMarkup(createElement(WebCommunityLessonBoard, {
     resources, progress, signedIn: true, onRequireSignIn: () => {},
+    editing: owner ? { save: async () => true, addLesson: async () => null, editLesson: () => {} } : null,
   }));
 }
 
 describe("roadmap progress", () => {
-  it("shows how much is done and the next lesson to open", () => {
+  it("shows how much is done, the stage the member is on and the next lesson to open", () => {
     const markup = renderBoard({ [buildCommunityResourceEvidenceRef("l1")]: "done" });
 
-    expect(markup).toContain("<strong>33%</strong>");
     expect(markup).toContain('aria-valuetext="1 of 3 lessons done"');
-    expect(markup).toMatch(/class="lesson-board-next"[^>]*><span><small>Next up<\/small>Map your week/);
-    expect(markup).toMatch(/workflow-milestone-column is-current"/);
-    expect(markup).toMatch(/lesson-board-lesson-stub is-next"[^>]*>.*?Map your week/);
+    expect(markup).toContain("Stage 1 of 2");
+    expect(markup).toMatch(/class="lesson-journey-next"[^>]*>.*?<small>Next up<\/small><strong>Map your week<\/strong>/);
+    expect(markup).toMatch(/data-state="current" data-open=""/);
+    expect(markup).toMatch(/lesson-journey-lesson is-next"[^>]*>.*?Map your week/);
+    // Members see only the stage they're on; later stages stay folded.
+    expect(markup).not.toContain("Build your first employee");
+    expect(markup).not.toContain("Add a lesson");
   });
 
-  it("marks a finished stage done and says when every lesson is done", () => {
+  it("folds a finished stage and says when every lesson is done", () => {
     const done = Object.fromEntries(["l1", "l2", "l3"].map((id) => [buildCommunityResourceEvidenceRef(id), "done" as const]));
     const markup = renderBoard(done);
 
-    expect(markup).toContain("<strong>100%</strong>");
+    expect(markup).toContain('aria-valuenow="100"');
     expect(markup).toContain("Every lesson is done");
     expect(markup).not.toContain("Next up");
-    expect(markup).toContain('role="img" aria-label="Done"');
+    expect(markup).toMatch(/data-state="done"(?! data-open)/);
+  });
+
+  it("gives owners every stage open with rename, reorder, add and edit", () => {
+    const markup = renderBoard({}, true);
+
+    expect(markup).toContain("Build your first employee");
+    expect(markup).toContain('aria-label="Move Build up"');
+    expect(markup).toContain('aria-label="Move Map your week down"');
+    expect(markup).toContain("Edit lesson");
+    expect(markup).toContain("Add a lesson");
+    expect(markup).toContain("Add a stage");
+    expect(markup).toContain('draggable="true"');
   });
 });

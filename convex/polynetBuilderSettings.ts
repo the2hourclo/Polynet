@@ -368,6 +368,7 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityResources:saveCommunityResourceModule": "agent path: builder/resources changesets",
   "communityResources:moveCommunityResourceToModule": "agent path: builder/resources changesets (move_resource)",
   "communityResources:reorderCommunityResources": "agent path: builder/resources changesets",
+  "communityResources:updateCommunityLessonBoard": "agent path: builder/resources changesets (edit_page with lesson stage, order and title)",
   "communityResources:reorderCommunityResourceModules": "agent path: builder/resources changesets",
   "communityResources:deleteCommunityResource": "agent path: builder/resources changesets (delete_page)",
   "communityResources:deleteCommunityResourceModule": "agent path: builder/resources changesets (delete_category)",

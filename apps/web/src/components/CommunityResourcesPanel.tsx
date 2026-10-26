@@ -32,6 +32,8 @@ type CommunityResourcesPanelProps = {
   courseProgress?: Readonly<Record<string, ResourceCourseProgress>>;
   // The member's answers to lesson buttons, checklists, quizzes and forms.
   lessonActivity?: WebLessonActivity | null;
+  // Open this lesson in the editor (from the Roadmap's "Edit lesson"); a new key asks again.
+  editRequest?: { resourceId: string; key: number } | null;
 };
 
 const MODULE_DRAG_MIME = "application/x-polynet-community-resource-module";
@@ -738,6 +740,14 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     actions.resourceEditor.beginInlineEditResource(resource);
     setActiveResourceEditField(field);
   };
+
+  const editRequestKey = props.editRequest?.key ?? null;
+  useEffect(() => {
+    const resource = props.editRequest ? state.resources.find((item) => item.id === props.editRequest?.resourceId) : null;
+    if (resource && capabilities.canOperateResources) startResourceInlineEdit(resource, "body");
+    // Only a new request opens the editor, not a refreshed resource list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editRequestKey]);
 
   const runPageDraftCreation = async (
     createDraft: () => Promise<CommunityResource | null>,

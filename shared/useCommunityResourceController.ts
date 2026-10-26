@@ -661,7 +661,7 @@ export function useCommunityResourceController<
 
   const handleCreateBlankPageDraft = useCallback(async (
     moduleId: string,
-    lesson?: { order: number },
+    lesson?: { order: number; stage?: string; stage_order?: number },
   ): Promise<ResourceT | null> => {
     const current = argsRef.current;
     const session = await resolveUsableSession(current.session, current.ensureSession);
