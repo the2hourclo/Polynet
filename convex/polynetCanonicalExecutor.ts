@@ -45,6 +45,7 @@ import { executePlatformOperation } from "./platformOperationExecutor.ts";
 import { checkSite, formatProblems, isCheckedFile } from "../packages/polynet-cli/checks.mjs";
 import type { CommunityCustomFunnelSlot } from "../shared/communityTypes.ts";
 import { describeCommunityDesignContract } from "../shared/communityDesignContract.ts";
+import { COMMUNITY_DESIGN_GUIDE_MARKDOWN, COMMUNITY_DESIGN_REVIEW_MARKDOWN } from "../shared/communityDesignGuide.ts";
 
 export type PolynetCanonicalExecutionResult =
   | { ok: true; value: Record<string, unknown> }
@@ -144,6 +145,13 @@ const SETTING_OPERATIONS = BUILDER_SETTING_OPERATIONS.map(spec => spec.operation
 // A member's own profile, notifications and Display pick, changed only by
 // that member or an agent acting for them (convex/polynetMemberSelfSettings.ts).
 const SELF_OPERATIONS = MEMBER_SELF_OPERATIONS.map(spec => spec.operation);
+// Design taste guidance (the polynet-ui-design skill the CLI ships), for agents
+// that design a community over the MCP without the CLI: the skill, and the
+// mistake ledger with the fresh reviewer's brief. Read-only.
+const DESIGN_GUIDES: Record<string, { name: string; body: string }> = {
+  "/builder/design-guide.md": { name: "Design guide: taste and craft for this community's look", body: COMMUNITY_DESIGN_GUIDE_MARKDOWN },
+  "/builder/design-review.md": { name: "Design review: the mistake ledger and the fresh reviewer's brief", body: COMMUNITY_DESIGN_REVIEW_MARKDOWN },
+};
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
 // Every operation polynet_call can run (each still checks who may), and every
@@ -1417,6 +1425,7 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, BUILDER_PODS_PATH), kind: "document", type: "builder", name: "Pods: each invite-only channel with who's in it, and how to start one, add people and set where Classroom shows pods" },
           { path: mountedPath(target.communitySlug, BUILDER_EVENTS_PATH), kind: "document", type: "builder", name: "Events: the calendar, cancelled ones included, with each event's id" },
           { path: mountedPath(target.communitySlug, BUILDER_TEST_RUNS_PATH), kind: "document", type: "builder", name: "Test runs: the test members running now (Workflows → Test a member)" },
+          ...Object.entries(DESIGN_GUIDES).map(([path, guide]) => ({ path: mountedPath(target.communitySlug, path), kind: "document", type: "builder", name: guide.name })),
           {
             path: mountedPath(
               target.communitySlug,
@@ -1748,6 +1757,14 @@ async function executeCanonicalRead(args: {
       return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
         writable: false, searchable: false } };
     } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
+  }
+
+  const designGuide = Object.prototype.hasOwnProperty.call(DESIGN_GUIDES, target.localPath) ? DESIGN_GUIDES[target.localPath] : undefined;
+  if (designGuide) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    return { ok: true, value: { path: mountedPath(target.communitySlug, target.localPath), body: designGuide.body,
+      truncated: false, total_chars: designGuide.body.length, next_offset: null, writable: false, searchable: false } };
   }
 
   if (target.localPath === SELF_PROGRESS_PATH) {

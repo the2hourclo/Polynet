@@ -4,7 +4,7 @@
   "description": "Build a Polynet community from a folder: site, courses and lessons, theme",
   "type": "module",
   "bin": { "polynet": "bin/polynet.mjs" },
-  "files": ["bin", "lib.mjs", "checks.mjs", "content.mjs", "design.mjs", "mcp.mjs", "project.mjs", "contracts", "guide", "templates"],
+  "files": ["bin", "lib.mjs", "checks.mjs", "content.mjs", "design.mjs", "mcp.mjs", "project.mjs", "review.mjs", "ui-audit.mjs", "contracts", "guide", "templates"],
   "engines": { "node": ">=20" },
   "keywords": ["polynet", "community", "deploy"],
   "homepage": "https://polynet.ai",
