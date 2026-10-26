@@ -63,6 +63,7 @@ import {
 } from "./communityMentionAutocomplete";
 import type { CloudCommunityAgentServeIssue } from "../../../../shared/cloudCommunityAgentConciergeGateway";
 import { useCommunityVisualIdentityRegistryActions } from "../../../../shared/CommunityVisualIdentityRegistry";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import {
   coerceCommunityVisualIdentity,
   type CommunityVisualIdentity,
@@ -1165,11 +1166,16 @@ export function WebCommunityChatPanel(props: WebCommunityChatPanelProps) {
   };
 
   const activeCommunityChannelSlug = String(interactionProjection?.activeChannel?.slug ?? "").trim();
+  const podsFrame = useWebCommunityFrame().pods;
   // In the posts layout the composer writes a post: several lines, the first
   // read as the title, so Enter is a new line and Ctrl/Cmd+Enter posts.
   const isPostsComposer = interactionProjection?.presentation === "posts" && interactionProjection?.surface !== "members";
+  // A pod's box says it stays in the pod (Classroom pods, WebCommunityPods).
+  const activePod = podsFrame?.pods.find((pod) => pod.id === interactionProjection?.activeChannel?.id) ?? null;
   const activeCommunityComposerPlaceholder = isPostsComposer
     ? "Title on the first line, then your post..."
+    : activePod
+    ? `Message ${activePod.name} (only the pod sees this)...`
     : activeCommunityChannelSlug
     ? `Message #${activeCommunityChannelSlug}`
     : "Message the community...";
