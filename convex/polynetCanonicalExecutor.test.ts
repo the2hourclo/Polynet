@@ -4403,3 +4403,47 @@ test("hard-to-undo Settings changes are only proposed by the agent and happen wh
   await expect(asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
     { ...ownerScope, proposalId: late.result.proposal_id })).rejects.toThrow("setting_proposal_expired");
 });
+
+test("builder resource agents can set a course's lesson style", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const ownerCtx = executionContext(asOwner);
+  const stageCourse = (lessonStyle: unknown, key: string) => executePolynetCanonicalTool({
+    ctx: ownerCtx,
+    authSubject: fixture.ownerSubject,
+    userId: fixture.ownerId,
+    principalKind: "external_mcp",
+    evidenceSurface: "external_mcp",
+    toolName: "polynet_write",
+    input: {
+      path: "/communities/canonical-community/builder/resources/",
+      mode: "create",
+      content: {
+        summary: "Stage a video course.",
+        operations: [
+          { op: "create_module", module_key: key, name: `Course ${key}`, lesson_style: lessonStyle },
+        ],
+      },
+      idempotency_key: `lesson-style-${key}`,
+    },
+  });
+
+  const stage = await stageCourse("video", "video-course");
+  expect(stage).toMatchObject({ ok: true });
+  const changesetId = String(stage.ok ? (stage.value.ref ?? "") : "");
+  await expect(
+    asOwner.mutation(api.communityResources.applyCommunityResourceBuilderChangeset, {
+      communityId: fixture.communityId,
+      changesetId: changesetId as any,
+    }),
+  ).resolves.toMatchObject({ ok: true, status: "applied" });
+  const rows = await t.run(async (ctx: any) =>
+    await ctx.db
+      .query("communityResourceModules")
+      .withIndex("by_community", (q: any) => q.eq("communityId", fixture.communityId))
+      .collect());
+  expect(rows.find((row: any) => row.name === "Course video-course")?.lessonStyle).toBe("video");
+
+  expect(await stageCourse("slides", "bad-style")).toMatchObject({ ok: false });
+});

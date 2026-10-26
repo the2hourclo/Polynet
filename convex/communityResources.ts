@@ -332,6 +332,7 @@ type CommunityResourceBuilderChangesetOperation =
       name: string;
       description_md?: string | null;
       module_status?: "draft" | "live";
+      lesson_style?: "article" | "video";
     }
   | {
       op: "edit_module";
@@ -340,6 +341,7 @@ type CommunityResourceBuilderChangesetOperation =
       name?: string;
       description_md?: string | null;
       module_status?: "draft" | "live";
+      lesson_style?: "article" | "video";
     }
   | {
       op: "create_page";
@@ -2281,6 +2283,13 @@ function normalizeChangesetModuleStatus(raw: unknown): "draft" | "live" {
   return requireResourceModuleStatusForWrite(raw);
 }
 
+// How a course's lessons read: "article" (clean page) or "video" (text on a
+// card under the video). Agents must name one exactly.
+function normalizeChangesetLessonStyle(raw: unknown): "article" | "video" {
+  if (raw === "article" || raw === "video") return raw;
+  throw new Error("community_resource_changeset_lesson_style_invalid");
+}
+
 function normalizeCommunityResourceBuilderChangesetOperations(
   rawOperations: unknown,
 ): CommunityResourceBuilderChangesetOperation[] {
@@ -2311,6 +2320,9 @@ function normalizeCommunityResourceBuilderChangesetOperations(
         module_status: hasOwnField(record, "module_status")
           ? normalizeChangesetModuleStatus(record.module_status)
           : "draft",
+        ...(hasOwnField(record, "lesson_style")
+          ? { lesson_style: normalizeChangesetLessonStyle(record.lesson_style) }
+          : null),
       };
     }
     if (op === "edit_module") {
@@ -2326,7 +2338,10 @@ function normalizeCommunityResourceBuilderChangesetOperations(
       if (hasOwnField(record, "module_status")) {
         next.module_status = normalizeChangesetModuleStatus(record.module_status);
       }
-      if (!hasOwnField(record, "name") && !hasOwnField(record, "description_md") && !hasOwnField(record, "module_status")) {
+      if (hasOwnField(record, "lesson_style")) {
+        next.lesson_style = normalizeChangesetLessonStyle(record.lesson_style);
+      }
+      if (!hasOwnField(record, "name") && !hasOwnField(record, "description_md") && !hasOwnField(record, "module_status") && !hasOwnField(record, "lesson_style")) {
         throw new Error("community_resource_changeset_edit_module_empty");
       }
       return next;
@@ -2845,6 +2860,7 @@ async function createModuleFromChangesetOperation(args: {
     status: args.operation.module_status ?? "draft",
     name: args.operation.name,
     descriptionMd: args.operation.description_md ?? undefined,
+    lessonStyle: args.operation.lesson_style ?? "article",
     sortOrder: nextSortOrder,
     createdAt: args.nowMs,
     updatedAt: args.nowMs,
@@ -3085,6 +3101,7 @@ async function applyCommunityResourceBuilderChangesetOperations(args: {
         ...(hasOwnField(operation as any, "name") ? { name: operation.name } : {}),
         ...(hasOwnField(operation as any, "description_md") ? { descriptionMd: operation.description_md ?? undefined } : {}),
         ...(hasOwnField(operation as any, "module_status") ? { status: operation.module_status } : {}),
+        ...(hasOwnField(operation as any, "lesson_style") ? { lessonStyle: operation.lesson_style } : {}),
         updatedAt: args.nowMs,
       });
       if (moduleStatusChanged) {
@@ -3734,6 +3751,7 @@ function buildCommunityResourceMapModuleEntry(args: {
       resources: rows,
     }),
     module_status: normalizeResourceModuleStatus(args.module.status),
+    lesson_style: normalizeResourceModuleLessonStyle(args.module.lessonStyle),
     resources: rows
       .slice(0, resourceLimit)
       .map((row) =>
@@ -4650,6 +4668,7 @@ function buildBuilderModuleRefMatch(args: {
       ? `${entry.directory_uri}/${COMMUNITY_RESOURCE_SOURCE_INBOX_SEGMENT}`
       : entry.directory_uri,
     module_status: args.module ? normalizeResourceModuleStatus(args.module.status) : null,
+    ...(args.module && !args.sourceInbox ? { lesson_style: normalizeResourceModuleLessonStyle(args.module.lessonStyle) } : null),
     ...(args.sourceInbox ? { source_inbox: true } : null),
     resource_count: resourceRows.length,
     page_count: resourceRows.filter((row) => normalizeResourceRole(row.role) !== "source").length,
