@@ -4544,3 +4544,36 @@ test("an owner's agent reads Run history at /builder/workflow-runs.json and memb
   const member = caller(fixture.memberSubject, fixture.memberId);
   expect((await member("polynet_read", { path: `/communities/${community}/builder/workflow-runs.json` })).ok).toBe(false);
 });
+
+test("an owner's agent builds Workflows through the MCP: a coloured stage, an email step and an Only if", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const workflows = async () => JSON.parse((await owner("polynet_read", { path: `/communities/${community}/builder/settings.json` })).body).workflows;
+  const change = (operation: string, input: Record<string, unknown>) => owner("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}` });
+
+  const definition = await owner("polynet_read", { path: `/communities/${community}/capabilities/community.workflow.stage.update.json` });
+  expect(definition.body).toContain("send_email");
+  expect(definition.body).toContain("color");
+
+  const revision = (await workflows())?.revision ?? 0;
+  await change("community.workflow.stage.create", { expected_revision: revision, name: "Onboarding", color: "green" });
+  const stage = (await workflows()).milestones.at(-1);
+  expect(stage).toMatchObject({ name: "Onboarding", color: "green" });
+  await change("community.workflow.stage.update", { expected_revision: revision + 1, milestone_key: stage.key, name: "Onboarding", color: "blue",
+    automations: [{ trigger: { type: "milestone_elapsed", delayMinutes: 1440 }, action: { type: "send_email", subject: "Hi {first_name}", body: "Day one." } }] });
+  const updated = (await workflows()).milestones.find((item: any) => item.key === stage.key);
+  expect(updated).toMatchObject({ color: "blue", automations: [{ action: { type: "send_email", subject: "Hi {first_name}", body: "Day one." } }] });
+  await expect(change("community.workflow.stage.update", { expected_revision: revision + 2, milestone_key: stage.key, name: "Onboarding", color: "neon",
+    automations: [] })).rejects.toThrow("community_member_workflow_stage_color_invalid");
+});
