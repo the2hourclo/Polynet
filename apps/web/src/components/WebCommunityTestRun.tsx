@@ -131,11 +131,13 @@ export function WebCommunityTestRun(props: Props) {
   });
   const end = (member: CloudCommunityTestMember) => {
     if (!window.confirm(`End ${member.label}? Their answers, progress and record are deleted.`)) return;
+    // Let go of its live views first, so nothing asks for a run that's gone.
+    setWatching((id) => id === member.id ? null : id);
+    setSelected((id) => id === member.id ? null : id);
     void run(`end:${member.id}`, async () => {
       const ready = await ensureSession(session, "community_test_run_end");
       if (!ready) throw new Error("session_unavailable");
       await endCloudCommunityTestMember(ready, communityId, member.id);
-      setWatching((id) => id === member.id ? null : id);
     });
   };
 
