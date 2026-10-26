@@ -9,7 +9,8 @@ export type WelcomeChoiceOption = { label: string; hint: string; markdown: strin
 
 export type WelcomeBlock =
   | { type: "text"; markdown: string }
-  | { type: "choice"; prompt: string; options: WelcomeChoiceOption[] }
+  /** agent: shows the community's agent (its photo and name) above the cards as the plugin that connects to the picked app. */
+  | { type: "choice"; prompt: string; options: WelcomeChoiceOption[]; agent?: boolean }
   | { type: "form"; formKey: string }
   | { type: "lesson"; resourceId: string }
   | { type: "next" };
@@ -102,7 +103,7 @@ export function normalizeWelcomeLayout(layout: WelcomeBlock[]): WelcomeBlock[] {
         markdown: option.markdown.replace(/\r\n?/g, "\n").trim(),
         ...(option.icon?.trim() ? { icon: option.icon.trim() } : {}),
       })).filter((option) => option.label || option.markdown);
-      if (options.length) out.push({ type: "choice", prompt: block.prompt.replace(/\s+/g, " ").trim(), options });
+      if (options.length) out.push({ type: "choice", prompt: block.prompt.replace(/\s+/g, " ").trim(), options, ...(block.agent ? { agent: true } : {}) });
     } else if (block.type === "form") out.push({ type: "form", formKey: block.formKey.trim() });
     else out.push({ type: "lesson", resourceId: block.resourceId.trim() });
   }

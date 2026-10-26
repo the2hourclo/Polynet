@@ -69,4 +69,10 @@ describe("welcome page layout", () => {
     expect(normalizeWelcomeLayout([withIcon("  https://example.com/a.png ")])[0]).toMatchObject({ options: [{ icon: "https://example.com/a.png" }] });
     expect(normalizeWelcomeLayout([withIcon("  ")])[0]).toEqual({ type: "choice", prompt: "Which app?", options: [{ label: "Claude", hint: "", markdown: "steps" }] });
   });
+
+  it("keeps a choice's agent flag only when it is on", () => {
+    const choice = (agent?: boolean): WelcomeBlock => ({ type: "choice", prompt: "Which app?", options: [{ label: "Claude", hint: "", markdown: "steps" }], agent });
+    expect(normalizeWelcomeLayout([choice(true)])[0]).toMatchObject({ agent: true });
+    expect(normalizeWelcomeLayout([choice(false)])[0]).not.toHaveProperty("agent");
+  });
 });

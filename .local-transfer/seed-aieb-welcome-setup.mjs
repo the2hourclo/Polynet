@@ -87,7 +87,7 @@ After each step, tell me whether it worked, or show the error and how you're fix
 
 const setupScreen = [
   { type: "text", markdown: INTRO },
-  { type: "choice", prompt: PROMPT, options: [
+  { type: "choice", prompt: PROMPT, agent: true, options: [
     { label: "Claude", hint: "The Claude app, or Claude Code. One plugin works in both.", markdown: claude, icon: CLAUDE_ICON },
     { label: "ChatGPT Codex", hint: "The Codex app or CLI.", markdown: codex, icon: CODEX_ICON },
   ] },
