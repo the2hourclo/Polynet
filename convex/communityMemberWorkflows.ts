@@ -29,6 +29,8 @@ import {
   normalizeCommunityMemberWorkflowPrompt,
   normalizeWorkflowAgentSees,
   normalizeWorkflowCondition,
+  normalizeWorkflowOffsetDays,
+  workflowPropertyDateDueAt,
   workflowConditionClauses,
   workflowConditionGroupHolds,
   workflowConditionHolds,
@@ -148,6 +150,7 @@ const automationInputValidator = v.object({
     v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
     v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
     v.object({ type: v.literal("client_property_changed"), propertyKey: v.string(), value: v.optional(v.union(v.string(), v.number(), v.boolean())) }),
+    v.object({ type: v.literal("property_date"), propertyKey: v.string(), offsetDays: v.number() }),
     v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
     v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
   ),
@@ -307,7 +310,7 @@ function normalizeAutomations(
     // agent (through a timer that starts the moment the lesson is done).
     if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed"
         || input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
-        || input.trigger.type === "client_property_changed")
+        || input.trigger.type === "client_property_changed" || input.trigger.type === "property_date")
       && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent" && action.type !== "send_email") {
       throw new Error("lesson_trigger_action_invalid");
     }
@@ -349,6 +352,7 @@ function normalizeAutomations(
         : input.trigger.type === "lesson_completed" ? { type: "lesson_completed", ...(input.trigger.resourceId ? { resourceId: input.trigger.resourceId } : {}) }
         : input.trigger.type === "course_completed" ? { type: "course_completed", ...(input.trigger.moduleId ? { moduleId: input.trigger.moduleId } : {}) }
         : input.trigger.type === "track_completed" ? { type: "track_completed", ...(input.trigger.trackKey ? { trackKey: input.trigger.trackKey } : {}) }
+        : input.trigger.type === "property_date" ? { type: "property_date", propertyKey: input.trigger.propertyKey.trim(), offsetDays: normalizeWorkflowOffsetDays(input.trigger.offsetDays) }
         : input.trigger.type === "client_property_changed" ? { type: "client_property_changed", propertyKey: input.trigger.propertyKey.trim(),
           ...(input.trigger.value === undefined || input.trigger.value === "" ? {} : { value: typeof input.trigger.value === "string" ? input.trigger.value.trim().slice(0, 200) : input.trigger.value }) }
         : input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
@@ -524,11 +528,12 @@ export const updateBuilderWorkflowMilestone = mutation({
         const module = id ? await ctx.db.get(id) : null;
         if (!module || module.communityId !== args.communityId) throw new Error("workflow_course_unavailable");
       }
-      if (automation.trigger.type === "client_property_changed") {
+      if (automation.trigger.type === "client_property_changed" || automation.trigger.type === "property_date") {
         const propertyKey = automation.trigger.propertyKey;
         const property = propertyKey ? await ctx.db.query("communityClientProperties")
           .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", propertyKey)).unique() : null;
         if (!property || property.archivedAt) throw new Error("client_property_not_found");
+        if (automation.trigger.type === "property_date" && property.type !== "date") throw new Error("workflow_property_not_a_date");
       }
       if (automation.trigger.type === "track_completed" && automation.trigger.trackKey && automation.trigger.trackKey !== COMMUNITY_MAIN_TRACK_KEY) {
         const trackKey = automation.trigger.trackKey;
@@ -1828,6 +1833,54 @@ export const handleOfferChangedInternal = internalMutation({
       }
     }
     return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
+  },
+});
+
+// "On a date in their record": every 15 minutes, run each date rule for the
+// members in its stage whose date (plus the rule's offset) has just come round.
+// A date that passed more than a day and a half ago, or before they reached the
+// stage, never fires, so adding a rule doesn't flood old dates. The member, the
+// rule and the date are the receipt, so a date runs once and a new date runs again.
+const PROPERTY_DATE_WINDOW_MS = 36 * 3_600_000;
+export const processDuePropertyDateTriggersInternal = internalMutation({
+  args: { cursor: v.optional(v.union(v.string(), v.null())) },
+  handler: async (ctx, args) => {
+    const nowMs = Date.now();
+    const page = await ctx.db.query("communityMemberWorkflows").paginate({ numItems: 20, cursor: args.cursor ?? null });
+    let matched = 0;
+    for (const workflow of page.page) {
+      for (const milestone of workflow.milestones as CommunityMemberWorkflowMilestone[]) {
+        for (const automation of milestone.automations) {
+          if (automation.trigger.type !== "property_date") continue;
+          const { propertyKey, offsetDays } = automation.trigger;
+          const values = await ctx.db.query("communityClientValues")
+            .withIndex("by_community_property", q => q.eq("communityId", workflow.communityId).eq("propertyKey", propertyKey)).take(2000);
+          for (const value of values) {
+            const dueAt = workflowPropertyDateDueAt(value.value, offsetDays);
+            if (dueAt === null || dueAt > nowMs || dueAt < nowMs - PROPERTY_DATE_WINDOW_MS) continue;
+            const membership = await ctx.db.get(value.membershipId);
+            if (!membership || !communityMembershipRowIsActive(membership)) continue;
+            const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+            const current = resolveCurrentMilestone({ workflow, membership, state });
+            if (current.completedAt || current.milestone.key !== milestone.key || dueAt < current.milestoneEnteredAt) continue;
+            const live = (current.milestone as CommunityMemberWorkflowMilestone).automations.find(a => a.key === automation.key);
+            if (!live) continue;
+            const receipt = `property_date:${String(value.value)}:${membership._id}:${Number(membership.activationSequence ?? 0)}`;
+            if (live.action.type !== "prompt_agent") {
+              await executeWorkflowAutomation({ ctx, workflow, membership, current, automation: live, timerReceiptRef: receipt });
+            } else {
+              // An agent step needs a durable source, so the date starts it through a timer due now.
+              const timer = await startWorkflowSourceTimer({ ctx, workflow, membership, current, transitionSeq: Number(state?.transitionSeq ?? 0),
+                automation: live, startedAt: nowMs, sourceRef: receipt });
+              await runWorkflowTimerNow(ctx, timer);
+            }
+            matched++;
+          }
+        }
+      }
+    }
+    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.processDuePropertyDateTriggersInternal, { cursor: page.continueCursor });
+    return { workflows: page.page.length, matched };
   },
 });
 

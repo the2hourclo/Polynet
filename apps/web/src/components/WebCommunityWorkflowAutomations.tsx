@@ -47,7 +47,7 @@ const TRIGGERS: Array<{ name: string; options: Option[] }> = [
   { name: "Time", options: [
     { icon: Clock, label: "After some time in this stage", type: "milestone_elapsed" },
     { icon: CalendarDays, label: "At a scheduled time", hint: "Every day, every week, or one date" },
-    { icon: Repeat, label: "On a date in their record", hint: "e.g. 3 days before renewal" },
+    { icon: Repeat, label: "On a date in their record", hint: "e.g. 3 days before renewal", type: "property_date" },
   ] },
   { name: "Outside", options: [
     { icon: Webhook, label: "A webhook is received", hint: "From Zapier, Make, or your own app" },
@@ -375,7 +375,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
             return <button key={option.label} type="button" className="pn-au-option" disabled={!allowed}
               aria-pressed={option.type === selected.trigger.type}
               title={option.type === "member_joined" && stageIndex !== 0 ? "Only the first stage can start when someone joins" : undefined}
-              onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected), props.catalog?.properties?.[0]?.key) : null; if (next) { updateRule(next); setPicking(false); } }}>
+              onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected), props.catalog?.properties ?? []) : null; if (next) { updateRule(next); setPicking(false); } }}>
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span><strong>{option.label}</strong>{option.hint ? <small>{option.hint}</small> : null}</span>{!option.type ? <em>Soon</em> : null}
             </button>;

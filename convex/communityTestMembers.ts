@@ -298,6 +298,7 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : trigger.type === "lesson_completed" ? `When they finish ${trigger.resourceId ? `“${(await nameOf(ctx, "communityResources", trigger.resourceId, "title")) ?? "a lesson"}”` : "any lesson"}`
     : trigger.type === "course_completed" ? `When they finish ${trigger.moduleId ? `the ${(await nameOf(ctx, "communityResourceModules", trigger.moduleId, "name")) ?? ""} course` : "any course"}`
     : trigger.type === "track_completed" ? `When they finish ${trigger.trackKey ? `the “${(await trackTitle(ctx, communityId, trigger.trackKey)) ?? trigger.trackKey}” track` : "any Roadmap track"}`
+    : trigger.type === "property_date" ? `${trigger.offsetDays === 0 ? "On" : `${Math.abs(trigger.offsetDays)} day${Math.abs(trigger.offsetDays) === 1 ? "" : "s"} ${trigger.offsetDays < 0 ? "before" : "after"}`} the ${(await propertyName(ctx, communityId, trigger.propertyKey)) ?? trigger.propertyKey} date on their record`
     : trigger.type === "client_property_changed" ? `When ${(await propertyName(ctx, communityId, trigger.propertyKey)) ?? trigger.propertyKey} changes${trigger.value === undefined ? "" : ` to ${String(trigger.value)}`} on their record`
     : trigger.type === "offer_started" || trigger.type === "offer_ended"
       ? `When they ${trigger.type === "offer_started" ? "start" : "leave"} ${trigger.offerKey ? `the “${(await offerName(ctx, communityId, trigger.offerKey)) ?? trigger.offerKey}” offer` : "any offer"}`

@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useId, useState } from "react";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, WORKFLOW_CONDITION_MAX_CLAUSES, workflowConditionClauses, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition, type CommunityMemberWorkflowConditionClause } from "../../../../shared/communityMemberWorkflow";
+import { COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, WORKFLOW_CONDITION_MAX_CLAUSES, WORKFLOW_PROPERTY_DATE_MAX_OFFSET_DAYS, workflowConditionClauses, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition, type CommunityMemberWorkflowConditionClause } from "../../../../shared/communityMemberWorkflow";
 import { workflowActionPhrase, workflowDurationLabel } from "./workflowStepSentences";
 import { WorkflowChannelPicker } from "./WorkflowChannelPicker";
 import { applyWorkflowTriggerType, replaceWorkflowDraftAction, type WorkflowTriggerType, workflowAutomationIssue, workflowTriggerIssue, workflowChannelLabel, type WorkflowAutomationDraft } from "./workflowMilestoneDraft";
@@ -215,6 +215,12 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const isLesson = automation.trigger.type === "lesson_completed";
   const isCourse = automation.trigger.type === "course_completed";
   const isTrack = automation.trigger.type === "track_completed";
+  const isDate = automation.trigger.type === "property_date";
+  const dateTrigger = automation.trigger.type === "property_date" ? automation.trigger : null;
+  const dateProperties = (props.catalog?.properties ?? []).filter((item) => item.type === "date");
+  const dateName = dateTrigger ? dateProperties.find((item) => item.key === dateTrigger.propertyKey)?.name ?? (dateTrigger.propertyKey || "a date field") : "";
+  const setDate = (next: { propertyKey?: string; offsetDays?: number }) => dateTrigger && props.onChange({ ...automation,
+    trigger: { ...dateTrigger, ...next } });
   const isRecord = automation.trigger.type === "client_property_changed";
   const recordKey = automation.trigger.type === "client_property_changed" ? automation.trigger.propertyKey : "";
   const recordValue = automation.trigger.type === "client_property_changed" ? automation.trigger.value : undefined;
@@ -251,6 +257,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const triggerReady = triggerSelected && !triggerIssue;
   const triggerLabel = isSequence ? `${waitMinutes ? `${workflowDurationLabel(waitMinutes)} after` : "After"} ${(() => { const step = earlierSteps.find((item) => item.action.key === predecessorKey); return step ? `“${stepLabel(step).slice(0, 60)}”` : "an earlier step"; })()}` : isJoin ? "Member joins for the first time"
     : isRecord ? `Record changes · ${recordProperty?.name ?? (recordKey || "Choose a field")}`
+    : isDate ? `Date in their record · ${dateName}`
     : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : isOffer ? `${automation.trigger.type === "offer_started" ? "Starts" : "Leaves"} an offer · ${offerName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this stage` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "send_email" ? "Send an email"
@@ -275,7 +282,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
         <div className="workflow-milestone-automation-fields" id={`${id}-fields`}>
           {!props.hideTypeSelects ? <label>When
             <select value={triggerSelected ? automation.trigger.type : ""} disabled={props.disabled} onChange={event => {
-              const next = applyWorkflowTriggerType(automation, event.target.value as WorkflowTriggerType, earlierSteps, props.catalog?.properties?.[0]?.key);
+              const next = applyWorkflowTriggerType(automation, event.target.value as WorkflowTriggerType, earlierSteps, props.catalog?.properties ?? []);
               if (!next) return;
               if (next.trigger.type === "milestone_elapsed") setTimeUnit(1440);
               props.onChange(next);
@@ -291,6 +298,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               <option value="course_completed">Course finished</option>
               <option value="track_completed">Roadmap track finished</option>
               <option value="client_property_changed">Member record changes</option>
+              <option value="property_date">A date in their record</option>
               <option value="offer_started">Starts an offer</option>
               <option value="offer_ended">Leaves an offer</option>
             </select>
@@ -319,6 +327,24 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               <small className="workflow-field-hint">{waitMinutes ? `Runs ${workflowDurationLabel(waitMinutes)} after that step finishes.` : "0 starts it straight away."}</small>
             </div>
           </> : isJoin ? null
+            : isDate && dateTrigger ? <div className="workflow-automation-field">
+              <label>Date field<select value={dateTrigger.propertyKey} disabled={props.disabled} onChange={(event) => setDate({ propertyKey: event.target.value })}>
+                {!dateTrigger.propertyKey ? <option value="" disabled>{dateProperties.length ? "Choose a date field" : "No date fields yet"}</option> : null}
+                {dateTrigger.propertyKey && !dateProperties.some((item) => item.key === dateTrigger.propertyKey) ? <option value={dateTrigger.propertyKey}>{dateName} (archived)</option> : null}
+                {dateProperties.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
+              </select></label>
+              <div className="workflow-action-choice-row">
+                <input type="number" min={0} max={WORKFLOW_PROPERTY_DATE_MAX_OFFSET_DAYS} step={1} aria-label="Days" disabled={props.disabled || dateTrigger.offsetDays === 0}
+                  value={Math.abs(dateTrigger.offsetDays) || ""} placeholder="0"
+                  onChange={(event) => { const days = Math.min(WORKFLOW_PROPERTY_DATE_MAX_OFFSET_DAYS, Math.max(1, Math.round(event.target.valueAsNumber || 1))); setDate({ offsetDays: dateTrigger.offsetDays < 0 ? -days : days }); }} />
+                <select aria-label="Before, on or after" value={dateTrigger.offsetDays < 0 ? "before" : dateTrigger.offsetDays > 0 ? "after" : "on"} disabled={props.disabled}
+                  onChange={(event) => { const days = Math.abs(dateTrigger.offsetDays) || 1; setDate({ offsetDays: event.target.value === "on" ? 0 : event.target.value === "before" ? -days : days }); }}>
+                  <option value="before">days before</option><option value="on">on the day</option><option value="after">days after</option>
+                </select>
+              </div>
+              <small className="workflow-field-hint">{dateProperties.length ? "Runs at 9:00 UTC that day, once per date, for members in this stage. Dates that have already passed don't run. It never holds them in this stage."
+                : "Add a date field to the member record under Members first, like Renewal."}</small>
+            </div>
             : isRecord ? <div className="workflow-automation-field">
               <label>Field<select value={recordKey} disabled={props.disabled} onChange={(event) => setRecord(event.target.value)}>
                 {!recordKey ? <option value="" disabled>Choose a field</option> : null}
@@ -440,9 +466,10 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                   : isSequence ? "Starts after the preceding action completes and responds in the member’s assigned private service channel. The next action waits until this response is delivered. No additional tool actions."
                   : isLesson || isCourse ? "Starts once when they finish it and replies in the member’s private guide channel."
                   : isRecord ? "Starts when their record changes and replies in the member’s private guide channel."
+                  : isDate ? "Starts on that day and replies in the member’s private guide channel."
                   : isTimed ? "Delivered once to the member’s assigned service channel. Uses these instructions and community context, without private dossier data or additional tool actions. No delivery if the channel is unavailable."
                   : "The community agent uses this member’s community context and replies in the triggering thread."}
-                {!isSequence && !isTimed && !isForm && !isLesson && !isCourse && !isRecord && (isPrivate || channelId === undefined) ? " In private channels, the agent must be invited." : ""}
+                {!isSequence && !isTimed && !isForm && !isLesson && !isCourse && !isRecord && !isDate && (isPrivate || channelId === undefined) ? " In private channels, the agent must be invited." : ""}
               </p>
               <AgentInputsField id={id} sees={automation.action.sees} catalog={props.catalog} forms={props.forms} disabled={props.disabled}
                 onChange={(sees) => {

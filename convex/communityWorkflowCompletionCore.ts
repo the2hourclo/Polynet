@@ -32,12 +32,13 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   // A write on a path (another step follows it, or it follows another step) counts too.
   const followed = new Set(milestone.automations.flatMap(rule =>
     rule.trigger.type === "previous_action_completed" ? [rule.trigger.predecessorActionKey] : []));
-  // A step that only happens if something else does (a record change, or the
-  // member starting or leaving an offer) is tracked apart, with the steps after
+  // A step that only happens if something else does (a record change, a date
+  // on their record, or the member starting or leaving an offer) is tracked apart, with the steps after
   // it (reactive_actions, so a chain can follow them), and never holds the stage.
   const reactive = new Set<string>();
   for (const rule of milestone.automations) {
     if (rule.trigger.type === "client_property_changed" || rule.trigger.type === "offer_started" || rule.trigger.type === "offer_ended"
+      || rule.trigger.type === "property_date"
       || (rule.trigger.type === "previous_action_completed" && reactive.has(rule.trigger.predecessorActionKey))) reactive.add(rule.action.key);
   }
   const work = milestone.automations.filter(rule => !workflowRuleIsNudge(rule)
