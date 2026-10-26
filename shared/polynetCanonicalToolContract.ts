@@ -210,7 +210,12 @@ const RESOURCE_CHANGESET_OPERATION_SCHEMA: PlatformOperationJsonSchema = {
     name: { type: "string", minLength: 1, maxLength: 180 },
     title: { type: "string", minLength: 1, maxLength: 180 },
     description_md: { type: ["string", "null"], maxLength: 1_200 },
-    body_md: { type: ["string", "null"], maxLength: 20_000 },
+    body_md: {
+      type: ["string", "null"],
+      maxLength: 20_000,
+      description:
+        "create_page / edit_page: the page's Markdown. Reading a page returns its earlier versions under revisions; read builder/resources/<revision id>.json for one's body_md, and send it (with its title) in edit_page to restore it.",
+    },
     module_status: {
       type: ["string", "null"],
       enum: ["draft", "live", null],

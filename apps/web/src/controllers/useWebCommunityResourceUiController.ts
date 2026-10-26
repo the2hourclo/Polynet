@@ -10,6 +10,7 @@ import {
 import { useCommunityResourceEditorController } from "../../../../shared/useCommunityResourceEditorController";
 import { WebDeleteResourceModuleModal } from "../components/WebDeleteResourceModuleModal";
 import { WebCommunityResourceModuleModal } from "../components/WebCommunityResourceModuleModal";
+import type { CommunityResourceRestoreTarget, CommunityResourceVersion } from "../components/communityResourcesContracts";
 
 type SessionLike = unknown;
 
@@ -105,6 +106,8 @@ export type UseWebCommunityResourceUiControllerResult<
     cancelInlineEditResource: () => void;
     saveInlineEditResource: (options?: { keepEditing?: boolean }) => Promise<boolean>;
     uploadImage: (file: File) => Promise<string>;
+    listVersions: (resourceId: string) => Promise<CommunityResourceVersion[]>;
+    restoreVersion: (target: CommunityResourceRestoreTarget) => Promise<boolean>;
     onChangeTitle: (value: string) => void;
     onChangeUrl: (value: string) => void;
     onChangeBody: (value: string) => void;
@@ -168,6 +171,8 @@ export function useWebCommunityResourceUiController<
     handleSaveCommunityResourceModule,
     handleSetCommunityResourceModuleStatus,
     handleSetCommunityResourceModuleLessonStyle,
+    handleListCommunityResourceRevisions,
+    handleRestoreCommunityResource,
     handleDeleteCommunityResourceModule,
     handleReorderCommunityResourceModules,
     handleReorderCommunityResources,
@@ -405,6 +410,8 @@ export function useWebCommunityResourceUiController<
       cancelInlineEditResource,
       saveInlineEditResource,
       uploadImage: handleUploadCommunityResourceImage,
+      listVersions: handleListCommunityResourceRevisions,
+      restoreVersion: handleRestoreCommunityResource,
       onChangeTitle: setResourceTitleInput,
       onChangeUrl: setResourceUrlInput,
       onChangeBody: setResourceBodyInput,
