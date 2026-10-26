@@ -2,6 +2,10 @@ import { expect, it } from "vitest";
 import { workflowSectionFromSearch, workflowSectionUrl } from "../shared/workflowSection";
 it("accepts launch sections and sends deferred integration links to workflows", () => {
   expect(workflowSectionFromSearch("?section=forms")).toBe("forms");
+  expect(workflowSectionFromSearch("?section=clients")).toBe("clients");
+  expect(workflowSectionFromSearch("?section=runs")).toBe("runs");
+  // Old Test run links land on Run history, which holds the tests now.
+  expect(workflowSectionFromSearch("?section=test")).toBe("runs");
   expect(workflowSectionFromSearch("?section=integrations")).toBe("workflows");
   expect(workflowSectionFromSearch("?section=unknown")).toBe("workflows");
   expect(workflowSectionFromSearch("")).toBe("workflows");

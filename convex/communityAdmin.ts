@@ -22,6 +22,7 @@ import {
   mapCommunityPricingRow,
   normalizeCommunityRoleForOutput,
   normalizeRoleAssignment,
+  communityMembershipIsCoCreator,
   parseIsoMs,
   pickMostRelevantCommunityMembership,
   requireCommunityChatAccess,
@@ -55,6 +56,7 @@ import {
 } from "./platformHomeCommunity";
 import { cancelStripeSubscriptionIfActive } from "./stripeSubscriptionCancellation";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
+import { syncCommunityAccessForUser } from "./communityAccessSync";
 import {
   activateCommunityMembershipCore,
 } from "./communityMembershipLifecycle";
@@ -63,6 +65,7 @@ import { deleteCommunityPresenceForUser } from "./communityPresenceCore";
 import { communityIsActive } from "../shared/communityLifecycle";
 import { requireCommunityBuilderAccess } from "./communityBuilderAccessCore";
 import { recordCriticalAuditEvent } from "./criticalAudit";
+import { deleteMemberWorkflowPosition } from "./communityMemberWorkflowReadCore";
 
 type AnalyticsRangeValue = "7d" | "30d" | "90d" | "1y" | "all";
 type AnalyticsBucketValue = "day" | "week" | "month";
@@ -334,6 +337,7 @@ async function mapCommunityAdminMembershipRow(args: {
       String(args.row.userId),
     ...identity,
     role: normalizeCommunityRoleForOutput(args.row.role) || "member",
+    co_creator: communityMembershipIsCoCreator(args.row),
     created_at: toIsoString(args.row.createdAt),
   };
 }
@@ -1611,7 +1615,10 @@ export const setCommunityMemberRole = mutation({
     authSubject: v.optional(v.string()),
     communityId: v.id("communities"),
     targetMembershipId: v.id("communityMemberships"),
+    // co_creator: an admin shown publicly as a creator who can also change
+    // the look and the sales page. Owner only, like admin.
     role: v.union(
+      v.literal("co_creator"),
       v.literal("admin"),
       v.literal("moderator"),
       v.literal("member"),
@@ -1634,7 +1641,8 @@ export const setCommunityMemberRole = mutation({
       },
       handler: async () => {
         const nowMs = Date.now();
-        const role = normalizeRoleAssignment(args.role);
+        const coCreator = args.role === "co_creator";
+        const role = coCreator ? "admin" : normalizeRoleAssignment(args.role);
         const { community } = await requireCommunityManager({
           ctx,
           communityId: args.communityId,
@@ -1658,6 +1666,7 @@ export const setCommunityMemberRole = mutation({
         });
         await ctx.db.patch(membership._id as any, {
           role,
+          coCreator: coCreator ? true : undefined,
           updatedAt: nowMs,
         });
         return { ok: true };
@@ -1852,6 +1861,12 @@ export const revokeCommunityMemberInternal = internalMutation({
           userId: membership.userId,
           nowMs: revokedAt,
           cooldownMs: COMMUNITY_REMOVAL_REAPPLY_COOLDOWN_MS,
+        });
+        await syncCommunityAccessForUser(ctx, {
+          communityId: args.communityId,
+          userId: membership.userId,
+          nowMs,
+          reason: revokedReason,
         });
         return { ok: true };
       },
@@ -2402,6 +2417,7 @@ export const leaveCommunity = mutation({
             });
           } else {
             await ctx.db.delete(membership._id as any);
+            await deleteMemberWorkflowPosition({ ctx, communityId: args.communityId, membershipId: membership._id as any });
           }
           await adjustCommunityActiveMemberCountForMembershipTransition({
             ctx,
@@ -2428,6 +2444,12 @@ export const leaveCommunity = mutation({
           ctx,
           communityId: args.communityId,
           userId: args.userId,
+        });
+        await syncCommunityAccessForUser(ctx, {
+          communityId: args.communityId,
+          userId: args.userId,
+          nowMs,
+          reason: "member_left",
         });
         return { ok: true };
       },

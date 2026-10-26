@@ -2,6 +2,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { bootstrapConvexAuthenticatedClient } from "./convexAuthenticatedClient";
 import type { CommunityLessonProgressStatus, CommunityLessonStage } from "./communityLessonContract";
+import type { CommunityTrackView } from "./communityLessonTracks";
 
 /** A member's saved answer to one lesson element (button, checklist or quiz). */
 export type CommunityLessonResponse = {
@@ -27,6 +28,8 @@ export type CommunityResourceProgressLesson = {
 
 export type CommunityResourceProgressState = {
   stages: CommunityLessonStage[];
+  // Every skill track the member can see, with where they stand in it.
+  tracks?: CommunityTrackView[];
   lessons: CommunityResourceProgressLesson[];
   truncated: boolean;
 };

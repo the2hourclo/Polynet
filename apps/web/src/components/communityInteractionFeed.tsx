@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { CommunityAgentIcon, useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext";
 import { downloadCloudCommunityChatAttachment } from "../../../../shared/cloudCommunityChatGateway";
 import {
@@ -8,10 +9,10 @@ import {
   Pencil,
   Pin,
   PinOff,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { EmojiPickerButton, QUICK_REACTIONS, ReactionSummary } from "./communityInteractionRowParts";
+import { PostCardView } from "./CommunityPostCard";
 import { MessageLinkMedia } from "./MessageLinkMedia";
 import { PdfDocumentCard } from "./PdfDocumentCard";
 import { isPdfDocument, safeDocumentUrl } from "../../../../shared/messagePdf";
@@ -285,6 +286,19 @@ export function MessageActions(props: {
 }) {
   return (
     <div className="community-interaction-msg-actions">
+      {/* Reply leads, with its name on it, so a thread is one obvious click. */}
+      {props.onReply ? (
+        <button
+          type="button"
+          className="community-interaction-msg-action community-interaction-msg-reply"
+          onClick={props.onReply}
+          aria-label={props.replyLabel}
+          title={props.replyLabel}
+        >
+          <MessageSquare size={15} aria-hidden="true" />
+          <span aria-hidden="true">Reply</span>
+        </button>
+      ) : null}
       {QUICK_REACTIONS.map((emoji) => (
         <button
           key={emoji}
@@ -302,17 +316,6 @@ export function MessageActions(props: {
         label="Add reaction"
         onPick={props.onReact}
       />
-      {props.onReply ? (
-        <button
-          type="button"
-          className="community-interaction-msg-action"
-          onClick={props.onReply}
-          aria-label={props.replyLabel}
-          title={props.replyLabel}
-        >
-          <MessageSquare size={15} aria-hidden="true" />
-        </button>
-      ) : null}
       <OverflowMenu
         onEdit={props.onEdit}
         onDelete={props.onDelete}
@@ -350,8 +353,8 @@ export function ActorAvatar(props: {
   className?: string;
   online?: boolean;
 }) {
-  // The community agent (seed is its canonical agent key) wears the hollow
-  // purple Sparkles everywhere an avatar renders — feed root, replies, thread —
+  // The community agent (seed is its canonical agent key) wears its
+  // community's icon (Sparkles when it has none) everywhere an avatar renders —
   // never person initials. One chokepoint so no render path is missed.
   if (props.seed === "community_agent") {
     return (
@@ -359,7 +362,7 @@ export function ActorAvatar(props: {
         className={`${props.className ?? "community-interaction-avatar"} is-agent-avatar`}
         aria-hidden="true"
       >
-        <Sparkles aria-hidden="true" />
+        <CommunityAgentIcon />
       </span>
     );
   }
@@ -888,6 +891,7 @@ export function CommunityInteractionFeedList(
     onCancelEdit: () => void;
   },
 ) {
+  const agentName = useCommunityAgentName(props.activeCommunityName);
   const seenRootIds = useRef<Set<string>>(new Set());
   const rootsLoadedOnce = useRef(false);
   useEffect(() => {
@@ -1017,7 +1021,7 @@ export function CommunityInteractionFeedList(
                   );
                 }
                 const first = segment.bundles[0]!;
-                const label = actorLabel(first.root, props.displayName, props.activeCommunityName);
+                const label = actorLabel(first.root, props.displayName, agentName);
                 const profile = first.root.actor_user_id
                   ? props.profilesByUserId[first.root.actor_user_id] ?? null
                   : null;
@@ -1076,10 +1080,16 @@ export function CommunityInteractionFeedList(
                             root.last_reply_actor_user_id !== props.currentUserId &&
                             Date.parse(root.last_reply_at) > unreadBoundary,
                         );
+                        // Touch screens have no hover toolbar, so a message with no
+                        // replies yet carries a visible Reply link there instead.
+                        const showReplyStart = !bundle.pending && root.reply_count === 0 && threadTypers.length === 0;
                         const hasFooter =
                           root.reply_count > 0 ||
                           root.reaction_summary.length > 0 ||
-                          threadTypers.length > 0;
+                          threadTypers.length > 0 ||
+                          showReplyStart;
+                        const replyStartOnly =
+                          showReplyStart && root.reaction_summary.length === 0;
                         const isOwnRoot = Boolean(
                           props.currentUserId && root.actor_user_id && root.actor_user_id === props.currentUserId,
                         );
@@ -1098,7 +1108,8 @@ export function CommunityInteractionFeedList(
                                 onReply={() => props.onSelectRoot(root.id)}
                                 replyLabel="Reply in thread"
                                 onEdit={
-                                  isOwnRoot && props.onEditMessage
+                                  // A poll or form post's text is only its fallback; the card is the post.
+                                  isOwnRoot && props.onEditMessage && !bundle.post_card
                                     ? () => startEdit("root", root.id, body)
                                     : undefined
                                 }
@@ -1138,7 +1149,7 @@ export function CommunityInteractionFeedList(
                                       : ""
                                   }`}
                                 >
-                                  <InteractionContent
+                                  {bundle.post_card ? <PostCardView bundle={bundle} /> : <InteractionContent
                                     text={body}
                                     renderTextWithLinks={props.renderTextWithLinks}
                                     mentionContext={{
@@ -1150,7 +1161,7 @@ export function CommunityInteractionFeedList(
                                       onMessageUser: props.onMessageUser,
                                       getAvatarColor: props.getAvatarColor,
                                       getInitials: props.getInitials,
-                                      communityAgentDisplayName: props.activeCommunityName,
+                                      communityAgentDisplayName: agentName,
                                     }}
                                     afterBody={(
                                       <InteractionAttachments
@@ -1158,7 +1169,7 @@ export function CommunityInteractionFeedList(
                                         onOpenImage={props.onOpenCommunityChatLightbox}
                                       />
                                     )}
-                                  />
+                                  />}
                                 </div>
                                 {firstRootBodyExpansion && !firstRootBodyExpansion.expanded ? (
                                   <button
@@ -1189,11 +1200,12 @@ export function CommunityInteractionFeedList(
                               </div>
                             ) : null}
                             {hasFooter ? (
-                              <div className="community-interaction-footer">
+                              <div className={`community-interaction-footer${replyStartOnly ? " is-reply-start-only" : ""}`}>
                                 <ReactionSummary
                                   rows={root.reaction_summary}
                                   viewerEmojis={root.viewer_emojis}
                                   onToggle={(emoji) => props.onToggleReaction?.("root", root.id, emoji)}
+                                  target={{ type: "root", id: root.id }}
                                 />
                                 {threadTypers.length > 0 ? (
                                   <div className="community-interaction-thread-row">
@@ -1245,7 +1257,17 @@ export function CommunityInteractionFeedList(
                                         Last reply {formatRelativeTime(root.last_reply_at)}
                                       </span>
                                     ) : null}
+                                    <span className="community-interaction-thread-open" aria-hidden="true">View thread</span>
                                   </div>
+                                ) : showReplyStart ? (
+                                  <button
+                                    type="button"
+                                    className="community-interaction-reply-start"
+                                    onClick={() => props.onSelectRoot(root.id)}
+                                  >
+                                    <MessageSquare size={14} aria-hidden="true" />
+                                    Reply
+                                  </button>
                                 ) : null}
                               </div>
                             ) : null}

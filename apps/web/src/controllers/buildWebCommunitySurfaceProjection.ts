@@ -287,6 +287,7 @@ export function buildWebCommunitySurfaceProjection(
     onOpenDirectMessageFromCommunity: params.onOpenDirectMessageFromCommunity,
     sessionUserId: params.sessionUserId,
     canPostMessages: params.canPostMessagesActiveCommunity,
+    canShareForms: params.canManageMembersActiveCommunity,
     isProfileSetupComplete: params.isProfileSetupComplete,
     canMentionEverybody: params.canManageMembersActiveCommunity,
     everybodyMemberCount: params.communityMemberCount,

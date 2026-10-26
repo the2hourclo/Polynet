@@ -1,3 +1,4 @@
+import { readCommunityPaidLockedLessonIds } from "./communityLessonTracks";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalAction, internalQuery } from "./_generated/server";
@@ -172,8 +173,10 @@ export const searchRecentCommunityResourceEvidenceInternal = internalQuery({
       .withIndex("by_community_createdAt", (q: any) => q.eq("communityId", args.communityId))
       .order("desc")
       .take(RECENT_RESOURCE_SCAN_LIMIT)) as CommunityResourceLike[];
+    // Lessons sold through an offer the member doesn't have stay out of answers.
+    const paid = await readCommunityPaidLockedLessonIds(ctx, args.communityId, args.userId);
     const visible = recent.filter((row) =>
-      communityResourceIsLiveModulePage(row, new Set(moduleById.keys())),
+      communityResourceIsLiveModulePage(row, new Set(moduleById.keys())) && !paid.has(normalizeIdValue(row._id)),
     );
     const hydrated = await Promise.all(
       visible.map(async (row) => (await hydrateCommunityResourceBody(ctx, row)) ?? row),
@@ -229,9 +232,10 @@ export const readCommunityResourceEvidenceItemsInternal = internalQuery({
     const community = (await ctx.db.get(args.communityId)) as CommunityRow | null;
     if (!community) throw new Error("community_not_found");
     const items = [];
+    const paid = await readCommunityPaidLockedLessonIds(ctx, args.communityId, args.userId);
     for (const ref of args.refs.slice(0, 40)) {
       const resourceId = parseCommunityResourceEvidenceRef(ref);
-      if (!resourceId) continue;
+      if (!resourceId || paid.has(normalizeIdValue(resourceId))) continue;
       const resolved = await resolveCommunityResourceEvidenceSource({
         ctx,
         communityId: args.communityId,

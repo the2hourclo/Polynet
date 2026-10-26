@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { AuthSession } from "../auth";
 import type { CommunityFormDraft } from "../../../../shared/communityForms";
-import { listCloudCommunityForms, saveCloudCommunityForm, publishCloudCommunityForm, listCloudCommunityFormResponses } from "../../../../shared/cloudCommunityFormsGateway";
+import { listCloudCommunityForms, saveCloudCommunityForm, publishCloudCommunityForm, listCloudCommunityFormResponses, listCloudCommunityClientProperties, type CloudCommunityClientProperty } from "../../../../shared/cloudCommunityFormsGateway";
 import { fetchCloudMemberProgressReport, type CommunityMemberProgressReport } from "../../../../shared/cloudCommunityResourceProgressGateway";
 
 export type CommunityFormsGateway = {
@@ -12,6 +12,8 @@ export type CommunityFormsGateway = {
   load: () => Promise<CommunityFormDraft[]>;
   save: (form: CommunityFormDraft) => Promise<CommunityFormDraft>;
   publish: (form: CommunityFormDraft) => Promise<CommunityFormDraft>;
+  /** Client properties a question can fill. */
+  clientProperties?: () => Promise<CloudCommunityClientProperty[]>;
 };
 export function useWebCommunityFormsGateway(params: {
   activeCommunityId: string | null; canManageMembers: boolean; session: AuthSession | null;
@@ -34,6 +36,7 @@ export function useWebCommunityFormsGateway(params: {
       responses: (membershipId: string) => run(s => listCloudCommunityFormResponses(s, communityId, membershipId)),
       courseProgress: (membershipId: string) => run(s => fetchCloudMemberProgressReport({ session: s, communityId, membershipId })),
       save: (form: CommunityFormDraft) => run(s => saveCloudCommunityForm(s, communityId, form)),
-      publish: (form: CommunityFormDraft) => run(s => publishCloudCommunityForm(s, communityId, form)) };
+      publish: (form: CommunityFormDraft) => run(s => publishCloudCommunityForm(s, communityId, form)),
+      clientProperties: () => run(s => listCloudCommunityClientProperties(s, communityId)) };
   }, [params.activeCommunityId, params.canManageMembers, params.session, params.ensureSession]);
 }

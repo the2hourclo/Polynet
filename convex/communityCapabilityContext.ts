@@ -1169,6 +1169,7 @@ export const readCommunitySemanticRepositoryInternal = internalAction({
           offset: payload.content?.offset,
           totalChars: payload.content?.total_chars,
           truncated: payload.content?.truncated,
+          sections: Array.isArray(payload.content?.sections) ? payload.content.sections : null,
           lesson: payload.resource?.lesson ?? null,
           lessonBody: payload.lesson_body ?? null,
         },

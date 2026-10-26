@@ -1,7 +1,9 @@
 export type SettingsPage =
   | "profile"
   | "account"
+  | "memberships"
   | "billing"
+  | "apps"
   | "appearance";
 
 export type SettingsGroup = SettingsPage;
@@ -48,16 +50,30 @@ export const COMMUNITY_TABS = [
   "agent",
   "resources",
   "events",
+  "members",
+  "about",
   "settings",
   "workflows",
+  "funnels",
   "analytics",
 ] as const;
 
 export type CommunityTab = (typeof COMMUNITY_TABS)[number];
 
+// Tabs drawn by the community chat surface: Members is the chat's member list
+// shown as a page, so it loads the same channel, directory and presence.
+export function isCommunityChatBackedTab(tab: CommunityTab): boolean {
+  return tab === "chat" || tab === "members";
+}
+
 export const COMMUNITY_SETTINGS_PANES = [
   "community",
+  "sales_page",
+  "offers",
+  "appearance",
   "agent",
+  "creators",
+  "access",
   "danger",
 ] as const;
 
@@ -66,6 +82,7 @@ export type CommunitySettingsPane = (typeof COMMUNITY_SETTINGS_PANES)[number];
 const COMMUNITY_ROUTE_MANAGED_TAB_SET: ReadonlySet<CommunityTab> = new Set([
   "settings",
   "workflows",
+  "funnels",
   "analytics",
 ]);
 
@@ -87,6 +104,7 @@ export function isCommunityTabAllowedForAccess(
     case "settings":
       return access.canViewSettings;
     case "workflows":
+    case "funnels":
       return access.canManageMembers;
     case "analytics":
       return access.canViewAnalytics;
@@ -94,6 +112,8 @@ export function isCommunityTabAllowedForAccess(
     case "agent":
     case "resources":
     case "events":
+    case "members":
+    case "about":
       return true;
   }
 }
@@ -131,10 +151,16 @@ export function parseCommunityTab(
       return "workflows";
     case "agent":
       return "agent";
+    case "members":
+      return "members";
+    case "about":
+      return "about";
     case "ai_agent":
       return "settings";
     case "funnel":
-      return "settings";
+    case "funnels":
+    case "site":
+      return "funnels";
     case "analytics":
       return "analytics";
     default:
@@ -151,6 +177,23 @@ export function parseCommunitySettingsPane(
       return "agent";
     case "danger":
       return "danger";
+    case "sales_page":
+    case "sales-page":
+    case "sales":
+      return "sales_page";
+    // "look" is the pane's earlier name; old links still open it.
+    case "appearance":
+    case "look":
+      return "appearance";
+    case "access":
+      return "access";
+    case "creators":
+    case "co-creators":
+      return "creators";
+    case "offers":
+    case "plans":
+    case "tiers":
+      return "offers";
     case "community":
     default:
       return "community";
@@ -172,6 +215,21 @@ export function isCommunitySettingsPaneAllowedForAccess(
     case "community":
       return access.canViewSettings;
     case "agent":
+      return access.canManageMembers;
+    // The public page: its layout draft and funnel copy are managers' to edit.
+    case "sales_page":
+      return access.canManageMembers;
+    // Fonts, sizing and colours: the theme draft, which managers may edit.
+    case "appearance":
+      return access.canManageMembers;
+    // Connected services (such as the AIEB MCP) and access given by hand.
+    case "access":
+      return access.canManageMembers;
+    // Who builds the community with its owner; only the owner changes it.
+    case "creators":
+      return access.canManageMembers;
+    // The packages the community sells; the owner changes them, managers see them.
+    case "offers":
       return access.canManageMembers;
     case "danger":
       return access.isOwner;
@@ -204,9 +262,13 @@ export function settingsGroupLabel(group: SettingsGroup): string {
       return "Profile";
     case "account":
       return "Account";
+    case "memberships":
+      return "Memberships";
     case "billing":
       return "Billing";
+    case "apps":
+      return "Connected apps";
     case "appearance":
-      return "Appearance";
+      return "Display";
   }
 }

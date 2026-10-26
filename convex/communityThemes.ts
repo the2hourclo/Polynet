@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import {
   DEFAULT_COMMUNITY_THEME,
@@ -121,7 +121,60 @@ export const getCommunityThemeDraft = query({
   },
 });
 
-/** Replaces the draft. An invalid theme is rejected with every problem and, for contrast, a colour that passes. */
+export async function saveDraft(ctx: any, args: { userId: any; communityId: any; expectedDraftRevision: number; theme: unknown }) {
+  const result = normalizeCommunityTheme(args.theme);
+  if (!result.ok) {
+    throw new ConvexError({ code: "community_theme_invalid", problems: result.problems });
+  }
+  const row = await getThemeRow(ctx, args.communityId);
+  requireExpectedRevision(row, args.expectedDraftRevision);
+  if (row && sameTheme(readStoredTheme(row.draftTheme) ?? DEFAULT_COMMUNITY_THEME, result.theme)) {
+    return managerProjection(row);
+  }
+  const now = Date.now();
+  const draftRevision = (row?.draftRevision ?? 0) + 1;
+  if (row) {
+    await ctx.db.patch(row._id, {
+      draftTheme: result.theme,
+      draftRevision,
+      draftUpdatedAt: now,
+      draftUpdatedByUserId: args.userId,
+      updatedAt: now,
+    });
+  } else {
+    await ctx.db.insert("communityThemes", {
+      communityId: args.communityId,
+      draftTheme: result.theme,
+      draftRevision,
+      draftUpdatedAt: now,
+      draftUpdatedByUserId: args.userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  return managerProjection(await getThemeRow(ctx, args.communityId));
+}
+
+async function publishDraft(ctx: any, args: { userId: any; communityId: any; expectedDraftRevision: number }) {
+  const row = await getThemeRow(ctx, args.communityId);
+  if (!row) throw new ConvexError({ code: "community_theme_no_draft" });
+  requireExpectedRevision(row, args.expectedDraftRevision);
+  const draft = readStoredTheme(row.draftTheme) ?? DEFAULT_COMMUNITY_THEME;
+  const published = readStoredTheme(row.publishedTheme);
+  if (!published || !sameTheme(draft, published)) {
+    const now = Date.now();
+    await ctx.db.patch(row._id, {
+      publishedTheme: draft,
+      publishedDraftRevision: row.draftRevision,
+      publishedAt: now,
+      publishedByUserId: args.userId,
+      updatedAt: now,
+    });
+  }
+  return managerProjection(await getThemeRow(ctx, args.communityId));
+}
+
+/** Replaces the draft. An invalid theme is rejected with every problem and, for contrast, a colour that passes. Saving the same theme again changes nothing. */
 export const saveCommunityThemeDraft = mutation({
   args: {
     userId: v.optional(v.id("users")),
@@ -132,34 +185,7 @@ export const saveCommunityThemeDraft = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireManager({ ctx, userId: args.userId, authSubject: args.authSubject, communityId: args.communityId });
-    const result = normalizeCommunityTheme(args.theme);
-    if (!result.ok) {
-      throw new ConvexError({ code: "community_theme_invalid", problems: result.problems });
-    }
-    const row = await getThemeRow(ctx, args.communityId);
-    requireExpectedRevision(row, args.expectedDraftRevision);
-    const now = Date.now();
-    const draftRevision = (row?.draftRevision ?? 0) + 1;
-    if (row) {
-      await ctx.db.patch(row._id, {
-        draftTheme: result.theme,
-        draftRevision,
-        draftUpdatedAt: now,
-        draftUpdatedByUserId: userId,
-        updatedAt: now,
-      });
-    } else {
-      await ctx.db.insert("communityThemes", {
-        communityId: args.communityId,
-        draftTheme: result.theme,
-        draftRevision,
-        draftUpdatedAt: now,
-        draftUpdatedByUserId: userId,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-    return managerProjection(await getThemeRow(ctx, args.communityId));
+    return await saveDraft(ctx, { userId, communityId: args.communityId, expectedDraftRevision: args.expectedDraftRevision, theme: args.theme });
   },
 });
 
@@ -173,22 +199,7 @@ export const publishCommunityThemeDraft = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireManager({ ctx, userId: args.userId, authSubject: args.authSubject, communityId: args.communityId });
-    const row = await getThemeRow(ctx, args.communityId);
-    if (!row) throw new ConvexError({ code: "community_theme_no_draft" });
-    requireExpectedRevision(row, args.expectedDraftRevision);
-    const draft = readStoredTheme(row.draftTheme) ?? DEFAULT_COMMUNITY_THEME;
-    const published = readStoredTheme(row.publishedTheme);
-    if (!published || !sameTheme(draft, published)) {
-      const now = Date.now();
-      await ctx.db.patch(row._id, {
-        publishedTheme: draft,
-        publishedDraftRevision: row.draftRevision,
-        publishedAt: now,
-        publishedByUserId: userId,
-        updatedAt: now,
-      });
-    }
-    return managerProjection(await getThemeRow(ctx, args.communityId));
+    return await publishDraft(ctx, { userId, communityId: args.communityId, expectedDraftRevision: args.expectedDraftRevision });
   },
 });
 
@@ -217,5 +228,62 @@ export const discardCommunityThemeDraft = mutation({
       });
     }
     return managerProjection(await getThemeRow(ctx, args.communityId));
+  },
+});
+
+// The same draft and publish steps for a founder's own agent or `polynet dev`,
+// through the MCP (convex/polynetCanonicalExecutor.ts). Refusals come back as
+// values so the agent can read the problems and correct the theme.
+
+type BuilderThemeResult =
+  | { ok: true; theme: ReturnType<typeof managerProjection> }
+  | { ok: false; code: string; message: string; problems?: unknown; current_revision?: number };
+
+function builderThemeRefusal(error: unknown): BuilderThemeResult {
+  const data = error instanceof ConvexError ? (error.data as Record<string, unknown>) : null;
+  if (data?.code === "community_theme_invalid") {
+    return { ok: false, code: "theme_invalid", message: "The theme breaks the design contract. Fix each problem and save again.", problems: data.problems };
+  }
+  if (data?.code === "community_theme_revision_conflict") {
+    return { ok: false, code: "theme_revision_conflict",
+      message: "The draft changed since you read it. Read the theme again and redo your change on top.",
+      current_revision: data.currentRevision as number };
+  }
+  if (data?.code === "community_theme_no_draft") {
+    return { ok: false, code: "theme_no_draft", message: "There is no draft to publish yet. Save one first." };
+  }
+  throw error;
+}
+
+export const readBuilderThemeInternal = internalQuery({
+  args: { userId: v.id("users"), communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+    const row = await getThemeRow(ctx, args.communityId);
+    return { ...managerProjection(row), publishedDraftRevision: row?.publishedDraftRevision ?? null };
+  },
+});
+
+export const saveBuilderThemeDraftInternal = internalMutation({
+  args: { userId: v.id("users"), communityId: v.id("communities"), expectedDraftRevision: v.number(), theme: v.any() },
+  handler: async (ctx, args): Promise<BuilderThemeResult> => {
+    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+    try {
+      return { ok: true, theme: await saveDraft(ctx, args) };
+    } catch (error) {
+      return builderThemeRefusal(error);
+    }
+  },
+});
+
+export const publishBuilderThemeDraftInternal = internalMutation({
+  args: { userId: v.id("users"), communityId: v.id("communities"), expectedDraftRevision: v.number() },
+  handler: async (ctx, args): Promise<BuilderThemeResult> => {
+    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+    try {
+      return { ok: true, theme: await publishDraft(ctx, args) };
+    } catch (error) {
+      return builderThemeRefusal(error);
+    }
   },
 });

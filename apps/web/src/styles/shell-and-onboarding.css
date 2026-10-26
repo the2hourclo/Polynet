@@ -93,8 +93,9 @@ body {
   cursor: pointer;
   color: var(--text-secondary);
   text-decoration: none;
-  font-family: var(--font-mono);
+  font-family: inherit;
   font-size: 14px;
+  font-weight: 500;
   transition: background 0.15s, color 0.15s;
 }
 
@@ -115,6 +116,7 @@ body {
 }
 
 .back-to-workspace .back-path {
+  text-transform: capitalize;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -458,10 +460,12 @@ body {
   inset: 0 0 -18px;
   z-index: 0;
   pointer-events: none;
+  /* Strong enough at rest for the white name and icons to stay readable on
+     a light banner or one with its own lettering. */
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.05) 0%,
-    rgba(0, 0, 0, 0.015) 58%,
+    rgba(0, 0, 0, 0.58) 0%,
+    rgba(0, 0, 0, 0.38) 56%,
     rgba(0, 0, 0, 0) 100%
   );
 }
@@ -481,6 +485,15 @@ body {
 .community-nav-identity.has-banner:not(.is-condensed) > * {
   position: relative;
   z-index: 1;
+}
+
+.community-nav-identity.has-banner:not(.is-condensed)::before {
+  opacity: var(--pn-banner-scrim, 1);
+}
+
+/* A theme with banner_name "hide": the banner already shows the name. */
+.community-nav-identity.has-banner:not(.is-condensed) .community-nav-identity-name {
+  visibility: var(--pn-banner-name, visible);
 }
 
 .community-nav-identity.has-banner:not(.is-condensed):hover::after,
