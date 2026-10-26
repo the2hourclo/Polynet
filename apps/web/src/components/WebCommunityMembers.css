@@ -197,3 +197,4 @@
 .pn-members-table tbody tr.pn-members-grouprow td { position: static; height: auto; padding-block: 0.375rem; background: color-mix(in srgb, var(--text-primary) 4%, transparent); color: var(--text-secondary); font-size: 0.75rem; font-weight: 650; cursor: default; }
 .pn-members-grouprow .pn-members-count { margin-left: 0.5rem; font-weight: 500; }
 .pn-members-table .access-badge { max-width: none; overflow: visible; }
+.pn-members-system-value { color: var(--text-secondary); white-space: nowrap; }

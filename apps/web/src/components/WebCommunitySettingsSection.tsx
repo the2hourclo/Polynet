@@ -19,6 +19,7 @@ import { StripeSetupButton } from "./StripeSetupButton";
 import { WebCommunityAiAgentSection } from "./WebCommunityAiAgentSection";
 import { WebCommunityAgentProfileCard } from "./WebCommunityAgentProfileCard";
 import { WebCommunityAppearanceSettings } from "./WebCommunityAppearanceSettings";
+import { WebCommunityOffersSettings } from "./WebCommunityOffersSettings";
 import { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
 import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
 import { WebCommunitySettingProposals } from "./WebCommunitySettingProposals";
@@ -160,6 +161,7 @@ type SharedSettingsProps = Pick<WebCommunitySettingsSectionProps, "state" | "act
 const PANE_TITLES: Record<CommunitySettingsPane, string> = {
   community: "General",
   sales_page: "Sales page",
+  offers: "Offers",
   appearance: "Appearance",
   agent: "Agent",
   creators: "Creators",
@@ -1103,6 +1105,15 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
                   communityName={String(resolvedActiveCommunity.name ?? "")}
                 />
               ) : null}
+            />
+          ) : null}
+          {selectedSettingsPane === "offers" && resolvedActiveCommunity ? (
+            <WebCommunityOffersSettings
+              key={resolvedActiveCommunity.id}
+              communityId={resolvedActiveCommunity.id}
+              session={props.session}
+              isOwner={isOwnerSettingsLayer}
+              onOpenPricing={() => selectAnchor("settings-access")}
             />
           ) : null}
           {selectedSettingsPane === "creators" && resolvedActiveCommunity ? (

@@ -103,6 +103,19 @@ function AccessCard(props: { title: string; description?: ReactNode; className?:
   </section>;
 }
 
+/** The offers access can be given for, lowest first; empty while loading or when the community sells one. */
+function useCommunityOfferOptions(gateway: CommunityAccessGateway): Array<{ key: string; name: string }> {
+  const [offers, setOffers] = useState<Array<{ key: string; name: string }>>([]);
+  useEffect(() => {
+    let alive = true;
+    gateway.offers()
+      .then((result) => { if (alive) setOffers(result.offers.filter((offer) => !offer.archived).map((offer) => ({ key: offer.key, name: offer.name }))); })
+      .catch(() => { if (alive) setOffers([]); });
+    return () => { alive = false; };
+  }, [gateway]);
+  return offers;
+}
+
 /** End date (or none) and a reason; with an email when the person isn't picked yet. */
 export function GrantForm(props: {
   withEmail?: boolean;
@@ -110,22 +123,34 @@ export function GrantForm(props: {
   initialReason?: string;
   submitLabel: string;
   busy: boolean;
-  onSubmit: (input: { email?: string; endsAt: string | null; reason: string }) => Promise<boolean>;
+  /** The community's offers, when it sells more than one; access is then for one of them. */
+  offers?: Array<{ key: string; name: string }>;
+  initialOfferKey?: string | null;
+  onSubmit: (input: { email?: string; endsAt: string | null; reason: string; offerKey?: string | null }) => Promise<boolean>;
   onCancel?: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [noEnd, setNoEnd] = useState(props.initialEndsAt === null && props.initialReason !== undefined);
   const [endsAt, setEndsAt] = useState(props.initialEndsAt ? props.initialEndsAt.slice(0, 10) : dateInputValue(Date.now() + 30 * DAY_MS));
   const [reason, setReason] = useState(props.initialReason ?? "");
+  const offers = props.offers ?? [];
+  const [offerKey, setOfferKey] = useState(props.initialOfferKey ?? offers[0]?.key ?? "");
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const done = await props.onSubmit({ ...(props.withEmail ? { email: email.trim() } : {}), endsAt: noEnd ? null : endsAt, reason: reason.trim() });
+    const done = await props.onSubmit({ ...(props.withEmail ? { email: email.trim() } : {}), endsAt: noEnd ? null : endsAt, reason: reason.trim(),
+      ...(offers.length > 1 ? { offerKey: offerKey || null } : {}) });
     if (done && props.withEmail) { setEmail(""); setReason(""); }
   };
   return <form className="access-grant-form" onSubmit={submit}>
     {props.withEmail ? <label className="access-field">
       <span>Email</span>
       <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="dean@example.com" autoComplete="off" />
+    </label> : null}
+    {offers.length > 1 ? <label className="access-field">
+      <span>Offer</span>
+      <select value={offerKey || offers[0]!.key} onChange={(event) => setOfferKey(event.target.value)}>
+        {offers.map((offer) => <option key={offer.key} value={offer.key}>{offer.name}</option>)}
+      </select>
     </label> : null}
     <div className="access-field-row">
       <label className="access-field">
@@ -166,6 +191,7 @@ export function WebCommunityClientAccessPanel(props: { gateway: CommunityAccessG
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const offers = useCommunityOfferOptions(gateway);
   useEffect(() => {
     let alive = true;
     setState((previous) => (previous === "ready" ? "ready" : "loading"));
@@ -211,9 +237,10 @@ export function WebCommunityClientAccessPanel(props: { gateway: CommunityAccessG
       <h4>Access you give by hand</h4>
       {paying ? <p className="access-muted">They pay through a plan, so their access follows the plan. Change or cancel it in billing.</p>
         : grant ? <>
-          <p>“{grant.reason}”, given {day(grant.granted_at)}{grant.granted_via === "agent" ? " by the agent" : ""}. {grant.ends_at ? `Ends ${day(grant.ends_at)}.` : "No end date."}</p>
+          <p>“{grant.reason}”, given {day(grant.granted_at)}{grant.granted_via === "agent" ? " by the agent" : ""}. {grant.ends_at ? `Ends ${day(grant.ends_at)}.` : "No end date."}
+            {offers.length > 1 ? ` Offer: ${offers.find((offer) => offer.key === grant.offer_key)?.name ?? offers[0]!.name}.` : ""}</p>
           {!editing && !confirmEnd ? <div className="access-actions">
-            <button type="button" className="workflow-secondary-button" onClick={() => setEditing(true)}>Change end date</button>
+            <button type="button" className="workflow-secondary-button" onClick={() => setEditing(true)}>{offers.length > 1 ? "Change offer or end date" : "Change end date"}</button>
             <button type="button" className="workflow-secondary-button access-danger" onClick={() => setConfirmEnd(true)}>End access now</button>
           </div> : null}
         </>
@@ -222,8 +249,9 @@ export function WebCommunityClientAccessPanel(props: { gateway: CommunityAccessG
           {!editing ? <div className="access-actions"><button type="button" className="workflow-secondary-button" onClick={() => setEditing(true)}><Plus size={14} aria-hidden="true" />Give access</button></div> : null}
         </>}
       {editing ? <GrantForm key={grant?.id ?? "new"} initialEndsAt={grant ? grant.ends_at : undefined} initialReason={grant?.reason}
+        offers={offers} initialOfferKey={grant?.offer_key ?? null}
         submitLabel={grant ? "Save" : "Give access"} busy={busy} onCancel={() => setEditing(false)}
-        onSubmit={(input) => act(() => gateway.grant({ membershipId, endsAt: input.endsAt, reason: input.reason }))} /> : null}
+        onSubmit={(input) => act(() => gateway.grant({ membershipId, endsAt: input.endsAt, reason: input.reason, offerKey: input.offerKey }))} /> : null}
       {confirmEnd ? <div className="access-confirm" role="alertdialog" aria-label="End access now">
         <p>End their access now? They lose the community, courses and every connected service right away.</p>
         <div className="access-actions">
@@ -487,6 +515,7 @@ export function WebCommunityAccessSettings({ gateway }: { gateway: CommunityAcce
   const [error, setError] = useState<string | null>(null);
   const [secrets, setSecrets] = useState<{ title: string; apiKey?: string; signingSecret?: string } | null>(null);
   const [granting, setGranting] = useState(false);
+  const offers = useCommunityOfferOptions(gateway);
   const [grantError, setGrantError] = useState<string | null>(null);
   const [grantNotice, setGrantNotice] = useState<string | null>(null);
   useEffect(() => {
@@ -525,10 +554,10 @@ export function WebCommunityAccessSettings({ gateway }: { gateway: CommunityAcce
       For a trial, a comp or a partner. They need a Polynet account with a verified email. Access ends on the date you pick and
       connected services hear about it. Change or end it later from their row in Workflows → Clients.
     </>}>
-      <GrantForm withEmail submitLabel="Give access" busy={granting} onSubmit={async (input) => {
+      <GrantForm withEmail submitLabel="Give access" busy={granting} offers={offers} onSubmit={async (input) => {
         setGranting(true); setGrantError(null); setGrantNotice(null);
         try {
-          await gateway.grant({ email: input.email, endsAt: input.endsAt, reason: input.reason });
+          await gateway.grant({ email: input.email, endsAt: input.endsAt, reason: input.reason, offerKey: input.offerKey });
           setGrantNotice(`Gave ${input.email} access${input.endsAt ? ` until ${day(`${input.endsAt}T12:00:00Z`)}` : ""}.`);
           return true;
         } catch (caught) { setGrantError(communityAccessErrorMessage(caught)); return false; } finally { setGranting(false); }

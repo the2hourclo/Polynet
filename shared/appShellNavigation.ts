@@ -69,6 +69,7 @@ export function isCommunityChatBackedTab(tab: CommunityTab): boolean {
 export const COMMUNITY_SETTINGS_PANES = [
   "community",
   "sales_page",
+  "offers",
   "appearance",
   "agent",
   "creators",
@@ -189,6 +190,10 @@ export function parseCommunitySettingsPane(
     case "creators":
     case "co-creators":
       return "creators";
+    case "offers":
+    case "plans":
+    case "tiers":
+      return "offers";
     case "community":
     default:
       return "community";
@@ -222,6 +227,9 @@ export function isCommunitySettingsPaneAllowedForAccess(
       return access.canManageMembers;
     // Who builds the community with its owner; only the owner changes it.
     case "creators":
+      return access.canManageMembers;
+    // The packages the community sells; the owner changes them, managers see them.
+    case "offers":
       return access.canManageMembers;
     case "danger":
       return access.isOwner;

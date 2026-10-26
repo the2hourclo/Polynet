@@ -419,6 +419,39 @@ BUILDER_SETTING_OPERATIONS.push(
   }),
 );
 
+// Offers (Settings › Offers): a ladder from the base membership up. The agent
+// reads /builder/offers.json. Prices and the ladder need the owner's Apply.
+BUILDER_SETTING_OPERATIONS.push(
+  proposal({
+    operation: "community.offer.save", area: "pricing", name: "Create or change an offer",
+    calls: "communityOffers:saveCommunityOffer", ref: api.communityOffers.saveCommunityOffer, kind: "mutation",
+    fields: {
+      key: "the offer's key from /builder/offers.json; leave out to create a new offer",
+      name: "what members see, like Consulting", blurb: "one line for the sales page, or null",
+      show_on_sales_page: "true lists it beside the other offers",
+      price: '{"billingPeriod":"monthly"|"annual","amountBaseUnits":<cents>} for a higher offer; the base offer\'s price is community.pricing.set',
+    },
+    required: ["name"], effects: ["save_offer"],
+  }),
+  proposal({
+    operation: "community.offer.reorder", area: "pricing", name: "Reorder the offer ladder",
+    calls: "communityOffers:reorderCommunityOffers", ref: api.communityOffers.reorderCommunityOffers, kind: "mutation",
+    fields: { keys: "offer keys, lowest first; the base offer always stays at the bottom" }, required: ["keys"], effects: ["reorder_offers"],
+  }),
+  proposal({
+    operation: "community.offer.archive", area: "pricing", name: "Stop or restart selling an offer",
+    calls: "communityOffers:setCommunityOfferArchived", ref: api.communityOffers.setCommunityOfferArchived, kind: "mutation",
+    fields: { key: "the offer's key", archived: "true stops selling it (members on it keep it); false sells it again" },
+    required: ["key", "archived"], effects: ["archive_offer"],
+  }),
+  op({
+    operation: "community.offer.channel_audience", area: "channels", name: "Who gets a private channel",
+    calls: "communityOffers:setCommunityChannelOfferAudience", ref: api.communityOffers.setCommunityChannelOfferAudience, kind: "mutation",
+    fields: { channel_id: "an invite-only channel from /builder/offers.json", offer_keys: "offers that get it (higher offers are included); [] for only people you add" },
+    required: ["channel_id", "offer_keys"], effects: ["set_channel_offer_audience"],
+  }),
+);
+
 // Writes the web app makes that are not an operation above, and why. A public
 // mutation or action the app calls that is in neither list fails the parity test.
 // Reasons start with one of: "agent path:" (another MCP path does it),
@@ -621,6 +654,8 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     workflow_templates: { path: "/builder/workflow-templates.json", available: ["agent_led_journey"] },
     // Skill tracks (the Roadmap's several roadmaps) live at /builder/tracks.json.
     tracks: { path: "/builder/tracks.json" },
+    // Offers and which private channels each one opens.
+    offers: { path: "/builder/offers.json" },
     // Workflows → Run history: the latest automation runs with their steps.
     workflow_runs: { path: "/builder/workflow-runs.json" },
     // Changes waiting for the owner's Apply, and recent outcomes.

@@ -10,6 +10,7 @@ import {
   Palette,
   Search,
   Settings2,
+  Tag,
   TriangleAlert,
   UserPlus,
   Users,
@@ -66,6 +67,9 @@ export function buildCommunitySettingsNav(params: {
       icon: <Megaphone {...ICON} />,
       keywords: "public page about funnel landing classroom pitch video vsl website join",
     });
+  }
+  if (has("offers")) {
+    top.push({ kind: "pane", pane: "offers", label: "Offers", icon: <Tag {...ICON} />, keywords: "offers packages tiers plans pricing consulting upgrade who gets this private channel" });
   }
   if (has("appearance")) {
     top.push({ kind: "pane", pane: "appearance", label: "Appearance", icon: <Palette {...ICON} />, keywords: "theme colours colors fonts look design customize brand" });

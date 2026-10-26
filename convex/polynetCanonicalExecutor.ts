@@ -135,6 +135,7 @@ const BUILDER_SETTINGS_PATH = "/builder/settings.json";
 const BUILDER_WORKFLOW_TEMPLATES_PATH = "/builder/workflow-templates.json";
 const BUILDER_WORKFLOW_RUNS_PATH = "/builder/workflow-runs.json";
 const BUILDER_TRACKS_PATH = "/builder/tracks.json";
+const BUILDER_OFFERS_PATH = "/builder/offers.json";
 const SETTING_OPERATIONS = BUILDER_SETTING_OPERATIONS.map(spec => spec.operation);
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
@@ -1391,6 +1392,7 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_TEMPLATES_PATH), kind: "document", type: "builder", name: "Workflow templates: ready-made stage plans (agent-led journey)" },
           { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_RUNS_PATH), kind: "document", type: "builder", name: "Run history: the latest automation runs, each with its steps, status and errors (Workflows → Run history)" },
           { path: mountedPath(target.communitySlug, BUILDER_TRACKS_PATH), kind: "document", type: "builder", name: "Skill tracks: the community's roadmaps, their stages, steps and opening rules" },
+          { path: mountedPath(target.communitySlug, BUILDER_OFFERS_PATH), kind: "document", type: "builder", name: "Offers: the ladder from the base membership up, prices, members on each, and which private channels each opens" },
           {
             path: mountedPath(
               target.communitySlug,
@@ -1648,6 +1650,15 @@ async function executeCanonicalRead(args: {
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     const payload = await args.ctx.runQuery(api.communityWorkflowRunHistory.listBuilderWorkflowRunHistory,
       { authSubject: args.authSubject, userId: args.userId, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_OFFERS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityOffers.listCommunityOffers,
+      { authSubject: args.authSubject, communityId: target.communityId });
     return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
       writable: false, searchable: false } };
   }

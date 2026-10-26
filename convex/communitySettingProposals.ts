@@ -53,6 +53,17 @@ const FIELD_LABELS: Record<string, { label: string; value?: (value: unknown) => 
   acknowledgeHistoryExposure: { label: "Past posts", value: value => value ? "Become visible to the new audience" : "Stay hidden" },
   role: { label: "New role", value: value => typeof value === "string" ? value[0].toUpperCase() + value.slice(1) : show(value) },
   reason: { label: "Reason" },
+  // Offers and skill tracks.
+  key: { label: "Which one" },
+  name: { label: "Offer name" },
+  blurb: { label: "Sales page line", value: value => value ? show(value) : "None" },
+  showOnSalesPage: { label: "On the sales page", value: value => value ? "Shown" : "Hidden" },
+  price: { label: "Price", value: value => {
+    const price = value as { amountBaseUnits?: number; billingPeriod?: string } | null;
+    return price ? `${money(price.amountBaseUnits)} a ${price.billingPeriod === "annual" ? "year" : "month"}` : "None";
+  } },
+  keys: { label: "New order", value: value => Array.isArray(value) ? value.join(", ") : show(value) },
+  archived: { label: "Change", value: value => value ? "Stop showing it (members keep what they have)" : "Bring it back" },
 };
 
 // What the owner reads on the card: names, not ids, where Polynet knows them.

@@ -2260,6 +2260,7 @@ export default function App() {
         onSaveWelcomePage: communityWorkflows.saveWelcomePage,
         onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
         onLoadTrackOptions: communityWorkflows.loadTrackOptions,
+        onLoadOfferOptions: communityWorkflows.loadOfferOptions,
         testRun: session && activeCommunityId && activeCommunity?.slug && canManageMembersActiveCommunity
           ? { communityId: activeCommunityId, communitySlug: activeCommunity.slug, session, ensureSession: ensureUsableAuthSession } : null,
         communityName: activeCommunity?.name ?? null,

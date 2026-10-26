@@ -77,6 +77,7 @@ export type WebCommunityWorkflowsSectionProps = {
   onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
   onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
   onLoadTrackOptions?: () => Promise<Array<{ key: string; title: string }>>;
+  onLoadOfferOptions?: () => Promise<Array<{ key: string; name: string }>>;
   /** Workflows → Test run: going through the community as a test member. */
   testRun?: WebCommunityTestRunContext | null;
   communityName?: string | null;
@@ -238,8 +239,9 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
     (props.onLoadWelcomeLessonOptions?.() ?? Promise.resolve([])).then(lessons => { if (alive) setCatalog(c => ({ ...c, lessons })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, lessons: [] })); });
     (props.forms?.clientProperties?.() ?? Promise.resolve([])).then(properties => { if (alive) setCatalog(c => ({ ...c, properties })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, properties: [] })); });
     (props.onLoadTrackOptions?.() ?? Promise.resolve([])).then(tracks => { if (alive) setCatalog(c => ({ ...c, tracks })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, tracks: [] })); });
+    (props.onLoadOfferOptions?.() ?? Promise.resolve([])).then(offers => { if (alive) setCatalog(c => ({ ...c, offers })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, offers: [] })); });
     return () => { alive = false; };
-  }, [props.forms, props.onLoadWelcomeLessonOptions, props.onLoadTrackOptions]);
+  }, [props.forms, props.onLoadWelcomeLessonOptions, props.onLoadTrackOptions, props.onLoadOfferOptions]);
   const [editingMilestoneKey, setEditingMilestoneKey] = useState<string | null>(null);
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
   const milestones = props.board?.milestones ?? [BLANK_MILESTONE];

@@ -650,6 +650,7 @@ const modules = import.meta.glob([
   "./communityResources.ts",
   "./communityResourceProgress.ts",
   "./communityLessonTracks.ts",
+  "./communityOffers.ts",
   "./communityWorkflowRunHistory.ts",
   "./communityClients.ts",
   "./communityThemes.ts",
@@ -4455,6 +4456,47 @@ test("an owner's agent reads and saves skill tracks through /builder/tracks.json
   expect(archived).toMatchObject({ kind: "community_setting_change_proposed", result: { status: "staged" } });
   expect((await tracks()).tracks).toHaveLength(1);
   await expect(tracks(member)).rejects.toThrow("semantic_not_found");
+});
+
+test("an owner's agent reads offers through /builder/offers.json and sets a private channel's offers", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const offers = async (call = owner) => JSON.parse((await call("polynet_read", { path: `/communities/${community}/builder/offers.json` })).body);
+  const change = (operation: string, input: Record<string, unknown>) => owner("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}` });
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  await asOwner.mutation(api.communityOffers.saveCommunityOffer, { authSubject: fixture.ownerSubject, communityId: fixture.communityId,
+    name: "Consulting", price: { billingPeriod: "monthly", amountBaseUnits: 50000 } });
+  const channelId = await t.run(async (ctx) => {
+    const now = Date.now();
+    return await ctx.db.insert("communityChannels", { communityId: fixture.communityId, slug: "consulting-calls", name: "consulting-calls",
+      accessMode: "restricted", postingPolicy: "members", status: "active", position: 99, createdAt: now, updatedAt: now });
+  });
+
+  expect(JSON.stringify(await owner("polynet_list", { path: `/communities/${community}/builder/` }))).toContain("/builder/offers.json");
+  const before = await offers();
+  expect(before).toMatchObject({ contract: "polynet.builder_offers.v1" });
+  expect(before.offers.map((offer: any) => offer.name)).toEqual(["Membership", "Consulting"]);
+  const consulting = before.offers.find((offer: any) => offer.name === "Consulting");
+  await change("community.offer.channel_audience", { channel_id: String(channelId), offer_keys: [consulting.key] });
+  expect((await offers()).channels).toEqual(expect.arrayContaining([expect.objectContaining({ id: String(channelId), offer_audience: [consulting.key] })]));
+  // Prices and the ladder wait for the owner's Apply.
+  const staged = await change("community.offer.save", { key: consulting.key, name: "Consulting", price: { billingPeriod: "monthly", amountBaseUnits: 90000 } });
+  expect(staged).toMatchObject({ kind: "community_setting_change_proposed", result: { status: "staged" } });
+  expect(staged.result.details).toEqual(expect.arrayContaining([{ label: "Price", value: "$900.00 a month" }]));
+  expect((await offers()).offers.find((offer: any) => offer.key === consulting.key).price).toMatchObject({ amount_base_units: 50000 });
+  await expect(offers(member)).rejects.toThrow("semantic_not_found");
 });
 
 test("hard-to-undo Settings changes are only proposed by the agent and happen when the owner taps Apply", async () => {

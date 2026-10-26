@@ -19,6 +19,8 @@ export type CloudCommunityAccessGrant = {
   granted_via: "web" | "agent";
   ended_at: string | null;
   ended_reason: string | null;
+  /** The offer this access is for (Settings › Offers); the base offer when null. */
+  offer_key?: string | null;
 };
 
 export type CloudCommunityLicenseKey = { last4: string; created_at: string | null; last_checked_at: string | null };
@@ -59,7 +61,9 @@ export type CloudCommunityClient = {
   properties?: Record<string, CommunityClientPropertyValue | null>;
 };
 
-export type CloudCommunityClientProperty = { key: string; name: string; type: CommunityClientPropertyType; options: string[]; position?: number };
+export type CloudCommunityClientProperty = { key: string; name: string; type: CommunityClientPropertyType; options: string[]; position?: number;
+  /** Kept by Polynet ("offer": the offers a member has), so it reads but never edits. */
+  system?: "offer" };
 
 export type CloudCommunityClientPage = {
   clients: CloudCommunityClient[];
@@ -243,12 +247,13 @@ export async function fetchCloudClientAccess(session: unknown, communityId: stri
 
 /** Give access by hand (or change its end date): to a client, or by verified email. */
 export async function grantCloudCommunityAccess(session: unknown, communityId: string, input: {
-  membershipId?: string; email?: string; endsAt: string | null; reason: string;
+  membershipId?: string; email?: string; endsAt: string | null; reason: string; offerKey?: string | null;
 }): Promise<{ membership_id: string; grant: CloudCommunityAccessGrant }> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return await client.mutation(api.communityAccess.grantCommunityAccess, {
     authSubject, communityId: community(communityId), reason: input.reason, endsAt: input.endsAt,
     ...(input.membershipId ? { membershipId: input.membershipId } : {}), ...(input.email ? { email: input.email } : {}),
+    ...(input.offerKey ? { offerKey: input.offerKey } : {}),
   }) as any;
 }
 
@@ -328,6 +333,7 @@ export function communityAccessErrorMessage(error: unknown): string {
     access_grant_owner: "You own this community, so you always have access.",
     access_grant_user_blocked: "This person is banned from the community.",
     access_grant_member_paying: "They're on a paid plan. Change or cancel it in billing first.",
+    access_grant_offer_unavailable: "That offer is archived or gone. Pick another in Settings › Offers.",
     access_grant_not_found: "There's no access you gave to end.",
     access_grant_reason_required: "Add a short reason, such as \"Trial\" or \"Comp for a podcast guest\".",
     access_grant_reason_too_long: "Keep the reason under 200 characters.",

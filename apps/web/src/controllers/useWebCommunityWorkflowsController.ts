@@ -32,6 +32,7 @@ import { withJourneyPropertyKey, type AgentLedJourneyPlan } from "../../../../sh
 import { ensureCloudCommunitySelectProperty } from "../../../../shared/cloudCommunityFormsGateway";
 import { listCloudCommunityResourceModuleRows, listCloudCommunityResourceRows } from "../../../../shared/cloudCommunityAdminGateway";
 import { fetchCloudCommunityLessonTracks } from "../../../../shared/cloudCommunityLessonTracksGateway";
+import { fetchCloudCommunityOffers } from "../../../../shared/cloudCommunityOffersGateway";
 import type { CommunityResource, CommunityResourceModule } from "../components/communityResourcesContracts";
 
 /** A lesson page in a live course, for welcome steps and lesson triggers. */
@@ -497,6 +498,14 @@ export function useWebCommunityWorkflowsController(params: {
     return result.tracks.map((track) => ({ key: track.key, title: track.title }));
   }, [params.activeCommunityId, params.ensureSession, params.session]);
 
+  // Offers a "When they start / leave an offer" rule can name (Settings › Offers).
+  const loadOfferOptions = useCallback(async (): Promise<Array<{ key: string; name: string }>> => {
+    const usableSession = params.activeCommunityId ? await params.ensureSession(params.session, "community_workflows_offers") : null;
+    if (!usableSession || !params.activeCommunityId) return [];
+    const result = await fetchCloudCommunityOffers({ session: usableSession, communityId: params.activeCommunityId });
+    return result.offers.filter((offer) => !offer.archived).map((offer) => ({ key: offer.key, name: offer.name }));
+  }, [params.activeCommunityId, params.ensureSession, params.session]);
+
   return {
     forms,
     access,
@@ -701,6 +710,7 @@ export function useWebCommunityWorkflowsController(params: {
         setCloudCommunityWelcomeDisplay({ session, communityId, expectedRevision: revision, display })),
     loadWelcomeLessonOptions,
     loadTrackOptions,
+    loadOfferOptions,
     saveWelcomePage: (page: CloudCommunityWelcomePageDraft) =>
       mutateMilestone("community_workflows_welcome_page", (session, communityId, revision) =>
         saveCloudCommunityWelcomePage({ session, communityId, expectedRevision: revision, page })),
