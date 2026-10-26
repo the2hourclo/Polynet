@@ -337,3 +337,6 @@
   :root[data-course-cards~="list"] [data-community-theme] .resource-course-card-lock { right: calc(2.75rem - 0.9375rem); }
   :root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-main { min-height: 15rem; aspect-ratio: 4 / 3; }
 }
+
+/* A cover-less course in Overlay: the letter sits above the words' dark wash. */
+:root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-cover-initial { transform: translateY(-30%); }

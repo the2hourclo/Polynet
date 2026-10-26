@@ -9870,13 +9870,39 @@ button.chat-reply-quote:hover {
   color: var(--text-faint);
 }
 
-/* A course without a cover gets a tint of the accent (its name is already
-   right below), so the catalog never shows a grey placeholder icon. */
+/* A course without a cover gets a soft gradient in the community's colours
+   (accent and button, over the card surface) with its first letter set in the
+   heading font. The card picks the angle and glow positions per course. */
 .resource-course-card-cover-fallback {
+  --cover-accent: var(--pn-accent, var(--accent-brand));
+  --cover-second: var(--pn-button, var(--accent-primary, var(--accent-brand)));
+  --cover-surface: var(--pn-surface, var(--bg-card));
+  position: relative;
   align-self: stretch;
   justify-self: stretch;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  container-type: size;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent-brand) 16%, var(--bg-card)), color-mix(in srgb, var(--accent-brand) 4%, var(--bg-card)));
+    radial-gradient(circle at var(--cover-glow-a-x, 20%) var(--cover-glow-a-y, 25%), color-mix(in srgb, var(--cover-accent) 60%, transparent), transparent 60%),
+    radial-gradient(circle at var(--cover-glow-b-x, 80%) var(--cover-glow-b-y, 75%), color-mix(in srgb, var(--cover-second) 45%, transparent), transparent 55%),
+    linear-gradient(var(--cover-angle, 135deg), color-mix(in srgb, var(--cover-accent) 30%, var(--cover-surface)), color-mix(in srgb, var(--cover-accent) 6%, var(--cover-surface)));
+  /* Where relative colours work, each course also leans its glows a little
+     around the accent's hue, so a row of covers isn't one flat green. */
+  background:
+    radial-gradient(circle at var(--cover-glow-a-x, 20%) var(--cover-glow-a-y, 25%), oklch(from var(--cover-accent) l c calc(h + var(--cover-hue, 0)) / 0.62), transparent 60%),
+    radial-gradient(circle at var(--cover-glow-b-x, 80%) var(--cover-glow-b-y, 75%), oklch(from var(--cover-second) l c calc(h - var(--cover-hue, 0)) / 0.45), transparent 55%),
+    linear-gradient(var(--cover-angle, 135deg), color-mix(in srgb, var(--cover-accent) 30%, var(--cover-surface)), color-mix(in srgb, var(--cover-accent) 6%, var(--cover-surface)));
+}
+.resource-course-card-cover-initial {
+  font-family: var(--pn-font-heading, inherit);
+  font-weight: var(--pn-heading-weight, 600);
+  font-size: min(4.5rem, 44cqh);
+  line-height: 1;
+  color: var(--pn-text, var(--text-primary));
+  opacity: 0.55;
+  user-select: none;
 }
 
 .resource-course-card-cover-image {

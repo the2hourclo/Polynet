@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { StableFramedMedia } from "../../../../shared/StableFramedMedia";
+import { courseCoverFallback } from "../../../../shared/courseCoverFallback";
 import type { CommunityThemeV1 } from "../../../../shared/communityTheme";
 import type { CommunityResourceModule } from "./communityResourcesContracts";
 
@@ -104,6 +105,7 @@ function ResourceCourseCard(props: {
     onDragEnd,
   } = props;
   const { module, lessonCount, progress } = item;
+  const coverFallback = courseCoverFallback(module.id, module.name);
   const lockedReason = progress?.lockedReason?.trim() || null;
   const percent = progress && progress.total > 0
     ? Math.min(100, Math.round((progress.done / progress.total) * 100))
@@ -203,7 +205,9 @@ function ResourceCourseCard(props: {
             zoom: module.banner_zoom,
           }}
           alt=""
-          fallback={<span className="resource-course-card-cover-fallback" aria-hidden="true" />}
+          fallback={<span className="resource-course-card-cover-fallback" style={coverFallback.style} aria-hidden="true">
+            {coverFallback.initial ? <span className="resource-course-card-cover-initial">{coverFallback.initial}</span> : null}
+          </span>}
           loading="lazy"
           fetchPriority="low"
           aria-hidden
