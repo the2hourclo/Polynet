@@ -101,8 +101,11 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
             (event.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
           }}>
           <span className="community-welcome-choice-mark" aria-hidden="true">{picked === index ? <Check size={14} /> : null}</span>
-          <strong>{item.label}</strong>
-          {item.hint ? <small>{item.hint}</small> : null}
+          {item.icon ? <span className="community-welcome-choice-icon" aria-hidden="true"><img src={item.icon} alt="" /></span> : null}
+          <span className="community-welcome-choice-text">
+            <strong>{item.label}</strong>
+            {item.hint ? <small>{item.hint}</small> : null}
+          </span>
         </button>
       ))}
     </div>
