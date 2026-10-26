@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
-import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
@@ -106,10 +105,12 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
       ? { communityId: context.communityId, session: context.session as AuthSession, ensureSession: context.ensureSession }
       : null,
   }), [progress, embedStorage, context.session, context.communityId, context.ensureSession, context.requireSignIn]);
-  const tabs: { id: KnowledgeView; label: string }[] = [
-    { id: "resources", label: "Resources" },
-    ...(hasBoard ? [{ id: "board" as const, label: "Roadmap" }] : []),
-    ...(context.canViewGraph ? [{ id: "graph" as const, label: "Graph" }] : []),
+  // The views are chips, like the channel chips in Classroom.
+  const chip = "community-category-chip";
+  const tabs: { id: KnowledgeView; label: string; buttonClassName: string }[] = [
+    { id: "resources", label: "Resources", buttonClassName: chip },
+    ...(hasBoard ? [{ id: "board" as const, label: "Roadmap", buttonClassName: chip }] : []),
+    ...(context.canViewGraph ? [{ id: "graph" as const, label: "Graph", buttonClassName: chip }] : []),
   ];
   const graph = useWebCommunityPolynetController({
     activePage: "community",
@@ -135,7 +136,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
           onSelectTab={setView}
           ariaLabel="Knowledge view"
           idPrefix="community-knowledge"
-          style={buildPlatformSwitcherStyle(tabs.length, tabs.findIndex((tab) => tab.id === activeView))}
+          className="community-knowledge-views"
         />
       </div>
       <div hidden={activeView !== "resources"} role="tabpanel" id={platformTabPanelId("community-knowledge", "resources")} aria-labelledby={platformTabId("community-knowledge", "resources")}>

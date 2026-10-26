@@ -21,7 +21,7 @@
 .community-knowledge-page .feed-header-row { flex-wrap: wrap; min-width: 0; }
 @media (max-width: 640px) {
   .community-knowledge-header { flex-wrap: wrap; gap: 12px; padding: 20px 16px 0; }
-  .community-knowledge-header .platform-switcher { flex: 1 1 100%; min-width: 0; }
+  .community-knowledge-header .community-knowledge-views { flex: 1 1 100%; min-width: 0; }
   .community-knowledge-page .resources-panel { padding-inline: 16px; }
   /* On phones the switcher stays above the lesson, in the normal flow. */
   /* While reading, the switcher is the header's first row, so it leaves room on
@@ -43,3 +43,8 @@
   .community-knowledge-page[data-reading] .community-knowledge-header,
   .community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .community-knowledge-header { padding: 56px 16px 0; }
 }
+/* Resources · Roadmap · Graph as chips, the same as the channel chips in Classroom:
+   separate rounded pills, the active one filled with the text colour. */
+.community-knowledge-views { display: flex; flex-wrap: wrap; gap: 8px; }
+.community-knowledge-views .community-category-chip.is-active { background: var(--text-primary); color: var(--bg-workspace); }
+.community-knowledge-views .community-category-chip:focus-visible { outline: 2px solid var(--focus-ring, var(--accent-brand)); outline-offset: 2px; }
