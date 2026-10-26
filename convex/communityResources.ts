@@ -3305,13 +3305,16 @@ async function listResourceDirectoryLivePageResources(
   ctx: any,
   communityId: any,
   liveModuleIds: Set<string>,
+  readerUserId: any,
 ): Promise<CommunityResourceLike[]> {
   const rows = (await ctx.db
     .query("communityResources" as any)
     .withIndex("by_community", (q: any) => q.eq("communityId", communityId))
     .take(COMMUNITY_RESOURCE_DIRECTORY_TOOL_SCAN_LIMIT)) as CommunityResourceLike[];
+  // A member's agent can't list or read lessons sold in a track they don't have.
+  const paid = await readCommunityPaidLockedLessonIds(ctx, communityId, readerUserId);
   return rows
-    .filter((row) => communityResourceIsLiveModulePage(row, liveModuleIds))
+    .filter((row) => communityResourceIsLiveModulePage(row, liveModuleIds) && !paid.has(normalizeIdValue(row._id)))
     .sort(compareCommunityResources);
 }
 
@@ -4243,7 +4246,7 @@ export const listCommunityResourceDirectoryInternal = internalQuery({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireCommunityResourceDirectoryToolAccess({
+    const readerUserId = await requireCommunityResourceDirectoryToolAccess({
       ctx,
       userId: args.userId,
       authSubject: args.authSubject ?? null,
@@ -4253,7 +4256,7 @@ export const listCommunityResourceDirectoryInternal = internalQuery({
     const path = String(args.path ?? "/").trim() || "/";
     const modules = await listResourceDirectoryLiveModules(ctx, args.communityId);
     const liveModuleIds = new Set(modules.map((module) => normalizeIdValue(module._id)));
-    const resources = await listResourceDirectoryLivePageResources(ctx, args.communityId, liveModuleIds);
+    const resources = await listResourceDirectoryLivePageResources(ctx, args.communityId, liveModuleIds, readerUserId);
     const moduleNameMap = buildModuleNameMap(modules);
 
     if (normalizeDirectoryToolPath(path) === "/" && !parseCommunityResourceDirectoryUri(path)) {
@@ -4343,7 +4346,7 @@ export const mapCommunityResourcesForToolInternal = internalQuery({
     perModuleLimit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireCommunityResourceDirectoryToolAccess({
+    const readerUserId = await requireCommunityResourceDirectoryToolAccess({
       ctx,
       userId: args.userId,
       authSubject: args.authSubject ?? null,
@@ -4356,6 +4359,7 @@ export const mapCommunityResourcesForToolInternal = internalQuery({
       ctx,
       args.communityId,
       new Set(modules.map((module) => normalizeIdValue(module._id))),
+      readerUserId,
     );
     return buildCommunityResourceMapPayload({
       communityId: args.communityId,
@@ -4421,7 +4425,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireCommunityResourceDirectoryToolAccess({
+    const readerUserId = await requireCommunityResourceDirectoryToolAccess({
       ctx,
       userId: args.userId,
       authSubject: args.authSubject ?? null,
@@ -4432,6 +4436,10 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
       communityId: args.communityId,
       ref: args.ref,
     });
+    if (exact && (await readCommunityPaidLockedLessonIds(ctx, args.communityId, readerUserId)).has(normalizeIdValue(exact.resource._id))) {
+      return { ok: false, kind: "community_resource_read", ref: args.ref, reason_code: "community_resource_paywalled",
+        message: "This lesson is in a track the member hasn't added to their plan." };
+    }
     if (exact) {
       return await buildCommunityResourceDirectoryReadPayload({
         ctx,
@@ -4444,7 +4452,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
 
     const modules = await listResourceDirectoryLiveModules(ctx, args.communityId);
     const liveModuleIds = new Set(modules.map((module) => normalizeIdValue(module._id)));
-    const resources = await listResourceDirectoryLivePageResources(ctx, args.communityId, liveModuleIds);
+    const resources = await listResourceDirectoryLivePageResources(ctx, args.communityId, liveModuleIds, readerUserId);
     const moduleNameMap = buildModuleNameMap(modules);
     const resolved = await resolveResourceByRef({
       ctx,
@@ -4493,7 +4501,7 @@ export const readCommunityResourcesForToolInternal = internalQuery({
     perResourceChars: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireCommunityResourceDirectoryToolAccess({
+    const readerUserId = await requireCommunityResourceDirectoryToolAccess({
       ctx,
       userId: args.userId,
       authSubject: args.authSubject ?? null,
@@ -4507,6 +4515,7 @@ export const readCommunityResourcesForToolInternal = internalQuery({
       ctx,
       args.communityId,
       new Set(modules.map((module) => normalizeIdValue(module._id))),
+      readerUserId,
     );
     const moduleNameMap = buildModuleNameMap(modules);
     let remainingChars = maxChars;
