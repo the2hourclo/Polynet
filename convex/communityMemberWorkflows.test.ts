@@ -1329,6 +1329,48 @@ test("only-if branches: the matching path runs, the other path and everything af
   vi.useRealTimers();
 });
 
+test("only-if groups: all/any join up to four conditions, and an Otherwise step runs exactly when they don't hold", async () => {
+  const { t, f, owner, configured, values, runs } = await branchFixture();
+  const set = (key: string, propertyKey: string, value: string) => ({ key, type: "set_client_property" as const, propertyKey, value });
+  const after = { type: "previous_action_completed" as const, predecessorActionKey: "draft-plan" };
+  const proAndTagged = { propertyKey: "plan", op: "is" as const, value: "pro", match: "all" as const, also: [{ propertyKey: "tag", op: "is_set" as const }] };
+  const saved = await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [
+      { trigger: { type: "member_contributed" as const }, action: set("draft-plan", "plan", "pro") },
+      // AND: plan is pro but no tag yet, so this one is skipped...
+      { condition: proAndTagged, trigger: after, action: set("draft-and", "other", "and") },
+      // ...and its Otherwise runs instead.
+      { condition: { ...proAndTagged, otherwise: true }, trigger: after, action: set("draft-else", "tag", "else") },
+      // OR: plan is basic or plan is pro, so this runs.
+      { condition: { propertyKey: "plan", op: "is" as const, value: "basic", match: "any" as const, also: [{ propertyKey: "plan", op: "is" as const, value: "pro" }] },
+        trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-else" }, action: set("draft-or", "other", "or") },
+    ],
+  });
+  expect(saved.milestone!.automations[2].condition).toEqual({ ...proAndTagged, otherwise: true });
+  const rootId = await addRoot(t, f, "groups");
+  await t.mutation(internalApi.communityMemberWorkflows.handleChannelContributionRootInternal, { rootId });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await values()).toEqual({ plan: "pro", tag: "else", other: "or" });
+  const codes = (await runs()).map(run => run.actionResult?.resultCode).sort();
+  expect(codes).toEqual(["client_property_set", "client_property_set", "client_property_set", "condition_skipped"]);
+  const state = await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").first());
+  expect(state?.currentMilestoneKey).toBe(configured.secondKey);
+  vi.useRealTimers();
+});
+
+test("only-if groups refuse more than four conditions and an unknown join", async () => {
+  const { f, owner, configured } = await branchFixture();
+  const save = (condition: unknown) => owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [{ condition: condition as any, trigger: { type: "member_contributed" as const }, action: { key: "draft-a", type: "set_client_property" as const, propertyKey: "plan", value: "x" } }],
+  });
+  const clause = { propertyKey: "tag", op: "is_set" as const };
+  await expect(save({ ...clause, also: [clause, clause, clause, clause] })).rejects.toThrow(/workflow_condition_too_many_clauses/);
+  await expect(save({ ...clause, match: "most", also: [clause] })).rejects.toThrow();
+  vi.useRealTimers();
+});
+
 test("a wait after a step starts a timer from when that step finished, and runs once it is due", async () => {
   const { t, f, owner, configured, values } = await branchFixture();
   await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {

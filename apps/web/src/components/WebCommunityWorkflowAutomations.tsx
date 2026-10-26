@@ -169,6 +169,21 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     setSelection({ stageKey: stage.key, ruleKey: rule.key, part: kind === "action" ? "action" : kind });
     setPicking(kind === "action");
   };
+  // The Otherwise path of a chained Only if: a sibling step after the same step,
+  // with the same clauses, that runs for the members the Only if leaves out.
+  const otherwiseOf = (rule: WorkflowAutomationDraft) => rule.trigger.type !== "previous_action_completed" || !rule.condition || rule.condition.otherwise ? null
+    : rules.find((item) => item.key !== rule.key && item.condition?.otherwise && item.trigger.type === "previous_action_completed"
+      && item.trigger.predecessorActionKey === (rule.trigger as { predecessorActionKey: string }).predecessorActionKey) ?? null;
+  const addOtherwise = (rule: WorkflowAutomationDraft) => {
+    if (!stage || rule.trigger.type !== "previous_action_completed" || !rule.condition) return;
+    const otherwise = toWorkflowAutomationDraft({ key: newRuleKey("rule"),
+      trigger: { type: "previous_action_completed", predecessorActionKey: rule.trigger.predecessorActionKey, ...(rule.trigger.delayMinutes ? { delayMinutes: rule.trigger.delayMinutes } : {}) },
+      condition: { ...rule.condition, otherwise: true },
+      action: { key: newRuleKey("action"), type: "prompt_agent", prompt: "" } });
+    setRules(stage.key, [...rules, otherwise]);
+    setSelection({ stageKey: stage.key, ruleKey: otherwise.key, part: "action" });
+    setPicking(true);
+  };
   // Off or on for the whole automation: its trigger and every step after it.
   const chainIsOff = !!chain?.root.paused;
   const setChainOff = (off: boolean) => {
@@ -247,7 +262,10 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     const out = [];
     const wait = rule.trigger.type === "previous_action_completed" ? rule.trigger.delayMinutes ?? 0 : 0;
     if (wait) out.push(card(rule, "wait", { icon: Hourglass, label: "Wait" }, `${++number} · Wait`, workflowDurationLabel(wait)));
-    if (rule.condition) out.push(card(rule, "condition", { icon: GitBranch, label: "Only if" }, `${++number} · Only if`, capitalize(workflowConditionPhrase(rule.condition, names).replace(/^if /, "")), "Otherwise the steps after it are skipped"));
+    if (rule.condition) out.push(rule.condition.otherwise
+      ? card(rule, "condition", { icon: GitBranch, label: "Otherwise" }, `${++number} · Otherwise`, capitalize(workflowConditionPhrase(rule.condition, names).replace(/^if /, "")), "For members who don't match the Only if")
+      : card(rule, "condition", { icon: GitBranch, label: "Only if" }, `${++number} · Only if`, capitalize(workflowConditionPhrase(rule.condition, names).replace(/^if /, "")),
+        otherwiseOf(rule) ? "Members who don't match take the Otherwise path" : "Otherwise the steps after it are skipped"));
     const option = ACTIONS[rule.action.type];
     out.push(card(rule, "action", option, `${++number} · Then`, option.label, actionDetail(rule)));
     return out.map((element, inner) => <li key={`${rule.key}-${inner}-${index}`}>{element}</li>);
@@ -379,7 +397,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
         })()}
       </> : <>
         <span className="pn-au-group">{selection.part === "trigger" ? "Trigger" : selection.part === "wait" ? `Step ${stepNumber} · Wait`
-          : selection.part === "condition" ? "Only if" : `Step ${stepNumber} · Action`}</span>
+          : selection.part === "condition" ? (selected.condition?.otherwise ? "Otherwise" : "Only if") : `Step ${stepNumber} · Action`}</span>
         {selection.part === "trigger" && selectedTrigger ? typePick(selectedTrigger) : null}
         {selection.part === "action" && selectedAction ? typePick(selectedAction) : null}
         <WebCommunityWorkflowAutomationEditor key={`${selected.key}:${selected.trigger.type}:${selected.action.type}`}
@@ -387,6 +405,9 @@ export function WebCommunityWorkflowAutomations(props: Props) {
           canAddJoin={stageIndex === 0} catalog={props.catalog} forms={props.forms} expanded hideHeading hideTypeSelects
           channels={props.channels} channelsUnavailable={props.channelsUnavailable} disabled={props.isSaving}
           onToggle={() => {}} onRemove={removeSelected} onChange={updateRule} />
+        {selection.part === "condition" && selected.condition && !selected.condition.otherwise && selected.trigger.type === "previous_action_completed" && !otherwiseOf(selected)
+          ? <button type="button" className="pn-au-btn" disabled={props.isSaving} onClick={() => addOtherwise(selected)}>
+            <GitBranch size={14} aria-hidden="true" /> Add an Otherwise path</button> : null}
         <button type="button" className="pn-au-delete" disabled={props.isSaving} onClick={removeSelected}>
           <Trash2 size={14} aria-hidden="true" /> {selected.key === chain?.root.key ? "Delete this automation" : "Delete this step"}</button>
       </> : <p className="pn-wf-muted">Pick a step to change it.</p>}
