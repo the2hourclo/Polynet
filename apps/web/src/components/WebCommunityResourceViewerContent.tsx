@@ -3,6 +3,7 @@ import {
   Suspense,
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -158,57 +159,90 @@ function readLessonPlatform(): string {
 
 type LessonFileLink = { href: string; label: string };
 
-// Reads the rendered lesson for its contents (sections, then videos under the
-// section they sit in) and the files it links to, and gives each stop an id
-// to jump to. Runs after the body renders.
-function useLessonContents(root: { current: HTMLElement | null }, enabled: boolean, renderKey: unknown) {
+// Reads the lesson for its contents (sections, then videos under the section
+// they sit in) and the files it links to. In the read view each stop gets an
+// id to jump to; in the editor the headings are tracked by element, because
+// the editor owns its DOM and must not be written to. Rescans as the body
+// changes, so the editor's contents follow typing.
+function useLessonContents(root: { current: HTMLElement | null }, mode: "read" | "edit", renderKey: unknown) {
   const [toc, setToc] = useState<LessonTocEntry[]>([]);
   const [files, setFiles] = useState<LessonFileLink[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const targetsRef = useRef(new Map<string, HTMLElement>());
   useEffect(() => {
     const element = root.current;
-    if (!enabled || !element) {
+    if (!element) {
       setToc([]);
       setFiles([]);
       return;
     }
-    const taken = new Set<string>();
-    const entries: LessonTocEntry[] = [];
-    // The body's "##" and "###" render one level down (h3, h4).
-    element.querySelectorAll<HTMLElement>("h3.md-header, h4.md-header, .md-media-embed, .md-video").forEach((node) => {
-      if (node.closest(".lesson-slide-deck")) return;
-      const isVideo = !node.matches(".md-header");
-      const label = isVideo
-        ? (node.querySelector("iframe")?.getAttribute("title") || node.getAttribute("aria-label") || "Video").replace(/\s+embed$/i, "")
-        : node.textContent?.trim() ?? "";
-      if (!label) return;
-      node.id = node.id || lessonTocSlug(label, taken);
-      node.style.scrollMarginTop = "1.5rem";
-      entries.push({ id: node.id, label, level: isVideo || node.tagName === "H4" ? 3 : 2, kind: isVideo ? "video" : "section" });
+    let frame = 0;
+    const scan = () => {
+      frame = 0;
+      const taken = new Set<string>();
+      const entries: LessonTocEntry[] = [];
+      const targets = new Map<string, HTMLElement>();
+      // The read view renders "##" and "###" one level down (h3, h4); the editor
+      // shows them as h2 and h3. Platform section markers are not contents.
+      const selector = mode === "edit"
+        ? ".ProseMirror h2, .ProseMirror h3:not(.lesson-editor-platform-heading)"
+        : "h3.md-header, h4.md-header, .md-media-embed, .md-video";
+      element.querySelectorAll<HTMLElement>(selector).forEach((node) => {
+        if (node.closest(".lesson-slide-deck")) return;
+        const isVideo = mode === "read" && !node.matches(".md-header");
+        const label = isVideo
+          ? (node.querySelector("iframe")?.getAttribute("title") || node.getAttribute("aria-label") || "Video").replace(/\s+embed$/i, "")
+          : node.textContent?.trim() ?? "";
+        if (!label) return;
+        const id = mode === "read" ? (node.id || lessonTocSlug(label, taken)) : lessonTocSlug(label, taken);
+        if (mode === "read") node.id = id;
+        targets.set(id, node);
+        const isSub = isVideo || node.tagName === (mode === "edit" ? "H3" : "H4");
+        entries.push({ id, label, level: isSub ? 3 : 2, kind: isVideo ? "video" : "section" });
+      });
+      targetsRef.current = targets;
+      const nextToc = entries.length >= LESSON_TOC_MIN_ENTRIES ? entries : [];
+      setToc((current) => (JSON.stringify(current) === JSON.stringify(nextToc) ? current : nextToc));
+      const seen = new Set<string>();
+      const nextFiles = Array.from(element.querySelectorAll<HTMLAnchorElement>("a[href]"))
+        .filter((link) => isLessonFileLink(link.href) && !seen.has(link.href) && Boolean(seen.add(link.href)))
+        .map((link) => ({ href: link.href, label: link.textContent?.trim() || decodeURIComponent(link.pathname.split("/").pop() ?? "File") }));
+      setFiles((current) => (JSON.stringify(current) === JSON.stringify(nextFiles) ? current : nextFiles));
+    };
+    scan();
+    // Ids are attributes, so watching only content can't loop on our own writes.
+    const observer = new MutationObserver(() => {
+      if (!frame) frame = window.requestAnimationFrame(scan);
     });
-    setToc(entries.length >= LESSON_TOC_MIN_ENTRIES ? entries : []);
-    const seen = new Set<string>();
-    setFiles(Array.from(element.querySelectorAll<HTMLAnchorElement>("a[href]"))
-      .filter((link) => isLessonFileLink(link.href) && !seen.has(link.href) && Boolean(seen.add(link.href)))
-      .map((link) => ({ href: link.href, label: link.textContent?.trim() || decodeURIComponent(link.pathname.split("/").pop() ?? "File") })));
-  }, [root, enabled, renderKey]);
+    observer.observe(element, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [root, mode, renderKey]);
   // The section being read is the last heading that has scrolled past the top third.
   useEffect(() => {
     if (!toc.length) return;
-    const targets = toc.map((entry) => document.getElementById(entry.id)).filter((node): node is HTMLElement => Boolean(node));
-    const observer = new IntersectionObserver(() => {
+    const targets = toc.map((entry) => targetsRef.current.get(entry.id)).filter((node): node is HTMLElement => Boolean(node));
+    const ids = new Map(toc.map((entry) => [targetsRef.current.get(entry.id), entry.id] as const));
+    const update = () => {
       const line = window.innerHeight / 3;
-      let current: string | null = targets[0]?.id ?? null;
-      for (const target of targets) if (target.getBoundingClientRect().top <= line) current = target.id;
+      let current: string | null = toc[0]?.id ?? null;
+      for (const target of targets) if (target.getBoundingClientRect().top <= line) current = ids.get(target) ?? current;
       setActiveId(current);
-    }, { rootMargin: "0px 0px -66% 0px", threshold: [0, 1] });
+    };
+    const observer = new IntersectionObserver(update, { rootMargin: "0px 0px -66% 0px", threshold: [0, 1] });
     targets.forEach((target) => observer.observe(target));
+    update();
     return () => observer.disconnect();
   }, [toc]);
-  return { toc, files, activeId };
+  const jumpTo = useCallback((id: string) => {
+    targetsRef.current.get(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+  return { toc, files, activeId, jumpTo };
 }
 
-function LessonContents(props: { toc: LessonTocEntry[]; activeId: string | null; onJump?: () => void }) {
+function LessonContents(props: { toc: LessonTocEntry[]; activeId: string | null; onJump: (id: string) => void }) {
   return (
     <ol className="lesson-toc-list">
       {props.toc.map((entry) => (
@@ -218,8 +252,7 @@ function LessonContents(props: { toc: LessonTocEntry[]; activeId: string | null;
             aria-current={props.activeId === entry.id ? "location" : undefined}
             onClick={(event) => {
               event.preventDefault();
-              document.getElementById(entry.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-              props.onJump?.();
+              props.onJump(entry.id);
             }}
           >
             {entry.kind === "video" ? <PlayCircle aria-hidden="true" /> : null}
@@ -379,7 +412,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   }, [shownBody, props.communityEmbeds, hasLessonActivity, lessonElementIds, resource.id]);
 
   const readingRef = useRef<HTMLDivElement | null>(null);
-  const contents = useLessonContents(readingRef, !isEditing || isPreviewing, renderedBodyMarkdown);
+  const contents = useLessonContents(readingRef, isEditing && !isPreviewing ? "edit" : "read", renderedBodyMarkdown);
   const [compactTocOpen, setCompactTocOpen] = useState(false);
   const hasRail = contents.toc.length > 0 || contents.files.length > 0;
 
@@ -710,7 +743,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
           {contents.toc.length ? (
             <details className="lesson-toc-compact" open={compactTocOpen} onToggle={(event) => setCompactTocOpen(event.currentTarget.open)}>
               <summary><ListOrdered aria-hidden="true" /><span>Contents</span></summary>
-              <LessonContents toc={contents.toc} activeId={contents.activeId} onJump={() => setCompactTocOpen(false)} />
+              <LessonContents toc={contents.toc} activeId={contents.activeId} onJump={(id) => { setCompactTocOpen(false); contents.jumpTo(id); }} />
             </details>
           ) : null}
 
@@ -736,7 +769,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
             {contents.toc.length ? (
               <nav className="lesson-rail-section" aria-label="Contents">
                 <p className="lesson-rail-label">Contents</p>
-                <LessonContents toc={contents.toc} activeId={contents.activeId} />
+                <LessonContents toc={contents.toc} activeId={contents.activeId} onJump={contents.jumpTo} />
               </nav>
             ) : null}
             {contents.files.length ? (

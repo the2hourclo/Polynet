@@ -9759,7 +9759,17 @@ button.chat-reply-quote:hover {
 }
 .lesson-toc-item svg,
 .lesson-rail-files svg { flex: none; width: 0.875rem; height: 0.875rem; margin-top: 0.125rem; color: var(--accent-brand, var(--text-muted)); }
+/* Without a side column, Files follow the text (Contents is the menu above it). */
 .lesson-rail { display: none; }
+.resource-viewer-body.has-lesson-rail .lesson-rail:has(.lesson-rail-files) {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--lesson-reading-measure, 680px);
+  margin: 2rem auto 0;
+}
+.resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section { display: none; }
+.resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section + .lesson-rail-section { margin-top: 0; }
 .lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
 
 .lesson-toc-compact {
@@ -9790,8 +9800,12 @@ button.chat-reply-quote:hover {
     gap: 3rem;
   }
   .resource-viewer-body.has-lesson-rail .resource-viewer-column { margin: 0; max-width: none; }
-  .resource-viewer-body.has-lesson-rail .lesson-rail {
+  .resource-viewer-body.has-lesson-rail .lesson-rail,
+  .resource-viewer-body.has-lesson-rail .lesson-rail:has(.lesson-rail-files) {
     display: block;
+    width: auto;
+    max-width: none;
+    margin: 0;
     position: sticky;
     top: 1.5rem;
     align-self: start;
@@ -9800,6 +9814,8 @@ button.chat-reply-quote:hover {
     padding-top: 0.25rem;
   }
   .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
+  .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section { display: block; }
+  .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
   /* With the side column, the title lines up with the text column. */
   .knowledge-resource-reader:has(.has-lesson-rail) .resource-viewer-header {
     max-width: calc(var(--lesson-reading-measure, 680px) + 16.5rem);
