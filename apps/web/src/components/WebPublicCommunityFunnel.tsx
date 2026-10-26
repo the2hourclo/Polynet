@@ -133,7 +133,9 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
   const asSalesPage = previewPresentation === "funnel" || previewPresentation === "page"
     ? previewPresentation === "funnel"
     : publicCommunity?.about_presentation === "funnel";
-  const salesTheme = useWebCommunityThemeStyle(asSalesPage ? publicCommunity?.id ?? null : null);
+  // Both public pages wear the community's own look (Rashid, 2026-10-26: the
+  // AIEB page showed Polynet's charcoal and cream instead of green and white).
+  const salesTheme = useWebCommunityThemeStyle(publicCommunity?.id ?? null);
   const funnel = publicCommunity?.funnel ?? null;
   const memberCount =
     typeof publicCommunity?.member_count === "number" ? publicCommunity.member_count : null;
@@ -257,6 +259,7 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
       ) : null}
     </div>
   ) : (
+    <div className="community-funnel-public" data-community-theme={salesTheme.attribute ?? undefined}>
     <WebCommunityFunnelRenderer
       communityId={publicCommunity?.id}
       communityName={communityName}
@@ -273,6 +276,7 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
         : []}
       bridge={props.bridge ?? null}
     />
+    </div>
   );
 
   if (!isPreviewMode || isEmbeddedPreview) return funnelSurface;

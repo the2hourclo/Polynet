@@ -26,6 +26,7 @@ import { buildCommunitySettingsNav, WebCommunitySettingsNav } from "./WebCommuni
 import "./WebCommunitySettings.css";
 import { WebCommunityAccessSettings, WebCommunityMyAccessCard } from "./WebCommunityAccess";
 import { useCommunityAccessGatewayForSession, type CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 // Community Settings, after Substack's admin: a side nav (with search) beside
 // one column of section cards. General saves as you type; the sales page and
@@ -864,6 +865,7 @@ function SettingsMessage(props: { children: ReactNode; action?: ReactNode }) {
 }
 
 export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionProps) {
+  const frame = useWebCommunityFrame();
   const {
     activeCommunity,
     hasSession,
@@ -1053,6 +1055,12 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
     </div>
   );
 
+  // In Channels, Settings replaces the community's menu (as Substack's does),
+  // so its own menu starts with the way back. Classroom has its owner bar.
+  const settingsBack = frame.layout.navigation.position !== "top" && frame.community
+    ? { label: frame.community.name, onBack: () => frame.onSelectTab(frame.layout.navigation.home === "agent" ? "chat" : frame.layout.navigation.home) }
+    : null;
+
   return (
     <div className="settings-panel community-settings-panel pn-settings">
       <div className="pn-settings-layout">
@@ -1062,6 +1070,7 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
           onSelectPane={selectPane}
           onSelectAnchor={selectAnchor}
           onOpenLink={openInAppPath}
+          back={settingsBack}
         />
         <div className="pn-settings-main" id={`community-settings-${selectedSettingsPane}`}>
           <header className="pn-settings-page-header">

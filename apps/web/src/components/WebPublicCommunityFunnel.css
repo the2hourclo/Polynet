@@ -74,3 +74,15 @@
     padding-top: 72px;
   }
 }
+
+/* The public page in the community's own colours: the wrapper carries the
+   theme and fills the window like the page did. */
+.community-funnel-public {
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-workspace, var(--surface-workspace));
+}
+.funnel-preview-presentation > .community-funnel-public > .community-funnel-renderer,
+.community-funnel-public > .community-funnel-renderer {
+  height: 100%;
+}

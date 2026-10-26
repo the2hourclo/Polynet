@@ -110,6 +110,18 @@ export type WebCommunityLayoutChoice = {
  * the Display menu, or a null choice when there is nothing to pick. A pick
  * shows at once and is saved in the background; a failed save goes back.
  */
+// For screenshots and reviews: ?layout=classroom or ?layout=channels shows that
+// layout in this tab only, like ?feel= for the looks. Nothing is saved, and only
+// a layout the owner offers members can be shown this way.
+const LAYOUT_URL_OVERRIDE: CommunityLayoutPosition | null = (() => {
+  try {
+    const value = new URLSearchParams(window.location.search).get("layout");
+    return value === "classroom" ? "top" : value === "channels" ? "side" : null;
+  } catch {
+    return null;
+  }
+})();
+
 export function useWebCommunityLayoutChoice(
   communityId: string | null,
   session: unknown | null,
@@ -145,7 +157,8 @@ export function useWebCommunityLayoutChoice(
   );
 
   if (!canChoose) return { layout, choice: null };
-  const preference = state && state.communityId === communityId ? state.preference : null;
+  const saved = state && state.communityId === communityId ? state.preference : null;
+  const preference = LAYOUT_URL_OVERRIDE && offered.includes(LAYOUT_URL_OVERRIDE) ? LAYOUT_URL_OVERRIDE : saved;
   const effective = layoutForMemberChoice(layout, preference);
   return {
     layout: effective,
