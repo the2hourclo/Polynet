@@ -88,3 +88,37 @@ export function isWorkflowMilestoneDraftDirty(
     || JSON.stringify(workflowDraftAutomations(automations)) !== JSON.stringify(snapshot.automations)
   );
 }
+
+export type WorkflowTriggerType = CommunityMemberWorkflowAutomation["trigger"]["type"];
+export type WorkflowActionType = CommunityMemberWorkflowAutomation["action"]["type"];
+
+/** Switch a rule to another trigger, keeping the action when the new trigger allows it. */
+export function applyWorkflowTriggerType(automation: WorkflowAutomationDraft, type: WorkflowTriggerType,
+  earlierSteps: CommunityMemberWorkflowAutomation[]): WorkflowAutomationDraft | null {
+  const action = automation.action.type;
+  if (type === "member_joined") {
+    return { ...replaceWorkflowDraftAction(automation, action === "request_form" ? "request_form" : "create_service_channel"), trigger: { type } };
+  }
+  if (type === "previous_action_completed") {
+    const predecessor = earlierSteps.at(-1);
+    if (!predecessor) return null;
+    return { ...replaceWorkflowDraftAction(automation, action === "request_form" || action === "set_client_property" ? action : "prompt_agent"),
+      trigger: { type, predecessorActionKey: predecessor.action.key } };
+  }
+  if (type === "form_submitted") {
+    return { ...replaceWorkflowDraftAction(automation, action === "set_client_property" ? "set_client_property" : "prompt_agent"), trigger: { type, formKey: "" } };
+  }
+  if (type === "lesson_completed" || type === "course_completed" || type === "track_completed") {
+    return { ...replaceWorkflowDraftAction(automation, action === "set_client_property" || action === "request_form" ? action : "prompt_agent"), trigger: { type } };
+  }
+  const next = action === "request_form" ? "request_form" : "prompt_agent";
+  return { ...replaceWorkflowDraftAction(automation, next), trigger: type === "member_contributed" ? { type } : { type: "milestone_elapsed", delayMinutes: 1440 } };
+}
+
+/** The actions a trigger can start. */
+export function workflowActionChoices(trigger: WorkflowTriggerType): WorkflowActionType[] {
+  const choices: WorkflowActionType[] = [trigger === "member_joined" ? "create_service_channel" : "prompt_agent"];
+  if (trigger !== "form_submitted") choices.push("request_form");
+  if (trigger !== "member_joined") choices.push("set_client_property");
+  return choices;
+}

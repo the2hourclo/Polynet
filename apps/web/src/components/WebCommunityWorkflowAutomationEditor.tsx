@@ -4,7 +4,7 @@ import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityCha
 import { COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition } from "../../../../shared/communityMemberWorkflow";
 import { workflowActionPhrase, workflowDurationLabel } from "./workflowStepSentences";
 import { WorkflowChannelPicker } from "./WorkflowChannelPicker";
-import { replaceWorkflowDraftAction, workflowAutomationIssue, workflowTriggerIssue, workflowChannelLabel, type WorkflowAutomationDraft } from "./workflowMilestoneDraft";
+import { applyWorkflowTriggerType, replaceWorkflowDraftAction, type WorkflowTriggerType, workflowAutomationIssue, workflowTriggerIssue, workflowChannelLabel, type WorkflowAutomationDraft } from "./workflowMilestoneDraft";
 
 /** Lessons, courses and client properties a rule can name, loaded with the board. */
 type WorkflowCatalogProperty = { key: string; name: string; type: string; options: string[] };
@@ -151,6 +151,8 @@ type Props = {
   onChange: (automation: WorkflowAutomationDraft) => void;
   onRemove: () => void;
   hideHeading?: boolean;
+  /** The Automations panel picks trigger and action from its own lists. */
+  hideTypeSelects?: boolean;
   creation?: {
     triggerSelected: boolean;
     actionSelected: boolean;
@@ -223,24 +225,12 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
 
       {props.expanded ? (
         <div className="workflow-milestone-automation-fields" id={`${id}-fields`}>
-          <label>When
+          {!props.hideTypeSelects ? <label>When
             <select value={triggerSelected ? automation.trigger.type : ""} disabled={props.disabled} onChange={event => {
-              const type = event.target.value;
-              if (type === "member_joined") {
-                props.onChange({ ...replaceWorkflowDraftAction(automation, automation.action.type === "request_form" ? "request_form" : "create_service_channel"), trigger: { type } });
-              } else if (type === "previous_action_completed" && earlierSteps.length) {
-                const action = automation.action.type === "request_form" || automation.action.type === "set_client_property" ? automation.action.type : "prompt_agent";
-                props.onChange({ ...replaceWorkflowDraftAction(automation, action), trigger: { type, predecessorActionKey: earlierSteps.at(-1)!.action.key } });
-              } else if (type === "form_submitted") {
-                props.onChange({ ...replaceWorkflowDraftAction(automation, automation.action.type === "set_client_property" ? "set_client_property" : "prompt_agent"), trigger: { type, formKey: "" } });
-              } else if (type === "lesson_completed" || type === "course_completed" || type === "track_completed") {
-                const action = automation.action.type === "set_client_property" || automation.action.type === "request_form" ? automation.action.type : "prompt_agent";
-                props.onChange({ ...replaceWorkflowDraftAction(automation, action), trigger: { type } });
-              } else if (type === "member_contributed" || type === "milestone_elapsed") {
-                setTimeUnit(1440);
-                const action = automation.action.type === "request_form" ? "request_form" : "prompt_agent";
-                props.onChange({ ...replaceWorkflowDraftAction(automation, action), trigger: type === "member_contributed" ? { type } : { type, delayMinutes: 1440 } });
-              } else return;
+              const next = applyWorkflowTriggerType(automation, event.target.value as WorkflowTriggerType, earlierSteps);
+              if (!next) return;
+              if (next.trigger.type === "milestone_elapsed") setTimeUnit(1440);
+              props.onChange(next);
               props.creation?.onTriggerSelected();
             }}>
               <option value="" disabled>Choose a trigger</option>
@@ -253,7 +243,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               <option value="course_completed">Course finished</option>
               <option value="track_completed">Roadmap track finished</option>
             </select>
-          </label>
+          </label> : null}
           {triggerSelected ? <>
           {isSequence ? <>
             <label>After this step
@@ -322,7 +312,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
           )}
 
           </> : null}
-          {triggerReady ? <label>Then
+          {triggerReady && !props.hideTypeSelects ? <label>Then
             <select value={actionSelected ? automation.action.type : ""} disabled={props.disabled} onChange={event => {
               const type = event.target.value;
               if (type !== "create_service_channel" && type !== "prompt_agent" && type !== "request_form" && type !== "set_client_property") return;
