@@ -1,5 +1,5 @@
 // Puts "Set up your AI Employee Builder" first on the AIEB welcome page of the
-// local build: a choice of app (Codex or Claude Code), each with its steps.
+// local build: a choice of app (Claude, the default, or Codex), each with its steps.
 // Run from the polynet-local repo root (the convex dev deployment must be up):
 //   node .local-transfer/seed-aieb-welcome-setup.mjs [community-slug]
 // Safe to run again: it replaces its own screen and keeps the rest of the page.
@@ -40,7 +40,27 @@ Set up AIEB
 
 **You're done when** Codex confirms AI Employee Builder loads from its server and your workspace is saved.`;
 
-const claudeCode = `1. **Have Claude Code running.** You need a Claude plan (Pro, Max or Team), [VS Code](https://code.visualstudio.com/), and the **Claude Code** extension by Anthropic, signed in with your Claude account.
+const claude = `1. **Open the Claude app** (desktop, on a Pro, Max or Team plan). Go to **Customize → Personal plugins → + → Add marketplace**, paste this, then click **Sync**:
+
+\`\`\`copy
+the2hourclo/aieb-thin-plugin
+\`\`\`
+
+2. **Install AI Employee Builder.** Claude shows a "make sure you trust this plugin" notice for every plugin not made by Anthropic. This one is ours.
+3. **Start a new chat and run:**
+
+\`\`\`copy
+/ai-employee-builder:setup-aieb
+\`\`\`
+
+4. **Connect.** If Claude shows an AIEB **Connect** button, click it. ${CONNECT}
+5. **Check it.** Type \`/check-setup\`. You want three green ticks: plugin installed, connection live, membership active.
+
+### Using Claude Code instead?
+
+The same plugin works in Claude Code (VS Code or your terminal).
+
+1. **Have Claude Code running.** You need a Claude plan (Pro, Max or Team), [VS Code](https://code.visualstudio.com/), and the **Claude Code** extension by Anthropic, signed in with your Claude account.
 2. **Paste this into the Claude Code chat.** Claude installs the plugin, connects it and checks everything.
 
 \`\`\`prompt
@@ -64,8 +84,8 @@ After each step, tell me whether it worked, or show the error and how you're fix
 const setupScreen = [
   { type: "text", markdown: INTRO },
   { type: "choice", prompt: PROMPT, options: [
-    { label: "ChatGPT Codex", hint: "Recommended if you're new. The Codex app or CLI.", markdown: codex },
-    { label: "Claude Code", hint: "VS Code or your terminal, for full control.", markdown: claudeCode },
+    { label: "Claude", hint: "The Claude app, or Claude Code. One plugin works in both.", markdown: claude },
+    { label: "ChatGPT Codex", hint: "The Codex app or CLI.", markdown: codex },
   ] },
 ];
 

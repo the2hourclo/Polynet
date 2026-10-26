@@ -66,14 +66,16 @@ export function WelcomeScreenView(props: {
 
 /** Cards to pick from (the app they use, say); the picked card's steps show below it. */
 export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoiceOption[]; storageKey?: string }) {
-  const [picked, setPicked] = useState<number | null>(() => {
-    if (!props.storageKey) return null;
+  // The first card is the default until the member picks another.
+  const [picked, setPicked] = useState<number>(() => {
+    if (!props.storageKey) return 0;
     try {
-      const value = Number(localStorage.getItem(props.storageKey));
-      return Number.isInteger(value) && value >= 0 && value < props.options.length && localStorage.getItem(props.storageKey) !== null ? value : null;
-    } catch { return null; }
+      const stored = localStorage.getItem(props.storageKey);
+      const value = Number(stored);
+      return stored !== null && Number.isInteger(value) && value >= 0 && value < props.options.length ? value : 0;
+    } catch { return 0; }
   });
-  const option = picked === null ? null : props.options[picked] ?? null;
+  const option = props.options[picked] ?? null;
   const rendered = useMemo(() => (option ? renderMarkdown(option.markdown, { embedStandaloneMedia: true }) : null), [option]);
   const groupId = useId();
   const pick = (index: number) => {
@@ -86,13 +88,13 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
       aria-label={props.prompt ? undefined : "Choose one"} style={{ ["--choice-count" as string]: props.options.length }}>
       {props.options.map((item, index) => (
         <button key={index} type="button" role="radio" aria-checked={picked === index}
-          tabIndex={picked === index || (picked === null && index === 0) ? 0 : -1}
+          tabIndex={picked === index ? 0 : -1}
           className={`community-welcome-choice-card${picked === index ? " is-picked" : ""}`} onClick={() => pick(index)}
           onKeyDown={(event) => {
             const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
             if (!step) return;
             event.preventDefault();
-            const next = ((picked ?? index) + step + props.options.length) % props.options.length;
+            const next = (picked + step + props.options.length) % props.options.length;
             pick(next);
             (event.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
           }}>
@@ -102,8 +104,7 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
         </button>
       ))}
     </div>
-    {option ? <div className="community-welcome-message community-welcome-choice-body" aria-live="polite">{rendered}</div>
-      : <p className="community-welcome-choice-empty">Pick one to see your steps.</p>}
+    {option ? <div className="community-welcome-message community-welcome-choice-body" aria-live="polite">{rendered}</div> : null}
   </div>;
 }
 
