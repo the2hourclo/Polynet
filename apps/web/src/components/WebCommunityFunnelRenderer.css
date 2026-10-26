@@ -438,7 +438,7 @@
 /* "Choose your offer" cards above the first join button (2+ offers only). */
 .community-funnel-offers {
   width: min(520px, 100%);
-  margin: 36px auto 0;
+  margin: 24px auto 0;
   text-align: left;
 }
 
