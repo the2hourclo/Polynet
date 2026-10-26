@@ -74,6 +74,8 @@ export type WebCommunityFunnelRendererProps = {
   action: CommunityFunnelSurfaceAction;
   bridge?: WebCommunityBridgeCardProps | null;
   alertMessages?: string[];
+  /** "Choose your offer" cards, shown above the first join button when there are 2+ offers. */
+  offers?: ReactNode;
 };
 
 export function WebCommunityFunnelRenderer(props: WebCommunityFunnelRendererProps) {
@@ -131,6 +133,7 @@ export function WebCommunityFunnelRenderer(props: WebCommunityFunnelRendererProp
 
         {props.renderModel.mode === "default" ? (
           <>
+            {props.offers ? <div className="community-funnel-offers">{props.offers}</div> : null}
             <FunnelAction action={props.action} position="primary" />
             <ActionStatusCards action={props.action} />
           </>
@@ -138,6 +141,7 @@ export function WebCommunityFunnelRenderer(props: WebCommunityFunnelRendererProp
 
         {props.renderModel.mode === "custom" ? (
           <>
+            {props.offers ? <div className="community-funnel-offers">{props.offers}</div> : null}
             <FunnelAction action={props.action} position="primary" />
             {memberProof}
           </>

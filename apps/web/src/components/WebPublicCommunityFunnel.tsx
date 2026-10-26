@@ -171,7 +171,8 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
     (!canEnterCommunity && !canJoinWithCheckout && !canJoinForFree && !canJoinWithApproval) ||
     (canJoinWithApproval && (approvalPending || (approvalDenied && !canRequestAgain)));
   const offerChoice = useCommunityOfferChoice({
-    communityId: isPreviewMode ? null : publicCommunity?.id ?? null,
+    // The owner's preview shows what a visitor sees (no session), with buttons off.
+    communityId: publicCommunity?.id ?? null,
     session: props.offerSession ?? null,
     preferredPeriod: paidPlan?.billing_period ?? null,
     onStartOfferCheckout: props.onStartOfferCheckout,
@@ -180,11 +181,13 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
   const funnelErrors = [publicCommunityError, publicJoinError, checkoutError].filter(
     Boolean,
   ) as string[];
+  // A higher offer picked on the offer cards takes over the join button.
+  const offerButton = offerChoice.button;
   const action = {
     communityName,
-    primaryActionLabel,
-    isPrimaryActionDisabled,
-    onPrimaryAction: onPrimaryJoinAction,
+    primaryActionLabel: offerButton ? (checkoutStatus === "loading" ? "Opening checkout…" : offerButton.label) : primaryActionLabel,
+    isPrimaryActionDisabled: offerButton ? isPreviewMode || checkoutStatus === "loading" || offerButton.disabled : isPrimaryActionDisabled,
+    onPrimaryAction: offerButton ? offerButton.onClick : onPrimaryJoinAction,
     canJoinWithApproval,
     showSignIn,
     approvalPending,
@@ -249,25 +252,14 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
         action={
           <div className="community-sales-join">
             <WebCommunityOfferChooser choice={offerChoice} preferredPeriod={paidPlan?.billing_period ?? null} />
-            {offerChoice.button ? (
-              <button
-                type="button"
-                className="community-sales-join-button"
-                disabled={isPreviewMode || checkoutStatus === "loading" || offerChoice.button.disabled}
-                onClick={offerChoice.button.onClick}
-              >
-                {checkoutStatus === "loading" ? "Opening checkout…" : offerChoice.button.label}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="community-sales-join-button"
-                disabled={isPrimaryActionDisabled}
-                onClick={onPrimaryJoinAction}
-              >
-                {primaryActionLabel}
-              </button>
-            )}
+            <button
+              type="button"
+              className="community-sales-join-button"
+              disabled={action.isPrimaryActionDisabled}
+              onClick={action.onPrimaryAction}
+            >
+              {action.primaryActionLabel}
+            </button>
             {offerChoice.note ? <p className="community-sales-join-note">{offerChoice.note}</p> : null}
             <ActionStatusCards action={action} />
           </div>
@@ -301,6 +293,12 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
         ? [...funnelErrors, ...(previewDocumentError ? [previewDocumentError] : [])]
         : []}
       bridge={props.bridge ?? null}
+      offers={offerChoice.offers.length ? (
+        <>
+          <WebCommunityOfferChooser choice={offerChoice} preferredPeriod={paidPlan?.billing_period ?? null} />
+          {offerChoice.note ? <p className="community-funnel-offers-note">{offerChoice.note}</p> : null}
+        </>
+      ) : null}
     />
     </div>
   );
