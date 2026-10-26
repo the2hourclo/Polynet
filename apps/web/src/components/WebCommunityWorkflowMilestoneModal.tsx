@@ -2,6 +2,7 @@ import { workflowSequenceIssue } from "../../../../shared/communityMemberWorkflo
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { useCommunityThemeScope } from "./useCommunityThemeScope";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
 import { WebCommunityWorkflowAutomationEditor, type WorkflowCatalog } from "./WebCommunityWorkflowAutomationEditor";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
@@ -56,6 +57,7 @@ function newAutomation(): WorkflowAutomationDraft {
 }
 
 export function WebCommunityWorkflowMilestoneModal(props: Props) {
+  const themeScope = useCommunityThemeScope();
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
   const [goal, setGoal] = useState("");
@@ -117,7 +119,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
     if (pendingAutomation || expandedAutomationKey) pageStartRef.current?.focus();
   }, [pendingAutomation?.key, expandedAutomationKey]);
 
-  if (!props.isOpen || !props.milestone) return null;
+  if (!props.isOpen || !props.milestone) return themeScope.marker;
   const hasConflict = editingSnapshot.current !== null
     && JSON.stringify(editingSnapshot.current) !== JSON.stringify(props.milestone);
   const isDirty = !!pendingAutomation || isWorkflowMilestoneDraftDirty(editingSnapshot.current, name, automations, instructions, goal, !fullyAuto, color);
@@ -206,7 +208,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
     }
   };
 
-  return createPortal(
+  return <>{themeScope.marker}{createPortal(themeScope.scope(
     <div className="modal-overlay workflow-milestone-modal-overlay" onMouseDown={requestClose}>
       <form ref={dialogRef} className="modal resource-modal workflow-milestone-modal" role="dialog" aria-modal="true" aria-labelledby="workflow-milestone-modal-title" onSubmit={submit} onKeyDown={trapFocus} onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
@@ -381,6 +383,5 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
         </div>
       </form>
     </div>,
-    document.body,
-  );
+    ), document.body)}</>;
 }
