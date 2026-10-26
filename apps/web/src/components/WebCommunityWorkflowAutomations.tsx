@@ -14,7 +14,7 @@ import { WebCommunityWorkflowAutomationEditor, type WorkflowCatalog } from "./We
 import {
   applyWorkflowTriggerType, replaceWorkflowDraftAction, toWorkflowAutomationDraft, workflowActionChoices,
   workflowAutomationIssue, workflowDraftAutomations,
-  type WorkflowActionType, type WorkflowAutomationDraft, type WorkflowTriggerType,
+  type WorkflowActionType, type WorkflowAutomationDraft, type WorkflowTriggerType, workflowStageDrafts,
 } from "./workflowMilestoneDraft";
 import { workflowActionPhrase, workflowConditionPhrase, workflowDurationLabel, workflowTriggerPhrase, type WorkflowStepNames } from "./workflowStepSentences";
 
@@ -118,7 +118,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
   const [picking, setPicking] = useState(false);
 
   const rulesOf = (milestone: CommunityMemberWorkflowMilestone): WorkflowAutomationDraft[] =>
-    drafts[milestone.key] ?? milestone.automations.map(toWorkflowAutomationDraft);
+    drafts[milestone.key] ?? workflowStageDrafts(milestone);
   const stages = props.milestones.filter((milestone) => milestone.key);
   const chainsByStage = useMemo(() => new Map(stages.map((stage) => [stage.key, automationChains(rulesOf(stage))])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,6 +168,13 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     setRules(stage.key, [...rules, rule]);
     setSelection({ stageKey: stage.key, ruleKey: rule.key, part: kind === "action" ? "action" : kind });
     setPicking(kind === "action");
+  };
+  // Off or on for the whole automation: its trigger and every step after it.
+  const chainIsOff = !!chain?.root.paused;
+  const setChainOff = (off: boolean) => {
+    if (!stage || !chain) return;
+    const keys = new Set(chain.steps.map((rule) => rule.key));
+    setRules(stage.key, rules.map((rule) => keys.has(rule.key) ? (off ? { ...rule, paused: true } : (({ paused: _paused, ...rest }) => rest)(rule)) : rule));
   };
   const removeSelected = () => {
     if (!stage || !selected) return;
@@ -295,12 +302,12 @@ export function WebCommunityWorkflowAutomations(props: Props) {
             const Icon = option.icon;
             const first = ACTIONS[item.root.action.type].label;
             const more = item.steps.length - 1;
-            return <button key={item.root.key} type="button" className="pn-au-item"
+            return <button key={item.root.key} type="button" className={`pn-au-item${item.root.paused ? " is-off" : ""}`}
               aria-current={chain?.root.key === item.root.key}
               onClick={() => { setPicking(false); setSelection({ stageKey: milestone.key, ruleKey: item.root.key, part: "trigger" }); }}>
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span className="pn-au-item-text"><span>{capitalize(workflowTriggerPhrase(item.root, names).replace(/^When /, ""))}</span>
-                <small>{first}{more ? ` + ${more} more` : ""}</small></span>
+                <small>{item.root.paused ? "Off · " : ""}{first}{more ? ` + ${more} more` : ""}</small></span>
             </button>;
           })}
           {!chains.length ? <p className="pn-au-none">No automations in this stage.</p> : null}
@@ -314,6 +321,9 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       {chain && stage ? <header className="pn-au-head">
         <div><h2>{capitalize(workflowTriggerPhrase(chain.root, names))}</h2>
           <p className={stage.color ? `pn-stage-color-${stage.color}` : undefined}>{stage.color ? <span className="pn-au-stagedot" aria-hidden="true" /> : null}While in {stage.name} · {chain.steps.length === 1 ? "1 step" : `${chain.steps.length} steps`}</p></div>
+        <button type="button" role="switch" aria-checked={!chainIsOff} className={`pn-au-switch${chainIsOff ? "" : " is-on"}`} disabled={props.isSaving}
+          title={chainIsOff ? "Off: it won't run for anyone" : "On: it runs for members in this stage"} onClick={() => setChainOff(!chainIsOff)}>
+          <span className="pn-au-switch-track" aria-hidden="true"><span className="pn-au-switch-thumb" /></span>{chainIsOff ? "Off" : "On"}</button>
         {props.onTestStage ? <button type="button" className="pn-au-btn" onClick={() => props.onTestStage?.(stage.key, stageIndex)}>
           <Play size={14} strokeWidth={2} aria-hidden="true" /> Test</button> : null}
       </header> : null}

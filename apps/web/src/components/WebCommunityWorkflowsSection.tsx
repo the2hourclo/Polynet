@@ -17,6 +17,7 @@ import type {
 import { WebCommunityWorkflowMemberDossierModal } from "./WebCommunityWorkflowMemberDossierModal";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
 import { WebCommunityWorkflowMilestoneModal } from "./WebCommunityWorkflowMilestoneModal";
+import { pausedWorkflowAutomationInputs } from "./workflowMilestoneDraft";
 import type { WorkflowCatalog } from "./WebCommunityWorkflowAutomationEditor";
 import "./WebCommunityWorkflowsSection.css";
 import { WebCommunityForms } from "./WebCommunityForms";
@@ -294,7 +295,8 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
       : await props.onUpdateMilestone(
           milestone.key,
           milestone.name,
-          milestone.automations,
+          // The stage dialog edits running rules; switched-off ones go back as they are.
+          [...milestone.automations, ...pausedWorkflowAutomationInputs(editingMilestone)] as CommunityMemberWorkflowAutomation[],
           milestone.instructions,
           milestone.goal,
           milestone.requireHumanApproval,

@@ -90,7 +90,7 @@ export function WebCommunityWorkflowRunHistory(props: Props) {
 
   const rules = useMemo(() => {
     const byKey = new Map<string, CommunityMemberWorkflowAutomation>();
-    for (const milestone of props.milestones) for (const rule of milestone.automations) byKey.set(rule.key, rule);
+    for (const milestone of props.milestones) for (const rule of [...milestone.automations, ...(milestone.pausedAutomations ?? [])]) byKey.set(rule.key, rule);
     return byKey;
   }, [props.milestones]);
   const automationName = (run: CloudWorkflowRun) => {

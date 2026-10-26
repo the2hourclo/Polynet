@@ -13,6 +13,46 @@ const workflowRequirementEvidenceValidator = v.array(v.object({
   sourceRef: v.string(), satisfiedAt: v.number(),
 }));
 
+// One rule of a Workflow stage: a trigger and an action.
+const workflowAutomationValidator = v.object({
+  key: v.string(),
+  timerGeneration: v.optional(v.string()),
+  sequenceEnabledAt: v.optional(v.number()),
+  sequenceEnabledRevision: v.optional(v.number()),
+  condition: v.optional(v.object({
+    propertyKey: v.string(),
+    op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
+    value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+  })),
+  trigger: v.union(
+    v.object({ type: v.literal("member_joined") }),
+      v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string(), delayMinutes: v.optional(v.number()) }),
+    v.object({ type: v.literal("form_submitted"), formKey: v.string() }),
+    v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
+    v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
+    v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
+    v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
+  ),
+  action: v.union(
+    v.object({ key: v.string(), type: v.literal("create_service_channel") }),
+    v.object({ key: v.string(), type: v.literal("request_form"), formKey: v.string() }),
+    v.object({
+      key: v.string(),
+      type: v.literal("prompt_agent"),
+      prompt: v.string(),
+      sees: v.optional(v.array(v.string())),
+    }),
+    v.object({
+      key: v.string(),
+      type: v.literal("set_client_property"),
+      propertyKey: v.string(),
+      value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
+    }),
+    v.object({ key: v.string(), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
+  ),
+});
+
 export default defineSchema({
   communityFormRequests: defineTable({
     communityId: v.id("communities"), membershipId: v.id("communityMemberships"),
@@ -1303,44 +1343,9 @@ export default defineSchema({
         requireHumanApproval: v.optional(v.boolean()),
         color: v.optional(v.union(v.literal("grey"), v.literal("green"), v.literal("teal"), v.literal("blue"), v.literal("purple"),
           v.literal("pink"), v.literal("red"), v.literal("orange"), v.literal("yellow"))),
-        automations: v.array(v.object({
-          key: v.string(),
-          timerGeneration: v.optional(v.string()),
-          sequenceEnabledAt: v.optional(v.number()),
-          sequenceEnabledRevision: v.optional(v.number()),
-          condition: v.optional(v.object({
-            propertyKey: v.string(),
-            op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
-            value: v.optional(v.union(v.string(), v.number(), v.boolean())),
-          })),
-          trigger: v.union(
-            v.object({ type: v.literal("member_joined") }),
-      v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string(), delayMinutes: v.optional(v.number()) }),
-            v.object({ type: v.literal("form_submitted"), formKey: v.string() }),
-            v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
-            v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
-            v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
-            v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
-            v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
-          ),
-          action: v.union(
-            v.object({ key: v.string(), type: v.literal("create_service_channel") }),
-            v.object({ key: v.string(), type: v.literal("request_form"), formKey: v.string() }),
-            v.object({
-              key: v.string(),
-              type: v.literal("prompt_agent"),
-              prompt: v.string(),
-              sees: v.optional(v.array(v.string())),
-            }),
-            v.object({
-              key: v.string(),
-              type: v.literal("set_client_property"),
-              propertyKey: v.string(),
-              value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
-            }),
-            v.object({ key: v.string(), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
-          ),
-        })),
+        automations: v.array(workflowAutomationValidator),
+        /** Automations the owner switched off: kept as they were, never run. */
+        pausedAutomations: v.optional(v.array(workflowAutomationValidator)),
       }),
     ),
     revision: v.number(),
