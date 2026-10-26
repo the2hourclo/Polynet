@@ -36,4 +36,26 @@ describe("welcome page layout", () => {
     expect(welcomeLayoutIssue(Array.from({ length: 6 }, (_, i) => lesson(`l${i}`)))).toBe("welcome_lessons_too_many");
     expect(welcomeLayoutIssue([text("Hi"), form("a"), next, lesson("l1")])).toBeNull();
   });
+
+  it("keeps a choice as content on its screen, not a step, and tidies its cards", () => {
+    const pick = (labels: string[]): WelcomeBlock => ({ type: "choice", prompt: " Which app? ", options: labels.map((label) => ({ label, hint: " ", markdown: " steps \r\n " })) });
+    const screens = welcomeScreens([pick(["Codex", "Claude Code"]), next, form("intake")]);
+    expect(screens.map((screen) => [screen.blocks[0].type, screen.step?.type ?? null])).toEqual([["choice", null], ["form", "form"]]);
+    expect(normalizeWelcomeLayout([pick(["  Codex  ", ""])])).toEqual([
+      { type: "choice", prompt: "Which app?", options: [{ label: "Codex", hint: "", markdown: "steps" }, { label: "", hint: "", markdown: "steps" }] },
+    ]);
+    expect(normalizeWelcomeLayout([{ type: "choice", prompt: "Q", options: [{ label: " ", hint: "x", markdown: " " }] }])).toEqual([]);
+  });
+
+  it("names what can't be saved on a choice", () => {
+    const card = (label: string, markdown = "Do this") => ({ label, hint: "", markdown });
+    const choice = (options: ReturnType<typeof card>[]): WelcomeBlock => ({ type: "choice", prompt: "Which app?", options });
+    expect(welcomeLayoutIssue([choice([card("Codex"), card("Cowork")]), next, form("a")])).toBeNull();
+    expect(welcomeLayoutIssue([choice([card(""), card("Cowork")])])).toBe("welcome_choice_invalid");
+    expect(welcomeLayoutIssue([choice(Array.from({ length: 5 }, (_, i) => card(`c${i}`)))])).toBe("welcome_choice_invalid");
+    expect(welcomeLayoutIssue([choice([card("Codex", "x".repeat(8_001))])])).toBe("welcome_choice_too_long");
+    expect(welcomeLayoutIssue(Array.from({ length: 4 }, () => choice([card("a")])))).toBe("welcome_choices_too_many");
+    // Long setup prompts don't use up the page's 12,000 characters of text.
+    expect(welcomeLayoutIssue([text("x".repeat(4_000)), choice([card("a", "y".repeat(8_000)), card("b", "y".repeat(8_000))])])).toBeNull();
+  });
 });

@@ -74,3 +74,21 @@
 /* The lesson title lines up with its text, as on the lesson page. */
 .community-welcome-lesson .resource-viewer-header { padding: 0 0 4px; border-bottom: 0; }
 @media(max-width:600px) { .community-welcome { justify-content:flex-start; padding:32px 16px; } }
+/* A choice on the welcome page: cards in a row, the picked one's steps below. */
+.community-welcome-choice { width:min(720px,100%); display:flex; flex-direction:column; gap:14px; }
+.community-welcome-choice-prompt { margin:0; font-size:15px; font-weight:650; }
+.community-welcome-choice-cards { display:grid; grid-template-columns:repeat(var(--choice-count, 3), minmax(0, 1fr)); gap:10px; }
+.community-welcome-choice-card { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; padding:14px 14px 14px 40px; border:1px solid var(--border-default); border-radius:calc(12px * var(--pn-radius-scale, 1)); background:var(--bg-card, var(--surface-workspace)); color:var(--text-primary); font:inherit; text-align:left; cursor:pointer; transition:border-color .15s ease, background .15s ease, box-shadow .15s ease; }
+.community-welcome-choice-card:hover { border-color:color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 55%, var(--border-default)); }
+.community-welcome-choice-card:focus-visible { outline:2px solid var(--accent-brand, var(--accent-primary)); outline-offset:2px; }
+.community-welcome-choice-card strong { font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
+.community-welcome-choice-card small { color:var(--text-secondary); font-size:13px; line-height:1.45; }
+.community-welcome-choice-card.is-picked { border-color:var(--accent-brand, var(--accent-primary)); background:color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 7%, var(--bg-card, var(--surface-workspace))); box-shadow:0 0 0 1px var(--accent-brand, var(--accent-primary)); }
+.community-welcome-choice-mark { position:absolute; left:14px; top:15px; display:grid; place-items:center; width:16px; height:16px; border:1.5px solid var(--border-strong, var(--border-default)); border-radius:50%; color:#fff; }
+.community-welcome-choice-card.is-picked .community-welcome-choice-mark { border-color:var(--accent-brand, var(--accent-primary)); background:var(--accent-brand, var(--accent-primary)); }
+.community-welcome-choice-body { width:100%; padding-top:6px; border-top:1px solid color-mix(in srgb, var(--border-default) 70%, transparent); }
+.community-welcome-choice-empty { margin:0; color:var(--text-secondary); font-size:14px; }
+@media(max-width:600px) { .community-welcome-choice-cards { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .community-welcome-choice-card { transition:none; } }
+/* A long prompt to paste wraps, and scrolls past a few lines, so the steps after it stay in view. */
+.community-welcome-choice-body .md-artifact-content { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }

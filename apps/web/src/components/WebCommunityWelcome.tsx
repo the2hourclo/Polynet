@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { Check } from "lucide-react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import type { AuthSession } from "../auth";
 import { getMemberWelcomePage, subscribeMemberForms, type MemberFormSummary, type MemberWelcomePage } from "../../../../shared/cloudCommunityFormRequestsGateway";
 import { setCloudOwnResourceProgress } from "../../../../shared/cloudCommunityResourceProgressGateway";
 import { renderMarkdown } from "../../../../shared/markdownUi";
-import { legacyWelcomeLayout, welcomeLayoutWithForms, welcomeScreens, type WelcomeBlock, type WelcomeScreen, type WelcomeStep } from "../../../../shared/communityWelcomeLayout";
+import { legacyWelcomeLayout, welcomeLayoutWithForms, welcomeScreens, type WelcomeBlock, type WelcomeChoiceOption, type WelcomeScreen, type WelcomeStep } from "../../../../shared/communityWelcomeLayout";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { MemberFormRunner } from "./WebCommunityNextStep";
 import { WebCommunityResourceViewerContent, type WebLessonActivity } from "./WebCommunityResourceViewerContent";
@@ -36,6 +37,8 @@ export function WelcomeScreenView(props: {
   titleRef?: Ref<HTMLHeadingElement>; stepRef?: Ref<HTMLParagraphElement>;
   // Inside Settings the page sits under the "Preview" heading, so its title reads as a level below.
   headingLevel?: number;
+  /** Where a member's pick on a choice is remembered, so coming back shows the same steps. */
+  choiceStorageKey?: string;
 }) {
   const screen = props.screens[props.index] ?? null;
   const total = props.screens.length;
@@ -52,11 +55,56 @@ export function WelcomeScreenView(props: {
     </div>
     {screen?.blocks.map((block, index) => block.type === "text"
       ? <div key={index} className="community-welcome-message">{rendered[index]}</div>
+      : block.type === "choice" ? <WelcomeChoiceView key={`${props.index}:${index}`} prompt={block.prompt} options={block.options}
+        storageKey={props.choiceStorageKey ? `${props.choiceStorageKey}:${props.index}:${index}` : undefined} />
       : block.type === "next" ? null : <Fragment key={index}>{props.renderStep(block)}</Fragment>)}
     {screen && !screen.step ? <footer className="community-welcome-next">
       <button type="button" className="platform-save-button" onClick={props.onNext}>Next</button>
     </footer> : null}
   </>;
+}
+
+/** Cards to pick from (the app they use, say); the picked card's steps show below it. */
+export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoiceOption[]; storageKey?: string }) {
+  const [picked, setPicked] = useState<number | null>(() => {
+    if (!props.storageKey) return null;
+    try {
+      const value = Number(localStorage.getItem(props.storageKey));
+      return Number.isInteger(value) && value >= 0 && value < props.options.length && localStorage.getItem(props.storageKey) !== null ? value : null;
+    } catch { return null; }
+  });
+  const option = picked === null ? null : props.options[picked] ?? null;
+  const rendered = useMemo(() => (option ? renderMarkdown(option.markdown, { embedStandaloneMedia: true }) : null), [option]);
+  const groupId = useId();
+  const pick = (index: number) => {
+    setPicked(index);
+    if (props.storageKey) try { localStorage.setItem(props.storageKey, String(index)); } catch { /* still shows */ }
+  };
+  return <div className="community-welcome-choice">
+    {props.prompt ? <p id={groupId} className="community-welcome-choice-prompt">{props.prompt}</p> : null}
+    <div className="community-welcome-choice-cards" role="radiogroup" aria-labelledby={props.prompt ? groupId : undefined}
+      aria-label={props.prompt ? undefined : "Choose one"} style={{ ["--choice-count" as string]: props.options.length }}>
+      {props.options.map((item, index) => (
+        <button key={index} type="button" role="radio" aria-checked={picked === index}
+          tabIndex={picked === index || (picked === null && index === 0) ? 0 : -1}
+          className={`community-welcome-choice-card${picked === index ? " is-picked" : ""}`} onClick={() => pick(index)}
+          onKeyDown={(event) => {
+            const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+            if (!step) return;
+            event.preventDefault();
+            const next = ((picked ?? index) + step + props.options.length) % props.options.length;
+            pick(next);
+            (event.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
+          }}>
+          <span className="community-welcome-choice-mark" aria-hidden="true">{picked === index ? <Check size={14} /> : null}</span>
+          <strong>{item.label}</strong>
+          {item.hint ? <small>{item.hint}</small> : null}
+        </button>
+      ))}
+    </div>
+    {option ? <div className="community-welcome-message community-welcome-choice-body" aria-live="polite">{rendered}</div>
+      : <p className="community-welcome-choice-empty">Pick one to see your steps.</p>}
+  </div>;
 }
 
 /** The builder's video or image link, shown the way lessons show media. */
@@ -227,7 +275,7 @@ export function WebCommunityWelcome(props: Props) {
   const failed = (error && !formsOwed) || lessonMissing || (pageError && !preparing);
   return <section className="community-welcome" aria-label={`Welcome to ${props.communityName}`}>
     {current >= 0 && !preparing ? <WelcomeScreenView title={title} screens={screens} index={current} renderStep={renderStep} onNext={moveOn}
-      titleRef={titleRef} stepRef={stepRef} />
+      titleRef={titleRef} stepRef={stepRef} choiceStorageKey={`polynet:welcome-choice:${props.communityId}`} />
       : <>
         <div className="community-welcome-intro"><small>Welcome</small><h1 ref={titleRef} tabIndex={-1}>{title}</h1></div>
         {failed ? <div role="alert"><p>Your welcome steps could not be loaded.</p><button type="button" onClick={() => { setRetry((n) => n + 1); onFinished.current(); }}>Retry</button></div>

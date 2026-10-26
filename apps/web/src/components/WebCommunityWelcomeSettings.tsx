@@ -1,13 +1,14 @@
-import { BookOpen, ClipboardList, Eye, GripVertical, Image as ImageIcon, Monitor, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
+import { BookOpen, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Monitor, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
 import {
   useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
   type DragEvent, type KeyboardEvent, type MutableRefObject, type ReactNode, type TextareaHTMLAttributes,
 } from "react";
 import type { CloudCommunityMemberWorkflowBoard, CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import {
-  WELCOME_BLOCKS_MAX, WELCOME_FORMS_MAX, WELCOME_LESSONS_MAX, WELCOME_TEXT_MAX,
+  WELCOME_BLOCKS_MAX, WELCOME_CHOICE_HINT_MAX, WELCOME_CHOICE_LABEL_MAX, WELCOME_CHOICE_OPTIONS_MAX, WELCOME_CHOICE_PROMPT_MAX,
+  WELCOME_CHOICE_TEXT_MAX, WELCOME_CHOICES_MAX, WELCOME_FORMS_MAX, WELCOME_LESSONS_MAX, WELCOME_TEXT_MAX,
   legacyWelcomeLayout, normalizeWelcomeLayout, welcomeLayoutSteps, welcomeLayoutWithForms, welcomeScreens,
-  type WelcomeBlock, type WelcomeStep,
+  type WelcomeBlock, type WelcomeChoiceOption, type WelcomeStep,
 } from "../../../../shared/communityWelcomeLayout";
 import { renderMarkdown } from "../../../../shared/markdownUi";
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
@@ -154,12 +155,14 @@ export function WebCommunityWelcomeSettings(props: Props) {
     const filter = menu.filter.toLowerCase();
     return [
       { key: "text", label: "Text", hint: "Words, lists and links", icon: <Type size={16} aria-hidden="true" /> },
+      ...(draft.layout.filter((block) => block.type === "choice").length < WELCOME_CHOICES_MAX
+        ? [{ key: "choice", label: "Choice", hint: "Cards to pick from, like the app they use. Each shows its own steps", icon: <LayoutGrid size={16} aria-hidden="true" /> }] : []),
       { key: "link", label: "Video or image", hint: "A YouTube, Loom, Vimeo, Wistia or image link", icon: <ImageIcon size={16} aria-hidden="true" /> },
       ...(placed.formKeys.length < WELCOME_FORMS_MAX ? [{ key: "form", label: "Form", hint: "Questions every new member answers", icon: <ClipboardList size={16} aria-hidden="true" /> }] : []),
       ...(placed.lessonIds.length < WELCOME_LESSONS_MAX ? [{ key: "lesson", label: "Lesson", hint: "A lesson they read and mark done", icon: <BookOpen size={16} aria-hidden="true" /> }] : []),
       { key: "next", label: "Next page", hint: "Start a new screen", icon: <SplitSquareVertical size={16} aria-hidden="true" /> },
     ].filter((item) => item.label.toLowerCase().includes(filter));
-  }, [menu, publishedForms, options, placed]);
+  }, [menu, publishedForms, options, placed, draft.layout]);
   const full = draft.layout.length >= WELCOME_BLOCKS_MAX;
   const openMenu = (target: MenuTarget, view: MenuView = "root", filter = "") => { setLink(""); setMenu({ target, view, filter, active: 0 }); };
   const closeMenu = () => {
@@ -191,6 +194,9 @@ export function WebCommunityWelcomeSettings(props: Props) {
     if (!menu) return;
     if (key === "form" || key === "lesson" || key === "link") { setLink(""); setMenu({ ...menu, view: key, filter: "", active: 0 }); return; }
     if (key === "text") return insert([{ type: "text", markdown: "" }]);
+    if (key === "choice") return insert([{ type: "choice", prompt: "Which one are you using?", options: [
+      { label: "Option 1", hint: "", markdown: "" }, { label: "Option 2", hint: "", markdown: "" },
+    ] }]);
     if (key === "next") return insert([{ type: "next" }, { type: "text", markdown: "" }]);
     if (key.startsWith("form:")) return insert([{ type: "form", formKey: key.slice(5) }]);
     if (key.startsWith("lesson:")) return insert([{ type: "lesson", resourceId: key.slice(7) }]);
@@ -230,6 +236,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
     if (slash && !full) openMenu({ uid, mode: "replace", start, end }, "root", slash[1]);
     else if (menu?.target.uid === uid) setMenu(null);
   };
+  const updateChoice = (uid: string, update: (block: Extract<WelcomeBlock, { type: "choice" }>) => Extract<WelcomeBlock, { type: "choice" }>) =>
+    setLayout((layout) => layout.map((block) => (block.uid === uid && block.type === "choice" ? { ...update(block), uid } : block)));
   const remove = (uid: string) => {
     const at = draft.layout.findIndex((block) => block.uid === uid);
     const neighbour = draft.layout[at - 1] ?? draft.layout[at + 1];
@@ -382,6 +390,9 @@ export function WebCommunityWelcomeSettings(props: Props) {
                             else if (event.key === "Escape") (event.target as HTMLElement).blur();
                           }} />
                       ) : <TextView id={`${id}-block-${block.uid}`} markdown={block.markdown} onEdit={() => editText(block.uid)} />
+                    ) : block.type === "choice" ? (
+                      <ChoiceEditor id={`${id}-block-${block.uid}`} prompt={block.prompt} options={block.options}
+                        onChange={(prompt, choiceOptions) => updateChoice(block.uid, (current) => ({ ...current, prompt, options: choiceOptions }))} />
                     ) : block.type === "next" ? (
                       <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break">
                         <span>Next page</span><small>Screen {screenNumber}</small>
@@ -453,6 +464,65 @@ function TextView(props: { id: string; markdown: string; onEdit: () => void }) {
   return <div id={props.id} className="community-welcome-message welcome-settings-text-view" tabIndex={0} role="group" aria-label="Text. Press Enter to edit."
     onClick={(event) => { if (!(event.target as HTMLElement).closest("a, button, iframe, video")) props.onEdit(); }}
     onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); props.onEdit(); } }}>{rendered}</div>;
+}
+
+// A choice as the owner writes it: the question, a tab per card, and the
+// picked card's name, one-line hint and steps (markdown, like a text block).
+function ChoiceEditor(props: { id: string; prompt: string; options: WelcomeChoiceOption[]; onChange: (prompt: string, options: WelcomeChoiceOption[]) => void }) {
+  const [active, setActive] = useState(0);
+  const at = Math.min(active, props.options.length - 1);
+  const option = props.options[at];
+  const setOption = (patch: Partial<WelcomeChoiceOption>) =>
+    props.onChange(props.prompt, props.options.map((item, index) => (index === at ? { ...item, ...patch } : item)));
+  const add = () => {
+    props.onChange(props.prompt, [...props.options, { label: `Option ${props.options.length + 1}`, hint: "", markdown: "" }]);
+    setActive(props.options.length);
+  };
+  const removeOption = () => {
+    if (props.options.length <= 1) return;
+    props.onChange(props.prompt, props.options.filter((_, index) => index !== at));
+    setActive(Math.max(0, at - 1));
+  };
+  return <div id={props.id} tabIndex={-1} className="welcome-settings-choice">
+    <div className="welcome-settings-choice-head">
+      <span className="welcome-settings-step-icon"><LayoutGrid size={18} aria-hidden="true" /></span>
+      <span className="welcome-settings-step-copy"><small>Choice</small><span className="welcome-settings-step-note">Members pick one card and see only its steps.</span></span>
+    </div>
+    <label className="welcome-settings-choice-field">
+      <span>Question</span>
+      <input value={props.prompt} maxLength={WELCOME_CHOICE_PROMPT_MAX} placeholder="Which app do you use?" onChange={(event) => props.onChange(event.target.value, props.options)} />
+    </label>
+    <div className="welcome-settings-choice-tabs" role="tablist" aria-label="Cards">
+      {props.options.map((item, index) => (
+        <button key={index} type="button" role="tab" aria-selected={index === at} className={index === at ? "is-active" : ""} onClick={() => setActive(index)}>
+          {item.label.trim() || `Card ${index + 1}`}
+        </button>
+      ))}
+      {props.options.length < WELCOME_CHOICE_OPTIONS_MAX
+        ? <button type="button" className="welcome-settings-choice-add" onClick={add}><Plus size={14} aria-hidden="true" /> Card</button> : null}
+    </div>
+    {option ? <div className="welcome-settings-choice-card" role="tabpanel">
+      <div className="welcome-settings-choice-row">
+        <label className="welcome-settings-choice-field">
+          <span>Card name</span>
+          <input value={option.label} maxLength={WELCOME_CHOICE_LABEL_MAX} placeholder="Claude Code" onChange={(event) => setOption({ label: event.target.value })} />
+        </label>
+        <label className="welcome-settings-choice-field">
+          <span>One line under it</span>
+          <input value={option.hint} maxLength={WELCOME_CHOICE_HINT_MAX} placeholder="Runs in VS Code or your terminal" onChange={(event) => setOption({ hint: event.target.value })} />
+        </label>
+      </div>
+      <label className="welcome-settings-choice-field">
+        <span>Steps for this card</span>
+        <AutoSizeTextarea value={option.markdown} maxLength={WELCOME_CHOICE_TEXT_MAX} rows={4} className="welcome-settings-choice-text"
+          placeholder={"1. **Do this first.** A short line.\n2. Paste this:\n```\nwhat they copy\n```"} onChange={(markdown) => setOption({ markdown })} />
+      </label>
+      <div className="welcome-settings-choice-foot">
+        <small>{option.markdown.length.toLocaleString()} / {WELCOME_CHOICE_TEXT_MAX.toLocaleString()} · Markdown: **bold**, lists, links, and ``` for a box with a Copy button</small>
+        {props.options.length > 1 ? <button type="button" className="welcome-settings-link" onClick={removeOption}>Remove this card</button> : null}
+      </div>
+    </div> : null}
+  </div>;
 }
 
 function StepCard(props: { id: string; kind: string; icon: ReactNode; title: string; detail: string[]; note: string; unavailable: boolean }) {

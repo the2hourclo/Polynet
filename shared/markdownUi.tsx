@@ -683,6 +683,10 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
       if (language === COMMUNITY_EMBED_LANGUAGE) {
         return renderCommunityEmbed(raw, options?.communityEmbeds ?? null);
       }
+      // Words to copy (a prompt for an AI, or a name to paste): never a diagram or code, whatever arrows they hold.
+      if (language === "prompt" || language === "copy") {
+        return <ArtifactBlock label={language === "prompt" ? "Prompt" : "Paste this"} text={raw} extension="txt" onCopyText={options?.onCopyCode} />;
+      }
       if (!hasExplicitCodeLanguage(language) && looksLikeDiagram(raw)) {
         return (
           <ArtifactBlock
