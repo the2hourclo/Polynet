@@ -126,6 +126,8 @@ export type WebCommunityShellProps = {
   communityCreateCtaLabel: string;
   communityCreateCtaTitle: string;
   onOpenGlobalSettings: () => void;
+  /* The signed-in person, for the profile button at the top right. */
+  viewerFace?: { name: string; avatarUrl: string | null; focusX: number; focusY: number; zoom: number } | null;
 };
 
 export type WebSettingsSidebarProps = {

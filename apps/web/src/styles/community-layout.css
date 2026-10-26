@@ -1668,3 +1668,29 @@
 .app-topbar .icon-button.account-settings-bar-button { width: 34px; height: 34px; }
 .app-topbar .icon-button.account-settings-bar-button svg { width: 20px; height: 20px; }
 .app-root:not(.mobile-shell) .app-topbar .account-settings-bar-button { transform: translate(-4px, 4px); }
+
+/* Your picture sits after the gear (WebAccountSettingsButton) and opens your
+   settings on your profile (Rashid, 2026-10-26). */
+.community-profile-button .community-profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+.community-profile-button .community-profile-avatar-image { width: 100%; height: 100%; object-fit: cover; }
+.community-profile-button .community-profile-avatar svg { width: 16px; height: 16px; }
+.community-profile-button.is-open .community-profile-avatar,
+.community-profile-button.active .community-profile-avatar { box-shadow: 0 0 0 2px var(--accent-brand, var(--text-primary)); }
+.app-root:has(.app-topbar .account-settings-bar-button + .community-profile-button) {
+  --web-topbar-right-action-safe-inset: 146px;
+}
+.app-root:has(.app-topbar .account-settings-bar-button + .community-profile-button):has(.app-topbar .community-display-bar-button) {
+  --web-topbar-right-action-safe-inset: 186px;
+}

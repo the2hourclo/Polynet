@@ -16,6 +16,7 @@ type CommunityLike = CommunityShellCommunity;
 
 export function buildWebShellChromeHostProps(params: {
   onOpenCommunityMembers: () => void;
+  viewerFace?: WebShellChromeHostProps["communityShell"]["viewerFace"];
   memberNextStep?: ReactNode;
   showMobileAppShell: boolean;
   showMobileSettingsShell: boolean;
@@ -289,6 +290,7 @@ export function buildWebShellChromeHostProps(params: {
         if (params.showMobileGlobalShell) params.prepareMobileGlobalNavigation();
         params.handleOpenGlobalSettings();
       },
+      viewerFace: params.viewerFace ?? null,
     },
     settingsSidebar: {
       showMobileSettingsShell: params.showMobileSettingsShell,

@@ -1,168 +1,64 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { createPortal } from "react-dom";
-import { Settings, UserRound, Users, type LucideIcon } from "lucide-react";
+import { Settings, UserRound } from "lucide-react";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
+import { UserAvatar } from "../../../../shared/UserAvatar";
 
-// Settings at the top right beside Display (Rashid, 2026-10-25), in place of
-// the desktop rail's bottom gear and the gear over the community banner.
-// Inside a community it opens a small menu with the community's settings
-// (Membership for members) and the account's; elsewhere it goes straight to
-// account settings. Styled like the Display trigger and panel next to it.
-
-const PANEL_WIDTH = 288;
-const VIEWPORT_MARGIN = 12;
-
-type Option = { key: string; label: string; description: string; icon: LucideIcon; current: boolean; choose: () => void };
+// The top right holds two buttons, like Substack (Rashid, 2026-10-26): inside
+// a community the gear opens that community's settings (Your membership for
+// members), and your own picture opens your settings, starting on your
+// profile. Styled like the Display trigger next to them.
 
 export function WebAccountSettingsButton(props: { communityShell: WebCommunityShellProps; placement: "top" | "bar" }) {
   const shell = props.communityShell;
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-
-  const close = useCallback((returnFocus: boolean) => {
-    setOpen(false);
-    if (returnFocus) triggerRef.current?.focus();
-  }, []);
-  const place = useCallback(() => {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const width = Math.min(PANEL_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2);
-    const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.right - width, window.innerWidth - width - VIEWPORT_MARGIN));
-    setPosition({ top: rect.bottom + 8, left });
-  }, []);
-  useLayoutEffect(() => {
-    if (open) place();
-  }, [open, place]);
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!panelRef.current?.contains(target) && !triggerRef.current?.contains(target)) close(false);
-    };
-    document.addEventListener("pointerdown", onPointer);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
-  }, [open, close, place]);
-  useEffect(() => {
-    if (open && position) panelRef.current?.querySelector<HTMLElement>("[role='menuitem']")?.focus();
-  }, [open, position]);
-
   if (!shell.showDesktopCommunityRail) return null;
 
   const community = shell.activeCommunity;
   const inCommunity = Boolean(community) && shell.destination.kind.startsWith("community_");
   const accountActive = shell.destination.kind === "global_settings";
   const communityActive = inCommunity && shell.communityTab === "settings";
-  const options: Option[] = [];
-  if (inCommunity && community && shell.canViewActiveCommunitySettings) {
-    const owner = shell.canManageMembersActiveCommunity;
-    options.push({
-      key: "community",
-      label: owner ? "Community settings" : "Your membership",
-      description: owner ? `Build and run ${community.name}` : `Your plan, notifications and access in ${community.name}`,
-      icon: Users,
-      current: communityActive,
-      choose: () => shell.onSelectCommunityTab("settings"),
-    });
-  }
-  options.push({
-    key: "account",
-    label: "Your settings",
-    description: "Your profile, account and display",
-    icon: UserRound,
-    current: accountActive,
-    choose: shell.onOpenGlobalSettings,
-  });
-  const hasMenu = options.length > 1;
-  const active = accountActive || communityActive;
-
-  const onPanelKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      close(true);
-      return;
-    }
-    if (event.key === "Tab") {
-      close(false);
-      return;
-    }
-    const items = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("[role='menuitem']") ?? []);
-    const index = items.indexOf(document.activeElement as HTMLElement);
-    const next =
-      event.key === "ArrowDown" ? items[(index + 1) % items.length]
-      : event.key === "ArrowUp" ? items[(index - 1 + items.length) % items.length]
-      : event.key === "Home" ? items[0]
-      : event.key === "End" ? items[items.length - 1]
-      : null;
-    if (next) {
-      event.preventDefault();
-      next.focus();
-    }
-  };
-
-  const panel = hasMenu && open && position ? createPortal(
-    <div className="community-theme-scope" data-community-theme={community?.id ?? undefined}>
-      <div
-        ref={panelRef}
-        className="community-display-panel"
-        role="menu"
-        aria-label="Settings"
-        style={{ top: position.top, left: position.left, width: Math.min(PANEL_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2) }}
-        onKeyDown={onPanelKeyDown}
-      >
-        {options.map((option) => {
-          const Icon = option.icon;
-          return (
-            <button
-              key={option.key}
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              aria-current={option.current ? "page" : undefined}
-              className={`community-display-option${option.current ? " is-selected" : ""}`}
-              onClick={() => {
-                option.choose();
-                close(false);
-              }}
-            >
-              <span className="community-display-option-icon" aria-hidden="true"><Icon size={16} strokeWidth={2} /></span>
-              <span className="community-display-option-text">
-                <strong>{option.label}</strong>
-                <span>{option.description}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>,
-    document.body,
-  ) : null;
+  const showGear = Boolean(inCommunity && community && shell.canViewActiveCommunitySettings);
+  const gearLabel = shell.canManageMembersActiveCommunity ? "Community settings" : "Your membership";
+  const face = shell.viewerFace ?? null;
+  const buttonClass = (active: boolean, extra = "") => (props.placement === "top"
+    ? `community-top-nav-icon${extra}${active ? " is-open" : ""}`
+    : `icon-button account-settings-bar-button${extra}${active ? " active" : ""}`);
 
   return (
     <>
+      {showGear ? (
+        <button
+          type="button"
+          className={buttonClass(communityActive)}
+          aria-label={gearLabel}
+          title={gearLabel}
+          aria-current={communityActive ? "page" : undefined}
+          onClick={() => shell.onSelectCommunityTab("settings")}
+        >
+          <Settings size={20} strokeWidth={2} aria-hidden="true" />
+        </button>
+      ) : null}
       <button
-        ref={triggerRef}
         type="button"
-        className={props.placement === "top"
-          ? `community-top-nav-icon${open ? " is-open" : ""}`
-          : `icon-button account-settings-bar-button${active || open ? " active" : ""}`}
-        aria-label="Settings"
-        title="Settings"
-        aria-haspopup={hasMenu ? "menu" : undefined}
-        aria-expanded={hasMenu ? open : undefined}
-        aria-current={!hasMenu && active ? "page" : undefined}
-        onClick={() => (hasMenu ? (open ? close(false) : setOpen(true)) : shell.onOpenGlobalSettings())}
+        className={buttonClass(accountActive, " community-profile-button")}
+        aria-label={face?.name ? `Your profile and settings (${face.name})` : "Your profile and settings"}
+        title="Your profile and settings"
+        aria-current={accountActive ? "page" : undefined}
+        onClick={shell.onOpenGlobalSettings}
       >
-        <Settings size={20} strokeWidth={2} aria-hidden="true" />
+        <UserAvatar
+          className="community-profile-avatar"
+          readyClassName="has-image"
+          imageClassName="community-profile-avatar-image"
+          fallbackClassName="community-profile-avatar-fallback"
+          name={face?.name || "You"}
+          imageUrl={face?.avatarUrl ?? null}
+          focusX={face?.focusX ?? 0.5}
+          focusY={face?.focusY ?? 0.5}
+          zoom={face?.zoom ?? 1}
+          fallback={face?.name ? <span>{shell.communityInitials(face.name)}</span> : <UserRound size={16} strokeWidth={2} />}
+          alt=""
+          aria-hidden={true}
+        />
       </button>
-      {panel}
     </>
   );
 }
