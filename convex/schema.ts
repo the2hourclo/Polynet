@@ -3122,6 +3122,13 @@ export default defineSchema({
     number: v.number(),
     /** The stage the run started in, when not the first: no welcome flow then. */
     startMilestoneKey: v.optional(v.string()),
+    /** Who this test member is, in the owner's words. Autoplay answers forms and posts as them when the agent runs free. */
+    persona: v.optional(v.string()),
+    /** Autoplay's persona-written answers for its next form or post, made before the step is issued. */
+    autoplayDraft: v.optional(v.object({
+      key: v.string(), status: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")), startedAt: v.number(),
+      answers: v.optional(v.any()), message: v.optional(v.string()), error: v.optional(v.string()),
+    })),
     /** Autoplay is playing until then: agent messages a Workflow sends are previewed, not sent. */
     autoplayUntil: v.optional(v.number()),
     /** What autoplay already did, so a step whose rules are still running isn't done twice. */

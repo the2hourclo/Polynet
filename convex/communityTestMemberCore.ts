@@ -1,3 +1,4 @@
+import { readCommunityInferenceProvider } from "./communityInferenceProvider";
 // Test members are stand-in accounts an owner (or admin) creates to go through
 // their own community as a new member. The owner stays signed in as themselves;
 // a browser tab in a test run sends the test member's subject instead of the
@@ -20,6 +21,8 @@ export type TestMemberRow = {
   label: string;
   number: number;
   startMilestoneKey?: string;
+  persona?: string;
+  autoplayDraft?: { key: string; status: "pending" | "ready" | "failed"; startedAt: number; answers?: Record<string, string | string[]>; message?: string; error?: string };
   autoplayUntil?: number;
   autoplayDone?: string[];
   autoplayLast?: { at: number; text: string; path?: string; target?: string };
@@ -78,4 +81,18 @@ export async function requireNotTestMemberOutsideCommunity(ctx: any, userId: any
 export async function testMemberAutoplayIsOn(ctx: any, userId: any, nowMs = Date.now()): Promise<boolean> {
   const row = await findTestMemberByUserId(ctx, userId);
   return !!row && row.endedAt === undefined && (row.autoplayUntil ?? 0) > nowMs;
+}
+
+/** The agent answers through the owner's own Claude Code on this computer, so its turns cost nothing. */
+export function communityAgentRunsFree(): boolean {
+  return readCommunityInferenceProvider() === "claude_code_local";
+}
+
+/**
+ * While Autoplay plays, agent steps are previewed, not sent, so a test run
+ * doesn't spend the community's AI credits. When the agent runs free
+ * (communityAgentRunsFree), they run for real and the owner sees the replies.
+ */
+export async function testMemberAutoplayPreviewsAgent(ctx: any, userId: any, nowMs = Date.now()): Promise<boolean> {
+  return !communityAgentRunsFree() && await testMemberAutoplayIsOn(ctx, userId, nowMs);
 }

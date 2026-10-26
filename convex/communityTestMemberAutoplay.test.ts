@@ -6,6 +6,13 @@ import { afterEach, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import { sampleFormAnswers } from "./communityTestMemberAutoplay";
+import { mergePersonaAnswers, parsePersonaReply } from "./communityTestMemberPersona";
+
+const completion = vi.hoisted(() => ({ reply: vi.fn() }));
+vi.mock("./communityInferenceProvider", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./communityInferenceProvider")>()),
+  runCommunityFundedCompletion: (input: unknown) => completion.reply(input),
+}));
 
 const modules = import.meta.glob([
   "./auth.ts",
@@ -18,13 +25,14 @@ const modules = import.meta.glob([
   "./communityResourceProgress.ts",
   "./communityTestMemberAutoplay.ts",
   "./communityTestMembers.ts",
+  "./communityTestMemberPersona.ts",
   "./_generated/**/*.*s",
 ]);
 
 const OWNER = "autoplay-owner";
 const nowMs = 1_787_478_400_000;
 
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); completion.reply.mockReset(); });
 
 const lessonBody = [
   "Install it.",
@@ -182,4 +190,96 @@ test("on screen, the member tab does the step; one it doesn't take up is done in
   expect(fallback.beat).toMatchObject({ ok: true, text: "Clicked “I installed Claude Code” in “Install Claude Code”" });
   expect(fallback.beat?.on_screen).toBeUndefined();
   expect(fallback.beat?.detail).toContain("member tab isn't open");
+});
+
+const intakeQuestions = [
+  { key: "goal", title: "Your goal", type: "long_text", options: [] },
+  { key: "size", title: "Team size", type: "single_choice", options: ["Solo", "2-10"] },
+  { key: "tools", title: "Tools", type: "multiple_choice", options: ["Notion", "Slack", "Kit"] },
+  { key: "seats", title: "Seats", type: "short_text", options: [] },
+];
+
+test("persona replies keep only answers that fit each question", () => {
+  const request = { kind: "form" as const, formName: "Intake", questions: intakeQuestions };
+  expect(parsePersonaReply('Sure! {"answers": {"goal": "  Fill my two clinics  ", "size": 2, "tools": [1, 3, 9, 1], "nope": "x"}}', request))
+    .toEqual({ answers: { goal: "Fill my two clinics", size: "1", tools: ["0", "2"] } });
+  expect(parsePersonaReply('{"answers": {"size": 7}}', request)).toBeNull();
+  expect(parsePersonaReply("not json", request)).toBeNull();
+  expect(parsePersonaReply('{"message": " Hi, I run two dental clinics. "}', { kind: "post", channelName: "general" }))
+    .toEqual({ message: "Hi, I run two dental clinics." });
+  // A checked sample (a number) stays, so the form still saves; free text and choices take the persona's.
+  expect(mergePersonaAnswers({ goal: "Sample answer from Test member 1", size: "0", seats: "3" },
+    { goal: "Fill my two clinics", size: "1", seats: "lots" }, intakeQuestions))
+    .toEqual({ goal: "Fill my two clinics", size: "1", seats: "3" });
+});
+
+async function startPersonaRun(t: ReturnType<typeof convexTest>) {
+  vi.stubEnv("POLYNET_COMMUNITY_INFERENCE_PROVIDER", "claude_code_local");
+  vi.stubEnv("POLYNET_CLAUDE_CODE_BRIDGE_TOKEN", "test-secret");
+  const f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER });
+  const started = await owner.mutation(api.communityTestMembers.startTestMember,
+    { communityId: f.communityId, persona: "  a dentist with two clinics who has never used AI  " });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  return { f, owner, started, args: { communityId: f.communityId, testMemberId: started.id as any } };
+}
+
+const intakeAnswers = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) =>
+  (await ctx.db.query("communityFormRequests").collect()).find((row) => row.formKey === "intake")?.answers);
+
+test("with the free local engine, autoplay answers forms as the test member's persona", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(nowMs);
+  completion.reply.mockResolvedValue({ ok: true, type: "assistant",
+    assistantText: '{"answers": {"goal": "Answer patients faster at both clinics", "size": 2}}' });
+  const t = convexTest(schema, modules);
+  const { owner, args } = await startPersonaRun(t);
+  expect((await owner.query(api.communityTestMembers.listTestMembers, { communityId: args.communityId }) as any).test_members[0].persona)
+    .toBe("a dentist with two clinics who has never used AI");
+
+  // The first step only starts the writing; the form isn't touched yet.
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args))
+    .resolves.toMatchObject({ status: "acting", beat: { text: "Writing Intake answers as Test member 1…" } });
+  expect(await intakeAnswers(t)).toEqual({});
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const sent = completion.reply.mock.calls[0][0];
+  expect(sent.tools).toEqual([]);
+  expect(sent.messages[0].content).toContain("a dentist with two clinics");
+
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args))
+    .resolves.toMatchObject({ status: "acted", beat: { ok: true, text: "Filled in the Intake form as Test member 1" } });
+  expect(await intakeAnswers(t)).toEqual({ goal: "Answer patients faster at both clinics", size: "1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+  // The agent runs for real (and free) on this engine, so its step isn't
+  // previewed: it goes to the real send, which fails here only because the
+  // fixture's community has no agent set up.
+  const sequence = await owner.query(api.communityTestMembers.getTestRunSequence, args);
+  const greet = sequence.stages[0].steps.find((step: any) => step.key === "greet");
+  expect(greet).toMatchObject({ note: null, error: "agent requester access missing" });
+});
+
+test("when the persona can't be written, autoplay uses the sample answers", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(nowMs);
+  completion.reply.mockResolvedValue({ ok: false, status: 503, code: "bridge_down", message: "down" });
+  const t = convexTest(schema, modules);
+  const { owner, args } = await startPersonaRun(t);
+  await owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args))
+    .resolves.toMatchObject({ status: "acted", beat: { ok: true, text: "Filled in the Intake form with sample answers" } });
+  expect(await intakeAnswers(t)).toMatchObject({ goal: expect.stringContaining("Sample answer from Test member 1"), size: "0" });
+});
+
+test("a persona that takes too long gives way to the sample answers", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(nowMs);
+  const t = convexTest(schema, modules);
+  const { owner, args } = await startPersonaRun(t);
+  await owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args);
+  // The writing never comes back (no scheduled functions run); a minute later it's skipped.
+  vi.setSystemTime(nowMs + 61_000);
+  await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args))
+    .resolves.toMatchObject({ status: "acted", beat: { text: "Filled in the Intake form with sample answers" } });
 });

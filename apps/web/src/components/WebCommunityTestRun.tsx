@@ -16,6 +16,7 @@ import {
   type CloudTestRunSequence,
   type CloudTestRunStep,
 } from "../../../../shared/cloudCommunityTestMembersGateway";
+import { getCloudCommunityInferenceEngine } from "../../../../shared/cloudCommunityAgentGateway";
 import { buildTestMemberRunUrl, testMemberRunFrameName } from "../../../../shared/testMemberRun";
 import { TEST_RUN_FRAME_EXIT, TEST_RUN_FRAME_READY } from "./WebTestRunBar";
 import "./WebCommunityTestRun.css";
@@ -67,16 +68,33 @@ function openTestTab(tab: Window | null, slug: string, member: { auth_subject: s
  * community as it. Call it straight from a click: the tab opens before the
  * server answers, so the browser doesn't block it.
  */
-export async function startTestRunInNewTab(context: WebCommunityTestRunContext, milestoneKey?: string | null, replacingId?: string) {
+export async function startTestRunInNewTab(context: WebCommunityTestRunContext, milestoneKey?: string | null, replacingId?: string,
+  persona?: string | null) {
   const tab = window.open("about:blank", "_blank");
   try {
     const ready = await context.ensureSession(context.session, "community_test_run_start");
     if (!ready) throw new Error("session_unavailable");
     if (replacingId) await endCloudCommunityTestMember(ready, context.communityId, replacingId);
-    const started = await startCloudCommunityTestMember(ready, context.communityId, milestoneKey);
+    const started = await startCloudCommunityTestMember(ready, context.communityId, milestoneKey, persona);
     openTestTab(tab, context.communitySlug, started);
     return started;
   } catch (caught) { tab?.close(); throw caught; }
+}
+
+let engineCheck: Promise<boolean> | null = null;
+
+/** True when community agents run on the owner's local Claude Code (free, test-only). */
+function useAgentRunsFree(): boolean {
+  const [free, setFree] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    engineCheck ??= getCloudCommunityInferenceEngine()
+      .then((engine) => engine.provider === "claude_code_local" && engine.ready)
+      .catch(() => { engineCheck = null; return false; });
+    void engineCheck.then((value) => { if (alive) setFree(value); });
+    return () => { alive = false; };
+  }, []);
+  return free;
 }
 
 // Workflows → Test run: the owner goes through their own community as a brand
@@ -90,6 +108,10 @@ export function WebCommunityTestRun(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [startStage, setStartStage] = useState("");
+  const [persona, setPersona] = useState("");
+  // The agent runs free on the local Claude Code engine: then Autoplay can
+  // play a persona, and agent steps run for real instead of being previewed.
+  const agentRunsFree = useAgentRunsFree();
   const [reload, setReload] = useState(0);
   const [watching, setWatching] = useState<string | null>(null);
   const { communityId, session, ensureSession } = props;
@@ -118,7 +140,7 @@ export function WebCommunityTestRun(props: Props) {
   }, []);
 
   const start = (milestoneKey: string, replacing?: CloudCommunityTestMember) => {
-    const pending = startTestRunInNewTab(props, milestoneKey || null, replacing?.id);
+    const pending = startTestRunInNewTab(props, milestoneKey || null, replacing?.id, replacing ? replacing.persona : agentRunsFree ? persona : null);
     void run(replacing ? `restart:${replacing.id}` : "start", async () => { setSelected((await pending).id); });
   };
   // Watch: a new test member goes through the community by itself, shown
@@ -126,7 +148,7 @@ export function WebCommunityTestRun(props: Props) {
   const watchNew = () => void run("watch", async () => {
     const ready = await ensureSession(session, "community_test_run_start");
     if (!ready) throw new Error("session_unavailable");
-    const started = await startCloudCommunityTestMember(ready, communityId, startStage || null);
+    const started = await startCloudCommunityTestMember(ready, communityId, startStage || null, agentRunsFree ? persona : null);
     setSelected(started.id); setWatching(started.id);
   });
   const end = (member: CloudCommunityTestMember) => {
@@ -169,6 +191,10 @@ export function WebCommunityTestRun(props: Props) {
             {props.stages.slice(1).map((stage, index) => <option key={stage.key} value={stage.key}>In stage {index + 2}: {stage.name}</option>)}
           </select>
         </div> : null}
+        {agentRunsFree ? <div className="test-run-field test-run-persona">
+          <input type="text" aria-label="Who the test member is (optional)" maxLength={500} value={persona} disabled={busy !== null}
+            placeholder="Who are they? e.g. a dentist with two clinics who's never used AI" onChange={(event) => setPersona(event.target.value)} />
+        </div> : null}
         {watchButton}
         <button type="button" className="workflow-secondary-button" disabled={busy !== null || members === null} onClick={() => start(startStage)}>
           <ExternalLink size={14} aria-hidden="true" /> {busy === "start" ? "Starting…" : "Try it yourself in a new tab"}
@@ -180,8 +206,10 @@ export function WebCommunityTestRun(props: Props) {
       <span className="pn-wf-callout-text">
         <strong>Safe to try</strong>
         <small>The community opens as a test member, here or in a new tab, and you stay signed in as you. A test member is tagged Test on Clients
-          and can't pay, message anyone or use Ask AI. Agent messages a Workflow sends, and the agent's replies when they write in its channel, do run and use your credits. Autoplay only previews them.
-          Ending a run deletes everything it did.</small>
+          and can't pay, message anyone or use Ask AI. {agentRunsFree
+            ? "The agent runs on your own Claude Code here, so its messages and replies run for real, Autoplay included, and cost no credits. Say who the test member is and Autoplay answers forms and posts as them."
+            : "Agent messages a Workflow sends, and the agent's replies when they write in its channel, do run and use your credits. Autoplay only previews them."}
+          {" "}Ending a run deletes everything it did.</small>
       </span>
     </div>
     {error ? <p role="alert" className="test-run-error">{error}</p> : null}
@@ -203,7 +231,7 @@ export function WebCommunityTestRun(props: Props) {
               <span className="pn-wf-row-icon" aria-hidden="true"><FlaskConical size={16} strokeWidth={2} /></span>
               <span className="pn-wf-row-text">
                 <strong>{member.label}</strong>
-                <small>Started {timeOf(member.created_at)}</small>
+                <small>Started {timeOf(member.created_at)}{member.persona ? ` · ${member.persona}` : ""}</small>
               </span>
               <span className="pn-wf-badge">{started ? `From ${started}` : "New member"}</span>
             </button>
@@ -393,6 +421,9 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
   const openMemberTab = () => {
     if (props.member.auth_subject) openTestTab(null, props.communitySlug, { auth_subject: props.member.auth_subject, label: props.member.label });
   };
+  const agentRunsFree = useAgentRunsFree();
+  const asPersona = agentRunsFree && Boolean(props.member.persona);
+  const agentNote = agentRunsFree ? "Agent messages run for real on your Claude Code, at no cost." : "Agent messages are previewed, not sent.";
   const running = phase === "playing" || phase === "step";
   const result = phase === "finished" && props.sequence ? autoplayResult(props.sequence) : null;
   const status = running ? <span className="pn-wf-badge is-edited">Playing · step {log.length + 1}</span>
@@ -403,9 +434,9 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
       <span className="pn-wf-callout-icon" aria-hidden="true"><Play size={20} strokeWidth={2} /></span>
       <span className="pn-wf-callout-text">
         <strong>Autoplay {status}</strong>
-        {props.watch ? null : <small>{props.member.label} goes through the Workflow by itself: fills in forms with sample answers, clicks through lessons,
-          posts, and skips the waits. Agent messages are previewed, not sent.</small>}
-        {props.watch ? <small>{props.watch.ready || phase !== "ready" ? `${props.member.label} fills in forms, clicks through lessons, posts and skips the waits on the left. Agent messages are previewed, not sent.`
+        {props.watch ? null : <small>{props.member.label} goes through the Workflow by itself: fills in forms with {asPersona ? "answers in their own words" : "sample answers"}, clicks through lessons,
+          posts, and skips the waits. {agentNote}</small>}
+        {props.watch ? <small>{props.watch.ready || phase !== "ready" ? `${props.member.label} fills in forms, clicks through lessons, posts and skips the waits on the left. ${agentNote}`
           : `Getting ${props.member.label}'s screen ready…`}</small>
         : where === "screen" ? <small>On screen: keep {props.member.label}'s tab open next to this one to watch each click.{" "}
           {props.member.auth_subject ? <button type="button" className="test-run-link" onClick={openMemberTab}>Open their tab</button> : null}</small> : null}

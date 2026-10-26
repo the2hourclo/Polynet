@@ -1,4 +1,4 @@
-import { testMemberAutoplayIsOn } from "./communityTestMemberCore";
+import { testMemberAutoplayPreviewsAgent } from "./communityTestMemberCore";
 import { resolveLegacyComposerAttachments } from "./communityLegacyAttachmentUploads";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -1868,8 +1868,8 @@ export async function createCommunityInteractionComposerMessageCore(
         );
       }
 
-      // Autoplay's test posts (a server caller only) never wake the agent.
-      if (actorType === "human" && args.skipAgentIntake !== true && !await testMemberAutoplayIsOn(ctx, userId, nowMs)) {
+      // Autoplay's test posts (a server caller only) don't wake the agent, unless it runs free.
+      if (actorType === "human" && args.skipAgentIntake !== true && !await testMemberAutoplayPreviewsAgent(ctx, userId, nowMs)) {
         await intakeCommunityAgentTurn({
           ctx,
           communityId: args.communityId,

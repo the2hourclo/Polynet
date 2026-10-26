@@ -74,7 +74,7 @@ import { normalizeWelcomeLayout, welcomeLayoutIssue, welcomeLayoutSteps, WELCOME
 import { intakeCommunityAgentWorkflowAction } from "./communityAgentConciergeCore";
 import { resolveNotificationRecipientSource } from "./communityNotificationAccess";
 import { bindMemberServiceChannel } from "./communityMemberServiceChannelCore";
-import { testMemberAutoplayIsOn } from "./communityTestMemberCore";
+import { testMemberAutoplayIsOn, testMemberAutoplayPreviewsAgent } from "./communityTestMemberCore";
 import { sendWorkflowEmail } from "./communityWorkflowEmailCore";
 
 // Departed members' positions cleared per call; past this the call clears a
@@ -1625,8 +1625,8 @@ async function executeWorkflowAutomation(args: {
       return { status: email.resultCode, workflow_run_id: String(workflowRunId), replayed: false };
     }
     if (args.automation.action.type === "prompt_agent") {
-      // Autoplay tests the sequence without sending: the step is marked as a preview.
-      if (await testMemberAutoplayIsOn(args.ctx, args.membership.userId, nowMs)) {
+      // Autoplay tests the sequence without sending (unless the agent runs free): the step is marked as a preview.
+      if (await testMemberAutoplayPreviewsAgent(args.ctx, args.membership.userId, nowMs)) {
         await args.ctx.db.patch(workflowRunId, { status: "finished", actionResult: {
           actionKey: args.automation.action.key, status: "complete", resultCode: "agent_previewed",
         }, finishedAt: nowMs, updatedAt: nowMs });

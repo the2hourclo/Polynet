@@ -64,6 +64,7 @@ import type * as communityEmbedValues from "../communityEmbedValues.js";
 import type * as communityTestMemberCore from "../communityTestMemberCore.js";
 import type * as communityTestMembers from "../communityTestMembers.js";
 import type * as communityTestMemberAutoplay from "../communityTestMemberAutoplay.js";
+import type * as communityTestMemberPersona from "../communityTestMemberPersona.js";
 import type * as communityChat from "../communityChat.js";
 import type * as communityCognitionCleanup from "../communityCognitionCleanup.js";
 import type * as communityCognitionCleanupCore from "../communityCognitionCleanupCore.js";
@@ -342,6 +343,7 @@ declare const fullApi: ApiFromModules<{
   communityEmbedValues: typeof communityEmbedValues;
   communityTestMemberCore: typeof communityTestMemberCore;
   communityTestMemberAutoplay: typeof communityTestMemberAutoplay;
+  communityTestMemberPersona: typeof communityTestMemberPersona;
   communityTestMembers: typeof communityTestMembers;
   communityChat: typeof communityChat;
   communityCognitionCleanup: typeof communityCognitionCleanup;

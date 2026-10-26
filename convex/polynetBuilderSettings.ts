@@ -494,7 +494,8 @@ BUILDER_SETTING_OPERATIONS.push(
   op({
     operation: "community.test_member.start", area: "testing", name: "Start a test run",
     calls: "communityTestMembers:startTestMember", ref: api.communityTestMembers.startTestMember, kind: "mutation",
-    fields: { milestone_key: "optional: start in this Workflow stage instead of joining at the first" },
+    fields: { milestone_key: "optional: start in this Workflow stage instead of joining at the first",
+      persona: "optional: who the test member is, in a sentence; with the local Claude Code engine, Autoplay answers forms and posts as them" },
     required: [], effects: ["start_test_member"],
   }),
   op({
