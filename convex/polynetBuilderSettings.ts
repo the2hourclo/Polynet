@@ -343,7 +343,7 @@ BUILDER_SETTING_OPERATIONS.push(
     calls: "communityClients:saveClientView", ref: internal.communityClients.saveClientViewInternal, kind: "mutation",
     identity: "user", extra: { via: "agent" },
     fields: { key: "an existing view's key to change it; leave out to add a view",
-      view: '{ "name", "columns": [field keys], "filters": [{ "field", "op", "value" }], "match": "all"|"any", "sort": { "field", "direction": "asc"|"desc" } }. Field keys and the ops each field takes are in /builder/clients/ (fields)',
+      view: '{ "name", "columns": [field keys], "filters": [{ "field", "op", "value" }], "match": "all"|"any", "sort": { "field", "direction": "asc"|"desc" }, "group": a select, yes/no, plan, stage or role field key, or null }. Field keys and the ops each field takes are in /builder/clients/ (fields)',
       position: "the view's place in the tab row (a number)" },
     required: ["view"], effects: ["save_client_view"],
   }),

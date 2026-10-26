@@ -533,7 +533,7 @@ async function readViewRows(ctx: any, communityId: any) {
 
 function projectView(row: any) {
   return { key: row.key as string, name: row.name as string, columns: row.columns as string[], filters: row.filters,
-    match: row.match as "all" | "any", sort: row.sort ?? null };
+    match: row.match as "all" | "any", sort: row.sort ?? null, group: (row.group as string | undefined) ?? null };
 }
 
 async function readViews(ctx: any, communityId: any) {
@@ -580,7 +580,7 @@ async function saveView(ctx: any, args: any) {
   await seedViews(ctx, { communityId: args.communityId, userId: args.userId, via });
   const rows = await readViewRows(ctx, args.communityId);
   const nowMs = Date.now();
-  const fields = { name: view.name, columns: view.columns, filters: view.filters, match: view.match, sort: view.sort ?? undefined,
+  const fields = { name: view.name, columns: view.columns, filters: view.filters, match: view.match, sort: view.sort ?? undefined, group: view.group ?? undefined,
     updatedByUserId: args.userId, updatedVia: via, updatedAt: nowMs };
   if (args.position !== undefined && !Number.isFinite(args.position)) throw new CommunityClientError("client_view_invalid", "position");
   if (typeof args.key === "string") {

@@ -3003,6 +3003,7 @@ export default defineSchema({
       value: v.optional(v.union(v.string(), v.number(), v.array(v.string()))) })),
     match: v.union(v.literal("all"), v.literal("any")),
     sort: v.optional(v.object({ field: v.string(), direction: v.union(v.literal("asc"), v.literal("desc")) })),
+    group: v.optional(v.string()),
     position: v.number(),
     updatedByUserId: v.id("users"),
     updatedVia: v.union(v.literal("web"), v.literal("agent")),

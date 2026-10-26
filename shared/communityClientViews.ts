@@ -168,7 +168,10 @@ export type CommunityClientView = {
   filters: CommunityClientFilter[];
   match: "all" | "any";
   sort: CommunityClientSort | null;
+  /** A field to group rows by (see communityClientGroupable), or null for one flat list. */
+  group: CommunityClientGroup;
 };
+export type CommunityClientGroup = string | null;
 
 export const COMMUNITY_CLIENT_VIEW_LIMIT = 30;
 export const COMMUNITY_CLIENT_VIEW_NAME_MAX = 40;
@@ -178,7 +181,7 @@ export const COMMUNITY_CLIENT_VIEW_FILTER_LIMIT = 12;
 export const COMMUNITY_CLIENT_DEFAULT_COLUMNS = ["status", "plan", "stage", "course_progress", "last_seen_at", "joined_at"];
 
 const view = (key: string, name: string, filters: CommunityClientFilter[], sort: CommunityClientSort | null = null,
-  columns = COMMUNITY_CLIENT_DEFAULT_COLUMNS): CommunityClientView => ({ key, name, columns, filters, match: "all", sort });
+  columns = COMMUNITY_CLIENT_DEFAULT_COLUMNS): CommunityClientView => ({ key, name, columns, filters, match: "all", sort, group: null });
 const STILL_HERE: CommunityClientFilter = { field: "status", op: "is_not", value: ["cancelled", "previous"] };
 
 /** The views every community starts with (Rashid, 2026-10-24). The owner can change or delete any of them. */
@@ -255,7 +258,13 @@ export function normalizeCommunityClientView(input: unknown, fields: CommunityCl
     if (typeof field !== "string" || !known.has(field) || (direction !== "asc" && direction !== "desc")) throw bad("sort");
     sort = { field, direction };
   }
-  return { name, columns: [...new Set(columns as string[])], filters: cleanFilters, match, sort };
+  let group: CommunityClientGroup = null;
+  if (raw.group !== undefined && raw.group !== null) {
+    const definition = typeof raw.group === "string" ? known.get(raw.group) : undefined;
+    if (!definition || !communityClientGroupable(definition)) throw bad("group");
+    group = definition.key;
+  }
+  return { name, columns: [...new Set(columns as string[])], filters: cleanFilters, match, sort, group };
 }
 
 function asText(value: CommunityClientFieldValue): string {
@@ -335,4 +344,35 @@ export function personalizeCommunityClientMessage(template: string, name: string
   const full = name.trim() || "there";
   const first = full.split(/\s+/)[0] ?? full;
   return template.replace(/\{first_name\}/g, first).replace(/\{name\}/g, full);
+}
+
+const GROUPABLE_TEXT_FIELDS = new Set(["plan", "stage"]);
+
+/** Fields with a short list of values: choices, yes/no, plan and workflow stage. */
+export function communityClientGroupable(field: Pick<CommunityClientField, "key" | "kind">): boolean {
+  return field.kind === "select" || field.kind === "checkbox" || GROUPABLE_TEXT_FIELDS.has(field.key);
+}
+
+export type CommunityClientRowGroup<T> = { value: string | null; label: string; rows: T[] };
+
+/** Splits already sorted rows into groups: choices in their set order, then other values A to Z, then the empty group. */
+export function groupCommunityClients<T extends CommunityClientRow>(clients: T[], field: CommunityClientField): CommunityClientRowGroup<T>[] {
+  const byValue = new Map<string | null, T[]>();
+  for (const client of clients) {
+    const raw = communityClientFieldValue(client, field.key);
+    const value = field.kind === "checkbox" ? (raw === true ? "true" : "false")
+      : raw === null || raw === undefined || raw === "" ? null : Array.isArray(raw) ? raw.join(", ") : String(raw);
+    const list = byValue.get(value);
+    if (list) list.push(client); else byValue.set(value, [client]);
+  }
+  const order = field.kind === "checkbox" ? ["true", "false"] : field.options;
+  const keys = [...byValue.keys()].sort((a, b) => {
+    if (a === null) return 1;
+    if (b === null) return -1;
+    const left = order.indexOf(a), right = order.indexOf(b);
+    if (left !== -1 || right !== -1) return (left === -1 ? Infinity : left) - (right === -1 ? Infinity : right);
+    return a.localeCompare(b);
+  });
+  return keys.map((value) => ({ value, rows: byValue.get(value)!,
+    label: value === null ? `No ${field.name.toLowerCase()}` : field.kind === "checkbox" ? (value === "true" ? field.name : `Not ${field.name.toLowerCase()}`) : value }));
 }

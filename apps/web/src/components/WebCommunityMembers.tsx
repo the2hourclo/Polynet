@@ -1,5 +1,5 @@
-import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronUp, Download, Flag, MessageSquare, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, StickyNote, Tag, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowLeft, ArrowUpDown, Maximize2, Rows3, ArrowUp, Check, ChevronDown, ChevronUp, Download, Flag, MessageSquare, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, StickyNote, Tag, X } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { COMMUNITY_CLIENT_PROPERTY_TYPES, type CommunityClientPropertyType, type CommunityClientPropertyValue } from "../../../../shared/communityClients";
 import {
@@ -8,6 +8,8 @@ import {
   COMMUNITY_CLIENT_FILTER_OP_LABELS,
   COMMUNITY_CLIENT_STATUS_LABELS,
   applyCommunityClientView,
+  communityClientGroupable,
+  groupCommunityClients,
   communityClientFieldValue,
   communityClientFilterOpsFor,
   type CommunityClientField,
@@ -64,7 +66,7 @@ function errorText(caught: unknown) {
   return communityAccessErrorMessage(caught);
 }
 const sameDraft = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
-const toDraft = (view: ViewRow): Draft => ({ name: view.name, columns: [...view.columns], filters: view.filters.map((f) => ({ ...f })), match: view.match, sort: view.sort ? { ...view.sort } : null });
+const toDraft = (view: ViewRow): Draft => ({ name: view.name, columns: [...view.columns], filters: view.filters.map((f) => ({ ...f })), match: view.match, sort: view.sort ? { ...view.sort } : null, group: view.group ?? null });
 
 function statusPill(client: CloudCommunityClient) {
   if (client.stuck && client.status === "active") return <span className="pn-members-pill is-warn">Stuck</span>;
@@ -302,7 +304,7 @@ function downloadCsv(name: string, clients: CloudCommunityClient[], fields: Comm
 }
 
 function MemberPage(props: { gateway: CommunityAccessGateway; client: CloudCommunityClient; fields: CommunityClientField[];
-  properties: CloudCommunityClientProperty[]; nowMs: number; onBack: () => void; onChanged: () => void;
+  properties: CloudCommunityClientProperty[]; nowMs: number; onBack: () => void; onChanged: () => void; variant?: "page" | "panel"; onExpand?: () => void;
   onSetValue: (key: string, value: CommunityClientPropertyValue | null) => Promise<void>; onBulk: (kind: BulkKind) => void; onAddProperty: () => void }) {
   const { client, nowMs } = props;
   const [tab, setTab] = useState<"details" | "progress" | "access" | "activity">("details");
@@ -319,8 +321,14 @@ function MemberPage(props: { gateway: CommunityAccessGateway; client: CloudCommu
     try { await props.gateway.recordEvent(client.membership_id, "note", note.trim()); setNote(""); setRefreshKey((n) => n + 1); props.onChanged(); }
     catch (caught) { setError(errorText(caught)); } finally { setBusy(false); }
   };
-  return <div className="pn-members-member">
-    <button type="button" className="pn-members-button is-ghost pn-members-back" onClick={props.onBack}><ArrowLeft size={15} />Members</button>
+  const panel = props.variant === "panel";
+  return <div className={`pn-members-member${panel ? " is-panel" : ""}`}>
+    {panel ? <div className="pn-members-side-bar">
+      <span className="pn-members-attrs-label">Member record</span>
+      <button type="button" className="pn-members-icon" onClick={props.onExpand} aria-label="Open full page" title="Open full page"><Maximize2 size={15} /></button>
+      <button type="button" className="pn-members-icon" onClick={props.onBack} aria-label="Close" title="Close"><X size={16} /></button>
+    </div>
+      : <button type="button" className="pn-members-button is-ghost pn-members-back" onClick={props.onBack}><ArrowLeft size={15} />Members</button>}
     <header className="pn-members-member-head">
       <UserAvatar name={client.name} imageUrl={client.avatar_url} className="community-interaction-avatar pn-members-avatar is-large" />
       <div className="pn-members-member-name">
@@ -388,7 +396,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
   const [activeKey, setActiveKey] = useState("all");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [query, setQuery] = useState("");
-  const [panel, setPanel] = useState<null | "filter" | "display" | "more" | "add_property" | "properties" | "rename" | "new_view" | "stuck" | "give" | BulkKind>(null);
+  const [panel, setPanel] = useState<null | "filter" | "display" | "more" | "add_property" | "properties" | "rename" | "new_view" | "stuck" | "give" | "sort" | "group" | BulkKind>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // The open member lives in ?member= so the browser Back button returns to the list.
   const [openId, setOpenId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("member"));
@@ -398,12 +406,24 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
     return () => window.removeEventListener("popstate", sync);
   }, []);
   const pushedMember = useRef(false);
+  // Wide screens open the record beside the table (Airtable shape); narrow ones, or "Open full page", get the full page.
+  const [wide, setWide] = useState(() => typeof window.matchMedia === "function" && window.matchMedia("(min-width: 75rem)").matches);
+  const [fullPage, setFullPage] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(min-width: 75rem)");
+    const sync = () => setWide(query.matches);
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
   const openMember = (id: string | null) => {
+    if (!id) setFullPage(false);
     if (!id && pushedMember.current) { pushedMember.current = false; window.history.back(); return; }
-    pushedMember.current = Boolean(id);
+    pushedMember.current = Boolean(id) && (pushedMember.current || !openId);
     const url = new URL(window.location.href);
     if (id) url.searchParams.set("member", id); else url.searchParams.delete("member");
-    if (id) window.history.pushState(window.history.state, "", url);
+    if (id && openId) window.history.replaceState(window.history.state, "", url);
+    else if (id) window.history.pushState(window.history.state, "", url);
     else if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, "", url);
     setOpenId(id);
   };
@@ -429,7 +449,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
   const properties = page?.properties ?? [];
   const fieldByKey = useMemo(() => new Map(fields.map((field) => [field.key, field])), [fields]);
   const savedView = views.find((view) => view.key === activeKey) ?? views[0] ?? null;
-  const view: Draft = draft ?? (savedView ? toDraft(savedView) : { name: "All", columns: COMMUNITY_CLIENT_DEFAULT_COLUMNS, filters: [], match: "all", sort: null });
+  const view: Draft = draft ?? (savedView ? toDraft(savedView) : { name: "All", columns: COMMUNITY_CLIENT_DEFAULT_COLUMNS, filters: [], match: "all", sort: null, group: null });
   const changed = Boolean(draft && savedView && !sameDraft(draft, toDraft(savedView)));
   const clients = page?.clients ?? [];
   const nowMs = loadedAt;
@@ -502,17 +522,45 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
     {error ? <p role="alert" className="workflow-error">{error}</p> : null}
   </>;
 
-  if (open) {
+  const memberView = (variant: "page" | "panel") => open ? <MemberPage key={open.membership_id} gateway={gateway} client={open} fields={fields} properties={properties} nowMs={nowMs}
+    variant={variant} onExpand={() => setFullPage(true)}
+    onBack={() => { openMember(null); setPanel(null); setBulkFor(null); }} onChanged={() => setReload((n) => n + 1)}
+    onSetValue={(key, value) => setValue(open.membership_id, key, value)}
+    onBulk={(kind) => { setBulkFor([open.membership_id]); setPanel(kind); }} onAddProperty={() => setPanel("add_property")} /> : null;
+  if (open && (fullPage || !wide)) {
     return <div className="workflow-page pn-members">
       {messages}
       {bulkPanel}{addPropertyPanel}
-      <MemberPage gateway={gateway} client={open} fields={fields} properties={properties} nowMs={nowMs}
-        onBack={() => { openMember(null); setPanel(null); setBulkFor(null); }} onChanged={() => setReload((n) => n + 1)}
-        onSetValue={(key, value) => setValue(open.membership_id, key, value)}
-        onBulk={(kind) => { setBulkFor([open.membership_id]); setPanel(kind); }} onAddProperty={() => setPanel("add_property")} />
+      {memberView("page")}
     </div>;
   }
 
+  const sortField = view.sort ? fields.find((field) => field.key === view.sort!.field) ?? null : null;
+  const groupField = view.group ? fields.find((field) => field.key === view.group) ?? null : null;
+  const groups = groupField ? groupCommunityClients(rows as any[], groupField) as Array<{ value: string | null; label: string; rows: CloudCommunityClient[] }> : null;
+  const groupLabel = (group: { value: string | null; label: string }) => group.value === null ? group.label
+    : groupField?.key === "status" ? COMMUNITY_CLIENT_STATUS_LABELS[group.value as keyof typeof COMMUNITY_CLIENT_STATUS_LABELS] ?? group.label
+    : groupField?.key === "role" ? group.label.charAt(0).toUpperCase() + group.label.slice(1) : group.label;
+  const renderRow = (client: CloudCommunityClient) => <tr key={client.membership_id} className={[selected.has(client.membership_id) ? "is-selected" : "", client.membership_id === openId ? "is-open" : ""].join(" ").trim() || undefined} onClick={() => openMember(client.membership_id)}>
+                <td className="pn-members-check" onClick={(event) => event.stopPropagation()}>
+                  <input type="checkbox" aria-label={`Select ${client.name}`} checked={selected.has(client.membership_id)}
+                    onChange={(event) => setSelected((previous) => { const next = new Set(previous); if (event.target.checked) next.add(client.membership_id); else next.delete(client.membership_id); return next; })} />
+                </td>
+                <td className="pn-members-who">
+                  <span className="pn-members-person">
+                    <UserAvatar name={client.name} imageUrl={client.avatar_url} className="community-interaction-avatar pn-members-avatar" />
+                    <span><strong>{client.name}{client.is_test ? <small className="pn-members-test"> · test</small> : null}</strong><small>{client.email ?? ""}</small></span>
+                  </span>
+                </td>
+                {columns.map((field) => {
+                  const property = field.source === "owner" ? properties.find((item) => `prop:${item.key}` === field.key) : null;
+                  return <td key={field.key} className={property ? "is-editable" : undefined}>
+                    {property ? <PropertyEditor property={property} value={client.properties?.[property.key] ?? null}
+                      onSave={(value) => setValue(client.membership_id, property.key, value)} />
+                      : <FieldValue client={client} field={field} nowMs={nowMs} />}
+                  </td>;
+                })}
+              </tr>;
   const total = clients.filter((client) => !client.is_test).length;
   const tests = clients.length - total;
   return <div className="workflow-page pn-members">
@@ -547,6 +595,33 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
       <button type="button" className={`pn-members-button${panel === "filter" ? " is-on" : ""}`} aria-expanded={panel === "filter"} onClick={() => setPanel(panel === "filter" ? null : "filter")}>
         Filter{view.filters.length ? ` · ${view.filters.length}` : ""}{panel === "filter" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
+      <span className="pn-members-anchor">
+        <button type="button" className={`pn-members-button${panel === "sort" ? " is-on" : ""}`} aria-expanded={panel === "sort"} onClick={() => setPanel(panel === "sort" ? null : "sort")}>
+          <ArrowUpDown size={14} />Sort{sortField ? ` · ${sortField.name}` : ""}</button>
+        {panel === "sort" ? <Popover onClose={() => setPanel(null)} className="pn-members-display pn-members-popform">
+          <div className="pn-members-group">Sort by</div>
+          <select aria-label="Sort by" value={view.sort?.field ?? ""} onChange={(event) => edit({ sort: event.target.value ? { field: event.target.value, direction: view.sort?.direction ?? "desc" } : null })}>
+            <option value="">Not sorted</option>
+            {fields.map((field) => <option key={field.key} value={field.key}>{field.name}</option>)}
+          </select>
+          {view.sort ? <select aria-label="Direction" value={view.sort.direction} onChange={(event) => edit({ sort: { field: view.sort!.field, direction: event.target.value as "asc" | "desc" } })}>
+            <option value="desc">{sortField?.kind === "date" ? "Newest first" : sortField?.kind === "number" ? "Highest first" : "Z to A"}</option>
+            <option value="asc">{sortField?.kind === "date" ? "Oldest first" : sortField?.kind === "number" ? "Lowest first" : "A to Z"}</option>
+          </select> : null}
+        </Popover> : null}
+      </span>
+      <span className="pn-members-anchor">
+        <button type="button" className={`pn-members-button${panel === "group" ? " is-on" : ""}`} aria-expanded={panel === "group"} onClick={() => setPanel(panel === "group" ? null : "group")}>
+          <Rows3 size={14} />Group{groupField ? ` · ${groupField.name}` : ""}</button>
+        {panel === "group" ? <Popover onClose={() => setPanel(null)} className="pn-members-display pn-members-popform">
+          <div className="pn-members-group">Group by</div>
+          <select aria-label="Group by" value={view.group ?? ""} onChange={(event) => edit({ group: event.target.value || null })}>
+            <option value="">No grouping</option>
+            {fields.filter(communityClientGroupable).map((field) => <option key={field.key} value={field.key}>{field.name}</option>)}
+          </select>
+          <p className="pn-members-hint">Works with choice and yes/no properties, status, plan, workflow stage and role.</p>
+        </Popover> : null}
+      </span>
       <span className="pn-members-anchor">
         <button type="button" className={`pn-members-button${panel === "display" ? " is-on" : ""}`} aria-expanded={panel === "display"} onClick={() => setPanel(panel === "display" ? null : "display")}><SlidersHorizontal size={14} />Display</button>
         {panel === "display" ? <Popover onClose={() => setPanel(null)} className="pn-members-display">
@@ -645,7 +720,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
 
     {state === "loading" ? <div className="pn-members-loading" role="status"><span className="pn-members-spinner" aria-hidden="true" />Loading members…</div>
       : state === "error" ? <p className="workflow-error" role="alert">Couldn't load members. <button type="button" className="pn-members-button" onClick={() => setReload((n) => n + 1)}>Try again</button></p>
-      : <div className="pn-members-table-wrap">
+      : <div className={open ? "pn-members-split" : "pn-members-unsplit"}><div className="pn-members-table-wrap">
         <table className="pn-members-table">
           <thead><tr>
             <th className="pn-members-check"><input type="checkbox" aria-label="Select all in this view" checked={allOnPage}
@@ -660,28 +735,15 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
           </tr></thead>
           <tbody>
             {!rows.length ? <tr><td colSpan={columns.length + 2} className="pn-members-none">{clients.length ? "No members in this view." : "No members yet. They show up here when they join."}</td></tr>
-              : rows.map((client) => <tr key={client.membership_id} className={selected.has(client.membership_id) ? "is-selected" : undefined} onClick={() => openMember(client.membership_id)}>
-                <td className="pn-members-check" onClick={(event) => event.stopPropagation()}>
-                  <input type="checkbox" aria-label={`Select ${client.name}`} checked={selected.has(client.membership_id)}
-                    onChange={(event) => setSelected((previous) => { const next = new Set(previous); if (event.target.checked) next.add(client.membership_id); else next.delete(client.membership_id); return next; })} />
-                </td>
-                <td className="pn-members-who">
-                  <span className="pn-members-person">
-                    <UserAvatar name={client.name} imageUrl={client.avatar_url} className="community-interaction-avatar pn-members-avatar" />
-                    <span><strong>{client.name}{client.is_test ? <small className="pn-members-test"> · test</small> : null}</strong><small>{client.email ?? ""}</small></span>
-                  </span>
-                </td>
-                {columns.map((field) => {
-                  const property = field.source === "owner" ? properties.find((item) => `prop:${item.key}` === field.key) : null;
-                  return <td key={field.key} className={property ? "is-editable" : undefined}>
-                    {property ? <PropertyEditor property={property} value={client.properties?.[property.key] ?? null}
-                      onSave={(value) => setValue(client.membership_id, property.key, value)} />
-                      : <FieldValue client={client} field={field} nowMs={nowMs} />}
-                  </td>;
-                })}
-              </tr>)}
+              : groups ? groups.map((group) => <Fragment key={group.value ?? "__empty"}>
+                <tr className="pn-members-grouprow"><td colSpan={columns.length + 2}>{groupLabel(group)}<span className="pn-members-count">{group.rows.length}</span></td></tr>
+                {group.rows.map(renderRow)}
+              </Fragment>)
+              : rows.map(renderRow)}
           </tbody>
         </table>
+      </div>
+      {open ? <aside className="pn-members-side" aria-label={`${open.name}'s record`}>{memberView("panel")}</aside> : null}
       </div>}
     <p className="pn-members-hint"><span className="pn-members-mine">◆</span> marks your own properties: click a cell to change it. Everything else is tracked by Polynet.</p>
   </div>;

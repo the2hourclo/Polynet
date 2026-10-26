@@ -178,3 +178,21 @@
   .pn-members-attr { grid-template-columns: minmax(0, 1fr); gap: 0.125rem; padding-block: 0.5rem; }
   .pn-members-popover { right: auto; left: 0; }
 }
+
+/* Record beside the table on wide screens */
+.pn-members-split { display: grid; grid-template-columns: minmax(0, 1fr) 26rem; gap: 1rem; align-items: start; }
+.pn-members-side { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: auto; padding: 1rem; border: 1px solid var(--pn-members-line); border-radius: var(--pn-members-r); background: var(--surface-workspace); }
+.pn-members-side-bar { display: flex; align-items: center; gap: 0.25rem; }
+.pn-members-side-bar .pn-members-attrs-label { flex: 1; color: var(--text-muted); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.pn-members-member.is-panel { gap: 0.875rem; max-width: none; }
+.pn-members-member.is-panel .pn-members-member-name h2 { font-size: 1.125rem; }
+.pn-members-member.is-panel .pn-members-actions { width: 100%; }
+.pn-members-member.is-panel .pn-members-stats { grid-template-columns: 1fr; gap: 0.5rem; }
+.pn-members-member.is-panel .pn-members-stats > div { padding: 0.5rem 0.75rem; }
+.pn-members-member.is-panel .pn-members-stats b { font-size: 1rem; }
+.pn-members-member.is-panel .pn-members-attr { grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr); padding-inline: 0.75rem; }
+.pn-members-table tbody tr.is-open td { background: color-mix(in srgb, var(--pn-members-accent) 12%, transparent); }
+.pn-members-popform { display: grid; gap: 0.5rem; min-width: 15rem; }
+.pn-members-popform select { min-height: 2.25rem; padding: 0 0.5rem; border: 1px solid var(--pn-members-line); border-radius: 0.5rem; background: var(--surface-workspace); color: var(--text-primary); font: inherit; font-size: 0.875rem; }
+.pn-members-table tbody tr.pn-members-grouprow td { position: static; height: auto; padding-block: 0.375rem; background: color-mix(in srgb, var(--text-primary) 4%, transparent); color: var(--text-secondary); font-size: 0.75rem; font-weight: 650; cursor: default; }
+.pn-members-grouprow .pn-members-count { margin-left: 0.5rem; font-weight: 500; }
