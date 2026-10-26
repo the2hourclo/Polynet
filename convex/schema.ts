@@ -2860,6 +2860,8 @@ export default defineSchema({
   communityClientSettings: defineTable({
     communityId: v.id("communities"),
     stuckDays: v.number(),
+    // Set once the default views were copied in, so deleting them all doesn't bring them back.
+    viewsSeededAt: v.optional(v.number()),
     updatedByUserId: v.id("users"),
     updatedAt: v.number(),
   }).index("by_community", ["communityId"]),
@@ -2888,6 +2890,41 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_membership_createdAt", ["membershipId", "createdAt"])
     .index("by_membership_type_createdAt", ["membershipId", "type", "createdAt"]),
+
+  // Saved views of the Members page (shared/communityClientViews.ts): columns,
+  // filters and sort as data, edited by the owner and their agent alike.
+  communityClientViews: defineTable({
+    communityId: v.id("communities"),
+    key: v.string(),
+    name: v.string(),
+    columns: v.array(v.string()),
+    filters: v.array(v.object({ field: v.string(), op: v.string(),
+      value: v.optional(v.union(v.string(), v.number(), v.array(v.string()))) })),
+    match: v.union(v.literal("all"), v.literal("any")),
+    sort: v.optional(v.object({ field: v.string(), direction: v.union(v.literal("asc"), v.literal("desc")) })),
+    position: v.number(),
+    updatedByUserId: v.id("users"),
+    updatedVia: v.union(v.literal("web"), v.literal("agent")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_community_key", ["communityId", "key"]),
+
+  // One bulk action on selected clients (set a property, message, flag, note).
+  // It runs in small scheduled batches; this row is its progress and result.
+  communityClientBulkActions: defineTable({
+    communityId: v.id("communities"),
+    actorUserId: v.id("users"),
+    type: v.union(v.literal("set_property"), v.literal("message"), v.literal("flag"), v.literal("note")),
+    propertyKey: v.optional(v.string()),
+    value: v.optional(v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null())),
+    body: v.optional(v.string()),
+    membershipIds: v.array(v.id("communityMemberships")),
+    cursor: v.number(),
+    status: v.union(v.literal("running"), v.literal("done")),
+    results: v.array(v.object({ membershipId: v.id("communityMemberships"), ok: v.boolean(), code: v.optional(v.string()) })),
+    createdAt: v.number(),
+    finishedAt: v.optional(v.number()),
+  }).index("by_community_createdAt", ["communityId", "createdAt"]),
 
   // Test members: stand-in accounts an owner creates to go through their own
   // community as a new member (welcome page, forms, lessons, Workflows). Only

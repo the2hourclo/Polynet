@@ -84,7 +84,7 @@ export function buildCommunitySettingsNav(params: {
   if (has("access")) {
     const members: SettingsNavItem[] = [];
     if (params.workflowsPath) {
-      members.push({ kind: "link", id: "clients", label: "Clients", icon: <Users {...ICON} />, path: `${params.workflowsPath}?section=clients`, keywords: "members people progress plan database" });
+      members.push({ kind: "link", id: "clients", label: "Members", icon: <Users {...ICON} />, path: `${params.workflowsPath}?section=clients`, keywords: "members clients people progress plan database views properties message" });
     }
     if (has("creators")) {
       members.push({ kind: "pane", pane: "creators", label: "Creators", icon: <UserPlus {...ICON} />, keywords: "co-creator co-owner collaborator partner team admin" });

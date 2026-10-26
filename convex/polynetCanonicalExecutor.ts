@@ -1,4 +1,5 @@
 import { BUILDER_SETTING_OPERATIONS, builderSettingArgs, builderSettingInput, builderSettingOperation, readBuilderSettings, readBuilderWorkflowTemplates } from "./polynetBuilderSettings";
+import { applyCommunityClientView } from "../shared/communityClientViews";
 import { api, internal } from "./_generated/api";
 import { hashSiteFile, publishSite, readSitesConfig, startSiteUpload, uploadSiteFiles } from "./communitySiteDeploy";
 import { siteFileMimeType, siteHostname, siteScriptName, validateSiteManifest } from "./communitySites";
@@ -783,7 +784,7 @@ function capabilityDocument(args: {
       options: "select and multi_select: the choices, up to 30",
       key: "an existing property's key from the client list, to change it",
       position: "an existing property's column order (a number)",
-      archive: "true archives an existing property; its values are kept but hidden",
+      archive: "not here: removing a property is community.client.property.archive, which the owner applies",
       result: "the property, with its key",
       refusals: { client_property_name_taken: "another property has that name", client_property_limit_reached: "50 properties at most",
         client_property_not_found: "no property with that key" },
@@ -958,22 +959,32 @@ async function executeCanonicalList(args: {
   }
 
   if (target.localPath.startsWith(BUILDER_CLIENTS_DIRECTORY)) {
-    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent" || target.localPath !== BUILDER_CLIENTS_DIRECTORY) {
+    // /builder/clients/views/<key>/ lists one saved view's members.
+    const viewKey = /^\/builder\/clients\/views\/([a-z0-9_]{1,40})\/?$/.exec(target.localPath)?.[1] ?? null;
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent" || (target.localPath !== BUILDER_CLIENTS_DIRECTORY && !viewKey)) {
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
     try {
-      const page = await args.ctx.runQuery((internal as any).communityClients.listClientsInternal,
-        { userId: args.userId, communityId: target.communityId,
-          ...(typeof args.input.cursor === "string" ? { cursor: args.input.cursor } : {}) });
+      const [page, saved] = await Promise.all([
+        args.ctx.runQuery((internal as any).communityClients.listClientsInternal,
+          { userId: args.userId, communityId: target.communityId,
+            ...(typeof args.input.cursor === "string" ? { cursor: args.input.cursor } : {}) }),
+        args.ctx.runQuery((internal as any).communityClients.listClientViewsInternal, { userId: args.userId, communityId: target.communityId }),
+      ]);
+      // A view's key narrows this page to the members that view shows, filtered the same way as the Members page.
+      const view = viewKey ? saved.views.find((row: { key: string }) => row.key === viewKey) : null;
+      if (viewKey && !view) return canonicalError("client_view_not_found", `No view with that key. Views are listed in ${BUILDER_CLIENTS_DIRECTORY}.`);
+      const clients = view ? applyCommunityClientView(page.clients, view, Date.now()) : page.clients;
       return { ok: true, value: { ...virtualDirectory({ path: absolutePath, searchable: false, writable: false,
-        entries: page.clients.map((client: { membership_id: string }) => ({
+        entries: clients.map((client: { membership_id: string }) => ({
           ...client, ref: `membership:${client.membership_id}`,
           path: mountedPath(target.communitySlug, `${BUILDER_CLIENTS_DIRECTORY}${client.membership_id}.json`),
           dossier_path: mountedPath(target.communitySlug, `${WORKFLOW_MEMBERS_DIRECTORY}${client.membership_id}.md`),
           kind: "document", type: "community_client" })) }),
-        properties: page.properties, stuck_days: page.stuck_days, next_cursor: page.next_cursor,
+        properties: page.properties, fields: page.fields, views: saved.views, ...(view ? { view: view.key } : {}),
+        stuck_days: page.stuck_days, next_cursor: page.next_cursor,
         truncated: page.next_cursor !== null || page.lessons_truncated,
-        guidance: `Private client records. Do not post them in shared channels. Change your own properties with ${CLIENT_PROPERTY_DEFINE_OPERATION} and ${CLIENT_VALUE_SET_OPERATION}; member facts belong to the member and cannot be edited here.` } };
+        guidance: `Private client records. Do not post them in shared channels. Change your own properties with ${CLIENT_PROPERTY_DEFINE_OPERATION} and ${CLIENT_VALUE_SET_OPERATION}; member facts belong to the member and cannot be edited here. List one view's members at ${BUILDER_CLIENTS_DIRECTORY}views/<key>/ (each page filtered the same way the Members page filters it). Save views with community.client.view.save; change or message many members at once with community.client.bulk, which the owner applies.` } };
     } catch {
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     }
@@ -2531,11 +2542,12 @@ async function executeCanonicalCall(args: {
     } else {
       if (Object.keys(rawInput).some(key => !["key", "name", "type", "options", "position", "archive"].includes(key)))
         return canonicalError("invalid_tool_args", "Only key, name, type, options, position and archive are accepted.");
+      // Removing a property hides every member's value, so the owner applies it.
+      if (rawInput.archive === true)
+        return canonicalError("invalid_tool_args", "Propose it with community.client.property.archive; the owner applies it in the app.");
       run = typeof rawInput.key !== "string"
         ? mutate("createClientPropertyInternal", { name: rawInput.name, type: rawInput.type, ...(rawInput.options !== undefined ? { options: rawInput.options } : {}) })
-        : rawInput.archive === true
-          ? mutate("archiveClientPropertyInternal", { key: rawInput.key })
-          : mutate("updateClientPropertyInternal", { key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
+        : mutate("updateClientPropertyInternal", { key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
             ...(rawInput.options !== undefined ? { options: rawInput.options } : {}),
             ...(rawInput.position !== undefined ? { position: rawInput.position } : {}) });
     }

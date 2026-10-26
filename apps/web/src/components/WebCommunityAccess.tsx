@@ -1,7 +1,5 @@
-import { Check, Copy, Plus, RefreshCw, X } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { UserAvatar } from "../../../../shared/UserAvatar";
+import { Check, Copy, Plus, X } from "lucide-react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { describeCommunityAccess, type CommunityMemberAccess } from "../../../../shared/communityAccess";
 import {
   communityAccessErrorMessage,
@@ -9,7 +7,6 @@ import {
   type CloudCommunityAccessIntegration,
   type CloudCommunityAccessIntegrations,
   type CloudCommunityAccessPricePoint,
-  type CloudCommunityClient,
   type CloudCommunityClientAccessDetail,
   type CloudCommunityIntegrationInput,
   type CloudCommunityTimelineEntry,
@@ -107,7 +104,7 @@ function AccessCard(props: { title: string; description?: ReactNode; className?:
 }
 
 /** End date (or none) and a reason; with an email when the person isn't picked yet. */
-function GrantForm(props: {
+export function GrantForm(props: {
   withEmail?: boolean;
   initialEndsAt?: string | null;
   initialReason?: string;
@@ -266,7 +263,7 @@ export function WebCommunityClientAccessPanel(props: { gateway: CommunityAccessG
   </section>;
 }
 
-function ClientTimeline({ gateway, membershipId, refreshKey }: { gateway: CommunityAccessGateway; membershipId: string; refreshKey: number }) {
+export function ClientTimeline({ gateway, membershipId, refreshKey }: { gateway: CommunityAccessGateway; membershipId: string; refreshKey: number }) {
   const [entries, setEntries] = useState<CloudCommunityTimelineEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -284,139 +281,6 @@ function ClientTimeline({ gateway, membershipId, refreshKey }: { gateway: Commun
       <span>{entry.summary}</span>
     </li>)}
   </ol>;
-}
-
-function ClientDialog(props: { gateway: CommunityAccessGateway; client: CloudCommunityClient; onClose: () => void; onChanged: () => void }) {
-  const dialog = useRef<HTMLElement | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") props.onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("keydown", onKey); previous?.focus?.(); };
-  }, []);
-  const { client } = props;
-  return createPortal(
-    <div className="modal-overlay access-client-overlay" onMouseDown={props.onClose}>
-      <section ref={dialog} className="modal resource-modal access-client-modal" tabIndex={-1} role="dialog" aria-modal="true"
-        aria-labelledby="access-client-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="modal-header access-client-header">
-          <div className="access-client-identity">
-            <UserAvatar name={client.name} imageUrl={client.avatar_url} className="community-interaction-avatar access-avatar" />
-            <div>
-              <div className="modal-title" id="access-client-title">{client.name}</div>
-              <span>{client.stage ? client.stage.name : "No stage"} · joined {day(client.joined_at)}</span>
-            </div>
-          </div>
-          <button className="modal-close" type="button" onClick={props.onClose} aria-label="Close client"><X size={18} aria-hidden="true" /></button>
-        </div>
-        <div className="modal-body access-client-body">
-          <WebCommunityClientAccessPanel gateway={props.gateway} membershipId={client.membership_id}
-            onChanged={() => { setRefreshKey((n) => n + 1); props.onChanged(); }} />
-          <h4>History</h4>
-          <ClientTimeline gateway={props.gateway} membershipId={client.membership_id} refreshKey={refreshKey} />
-        </div>
-      </section>
-    </div>,
-    document.body,
-  );
-}
-
-function statusLabel(status: string) {
-  return status.replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
-}
-
-/** Workflows → Clients: everyone who joined, with an Access column. */
-export function WebCommunityClients({ gateway }: { gateway: CommunityAccessGateway }) {
-  const [clients, setClients] = useState<CloudCommunityClient[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [reload, setReload] = useState(0);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [giving, setGiving] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [giveError, setGiveError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    setState((previous) => (previous === "ready" ? "ready" : "loading"));
-    gateway.listClients(null)
-      .then((page) => { if (alive) { setClients(page.clients); setCursor(page.next_cursor); setState("ready"); } })
-      .catch(() => { if (alive) setState("error"); });
-    return () => { alive = false; };
-  }, [gateway, reload]);
-  const loadMore = async () => {
-    if (!cursor) return;
-    setLoadingMore(true);
-    try {
-      const page = await gateway.listClients(cursor);
-      setClients((previous) => [...previous, ...page.clients.filter((row) => !previous.some((known) => known.membership_id === row.membership_id))]);
-      setCursor(page.next_cursor);
-    } catch { /* the button stays for another try */ } finally { setLoadingMore(false); }
-  };
-  const open = clients.find((client) => client.membership_id === openId) ?? null;
-  const withAccess = clients.filter((client) => client.access?.entitled).length;
-  return <div className="workflow-page access-clients-page">
-    <div className="access-clients-header">
-      <div>
-        <h2>Clients</h2>
-        <p className="access-muted">{state === "ready" ? `${clients.length}${cursor ? "+" : ""} clients · ${withAccess} with access` : "Everyone who joined, their progress and what they can use."}</p>
-      </div>
-      <div className="access-actions">
-        <button type="button" className="workflow-secondary-button" onClick={() => setReload((n) => n + 1)} aria-label="Refresh clients"><RefreshCw size={14} aria-hidden="true" />Refresh</button>
-        <button type="button" className="workflow-secondary-button" onClick={() => { setGiving((value) => !value); setGiveError(null); }}><Plus size={14} aria-hidden="true" />Give access</button>
-      </div>
-    </div>
-    {giving ? <div className="access-give-card">
-      <p className="access-muted">Give someone access without a paid plan. They need a Polynet account with a verified email.</p>
-      <GrantForm withEmail submitLabel="Give access" busy={busy} onCancel={() => setGiving(false)} onSubmit={async (input) => {
-        setBusy(true); setGiveError(null);
-        try {
-          await gateway.grant({ email: input.email, endsAt: input.endsAt, reason: input.reason });
-          setGiving(false); setNotice(`Gave ${input.email} access${input.endsAt ? ` until ${day(`${input.endsAt}T12:00:00Z`)}` : ""}.`); setReload((n) => n + 1);
-          return true;
-        } catch (caught) { setGiveError(communityAccessErrorMessage(caught)); return false; } finally { setBusy(false); }
-      }} />
-      {giveError ? <p role="alert" className="workflow-error">{giveError}</p> : null}
-    </div> : null}
-    {notice ? <p role="status" className="access-notice">{notice}</p> : null}
-    {state === "loading" ? <p className="access-muted" role="status">Loading clients…</p>
-      : state === "error" ? <p className="workflow-error" role="alert">Couldn't load clients. <button type="button" className="workflow-secondary-button" onClick={() => setReload((n) => n + 1)}>Try again</button></p>
-      : !clients.length ? <p className="access-muted">No clients yet. Members show up here when they join.</p>
-      : <div className="access-table-wrap">
-        <table className="access-table">
-          <thead><tr><th scope="col">Client</th><th scope="col">Stage</th><th scope="col">Lessons</th><th scope="col">Last active</th><th scope="col">Access</th></tr></thead>
-          <tbody>
-            {clients.map((client) => {
-              const services = (client.access?.can_use ?? []).filter((use) => use.key.startsWith("integration:"));
-              return <tr key={client.membership_id} onClick={() => setOpenId(client.membership_id)} className={client.stuck ? "is-stuck" : undefined}>
-                <th scope="row">
-                  <button type="button" className="access-client-name" onClick={(event) => { event.stopPropagation(); setOpenId(client.membership_id); }}>
-                    <UserAvatar name={client.name} imageUrl={client.avatar_url} className="community-interaction-avatar access-avatar" />
-                    <span><strong>{client.name}</strong><small>{statusLabel(client.status)}{client.stuck ? " · stuck" : ""}</small></span>
-                  </button>
-                </th>
-                <td>{client.stage?.name ?? "—"}</td>
-                <td>{client.lessons_done}</td>
-                <td>{client.last_active_at ? day(client.last_active_at) : "—"}</td>
-                <td>
-                  {client.access ? <div className="access-cell">
-                    <AccessBadge access={client.access} />
-                    {services.length ? <span className="access-service-chips">{services.map((use) => <span key={use.key} className={use.included ? "is-included" : "is-excluded"} title={use.included ? `Can use ${use.label}` : use.why ?? ""}>
-                      {use.included ? <Check size={12} aria-hidden="true" /> : <X size={12} aria-hidden="true" />}{use.label}
-                    </span>)}</span> : null}
-                  </div> : "—"}
-                </td>
-              </tr>;
-            })}
-          </tbody>
-        </table>
-        {cursor ? <button type="button" className="workflow-secondary-button access-more" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Show more"}</button> : null}
-      </div>}
-    {open ? <ClientDialog gateway={gateway} client={open} onClose={() => setOpenId(null)} onChanged={() => setReload((n) => n + 1)} /> : null}
-  </div>;
 }
 
 // ---------------------------------------------------------------------------

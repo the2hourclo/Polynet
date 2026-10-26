@@ -591,6 +591,7 @@ export function validatePolynetSemanticRepositoryOperationInput(args: {
         repositoryPath.localPath === "/members/me/progress.json" ||
         repositoryPath.localPath === "/builder/progress/" || /^\/builder\/progress\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
         repositoryPath.localPath === "/builder/clients/" || /^\/builder\/clients\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
+        /^\/builder\/clients\/views\/[a-z0-9_]{1,40}\/$/.test(repositoryPath.localPath) ||
         repositoryPath.localPath === "/builder/theme.json" || repositoryPath.localPath === "/builder/layout.json" ||
         repositoryPath.localPath === "/builder/brand.json" || repositoryPath.localPath === "/builder/settings.json") {
       const isDirectory = repositoryPath.localPath.endsWith("/");

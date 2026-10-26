@@ -2,6 +2,8 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { bootstrapConvexAuthenticatedClient } from "./convexAuthenticatedClient";
 import type { CommunityMemberAccess } from "./communityAccess";
+import type { CommunityClientPropertyType, CommunityClientPropertyValue } from "./communityClients";
+import type { CommunityClientBulkActionType, CommunityClientField, CommunityClientView } from "./communityClientViews";
 
 // Who can use what, and until when: the Clients list with its Access column,
 // one client's Access panel, the owner's connected services (such as the
@@ -41,9 +43,42 @@ export type CloudCommunityClient = {
   last_active_at: string | null;
   stuck: boolean;
   access: CloudCommunityClientAccess;
+  is_test?: boolean;
+  email?: string | null;
+  subscription?: { status: string; cancel_at_period_end: boolean; current_period_end_at: string | null } | null;
+  courses?: Array<{ ref: string; name: string | null; lesson_count: number; done_count: number; percent: number; completed_at: string | null }>;
+  forms_submitted?: number;
+  last_seen_at?: string | null;
+  last_progress_at?: string | null;
+  last_lesson_done_at?: string | null;
+  last_form_submitted_at?: string | null;
+  last_flagged_at?: string | null;
+  last_contacted_at?: string | null;
+  referred_by?: string | null;
+  facts?: Array<{ kind: string; body: string }>;
+  properties?: Record<string, CommunityClientPropertyValue | null>;
 };
 
-export type CloudCommunityClientPage = { clients: CloudCommunityClient[]; next_cursor: string | null };
+export type CloudCommunityClientProperty = { key: string; name: string; type: CommunityClientPropertyType; options: string[]; position?: number };
+
+export type CloudCommunityClientPage = {
+  clients: CloudCommunityClient[];
+  next_cursor: string | null;
+  properties?: CloudCommunityClientProperty[];
+  fields?: CommunityClientField[];
+  stuck_days?: number;
+};
+
+export type CloudCommunityClientViews = { views: CommunityClientView[]; fields: CommunityClientField[] };
+
+export type CloudCommunityClientBulkAction = {
+  bulk_action_id: string; type: CommunityClientBulkActionType; status: "running" | "done";
+  total: number; done: number; succeeded: number; failed: Array<{ membership_id: string; code: string }>;
+};
+
+export type CloudCommunityClientBulkInput =
+  | { type: "set_property"; propertyKey: string; value: CommunityClientPropertyValue | null }
+  | { type: "message" | "flag" | "note"; body?: string };
 
 export type CloudCommunityClientAccessDetail = {
   membership_id: string;
@@ -120,6 +155,79 @@ export async function listCloudCommunityClients(session: unknown, communityId: s
   return await client.query(api.communityClients.listClientsForOwner, {
     authSubject, communityId: community(communityId), ...(cursor ? { cursor } : {}),
   }) as unknown as CloudCommunityClientPage;
+}
+
+// The Members page: every page of clients at once, so views filter the whole community.
+export async function listAllCloudCommunityClients(session: unknown, communityId: string): Promise<CloudCommunityClientPage> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  let cursor: string | null = null;
+  let first: CloudCommunityClientPage | null = null;
+  const clients: CloudCommunityClient[] = [];
+  for (let page = 0; page < 40; page++) {
+    const result = await client.query(api.communityClients.listClientsForOwner, {
+      authSubject, communityId: community(communityId), ...(cursor ? { cursor } : {}),
+    }) as unknown as CloudCommunityClientPage;
+    first ??= result;
+    clients.push(...result.clients.filter((row) => !clients.some((known) => known.membership_id === row.membership_id)));
+    cursor = result.next_cursor;
+    if (!cursor) break;
+  }
+  return { ...first!, clients, next_cursor: cursor };
+}
+
+export async function listCloudClientViews(session: unknown, communityId: string): Promise<CloudCommunityClientViews> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.query(api.communityClients.listClientViews, { authSubject, communityId: community(communityId) }) as unknown as CloudCommunityClientViews;
+}
+
+export async function saveCloudClientView(session: unknown, communityId: string, input: { key?: string; view: Omit<CommunityClientView, "key">; position?: number }) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.saveClientView, { authSubject, communityId: community(communityId), ...input }) as { view: CommunityClientView };
+}
+
+export async function deleteCloudClientView(session: unknown, communityId: string, key: string) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.deleteClientView, { authSubject, communityId: community(communityId), key });
+}
+
+export async function createCloudClientProperty(session: unknown, communityId: string, input: { name: string; type: CommunityClientPropertyType; options?: string[] }) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.createClientProperty, { authSubject, communityId: community(communityId), ...input }) as { property: CloudCommunityClientProperty };
+}
+
+export async function updateCloudClientProperty(session: unknown, communityId: string, key: string, input: { name?: string; options?: string[]; position?: number }) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.updateClientProperty, { authSubject, communityId: community(communityId), key, ...input });
+}
+
+export async function archiveCloudClientProperty(session: unknown, communityId: string, key: string) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.archiveClientProperty, { authSubject, communityId: community(communityId), key });
+}
+
+export async function setCloudClientPropertyValue(session: unknown, communityId: string, membershipId: string, key: string, value: CommunityClientPropertyValue | null) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.setClientPropertyValue, { authSubject, communityId: community(communityId), membershipId, key, value });
+}
+
+export async function recordCloudClientEvent(session: unknown, communityId: string, membershipId: string, type: "flagged" | "note", body?: string) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.recordClientEvent, { authSubject, communityId: community(communityId), membershipId, type, ...(body ? { body } : {}) });
+}
+
+export async function setCloudClientStuckDays(session: unknown, communityId: string, stuckDays: number) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.setClientSettings, { authSubject, communityId: community(communityId), stuckDays });
+}
+
+export async function runCloudClientBulkAction(session: unknown, communityId: string, action: CloudCommunityClientBulkInput, membershipIds: string[]) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.mutation(api.communityClients.runClientBulkAction, { authSubject, communityId: community(communityId), action, membershipIds }) as { bulk_action_id: string };
+}
+
+export async function fetchCloudClientBulkAction(session: unknown, communityId: string, bulkActionId: string): Promise<CloudCommunityClientBulkAction> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return await client.query(api.communityClients.getClientBulkAction, { authSubject, communityId: community(communityId), bulkActionId }) as unknown as CloudCommunityClientBulkAction;
 }
 
 export async function fetchCloudClientTimeline(session: unknown, communityId: string, membershipId: string): Promise<CloudCommunityTimelineEntry[]> {
