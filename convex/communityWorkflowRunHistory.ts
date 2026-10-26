@@ -72,18 +72,17 @@ export const listBuilderWorkflowRunHistory = query({
         && (timer.startedAt ?? timer.createdAt) >= run.started_at);
     });
 
-    const testMembers = await ctx.db.query("communityTestMembers")
-      .withIndex("by_community_createdAt", (q) => q.eq("communityId", args.communityId)).take(50);
-    const testUserIds = new Set(testMembers.map((row) => String(row.userId)));
+    // Looked up per member: a community keeps every ended test run's row, so a
+    // list of its test members would miss the newest ones.
     const people = new Map<string, { name: string; is_test: boolean }>();
     for (const run of runs) {
       if (people.has(run.membership_id)) continue;
-      const membership = await ctx.db.get(run.membership_id as any) as { userId?: unknown } | null;
+      const membership = await ctx.db.get(run.membership_id as any) as { userId?: any } | null;
       if (!membership?.userId) { people.set(run.membership_id, { name: "Former member", is_test: false }); continue; }
-      const isTest = testUserIds.has(String(membership.userId));
-      const label = isTest ? testMembers.find((row) => String(row.userId) === String(membership.userId))?.label : null;
-      const profile = isTest ? null : await resolveUserProfileDisplayProjection(ctx, membership.userId);
-      people.set(run.membership_id, { name: label ?? profile?.display_name ?? "Member", is_test: isTest });
+      const testRow = await ctx.db.query("communityTestMembers").withIndex("by_user", (q) => q.eq("userId", membership.userId)).first();
+      if (testRow && String(testRow.communityId) === String(args.communityId)) { people.set(run.membership_id, { name: testRow.label, is_test: true }); continue; }
+      const profile = await resolveUserProfileDisplayProjection(ctx, membership.userId);
+      people.set(run.membership_id, { name: profile?.display_name ?? "Member", is_test: false });
     }
 
     const filter = args.filter ?? "all";

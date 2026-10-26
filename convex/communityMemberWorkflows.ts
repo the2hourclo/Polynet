@@ -23,6 +23,7 @@ import {
   normalizeCommunityMemberWorkflowAutomationKey,
   normalizeCommunityMemberWorkflowMilestoneKey,
   normalizeCommunityMemberWorkflowMilestoneName,
+  normalizeCommunityMemberWorkflowStageColor,
   normalizeCommunityMemberWorkflowPrompt,
   normalizeWorkflowAgentSees,
   normalizeWorkflowCondition,
@@ -325,9 +326,16 @@ function normalizeAutomations(
   return automations;
 }
 
+// A left-out colour keeps the stage's colour; "none" clears it.
+function stageColor(value: string | undefined): Pick<CommunityMemberWorkflowMilestone, "color"> {
+  const color = value === undefined ? undefined : normalizeCommunityMemberWorkflowStageColor(value);
+  return color ? { color } : {};
+}
+
 export const createBuilderWorkflowMilestone = mutation({
   args: {
     requireHumanApproval: v.optional(v.boolean()),
+    color: v.optional(v.string()),
     instructions: v.optional(v.string()),
     goal: v.optional(v.string()),
     ...managerIdentityArgs,
@@ -343,7 +351,8 @@ export const createBuilderWorkflowMilestone = mutation({
       authSubject: args.authSubject,
     });
     const name = normalizeCommunityMemberWorkflowMilestoneName(args.name);
-    const context = { instructions: normalizeWorkflowMilestoneContext(args.instructions), goal: normalizeWorkflowMilestoneContext(args.goal), requireHumanApproval: args.requireHumanApproval ?? false };
+    const context = { instructions: normalizeWorkflowMilestoneContext(args.instructions), goal: normalizeWorkflowMilestoneContext(args.goal), requireHumanApproval: args.requireHumanApproval ?? false,
+      ...stageColor(args.color) };
     const expectedRevision = normalizeExpectedRevision(args.expectedRevision);
     const existing = await getCommunityMemberWorkflowByCommunity({
       ctx,
@@ -398,6 +407,7 @@ export const createBuilderWorkflowMilestone = mutation({
 export const updateBuilderWorkflowMilestone = mutation({
   args: {
     requireHumanApproval: v.optional(v.boolean()),
+    color: v.optional(v.string()),
     instructions: v.optional(v.string()),
     goal: v.optional(v.string()),
     ...managerIdentityArgs,
@@ -433,6 +443,7 @@ export const updateBuilderWorkflowMilestone = mutation({
       instructions: normalizeWorkflowMilestoneContext(args.instructions ?? current.instructions),
       goal: normalizeWorkflowMilestoneContext(args.goal ?? current.goal),
       requireHumanApproval: args.requireHumanApproval ?? current.requireHumanApproval ?? false,
+      ...(args.color === undefined ? current.color ? { color: current.color } : {} : stageColor(args.color)),
       automations: normalizeAutomations(args.automations, current.automations ?? [], workflow.revision + 1),
     };
     const joinRules = milestone.automations.filter(a => a.trigger.type === "member_joined");

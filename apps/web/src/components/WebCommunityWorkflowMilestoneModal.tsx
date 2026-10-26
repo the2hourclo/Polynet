@@ -16,6 +16,8 @@ import {
 
 import {
   COMMUNITY_MEMBER_WORKFLOW_MAX_AUTOMATIONS_PER_MILESTONE,
+  COMMUNITY_MEMBER_WORKFLOW_STAGE_COLORS,
+  type CommunityMemberWorkflowStageColor,
   type CommunityMemberWorkflowAutomation,
   type CommunityMemberWorkflowMilestone,
 } from "../../../../shared/communityMemberWorkflow";
@@ -58,6 +60,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
   const [instructions, setInstructions] = useState("");
   const [goal, setGoal] = useState("");
   const [fullyAuto, setFullyAuto] = useState(true);
+  const [color, setColor] = useState<CommunityMemberWorkflowStageColor | undefined>(undefined);
   const [automations, setAutomations] = useState<WorkflowAutomationDraft[]>([]);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [expandedAutomationKey, setExpandedAutomationKey] = useState<string | null>(null);
@@ -90,6 +93,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
     setInstructions(props.milestone.instructions ?? "");
     setGoal(props.milestone.goal ?? "");
     setFullyAuto(!(props.milestone.requireHumanApproval ?? false));
+    setColor(props.milestone.color);
     setAutomations(props.milestone.automations.map(toWorkflowAutomationDraft));
   }, [props.isOpen, props.milestone]);
 
@@ -116,7 +120,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
   if (!props.isOpen || !props.milestone) return null;
   const hasConflict = editingSnapshot.current !== null
     && JSON.stringify(editingSnapshot.current) !== JSON.stringify(props.milestone);
-  const isDirty = !!pendingAutomation || isWorkflowMilestoneDraftDirty(editingSnapshot.current, name, automations, instructions, goal, !fullyAuto);
+  const isDirty = !!pendingAutomation || isWorkflowMilestoneDraftDirty(editingSnapshot.current, name, automations, instructions, goal, !fullyAuto, color);
   const editingAutomation = !!pendingAutomation || !!expandedAutomationKey;
   const joinLanes = automations.filter(a => a.trigger.type === "member_joined").map(a => a.action.type === "request_form" ? `form:${a.action.formKey}` : a.action.type);
   const duplicateJoinAction = new Set(joinLanes).size !== joinLanes.length;
@@ -143,6 +147,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
       instructions,
       goal,
       requireHumanApproval: !fullyAuto,
+      ...(color ? { color } : {}),
       automations: workflowDraftAutomations(automations).map((automation) => ({
         ...automation,
         key: automation.key.startsWith("draft-") ? "" : automation.key,
@@ -230,6 +235,17 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
               <span className="resource-field-label" id="workflow-name-label">Name</span>
               <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Stage name" disabled={props.isSaving} aria-labelledby="workflow-name-label" />
             </label>
+            <div className="workflow-stage-colors" role="radiogroup" aria-labelledby="workflow-color-label">
+              <span className="resource-field-label" id="workflow-color-label">Colour</span>
+              <div>
+                <button type="button" role="radio" aria-checked={!color} aria-label="No colour" title="No colour"
+                  className="workflow-stage-swatch is-none" disabled={props.isSaving} onClick={() => setColor(undefined)} />
+                {COMMUNITY_MEMBER_WORKFLOW_STAGE_COLORS.map((option) => <button key={option} type="button" role="radio" aria-checked={color === option}
+                  aria-label={option[0].toUpperCase() + option.slice(1)} title={option[0].toUpperCase() + option.slice(1)}
+                  className={`workflow-stage-swatch pn-stage-color-${option}`} disabled={props.isSaving} onClick={() => setColor(option)} />)}
+              </div>
+              <small className="workflow-field-hint">Shows on the stage and its automations, so you can tell stages apart at a glance.</small>
+            </div>
 
             <label><span className="resource-field-label">Instructions</span>
               <textarea rows={2} maxLength={4000} value={instructions} disabled={props.isSaving} onChange={event => setInstructions(event.target.value)} placeholder="How should the agent help members in this stage?" />

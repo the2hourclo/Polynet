@@ -280,12 +280,13 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       {stages.map((milestone, index) => {
         const chains = chainsByStage.get(milestone.key) ?? [];
         const count = props.memberCounts.get(milestone.key) ?? 0;
-        return <section key={milestone.key} className="pn-au-section">
+        return <section key={milestone.key} className={`pn-au-section${milestone.color ? ` pn-stage-color-${milestone.color}` : ""}`}>
           <header>
+            {milestone.color ? <span className="pn-au-stagedot" aria-hidden="true" /> : null}
             <span className="pn-au-group">While in {milestone.name || `stage ${index + 1}`}{drafts[milestone.key] ? " · unsaved" : ""}</span>
             <span className="pn-au-count" title={count === 1 ? "1 member here" : `${count} members here`}>{count}</span>
             <button type="button" className="pn-au-iconbtn" onClick={() => props.onEditStage(milestone.key)}
-              aria-label={`Stage settings for ${milestone.name}`} title="Rename, goal, delete">
+              aria-label={`Stage settings for ${milestone.name}`} title="Rename, colour, goal, delete">
               <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" /></button>
           </header>
           {chains.map((item) => {
@@ -311,7 +312,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     <main className="pn-au-main" aria-label="Selected automation">
       {chain && stage ? <header className="pn-au-head">
         <div><h2>{capitalize(workflowTriggerPhrase(chain.root, names))}</h2>
-          <p>While in {stage.name} · {chain.steps.length === 1 ? "1 step" : `${chain.steps.length} steps`}</p></div>
+          <p className={stage.color ? `pn-stage-color-${stage.color}` : undefined}>{stage.color ? <span className="pn-au-stagedot" aria-hidden="true" /> : null}While in {stage.name} · {chain.steps.length === 1 ? "1 step" : `${chain.steps.length} steps`}</p></div>
         {props.onTestStage ? <button type="button" className="pn-au-btn" onClick={() => props.onTestStage?.(stage.key, stageIndex)}>
           <Play size={14} strokeWidth={2} aria-hidden="true" /> Test</button> : null}
       </header> : null}
