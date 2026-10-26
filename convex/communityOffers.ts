@@ -7,6 +7,7 @@ import {
   resolveUserIdForAuthenticatedRequest,
 } from "./communityCore";
 import { requireCommunityChannelLineage } from "./communityChannelCore";
+import { saveCommunitySettingsCore } from "./communityLifecycle";
 import {
   communityOfferDefinitionOf,
   readCommunityOfferRows,
@@ -258,6 +259,38 @@ export const saveCommunityOffer = mutation({ args: saveArgs, handler: saveOffer 
 export const reorderCommunityOffers = mutation({ args: reorderArgs, handler: reorderOffers });
 export const setCommunityOfferArchived = mutation({ args: archiveArgs, handler: setOfferArchived });
 export const setCommunityChannelOfferAudience = mutation({ args: audienceArgs, handler: setChannelAudience });
+
+// Rashid 2026-10-26: "we need option to make the membership paid too". The base
+// offer's price is the community's own price, so this is the same save as
+// General › Access & pricing, with everything else kept as it is. People who
+// are already members stay members; only new joiners pay.
+const basePriceArgs = { ...authArgs, price: v.union(v.null(), v.object({
+  billingPeriod: v.union(v.literal("monthly"), v.literal("annual")),
+  amountBaseUnits: v.number(),
+})) };
+
+async function setBaseOfferPrice(ctx: any, args: any) {
+  const userId = await actor(ctx, args);
+  const { community } = await requireCommunityOwner({ ctx, communityId: args.communityId, userId });
+  const amount = args.price ? Math.round(args.price.amountBaseUnits) : null;
+  if (amount !== null && (amount < 100 || amount > 10_000_000)) throw new CommunityOfferError("offer_price_invalid");
+  await saveCommunitySettingsCore(ctx, {
+    userId,
+    communityId: args.communityId,
+    expectedSettingsRevision: Number.isFinite(Number(community.settingsRevision)) ? Math.max(0, Math.floor(Number(community.settingsRevision))) : 0,
+    name: community.name,
+    slug: community.slug,
+    oneLiner: community.oneLiner ?? null,
+    about: community.about ?? null,
+    visibility: community.visibility,
+    monthlyAmountBaseUnits: args.price?.billingPeriod === "monthly" ? amount : null,
+    annualAmountBaseUnits: args.price?.billingPeriod === "annual" ? amount : null,
+    currency: "usd",
+  });
+  return { price: args.price ? { billing_period: args.price.billingPeriod, amount_base_units: amount } : null };
+}
+
+export const setCommunityBaseOfferPrice = mutation({ args: basePriceArgs, handler: setBaseOfferPrice });
 
 // The agent path (community.offer.*) runs as the owner it acts for.
 export const readCommunityOffersInternal = internalQuery({

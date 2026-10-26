@@ -145,3 +145,17 @@ export function communityOfferUpgradeErrorMessage(error: unknown): string {
   const code = Object.keys(OFFER_UPGRADE_ERRORS).find((key) => raw.includes(key));
   return code ? OFFER_UPGRADE_ERRORS[code] : "Something went wrong. Try again in a moment.";
 }
+
+/** Membership (the base offer) is the community's own price: free, or paid for new members. */
+export async function setCloudCommunityBaseOfferPrice<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+  price: { billingPeriod: "monthly" | "annual"; amountBaseUnits: number } | null;
+}) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.mutation(api.communityOffers.setCommunityBaseOfferPrice, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+    price: params.price,
+  });
+}
