@@ -301,25 +301,27 @@ export function WebCommunityWelcomeSettings(props: Props) {
           <h1>Welcome page</h1>
           <p>New members see this first, one screen at a time, and finish its steps before the community opens.</p>
         </div>
-        <label className="welcome-settings-switch">
-          <input type="checkbox" role="switch" checked={gateOn} aria-describedby={`${id}-status-help`}
-            disabled={props.isSaving || !props.onSetWelcomeGate || (!gateOn && !hasSteps)}
-            onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)} />
-          <span>
-            <strong>Show to new members</strong>
-            <small id={`${id}-status-help`}>
-              {gateOn ? "On. New members start here." : hasSteps ? "Off. New members skip it." : "Add a form or a lesson, and save, to turn it on."}
-            </small>
-          </span>
-        </label>
-        <div className="welcome-settings-display" role="radiogroup" aria-label="Show it as" aria-describedby={`${id}-display-help`}>
-          {([["page", "Full page", <Maximize2 key="i" size={14} aria-hidden="true" />], ["popup", "Pop-up", <PanelTop key="i" size={14} aria-hidden="true" />]] as const).map(([value, label, icon]) => (
-            <button key={value} type="button" role="radio" aria-checked={display === value} disabled={props.isSaving || !props.onSetWelcomeDisplay}
-              onClick={() => { if (display !== value) void props.onSetWelcomeDisplay?.(value); }}>{icon} {label}</button>
-          ))}
-          <small id={`${id}-display-help`}>{display === "popup"
-            ? "Opens over the community. Members can use it behind and finish later."
-            : "Members see only this until they finish its steps."}</small>
+        <div className="welcome-settings-visibility">
+          <label className="welcome-settings-switch">
+            <input type="checkbox" role="switch" checked={gateOn} aria-describedby={`${id}-status-help`}
+              disabled={props.isSaving || !props.onSetWelcomeGate || (!gateOn && !hasSteps)}
+              onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)} />
+            <span>
+              <strong>Show to new members</strong>
+              <small id={`${id}-status-help`}>
+                {gateOn ? "On. New members start here." : hasSteps ? "Off. New members skip it." : "Add a form or a lesson, and save, to turn it on."}
+              </small>
+            </span>
+          </label>
+          <div className="welcome-settings-display" role="radiogroup" aria-label="Show it as" aria-describedby={`${id}-display-help`}>
+            {([["page", "Full page", <Maximize2 key="i" size={14} aria-hidden="true" />], ["popup", "Pop-up", <PanelTop key="i" size={14} aria-hidden="true" />]] as const).map(([value, label, icon]) => (
+              <button key={value} type="button" role="radio" aria-checked={display === value} disabled={props.isSaving || !props.onSetWelcomeDisplay}
+                onClick={() => { if (display !== value) void props.onSetWelcomeDisplay?.(value); }}>{icon} {label}</button>
+            ))}
+            <small id={`${id}-display-help`}>{display === "popup"
+              ? "Opens over the community. Members can use it behind and finish later."
+              : "Members see only this until they finish its steps."}</small>
+          </div>
         </div>
         <div className="welcome-settings-bar-actions">
           <button type="button" ref={previewButton} className="workflow-secondary-button" disabled={!screenCount} onClick={() => { setMenu(null); setPreviewing(true); }}>

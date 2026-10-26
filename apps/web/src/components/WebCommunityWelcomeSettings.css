@@ -234,3 +234,5 @@
 .welcome-settings-display button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; position: relative; }
 .welcome-settings-display button:disabled { cursor: not-allowed; opacity: .6; }
 .welcome-settings-display small { flex-basis: 100%; margin-top: 2px; color: var(--text-secondary); font-size: 12px; }
+/* On/off and how it shows stay together, the choice under the switch. */
+.welcome-settings-visibility { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
