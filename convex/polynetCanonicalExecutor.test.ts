@@ -4393,6 +4393,49 @@ test("an owner's agent changes Settings through the MCP with the same saves the 
   expect(JSON.stringify(await member("polynet_list", { path: `/communities/${community}/capabilities/` }))).not.toContain("community.settings.save");
 });
 
+test("an owner's agent reads and saves skill tracks through /builder/tracks.json and community.track.*", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const tracks = async (call = owner) => JSON.parse((await call("polynet_read", { path: `/communities/${community}/builder/tracks.json` })).body);
+  const change = (operation: string, input: Record<string, unknown>) => owner("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}` });
+  const lessonId = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: fixture.communityId, createdByUserId: fixture.ownerId, status: "live", name: "Core", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    return String(await ctx.db.insert("communityResources", {
+      communityId: fixture.communityId, moduleId, createdByUserId: fixture.ownerId, type: "post", role: "page", status: "published",
+      title: "Content basics", bodyMd: "body", bodyChars: 4, pinned: false, sortOrder: 1, createdAt: now, updatedAt: now,
+    }));
+  });
+
+  expect(JSON.stringify(await owner("polynet_list", { path: `/communities/${community}/builder/` }))).toContain("/builder/tracks.json");
+  const before = await tracks();
+  expect(before).toMatchObject({ contract: "polynet.builder_tracks.v1", tracks: [] });
+  expect(before.lessons).toEqual([{ id: lessonId, title: "Content basics", kind: null }]);
+  await change("community.track.save", { key: "content", expected_revision: 0, title: "Content Employee", opens_when: [],
+    stages: [{ name: "Start", steps: [{ resource_id: lessonId, checkpoint: true }] }] });
+  expect((await tracks()).tracks).toMatchObject([{ key: "content", title: "Content Employee", revision: 1, stages: [{ name: "Start" }] }]);
+  await expect(change("community.track.save", { key: "content", expected_revision: 1, title: "x", opens_when: [],
+    stages: [{ name: "S", steps: [{ resource_id: "missing" }] }] })).rejects.toThrow("setting_refused");
+  const archived = await change("community.track.archive", { key: "content", archived: true });
+  expect(archived).toMatchObject({ kind: "community_setting_change_proposed", result: { status: "staged" } });
+  expect((await tracks()).tracks).toHaveLength(1);
+  await expect(tracks(member)).rejects.toThrow("semantic_not_found");
+});
+
 test("hard-to-undo Settings changes are only proposed by the agent and happen when the owner taps Apply", async () => {
   const t = convexTest(schema, modules);
   const fixture = await createFixture(t);
