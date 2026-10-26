@@ -110,6 +110,9 @@ export async function readCommunityTracksForBuilder(ctx: any, communityId: any) 
   const lessons = await libraryLessons(ctx, communityId);
   const tracks = resolveCommunityTrackDefinitions({ stored: rows.filter((row) => !row.archivedAt).map(definitionOf), lessons });
   const revisionByKey = new Map(rows.map((row) => [row.key, row.revision as number]));
+  // What "Opens when" rules can point at besides lessons and tracks.
+  const workflow = await ctx.db.query("communityMemberWorkflows").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).first();
+  const properties = await ctx.db.query("communityClientProperties").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).collect();
   return {
     contract: "polynet.builder_tracks.v1",
     guidance: "Save a whole track with community.track.save (expected_revision from here; 0 for a new track). "
@@ -124,6 +127,11 @@ export async function readCommunityTracksForBuilder(ctx: any, communityId: any) 
       client_property: '{"type":"client_property","property":"<key>","equals":<value>}: opens while that client property has the value',
     },
     lessons: lessons.map(({ id, title, lesson }: any) => ({ id, title, kind: lesson?.kind ?? null })),
+    workflow_stages: (workflow?.milestones ?? []).map((milestone: any) => ({ key: milestone.key, name: milestone.name })),
+    client_properties: properties
+      .filter((property: any) => !property.archivedAt)
+      .sort((left: any, right: any) => left.position - right.position)
+      .map((property: any) => ({ key: property.key, name: property.name, type: property.type, options: property.options })),
     limits: COMMUNITY_TRACK_LIMITS,
   };
 }

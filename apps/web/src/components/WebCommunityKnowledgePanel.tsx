@@ -8,6 +8,17 @@ import { WebCommunityLessonBoard, communityBoardLessons, type RoadmapEditing } f
 import { updateCloudCommunityLessonBoard } from "../../../../shared/cloudCommunityAdminGateway";
 import { resolveUsableSession } from "../../../../shared/ensureUsableSession";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
+import {
+  WebCommunityTrackEditor,
+  WebCommunityTrackHeader,
+  WebCommunityTrackHome,
+  WebCommunityTrackLocked,
+  WebCommunityTrackOpens,
+  communityTrackResources,
+  communityTrackStagesAfterBoardSave,
+} from "./WebCommunityTracks";
+import { COMMUNITY_MAIN_TRACK_KEY } from "../../../../shared/communityLessonTracks";
+import { fetchCloudCommunityLessonTracks, saveCloudCommunityLessonTrack } from "../../../../shared/cloudCommunityLessonTracksGateway";
 import { computeCommunityCourseProgress } from "../../../../shared/communityCourseProgress";
 import type { WebLessonActivity } from "./WebCommunityResourceViewerContent";
 import type { AuthSession } from "../auth";
@@ -34,17 +45,72 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const [view, setView] = useState<KnowledgeView>("resources");
   useEffect(() => { setView((current) => (current === "graph" ? "resources" : current)); }, [resources.state.selectedModuleId]);
   const canManage = resources.capabilities.canOperateResources;
+  // One progress read feeds the Roadmap, its skill tracks and the course cards.
+  const progress = useWebCommunityLessonProgress({
+    communityId: context.communityId,
+    session: context.session ?? null,
+  });
+  const tracks = progress.tracks;
   // The Roadmap (view id "board") shows when the community has lesson pages with a
-  // stage, and always to owners so they can start one.
-  const hasBoard = useMemo(() => canManage || communityBoardLessons(resources.state.resources).length > 0, [canManage, resources.state.resources]);
+  // stage or skill tracks, and always to owners so they can start one.
+  const hasBoard = useMemo(
+    () => canManage || tracks.length > 0 || communityBoardLessons(resources.state.resources).length > 0,
+    [canManage, tracks.length, resources.state.resources],
+  );
+  // With several tracks the Roadmap opens on the tracks home; with one, on its board.
+  const [trackKey, setTrackKey] = useState<string | null>(null);
+  const [trackEditor, setTrackEditor] = useState<{ key: string | null } | null>(null);
+  const activeTrack = tracks.length === 1 ? tracks[0] : tracks.find((track) => track.key === trackKey) ?? null;
+  const boardResources = useMemo(
+    () => (activeTrack ? communityTrackResources(resources.state.resources, activeTrack) : resources.state.resources),
+    [activeTrack, resources.state.resources],
+  );
   // "Edit lesson" on the Roadmap opens that lesson in the Resources editor.
   const [editRequest, setEditRequest] = useState<{ resourceId: string; key: number } | null>(null);
   const { session: rawSession, ensureSession, communityId } = context;
   const { retryRead, handleCreateBlankPageDraft } = resources.actions;
   const resourceList = resources.state.resources;
   const firstModuleId = resources.state.modules[0]?.id ?? null;
+  const reloadProgress = progress.reload;
   const roadmapEditing = useMemo<RoadmapEditing | null>(() => {
     if (!canManage || !rawSession || !communityId) return null;
+    // Every track but the main roadmap keeps its stages in the track itself, so
+    // board edits there save the track (the same save as the track editor).
+    if (activeTrack && activeTrack.key !== COMMUNITY_MAIN_TRACK_KEY) {
+      const track = activeTrack;
+      const saveStages = async (change: (stages: ReturnType<typeof communityTrackStagesAfterBoardSave>) => ReturnType<typeof communityTrackStagesAfterBoardSave>, updates: Parameters<typeof communityTrackStagesAfterBoardSave>[1]) => {
+        const usable = await resolveUsableSession(rawSession as AuthSession, ensureSession);
+        if (!usable) return false;
+        try {
+          const current = (await fetchCloudCommunityLessonTracks({ session: usable, communityId })).tracks.find((row) => row.key === track.key);
+          if (!current) return false;
+          await saveCloudCommunityLessonTrack({
+            session: usable, communityId, key: track.key, expectedRevision: current.revision, title: current.title,
+            opensWhen: current.opens_when, stages: change(communityTrackStagesAfterBoardSave(current.stages, updates)),
+          });
+        } catch {
+          return false;
+        }
+        reloadProgress();
+        return true;
+      };
+      return {
+        save: (updates) => saveStages((stages) => stages, updates),
+        // A new lesson starts in the course of a lesson near it, and joins only this track.
+        addLesson: async ({ stage, order, nearResourceId }) => {
+          const moduleId = resourceList.find((resource) => resource.id === nearResourceId)?.module_id ?? firstModuleId;
+          if (!moduleId) return null;
+          const created = await handleCreateBlankPageDraft(moduleId);
+          if (!created) return null;
+          await saveStages((stages) => stages, [{ resourceId: created.id, stage, order }]);
+          return created;
+        },
+        editLesson: (resource) => {
+          setView("resources");
+          setEditRequest({ resourceId: resource.id, key: Date.now() });
+        },
+      };
+    }
     return {
       save: async (updates) => {
         const usable = await resolveUsableSession(rawSession as AuthSession, ensureSession);
@@ -68,15 +134,10 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
         setEditRequest({ resourceId: resource.id, key: Date.now() });
       },
     };
-  }, [canManage, rawSession, ensureSession, communityId, retryRead, handleCreateBlankPageDraft, resourceList, firstModuleId]);
+  }, [canManage, rawSession, ensureSession, communityId, retryRead, handleCreateBlankPageDraft, resourceList, firstModuleId, activeTrack, reloadProgress]);
   const graphOpen = view === "graph" && context.canViewGraph;
   const boardOpen = view === "board" && hasBoard;
   const activeView: KnowledgeView = graphOpen ? "graph" : boardOpen ? "board" : "resources";
-  // One progress read feeds the Roadmap and the course cards.
-  const progress = useWebCommunityLessonProgress({
-    communityId: context.communityId,
-    session: context.session ?? null,
-  });
   const courseProgress = useMemo(
     () =>
       progress.loaded
@@ -144,14 +205,57 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
       </div>
       {boardOpen ? (
         <div className="lesson-board-panel" role="tabpanel" id={platformTabPanelId("community-knowledge", "board")} aria-labelledby={platformTabId("community-knowledge", "board")}>
-          <WebCommunityLessonBoard
-            resources={resources.state.resources}
-            progress={progress}
-            signedIn={Boolean(context.session)}
-            onRequireSignIn={context.requireSignIn}
-            lessonActivity={lessonActivity}
-            editing={roadmapEditing}
-          />
+          {tracks.length > 1 && !activeTrack ? (
+            <WebCommunityTrackHome
+              tracks={tracks}
+              onOpenTrack={setTrackKey}
+              canManage={canManage}
+              onNewTrack={() => setTrackEditor({ key: null })}
+              onEditTrack={(key) => setTrackEditor({ key })}
+            />
+          ) : activeTrack && !activeTrack.open ? (
+            <>
+              <WebCommunityTrackHeader
+                tracks={tracks}
+                track={activeTrack}
+                onPick={setTrackKey}
+                onHome={() => setTrackKey(null)}
+                onEdit={canManage ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
+              />
+              <WebCommunityTrackLocked track={activeTrack} />
+            </>
+          ) : (
+            <>
+              <WebCommunityLessonBoard
+                resources={boardResources}
+                progress={progress}
+                signedIn={Boolean(context.session)}
+                onRequireSignIn={context.requireSignIn}
+                lessonActivity={lessonActivity}
+                editing={roadmapEditing}
+                header={activeTrack && (tracks.length > 1 || canManage) ? (
+                  <WebCommunityTrackHeader
+                    tracks={tracks}
+                    track={activeTrack}
+                    onPick={setTrackKey}
+                    onHome={() => setTrackKey(null)}
+                    onEdit={canManage ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
+                    onNewTrack={canManage && tracks.length === 1 ? () => setTrackEditor({ key: null }) : undefined}
+                  />
+                ) : undefined}
+              />
+              {activeTrack ? <WebCommunityTrackOpens track={activeTrack} tracks={tracks} onOpenTrack={setTrackKey} /> : null}
+            </>
+          )}
+          {trackEditor && context.session && context.communityId ? (
+            <WebCommunityTrackEditor
+              session={context.session}
+              communityId={context.communityId}
+              trackKey={trackEditor.key}
+              onClose={() => setTrackEditor(null)}
+              onSaved={progress.reload}
+            />
+          ) : null}
         </div>
       ) : null}
       {graphOpen ? <div className="community-knowledge-graph" role="tabpanel" id={platformTabPanelId("community-knowledge", "graph")} aria-labelledby={platformTabId("community-knowledge", "graph")}><CommunityMemoryGraph activeCommunityName={context.communityName} state={graph.state} onRefresh={graph.actions.refresh} /></div> : null}
