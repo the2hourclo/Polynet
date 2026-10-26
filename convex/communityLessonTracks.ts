@@ -274,7 +274,8 @@ export const listCommunityLessonLibraryInternal = internalQuery({
     return {
       community_id: String(communityId),
       owner_id: String(community.ownerId),
-      tracks: tracks.map((track) => ({ key: track.key, title: track.title, revision: revisions[track.key] ?? 0 })),
+      // Whole stored tracks, so a script can change their dressing and leave stages and rules as the owner set them.
+      tracks: tracks.map((track) => ({ ...track, revision: revisions[track.key] ?? 0 })),
       courses: modules.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((module: any) => ({
         id: String(module._id),
         name: module.name ?? null,
