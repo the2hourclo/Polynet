@@ -26,7 +26,9 @@ export type CommunityMemberWorkflowTrigger =
   /** A lesson page marked done. Absent resourceId means any lesson. */
   | { type: "lesson_completed"; resourceId?: string }
   /** Every lesson in a course done. Absent moduleId means any course. */
-  | { type: "course_completed"; moduleId?: string };
+  | { type: "course_completed"; moduleId?: string }
+  /** Every step of a skill track done. Absent trackKey means any track. */
+  | { type: "track_completed"; trackKey?: string };
 
 export function normalizeWorkflowDelayMinutes(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 525600) {
@@ -110,6 +112,7 @@ export function workflowTriggerIdentity(trigger: CommunityMemberWorkflowTrigger)
     : trigger.type === "previous_action_completed" ? (trigger.delayMinutes ? [trigger.type, trigger.predecessorActionKey, trigger.delayMinutes] : [trigger.type, trigger.predecessorActionKey])
     : trigger.type === "lesson_completed" ? [trigger.type, trigger.resourceId ?? null]
     : trigger.type === "course_completed" ? [trigger.type, trigger.moduleId ?? null]
+    : trigger.type === "track_completed" ? [trigger.type, trigger.trackKey ?? null]
     : trigger.type === "member_joined" ? [trigger.type]
     : trigger.nudge ? [trigger.type, trigger.delayMinutes, "nudge"] : [trigger.type, trigger.delayMinutes]);
 }
@@ -241,7 +244,8 @@ export function workflowSequenceIssue(rules: CommunityMemberWorkflowAutomation[]
 export function workflowRuleUsesTimer(rule: { trigger: CommunityMemberWorkflowTrigger; action: { type: string } }): boolean {
   return rule.trigger.type === "milestone_elapsed"
     || (rule.trigger.type === "previous_action_completed" && (rule.trigger.delayMinutes ?? 0) > 0)
-    || ((rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed") && rule.action.type === "prompt_agent");
+    || ((rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed" || rule.trigger.type === "track_completed")
+      && rule.action.type === "prompt_agent");
 }
 
 export function normalizeWorkflowCondition(value: unknown): CommunityMemberWorkflowCondition | undefined {

@@ -415,6 +415,115 @@
 [data-community-theme] .test-run-highlight {
   border-radius: calc(6px * var(--pn-radius-scale, 1));
 }
+[data-community-theme] .track-continue small {
+  font-size: var(--pn-type-meta);
+}
+[data-community-theme] .track-continue strong {
+  font-size: var(--pn-type-subheading);
+}
+[data-community-theme] .track-continue em {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-continue-go {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .track-group-head h2 {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .track-new,
+[data-community-theme] .track-title-edit {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-card-cover {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-card-copy strong {
+  font-size: var(--pn-type-reading);
+}
+[data-community-theme] .track-card-copy > span {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-card-bar {
+  border-radius: calc(2px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-card-status {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .track-card-edit {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-picker button {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-title h2 {
+  font-size: var(--pn-type-title);
+}
+[data-community-theme] .track-summary {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .track-locked-stages em {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-locked-dot {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .track-opens h3 {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .track-opens strong {
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .track-opens span {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-editor {
+  border-radius: calc(14px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-editor h2 {
+  font-size: var(--pn-type-heading);
+}
+[data-community-theme] .track-editor input,
+[data-community-theme] .track-editor textarea,
+[data-community-theme] .track-editor select {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-editor footer button,
+[data-community-theme] .track-add {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-editor-close,
+[data-community-theme] .track-icon {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-field > span,
+[data-community-theme] .track-fieldset legend {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-fieldset {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-check,
+[data-community-theme] .track-step-check {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-hint {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-error {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .track-stage-number {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .track-steps li {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-step-title {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .track-add {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .welcome-settings-block.drop-before::before,
 [data-community-theme] .welcome-settings-block.drop-after::after {
   border-radius: calc(2px * var(--pn-radius-scale, 1));

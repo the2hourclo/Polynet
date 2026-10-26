@@ -305,3 +305,11 @@ export async function communityTracksFinishedByLesson(ctx: any, communityId: any
     })
     .map((track) => ({ key: track.key, title: track.title }));
 }
+
+/** The lesson ids of a track, in order (Test run autoplay walks them). */
+export async function communityTrackLessonIds(ctx: any, communityId: any, key: string): Promise<string[]> {
+  const lessons = await libraryLessons(ctx, communityId);
+  const track = resolveCommunityTrackDefinitions({ stored: await readStoredCommunityTracks(ctx, communityId), lessons })
+    .find((item) => item.key === key);
+  return track ? track.stages.flatMap((stage) => stage.steps.map((step) => step.resource_id)) : [];
+}

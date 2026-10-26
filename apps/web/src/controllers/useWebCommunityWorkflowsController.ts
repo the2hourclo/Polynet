@@ -30,6 +30,7 @@ import type { CommunityMemberWorkflowAutomation } from "../../../../shared/commu
 import { withJourneyPropertyKey, type AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
 import { ensureCloudCommunitySelectProperty } from "../../../../shared/cloudCommunityFormsGateway";
 import { listCloudCommunityResourceModuleRows, listCloudCommunityResourceRows } from "../../../../shared/cloudCommunityAdminGateway";
+import { fetchCloudCommunityLessonTracks } from "../../../../shared/cloudCommunityLessonTracksGateway";
 import type { CommunityResource, CommunityResourceModule } from "../components/communityResourcesContracts";
 
 /** A lesson page in a live course, for welcome steps and lesson triggers. */
@@ -484,6 +485,14 @@ export function useWebCommunityWorkflowsController(params: {
       .map((resource) => ({ id: resource.id, title: resource.title, course: live.get(resource.module_id!) ?? "", courseId: resource.module_id! }));
   }, [params.activeCommunityId, params.ensureSession, params.session]);
 
+  // Roadmap tracks a "When they finish a track" rule can name.
+  const loadTrackOptions = useCallback(async (): Promise<Array<{ key: string; title: string }>> => {
+    const usableSession = params.activeCommunityId ? await params.ensureSession(params.session, "community_workflows_tracks") : null;
+    if (!usableSession || !params.activeCommunityId) return [];
+    const result = await fetchCloudCommunityLessonTracks({ session: usableSession, communityId: params.activeCommunityId });
+    return result.tracks.map((track) => ({ key: track.key, title: track.title }));
+  }, [params.activeCommunityId, params.ensureSession, params.session]);
+
   return {
     forms,
     access,
@@ -683,6 +692,7 @@ export function useWebCommunityWorkflowsController(params: {
       mutateMilestone("community_workflows_welcome_gate", (session, communityId, revision) =>
         setCloudCommunityWelcomeGate({ session, communityId, expectedRevision: revision, enabled })),
     loadWelcomeLessonOptions,
+    loadTrackOptions,
     saveWelcomePage: (page: CloudCommunityWelcomePageDraft) =>
       mutateMilestone("community_workflows_welcome_page", (session, communityId, revision) =>
         saveCloudCommunityWelcomePage({ session, communityId, expectedRevision: revision, page })),

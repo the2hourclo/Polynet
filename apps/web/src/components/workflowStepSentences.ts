@@ -69,6 +69,10 @@ export function workflowTriggerPhrase(automation: CommunityMemberWorkflowAutomat
       const course = trigger.moduleId ? names.catalog?.lessons?.find((item) => item.courseId === trigger.moduleId)?.course : null;
       return trigger.moduleId ? `When they finish ${course ? `the ${quote(course, 50)} course` : "a course"}` : "When they finish any course";
     }
+    case "track_completed": {
+      const track = trigger.trackKey ? names.catalog?.tracks?.find((item) => item.key === trigger.trackKey)?.title : null;
+      return trigger.trackKey ? `When they finish ${track ? `the ${quote(track, 50)} track` : "a track"}` : "When they finish any track";
+    }
     case "member_contributed": {
       const channel = trigger.channelId ? names.channels?.find((item) => item.id === trigger.channelId)?.name : null;
       return trigger.channelId ? `When they post in #${channel ?? "a channel"}` : "When they post anywhere";

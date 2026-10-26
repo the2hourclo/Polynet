@@ -1,4 +1,6 @@
 import { listMemberVisibleLessonPages, readProgressRows } from "./communityResourceProgress";
+import { communityTracksFinishedByLesson } from "./communityLessonTracks";
+import { COMMUNITY_MAIN_TRACK_KEY } from "../shared/communityLessonTracks";
 import { setValue as setClientPropertyValue } from "./communityClients";
 import { normalizeCommunityClientPropertyValue } from "../shared/communityClients";
 import { workflowSequenceCompletionIsNew, workflowSequenceIssue, workflowSequenceReceipt } from "../shared/communityMemberWorkflow";
@@ -124,6 +126,7 @@ const automationInputValidator = v.object({
     v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
     v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
     v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
+    v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
   ),
   action: v.union(
     v.object({ key: v.optional(v.string()), type: v.literal("create_service_channel") }),
@@ -267,7 +270,7 @@ function normalizeAutomations(
       || (input.trigger.type === "member_joined" && action.type !== "create_service_channel" && action.type !== "request_form")) throw new Error("workflow_join_action_invalid");
     // Lesson and course completion request a Form, write a property, or ask the
     // agent (through a timer that starts the moment the lesson is done).
-    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed")
+    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed")
       && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent") {
       throw new Error("lesson_trigger_action_invalid");
     }
@@ -308,6 +311,7 @@ function normalizeAutomations(
         : input.trigger.type === "form_submitted" ? { type: "form_submitted", formKey: input.trigger.formKey }
         : input.trigger.type === "lesson_completed" ? { type: "lesson_completed", ...(input.trigger.resourceId ? { resourceId: input.trigger.resourceId } : {}) }
         : input.trigger.type === "course_completed" ? { type: "course_completed", ...(input.trigger.moduleId ? { moduleId: input.trigger.moduleId } : {}) }
+        : input.trigger.type === "track_completed" ? { type: "track_completed", ...(input.trigger.trackKey ? { trackKey: input.trigger.trackKey } : {}) }
         : input.trigger.type === "milestone_elapsed"
         ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowDelayMinutes(input.trigger.delayMinutes), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
         : { type: "member_contributed", ...(input.trigger.channelId !== undefined ? { channelId: input.trigger.channelId } : {}) },
@@ -462,6 +466,13 @@ export const updateBuilderWorkflowMilestone = mutation({
         const id = ctx.db.normalizeId("communityResourceModules", automation.trigger.moduleId);
         const module = id ? await ctx.db.get(id) : null;
         if (!module || module.communityId !== args.communityId) throw new Error("workflow_course_unavailable");
+      }
+      if (automation.trigger.type === "track_completed" && automation.trigger.trackKey && automation.trigger.trackKey !== COMMUNITY_MAIN_TRACK_KEY) {
+        const trackKey = automation.trigger.trackKey;
+        const track = await ctx.db.query("communityLessonTracks")
+          .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", trackKey))
+          .unique();
+        if (!track || track.archivedAt) throw new Error("workflow_track_unavailable");
       }
     }
     for (const formKey of new Set(milestone.automations.flatMap(a => [
@@ -1593,6 +1604,15 @@ export const handleLessonCompletedInternal = internalMutation({
         for (const automation of courseRules.filter(a => a.trigger.type === "course_completed"
             && (!a.trigger.moduleId || a.trigger.moduleId === String(page.moduleId)))) {
           results.push(await runRule(automation, `course_completed:${page.moduleId}:${membership._id}:${membership.activationSequence ?? 0}`));
+        }
+      }
+    }
+    // A skill track this lesson finished (its last open step).
+    const trackRules = automations.filter(a => a.trigger.type === "track_completed");
+    if (trackRules.length) {
+      for (const track of await communityTracksFinishedByLesson(ctx, args.communityId, args.userId, args.resourceId)) {
+        for (const automation of trackRules.filter(a => a.trigger.type === "track_completed" && (!a.trigger.trackKey || a.trigger.trackKey === track.key))) {
+          results.push(await runRule(automation, `track_completed:${track.key}:${membership._id}:${membership.activationSequence ?? 0}`));
         }
       }
     }

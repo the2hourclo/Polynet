@@ -11,6 +11,7 @@ import { lessonElements, listMemberVisibleLessonPages, readProgressRows, saveOwn
 import { findTestMemberByUserId, type TestMemberRow } from "./communityTestMemberCore";
 import { durationText, requireMyTestMember } from "./communityTestMembers";
 import type { CommunityFormQuestion } from "../shared/communityForms";
+import { communityTrackLessonIds } from "./communityLessonTracks";
 
 // Autoplay: a test member goes through the Workflow by itself, one step per
 // call, doing what a member would do: answer forms, click through lessons,
@@ -133,6 +134,9 @@ async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
       const page = trigger.resourceId ? pages.find((p: any) => String(p._id) === trigger.resourceId)
         : pages.find((p: any) => !finished.has(String(p._id)) && !done.has(`lesson:${p._id}`)) ?? pages[0];
       if (page) wanted.push(page);
+    } else if (trigger.type === "track_completed") {
+      const ids = await communityTrackLessonIds(ctx, communityId, trigger.trackKey ?? "main");
+      wanted.push(...ids.map((id) => pages.find((p: any) => String(p._id) === id)).filter(Boolean));
     } else if (trigger.type === "course_completed") {
       const moduleId = trigger.moduleId ?? pages.find((p: any) => p.moduleId)?.moduleId;
       wanted.push(...pages.filter((p: any) => moduleId && String(p.moduleId) === String(moduleId)));

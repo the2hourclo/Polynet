@@ -2258,6 +2258,7 @@ export default function App() {
         onSetWelcomeGate: communityWorkflows.setWelcomeGate,
         onSaveWelcomePage: communityWorkflows.saveWelcomePage,
         onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
+        onLoadTrackOptions: communityWorkflows.loadTrackOptions,
         testRun: session && activeCommunityId && activeCommunity?.slug && canManageMembersActiveCommunity
           ? { communityId: activeCommunityId, communitySlug: activeCommunity.slug, session, ensureSession: ensureUsableAuthSession } : null,
         communityName: activeCommunity?.name ?? null,
