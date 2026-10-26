@@ -41,7 +41,7 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
     <div className="pn-wf-section-head">
       <div>
         <h2>Forms</h2>
-        <p>Questions members answer when they join or reach a milestone. Their answers fill their client record.</p>
+        <p>Questions members answer when they join or reach a stage. Their answers fill their member record.</p>
       </div>
       {!loading && !error && forms.length ? <button type="button" className="pn-wf-primary" disabled={atLimit} onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button> : null}
     </div>

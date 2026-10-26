@@ -654,8 +654,10 @@
 /* Welcome (restyled with the Knowledge pages): only line it up with the
    other sections and give its title the same section-heading size. */
 .pn-wf .welcome-settings { padding: 0 var(--pn-wf-gutter); }
-.pn-wf .welcome-settings-header h1 { font-size: 1.0625rem; font-weight: 700; line-height: 1.3; }
-.pn-wf .welcome-settings-header p { font-size: 0.875rem; }
+.pn-wf :is(.welcome-settings-header, .welcome-settings-bar-title) h1 { font-size: 1.0625rem; font-weight: 700; line-height: 1.3; }
+.pn-wf :is(.welcome-settings-header, .welcome-settings-bar-title) p { font-size: 0.875rem; line-height: 1.45; }
+/* Discard is a quiet text button here, as in Automations: no grey chip while there's nothing to discard. */
+.pn-wf .welcome-settings-bar-actions .workflow-secondary-button:nth-of-type(2):disabled { background: transparent; border-color: transparent; color: var(--text-muted, var(--text-secondary)); }
 
 /* Disabled buttons stay readable: a flat grey chip with secondary text
    instead of fading the whole button to 40%. */
