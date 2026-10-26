@@ -8,7 +8,7 @@ import {
   type CloudMyTestRunAutoplay,
 } from "../../../../shared/cloudCommunityTestMembersGateway";
 import { runScreenStep } from "./testRunScreenDriver";
-import { clearTestMemberRun, readTestMemberRun } from "../../../../shared/testMemberRun";
+import { clearTestMemberRun, isEmbeddedTestRunFrame, readTestMemberRun } from "../../../../shared/testMemberRun";
 import "./WebCommunityTestRun.css";
 
 const ENDED_EVENT = "polynet:test-run-ended";
@@ -16,7 +16,17 @@ const AUTOPLAY_EVENT = "polynet:test-run-autoplay";
 const HIGHLIGHT_MS = 2400;
 const CHECK_EVERY_MS = 30_000;
 
+/** Told to the owner's Test run page when it shows this run in a frame. */
+export const TEST_RUN_FRAME_READY = "polynet:test-run-frame-ready";
+export const TEST_RUN_FRAME_EXIT = "polynet:test-run-frame-exit";
+
+function tellOwnerPage(type: string) {
+  if (isEmbeddedTestRunFrame()) window.parent.postMessage({ type }, window.location.origin);
+}
+
 function exitTestRun() {
+  // Watched in the owner's page: that page closes the frame.
+  if (isEmbeddedTestRunFrame()) { tellOwnerPage(TEST_RUN_FRAME_EXIT); return; }
   clearTestMemberRun();
   // A tab the Test run page opened just closes; any other goes back to being the owner's.
   window.close();
@@ -84,6 +94,8 @@ export function useTestMemberAutoplayFollow(session: AuthSession | null, ensureS
     return subscribeCloudMyTestRun({
       session, ensureSession: (current, source) => ensureRef.current(current, source),
       update: (run) => {
+        // The owner's page waits for this before it starts Autoplay on screen.
+        tellOwnerPage(TEST_RUN_FRAME_READY);
         window.dispatchEvent(new CustomEvent(AUTOPLAY_EVENT, { detail: run?.autoplay ?? null }));
         const step = run?.autoplay_step;
         if (step && !driving.current && !drivenSteps.has(`id:${step.id}`)) { drivenSteps.add(`id:${step.id}`); void drive(step); }

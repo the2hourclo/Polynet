@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "vitest";
-import { applyTestMemberRun, buildTestMemberRunUrl, captureTestMemberRunFromLocation, clearTestMemberRun, readTestMemberRun } from "../shared/testMemberRun";
+import { applyTestMemberRun, buildTestMemberRunUrl, captureTestMemberRunFromLocation, clearTestMemberRun, readTestMemberRun, testMemberRunFrameName } from "../shared/testMemberRun";
 
 function fakeWindow(href: string) {
   const store = new Map<string, string>();
@@ -33,4 +33,18 @@ test("only test subjects are taken", () => {
   captureTestMemberRunFromLocation();
   expect(readTestMemberRun()).toBeNull();
   expect(applyTestMemberRun(owner)).toBe(owner);
+});
+
+test("watched in the owner's page, the run is kept on the frame, not the shared tab storage", () => {
+  const run = { authSubject: "polynet-test:abc", label: "Test member 2" };
+  fakeWindow(`https://polynet.local${buildTestMemberRunUrl("aieb", run)}`);
+  const frame = (globalThis as any).window;
+  frame.name = testMemberRunFrameName(run);
+  frame.self = frame; frame.top = {};
+  captureTestMemberRunFromLocation();
+  expect(frame.sessionStorage.getItem("polynet:test-run:v1")).toBeNull();
+  expect(readTestMemberRun()).toEqual(run);
+  clearTestMemberRun();
+  expect(frame.name).toBe("");
+  expect(readTestMemberRun()).toBeNull();
 });

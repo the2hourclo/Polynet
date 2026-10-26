@@ -1,4 +1,4 @@
-import { CheckCircle2, ExternalLink, FastForward, FlaskConical, MousePointerClick, Pause, Play, RefreshCw, ShieldCheck, SkipForward, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, FastForward, FlaskConical, MousePointerClick, Pause, Play, RefreshCw, ShieldCheck, SkipForward, X, XCircle } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { AuthSession } from "../auth";
 import {
@@ -15,7 +15,8 @@ import {
   type CloudTestRunSequence,
   type CloudTestRunStep,
 } from "../../../../shared/cloudCommunityTestMembersGateway";
-import { buildTestMemberRunUrl } from "../../../../shared/testMemberRun";
+import { buildTestMemberRunUrl, testMemberRunFrameName } from "../../../../shared/testMemberRun";
+import { TEST_RUN_FRAME_EXIT, TEST_RUN_FRAME_READY } from "./WebTestRunBar";
 import "./WebCommunityTestRun.css";
 
 export type WebCommunityTestRunContext = {
@@ -87,6 +88,7 @@ export function WebCommunityTestRun(props: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [startStage, setStartStage] = useState("");
   const [reload, setReload] = useState(0);
+  const [watching, setWatching] = useState<string | null>(null);
   const { communityId, session, ensureSession } = props;
 
   useEffect(() => {
@@ -116,12 +118,21 @@ export function WebCommunityTestRun(props: Props) {
     const pending = startTestRunInNewTab(props, milestoneKey || null, replacing?.id);
     void run(replacing ? `restart:${replacing.id}` : "start", async () => { setSelected((await pending).id); });
   };
+  // Watch: a new test member goes through the community by itself, shown
+  // right here next to the sequence, so there's no second tab to arrange.
+  const watchNew = () => void run("watch", async () => {
+    const ready = await ensureSession(session, "community_test_run_start");
+    if (!ready) throw new Error("session_unavailable");
+    const started = await startCloudCommunityTestMember(ready, communityId, startStage || null);
+    setSelected(started.id); setWatching(started.id);
+  });
   const end = (member: CloudCommunityTestMember) => {
     if (!window.confirm(`End ${member.label}? Their answers, progress and record are deleted.`)) return;
     void run(`end:${member.id}`, async () => {
       const ready = await ensureSession(session, "community_test_run_end");
       if (!ready) throw new Error("session_unavailable");
       await endCloudCommunityTestMember(ready, communityId, member.id);
+      setWatching((id) => id === member.id ? null : id);
     });
   };
 
@@ -129,16 +140,23 @@ export function WebCommunityTestRun(props: Props) {
   const mine = (members ?? []).filter((row) => row.mine);
   const others = (members ?? []).filter((row) => !row.mine);
   const current = mine.find((row) => row.id === selected) ?? null;
-  const startButton = <button type="button" className="pn-wf-primary" disabled={busy !== null || members === null} onClick={() => start(startStage)}>
-    {busy === "start" ? "Starting…" : "Start a test run"}
+  const watched = mine.find((row) => row.id === watching && row.auth_subject) ?? null;
+  const watchButton = <button type="button" className="pn-wf-primary" disabled={busy !== null || members === null} onClick={watchNew}>
+    <Play size={15} aria-hidden="true" /> {busy === "watch" ? "Starting…" : "Watch a test run"}
   </button>;
   return <div className="test-run">
     <div className="pn-wf-section-head">
       <div>
         <h2>Test run</h2>
-        <p>Go through your community as a brand-new member and review your welcome sequence step by step: the welcome page,
-          each form and every Workflow rule as it fires.</p>
+        <p>See your community the way a new member does, and check that every Workflow rule fires.</p>
       </div>
+    </div>
+    <div className="test-run-hero">
+      <ol className="test-run-hero-steps">
+        <li><span><strong>Click Watch a test run.</strong> A test member joins your community.</span></li>
+        <li><span><strong>Watch them go through it.</strong> They fill in your forms, click through lessons and post by themselves, on screen.</span></li>
+        <li><span><strong>Check the rules.</strong> Each Workflow rule ticks off beside them as it fires.</span></li>
+      </ol>
       <div className="test-run-actions">
         {props.stages.length > 1 ? <div className="test-run-field">
           <select id={stageFieldId} aria-label="Where the test member starts" value={startStage} onChange={(event) => setStartStage(event.target.value)} disabled={busy !== null}>
@@ -146,14 +164,17 @@ export function WebCommunityTestRun(props: Props) {
             {props.stages.slice(1).map((stage, index) => <option key={stage.key} value={stage.key}>In stage {index + 2}: {stage.name}</option>)}
           </select>
         </div> : null}
-        {startButton}
+        {watchButton}
+        <button type="button" className="workflow-secondary-button" disabled={busy !== null || members === null} onClick={() => start(startStage)}>
+          <ExternalLink size={14} aria-hidden="true" /> {busy === "start" ? "Starting…" : "Try it yourself in a new tab"}
+        </button>
       </div>
     </div>
     <div className="pn-wf-callout test-run-safety">
       <span className="pn-wf-callout-icon" aria-hidden="true"><ShieldCheck size={20} strokeWidth={2} /></span>
       <span className="pn-wf-callout-text">
         <strong>Safe to try</strong>
-        <small>The community opens in a new tab and your other tabs stay signed in as you. A test member is tagged Test on Clients
+        <small>The community opens as a test member, here or in a new tab, and you stay signed in as you. A test member is tagged Test on Clients
           and can't pay, message anyone or use Ask AI. Agent messages a Workflow sends, and the agent's replies when they write in its channel, do run and use your credits. Autoplay only previews them.
           Ending a run deletes everything it did.</small>
       </span>
@@ -167,8 +188,7 @@ export function WebCommunityTestRun(props: Props) {
       : !mine.length ? <div className="pn-wf-empty">
         <span className="pn-wf-empty-icon" aria-hidden="true"><FlaskConical size={20} strokeWidth={2} /></span>
         <strong>No test runs yet</strong>
-        <p>Start one to see your welcome page and first steps the way a new member would.</p>
-        {startButton}
+        <p>Watch one to see your welcome page and first steps the way a new member would.</p>
       </div>
       : <section className="pn-wf-list test-run-members" aria-label="Your test runs">
         {mine.map((member) => {
@@ -183,9 +203,13 @@ export function WebCommunityTestRun(props: Props) {
               <span className="pn-wf-badge">{started ? `From ${started}` : "New member"}</span>
             </button>
             <div className="test-run-member-actions">
+              <button type="button" className="workflow-secondary-button" aria-label={`Watch ${member.label}`} disabled={busy !== null || !member.auth_subject}
+                onClick={() => { setSelected(member.id); setWatching(member.id); }}>
+                <Play size={14} aria-hidden="true" /> Watch
+              </button>
               <button type="button" className="workflow-secondary-button" disabled={busy !== null || !member.auth_subject}
                 onClick={() => member.auth_subject && openTestTab(null, props.communitySlug, { auth_subject: member.auth_subject, label: member.label })}>
-                <ExternalLink size={14} aria-hidden="true" /> Open as {member.label}
+                <ExternalLink size={14} aria-hidden="true" /> Open in a new tab
               </button>
               <button type="button" className="workflow-secondary-button" aria-label={`Start over as ${member.label}`} disabled={busy !== null} onClick={() => start(member.start_milestone_key ?? "", member)}>
                 <RefreshCw size={14} aria-hidden="true" /> {busy === `restart:${member.id}` ? "Starting over…" : "Start over"}
@@ -200,6 +224,8 @@ export function WebCommunityTestRun(props: Props) {
     {others.length ? <p className="pn-wf-muted test-run-help">{others.length === 1 ? "1 test run belongs" : `${others.length} test runs belong`} to another admin.</p> : null}
     {current ? <TestRunSequence key={`sequence:${current.id}`} {...props} member={current} /> : null}
     {current?.membership_id ? <TestRunTimeline key={`timeline:${current.id}`} {...props} member={current} membershipId={current.membership_id} /> : null}
+    {watched ? <TestRunWatch key={`watch:${watched.id}`} {...props} member={watched} busy={busy !== null}
+      onClose={() => setWatching(null)} onEnd={() => end(watched)} /> : null}
   </div>;
 }
 
@@ -211,7 +237,7 @@ const STATUS_LABEL: Record<CloudTestRunStep["status"], string> = {
   done: "Done", failed: "Failed", running: "Running", scheduled: "Timed", waiting: "Waiting", skipped: "Didn't run", not_reached: "Not reached",
 };
 
-function TestRunSequence(props: Props & { member: CloudCommunityTestMember }) {
+function TestRunSequence(props: Props & { member: CloudCommunityTestMember; watch?: { ready: boolean } }) {
   const [sequence, setSequence] = useState<CloudTestRunSequence | null>(null);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -238,7 +264,8 @@ function TestRunSequence(props: Props & { member: CloudCommunityTestMember }) {
     <div className="pn-wf-section-head">
       <div>
         <h2 id="test-run-sequence-title">{props.member.label}'s sequence</h2>
-        <p>Each stage's rules in order. Updates live as the test member moves through the other tab.</p>
+        <p>{props.watch ? `Each rule ticks off as ${props.member.label} gets to it.`
+          : "Each stage's rules in order. Updates live as the test member moves through the other tab."}</p>
       </div>
       {timed.length > 1 ? <button type="button" className="workflow-secondary-button" disabled={busy !== null} onClick={() => void skip()}>
         <FastForward size={14} aria-hidden="true" /> {busy === "all" ? "Running…" : `Skip all ${timed.length} waits`}</button> : null}
@@ -301,7 +328,7 @@ function autoplayResult(sequence: CloudTestRunSequence) {
 // Pause, Step, speed); the server does one step per call. On screen, the
 // member's own tab does each step in the real member screens while this page
 // waits for it; in the background, the server does it straight away.
-function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequence: CloudTestRunSequence | null }) {
+function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequence: CloudTestRunSequence | null; watch?: { ready: boolean } }) {
   // "step" plays until one step is done, then pauses.
   const [phase, setPhase] = useState<"ready" | "playing" | "step" | "paused" | "finished">("ready");
   const [speed, setSpeed] = useState<AutoplaySpeed>("normal");
@@ -347,6 +374,11 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
     const timer = window.setTimeout(() => { void step(); }, delay);
     return () => window.clearTimeout(timer);
   }, [phase, stepping, speed, step, log.length, acting]);
+  // Watching: plays on screen by itself once the member's screen is ready.
+  const watchReady = props.watch?.ready ?? false;
+  useEffect(() => {
+    if (watchReady && live.current.phase === "ready") { setWhere("screen"); setPhase("playing"); }
+  }, [watchReady]);
   // Leaving the page while it plays stops it, so agent steps send again.
   useEffect(() => () => { if (live.current.phase === "playing") void call(true).catch(() => {}); }, [call]);
 
@@ -366,9 +398,11 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
       <span className="pn-wf-callout-icon" aria-hidden="true"><Play size={20} strokeWidth={2} /></span>
       <span className="pn-wf-callout-text">
         <strong>Autoplay {status}</strong>
-        <small>{props.member.label} goes through the Workflow by itself: fills in forms with sample answers, clicks through lessons,
-          posts, and skips the waits. Agent messages are previewed, not sent.</small>
-        {where === "screen" ? <small>On screen: keep {props.member.label}'s tab open next to this one to watch each click.{" "}
+        {props.watch ? null : <small>{props.member.label} goes through the Workflow by itself: fills in forms with sample answers, clicks through lessons,
+          posts, and skips the waits. Agent messages are previewed, not sent.</small>}
+        {props.watch ? <small>{props.watch.ready || phase !== "ready" ? `${props.member.label} fills in forms, clicks through lessons, posts and skips the waits on the left. Agent messages are previewed, not sent.`
+          : `Getting ${props.member.label}'s screen ready…`}</small>
+        : where === "screen" ? <small>On screen: keep {props.member.label}'s tab open next to this one to watch each click.{" "}
           {props.member.auth_subject ? <button type="button" className="test-run-link" onClick={openMemberTab}>Open their tab</button> : null}</small> : null}
       </span>
       <span className="pn-wf-callout-actions">
@@ -379,9 +413,9 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
         <button type="button" className="workflow-secondary-button" disabled={running || stepping}
           onClick={() => { if (phase === "finished") restart(); setPhase("step"); }}>
           <SkipForward size={14} aria-hidden="true" /> Step</button>
-        <select id={whereId} aria-label="Where Autoplay acts" value={where} disabled={running} onChange={(event) => setWhere(event.target.value as AutoplayWhere)}>
+        {props.watch ? null : <select id={whereId} aria-label="Where Autoplay acts" value={where} disabled={running} onChange={(event) => setWhere(event.target.value as AutoplayWhere)}>
           <option value="screen">On screen</option><option value="background">In the background</option>
-        </select>
+        </select>}
         <select id={speedId} aria-label="Autoplay speed" value={speed} onChange={(event) => setSpeed(event.target.value as AutoplaySpeed)}>
           <option value="normal">Normal</option><option value="fast">Fast</option><option value="instant">Instant</option>
         </select>
@@ -407,10 +441,58 @@ function TestRunAutoplay(props: Props & { member: CloudCommunityTestMember; sequ
       </li>)}
       {acting && running ? <li className="is-acting">
         <span className="pn-wf-row-icon" aria-hidden="true"><MousePointerClick size={14} /></span>
-        <span className="test-run-step-text"><strong>{acting.text}</strong><small>Doing it now in {props.member.label}'s tab…</small></span>
+        <span className="test-run-step-text"><strong>{acting.text}</strong><small>Doing it now {props.watch ? "on the left" : `in ${props.member.label}'s tab`}…</small></span>
         <span className="pn-wf-badge is-edited">On screen</span>
       </li> : null}
     </ol> : null}
+  </div>;
+}
+
+/** How long to wait for the member's screen to say it's ready before playing anyway. */
+const WATCH_READY_FALLBACK_MS = 12_000;
+
+// Watch a test run: the community as the test member on the left (a frame of
+// the real app, signed in as them), and the sequence with Autoplay on the
+// right. Autoplay starts on screen as soon as their screen is ready.
+function TestRunWatch(props: Props & { member: CloudCommunityTestMember; busy: boolean; onClose: () => void; onEnd: () => void }) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [ready, setReady] = useState(false);
+  const { onClose } = props;
+  const run = { authSubject: props.member.auth_subject ?? "", label: props.member.label };
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
+      if (event.data?.type === TEST_RUN_FRAME_READY) setReady(true);
+      if (event.data?.type === TEST_RUN_FRAME_EXIT) onClose();
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    const fallback = window.setTimeout(() => setReady(true), WATCH_READY_FALLBACK_MS);
+    window.addEventListener("message", onMessage);
+    window.addEventListener("keydown", onKey);
+    return () => { window.clearTimeout(fallback); window.removeEventListener("message", onMessage); window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+  return <div className="test-run-watch" role="dialog" aria-modal="true" aria-labelledby="test-run-watch-title">
+    <header className="test-run-watch-head">
+      <span className="pn-wf-row-icon" aria-hidden="true"><Play size={16} strokeWidth={2} /></span>
+      <span className="pn-wf-row-text">
+        <strong id="test-run-watch-title">Watching {props.member.label}</strong>
+        <small>They go through your community by themselves on the left. Each Workflow rule ticks off on the right as it fires.</small>
+      </span>
+      <span className="test-run-watch-actions">
+        <button type="button" className="workflow-secondary-button test-run-end" disabled={props.busy} onClick={props.onEnd}>End this run</button>
+        <button type="button" className="workflow-secondary-button" onClick={onClose}><X size={14} aria-hidden="true" /> Close</button>
+      </span>
+    </header>
+    <div className="test-run-watch-body">
+      <div className="test-run-watch-screen">
+        <div className="test-run-watch-chrome" aria-hidden="true"><span /><span /><span /><em>{props.member.label}'s screen</em></div>
+        <iframe ref={frame} name={testMemberRunFrameName(run)} src={buildTestMemberRunUrl(props.communitySlug, run)}
+          title={`Your community as ${props.member.label}`} />
+      </div>
+      <aside className="test-run-watch-side">
+        <TestRunSequence {...props} watch={{ ready }} />
+      </aside>
+    </div>
   </div>;
 }
 
