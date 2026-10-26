@@ -376,7 +376,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
         }
         deleteDisabledReason={
           milestones.length <= COMMUNITY_MEMBER_WORKFLOW_MIN_MILESTONES
-            ? "A workflow needs at least one milestone"
+            ? "A workflow needs at least one stage"
             : null
         }
         error={props.actionError}

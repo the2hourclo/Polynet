@@ -206,9 +206,9 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
       <form ref={dialogRef} className="modal resource-modal workflow-milestone-modal" role="dialog" aria-modal="true" aria-labelledby="workflow-milestone-modal-title" onSubmit={submit} onKeyDown={trapFocus} onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title" id="workflow-milestone-modal-title">
-            {props.milestone.name.trim() ? props.milestone.name : "New milestone"}
+            {props.milestone.name.trim() ? props.milestone.name : "New stage"}
           </div>
-          <button className="modal-close" type="button" onClick={requestClose} disabled={props.isSaving} aria-label="Close milestone editor"><X size={18} aria-hidden="true" /></button>
+          <button className="modal-close" type="button" onClick={requestClose} disabled={props.isSaving} aria-label="Close stage editor"><X size={18} aria-hidden="true" /></button>
         </div>
 
         <div className="modal-body">
@@ -219,7 +219,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
             }}>← Automations</button> : <WebPlatformTabList
               tabs={[{ id: "overview", label: "Overview", disabled: props.isSaving }, { id: "automations", label: "Automations", disabled: props.isSaving }]}
               activeTab={view} onSelectTab={next => setView(next as "overview" | "automations")}
-              ariaLabel="Milestone settings" idPrefix="milestone-settings"
+              ariaLabel="Stage settings" idPrefix="milestone-settings"
               className="platform-switcher platform-switcher-compact"
               style={buildPlatformSwitcherStyle(2, view === "overview" ? 0 : 1)} />}
           <div className="resource-form workflow-milestone-form">
@@ -228,11 +228,11 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
             {view === "overview" ? <>
             <label>
               <span className="resource-field-label" id="workflow-name-label">Name</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Milestone name" disabled={props.isSaving} aria-labelledby="workflow-name-label" />
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Stage name" disabled={props.isSaving} aria-labelledby="workflow-name-label" />
             </label>
 
             <label><span className="resource-field-label">Instructions</span>
-              <textarea rows={2} maxLength={4000} value={instructions} disabled={props.isSaving} onChange={event => setInstructions(event.target.value)} placeholder="How should the agent help members in this milestone?" />
+              <textarea rows={2} maxLength={4000} value={instructions} disabled={props.isSaving} onChange={event => setInstructions(event.target.value)} placeholder="How should the agent help members in this stage?" />
             </label>
             <label><span className="resource-field-label">Goal</span>
               <textarea rows={2} maxLength={4000} value={goal} disabled={props.isSaving} onChange={event => setGoal(event.target.value)} placeholder="What does success look like for the member?" />
@@ -259,10 +259,10 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
             {editingSnapshot.current?.key && fullyAuto !== !(editingSnapshot.current.requireHumanApproval ?? false)
               ? <p className="workflow-field-hint">Changing this setting will not recheck or move members whose actions were already complete.</p>
               : null}
-            {!props.milestone.key ? <p className="workflow-field-hint">Save this milestone to configure actions.</p> : null}
+            {!props.milestone.key ? <p className="workflow-field-hint">Save this stage to configure actions.</p> : null}
             </> : <>
             {props.formsStatus === "loading" ? <p role="status">Loading published forms…</p> : props.formsStatus === "error" ? <p role="alert">Could not load published forms. <button type="button" className="workflow-secondary-button" onClick={props.onRetryForms}>Retry forms</button></p> : null}
-            {!props.milestone.key ? <p className="workflow-field-hint">Save this milestone first, then add automations.</p> : null}
+            {!props.milestone.key ? <p className="workflow-field-hint">Save this stage first, then add automations.</p> : null}
             {sequenceIssue ? <p role="alert">{sequenceIssue}</p> : null}
             {pendingAutomation ? <>
               <WebCommunityWorkflowAutomationEditor automation={pendingAutomation} index={automations.length}
@@ -317,7 +317,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
 
             {/* Our own write can arrive through realtime before the save promise settles.
                 Keep the conflict guard, but wait for the save outcome before warning. */}
-            {hasConflict && !props.isSaving ? <p className="workflow-error" role="alert">This milestone changed while you were editing. Your draft has not been saved. Close and reopen it to load the latest version.</p> : null}
+            {hasConflict && !props.isSaving ? <p className="workflow-error" role="alert">This stage changed while you were editing. Your draft has not been saved. Close and reopen it to load the latest version.</p> : null}
             {duplicateJoinAction ? <p className="workflow-error" role="alert">Use one channel action and one request per selected form when a member joins.</p> : null}
             {duplicateFormAction ? <p className="workflow-error" role="alert">Use one agent action per submitted form.</p> : null}
             {props.channelsUnavailable ? <p role="status">Channel choices are unavailable while loading or reconnecting.</p> : null}
@@ -355,10 +355,10 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
             </div>
           ) : (
             <div className="resource-modal-actions workflow-milestone-modal-actions">
-              {props.canDelete ? <button className="secondary danger workflow-milestone-delete-button" type="button" onClick={() => void props.onDelete()} disabled={props.isSaving} title={props.deleteDisabledReason ?? "Delete milestone"}><Trash2 size={15} aria-hidden="true" /> Delete</button> : null}
+              {props.canDelete ? <button className="secondary danger workflow-milestone-delete-button" type="button" onClick={() => void props.onDelete()} disabled={props.isSaving} title={props.deleteDisabledReason ?? "Delete stage"}><Trash2 size={15} aria-hidden="true" /> Delete</button> : null}
               <div>
                 <button className="secondary" type="button" onClick={requestClose} disabled={props.isSaving}>Cancel</button>
-                <button className="platform-save-button" type="submit" disabled={!canSave || props.isSaving}>{props.isSaving ? "Saving…" : "Save milestone"}</button>
+                <button className="platform-save-button" type="submit" disabled={!canSave || props.isSaving}>{props.isSaving ? "Saving…" : "Save stage"}</button>
               </div>
             </div>
           )}

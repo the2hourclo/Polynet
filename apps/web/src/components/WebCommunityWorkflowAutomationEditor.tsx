@@ -204,7 +204,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const triggerIssue = triggerSelected ? workflowTriggerIssue(automation, props.channels, props.channelsUnavailable) : null;
   const triggerReady = triggerSelected && !triggerIssue;
   const triggerLabel = isSequence ? `${waitMinutes ? `${workflowDurationLabel(waitMinutes)} after` : "After"} ${(() => { const step = earlierSteps.find((item) => item.action.key === predecessorKey); return step ? `“${stepLabel(step).slice(0, 60)}”` : "an earlier step"; })()}` : isJoin ? "Member joins for the first time"
-    : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this milestone` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
+    : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this stage` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "create_service_channel" ? "Create private channel" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
 
@@ -236,7 +236,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               <option value="" disabled>Choose a trigger</option>
               <option value="previous_action_completed" disabled={!earlierSteps.length && !isSequence}>After an earlier step</option>
               <option value="member_contributed">Member posts or replies</option>
-              <option value="milestone_elapsed">Time in milestone</option>
+              <option value="milestone_elapsed">Time in stage</option>
               {(props.canAddJoin || isJoin) ? <option value="member_joined">Member joins</option> : null}
               <option value="form_submitted">Form submitted</option>
               <option value="lesson_completed">Lesson done</option>
@@ -300,7 +300,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                 onChange={event => props.onChange({ ...automation, trigger: { type: "milestone_elapsed", delayMinutes, ...(event.target.checked ? { nudge: true } : {}) } })} />
               <span>Only a nudge<small>Runs only if they're still in this stage then, and doesn't hold them here: they can move on before it fires.{isPrompt ? "" : " Needs Ask community agent."}</small></span>
             </label>
-            <small className="workflow-field-hint">Applies to future milestone entries. Runs once, at or after the due time. Activity does not reset the timer. Duration edits update pending timers.</small>
+            <small className="workflow-field-hint">Applies to future stage entries. Runs once, at or after the due time. Activity does not reset the timer. Duration edits update pending timers.</small>
           </div> : (
           <div className="workflow-automation-field">
             <span>When a member posts or replies in</span>
@@ -327,7 +327,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
           </label> : null}
 
           {triggerReady && actionSelected ? <>
-          {isJoin ? <p className="workflow-field-hint">Applies only to future first-time members. Each join action runs independently; no automatic message or milestone movement.</p> : null}
+          {isJoin ? <p className="workflow-field-hint">Applies only to future first-time members. Each join action runs independently; no automatic message or stage movement.</p> : null}
           {automation.action.type === "set_client_property" ? <>
             <label>Client property<select value={propertyKey} disabled={props.disabled || !props.catalog?.properties}
               onChange={e => props.onChange({ ...automation, action: { key: automation.action.key, type: "set_client_property", propertyKey: e.target.value, value: null } })}>
@@ -338,7 +338,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
             {property && automation.action.type === "set_client_property" ? <PropertyValueField id={`${id}-property-value`} property={property} value={automation.action.value}
               disabled={props.disabled} onChange={(value) => props.onChange({ ...automation, action: { key: automation.action.key, type: "set_client_property", propertyKey, value } })} /> : null}
             <p className="workflow-field-hint">Writes this value on the member's client record. You'll see it in the client's timeline as set by Workflow.</p>
-          </> : automation.action.type === "create_service_channel" ? <p className="workflow-field-hint">Creates a private service channel for the member, community managers, and community agent.</p> : automation.action.type === "request_form" ? <label>Form<select value={automation.action.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, action: { key: automation.action.key, type: "request_form", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select><small>Shown privately in the member’s community sidebar. No channel is required. One request per rule and milestone visit.</small></label> : automation.action.type === "prompt_agent" ? (
+          </> : automation.action.type === "create_service_channel" ? <p className="workflow-field-hint">Creates a private service channel for the member, community managers, and community agent.</p> : automation.action.type === "request_form" ? <label>Form<select value={automation.action.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, action: { key: automation.action.key, type: "request_form", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select><small>Shown privately in the member’s community sidebar. No channel is required. One request per rule and stage visit.</small></label> : automation.action.type === "prompt_agent" ? (
             <>
               <label>
                 <span id={`${id}-prompt-label`}>Agent instructions</span>

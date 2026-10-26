@@ -33,7 +33,7 @@ function workflowActivityLabel(
   if (activity.action_type === "create_service_channel") return `Private channel setup · ${readableLabel(activity.status)}`;
   if (activity.status === "requirement_satisfied") return `Requirement satisfied in ${activity.milestone_name}`;
   if (activity.status === "unavailable") {
-    return `${activity.action_type === "prompt_agent" ? "Community agent" : "Milestone move"} · Status unavailable`;
+    return `${activity.action_type === "prompt_agent" ? "Community agent" : "Stage move"} · Status unavailable`;
   }
   if (activity.action_type === "prompt_agent") {
     return `Community agent · ${readableLabel(activity.status)}`;
@@ -263,9 +263,9 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
         </div> : null}
         <div className="modal-body workflow-member-dossier-body">
           {confirmation ? <section className="workflow-member-dossier-section" role="alertdialog" aria-labelledby="force-move-title" aria-describedby="force-move-warning">
-            <h3 id="force-move-title">Force {confirmation.workflow?.override_state?.next_milestone_name ? "move to next milestone" : "workflow completion"}?</h3>
+            <h3 id="force-move-title">Force {confirmation.workflow?.override_state?.next_milestone_name ? "move to next stage" : "workflow completion"}?</h3>
             <p><strong>{confirmation.display_name}</strong>: {confirmation.workflow?.current_milestone_name} → {confirmation.workflow?.override_state?.next_milestone_name ?? "Workflow complete"}</p>
-            <p id="force-move-warning">This bypasses unfinished actions or an unmet goal. Pending forms for this milestone will close. Your override will be recorded.</p>
+            <p id="force-move-warning">This bypasses unfinished actions or an unmet goal. Pending forms for this stage will close. Your override will be recorded.</p>
             {forceError ? <p role="alert" className="workflow-error">{forceError}</p> : null}
             <div className="resource-modal-actions">
               <button type="button" className="secondary" data-override-cancel disabled={forcing} onClick={() => setConfirmation(null)}>Cancel</button>
@@ -303,7 +303,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
               <div role="tabpanel" id={platformTabPanelId("member-workflow", view)} aria-labelledby={platformTabId("member-workflow", view)}>
               <div hidden={view !== "progress"}>
               {dossier.workflow ? <section className="workflow-member-dossier-section">
-                <h3>Milestone goal</h3>
+                <h3>Stage goal</h3>
                 <p>{dossier.workflow.goal || "No goal specified."}</p>
               </section> : null}
               {dossier.workflow && !dossier.workflow.completed_at ? <section className="workflow-member-dossier-section">
@@ -351,7 +351,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                     </li>)}
                   </ul> : <p>No actions configured.</p>}
                   {dossier.workflow.action_progress.scan_truncated ? <p>Only a bounded set of recent receipts was checked. Unproven actions remain unavailable.</p> : null}
-                  {dossier.workflow.action_progress.actions.some(action => action.action_type === "prompt_agent") ? <p>A delivered response does not prove the milestone goal was achieved.</p> : null}
+                  {dossier.workflow.action_progress.actions.some(action => action.action_type === "prompt_agent") ? <p>A delivered response does not prove the stage goal was achieved.</p> : null}
                 </>}
               </section> : null}
               {dossier.workflow && !dossier.workflow.completed_at ? <section className="workflow-member-dossier-section">
@@ -384,8 +384,8 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                 </> : dossier.workflow.goal?.trim() ? <>
                   <p>{dossier.workflow.goal_review?.status === "reviewing" ? "The agent is reviewing the goal against verified action evidence."
                     : dossier.workflow.goal_review?.status === "achieved" ? "Goal met. Advancement is being validated."
-                    : dossier.workflow.goal_review?.status === "not_yet" ? "Goal not met. The member remains in this milestone."
-                    : dossier.workflow.goal_review?.status === "insufficient_evidence" ? "More proof is needed. The member remains in this milestone."
+                    : dossier.workflow.goal_review?.status === "not_yet" ? "Goal not met. The member remains in this stage."
+                    : dossier.workflow.goal_review?.status === "insufficient_evidence" ? "More proof is needed. The member remains in this stage."
                     : dossier.workflow.goal_review?.status === "failed" ? "Goal review could not complete. No advancement was made."
                     : dossier.workflow.goal_review?.status === "not_started" ? "No review has started for this evidence. Existing work is not automatically backfilled."
                     : "Once all actions are verified complete, the agent reviews the goal before advancing."}</p>
@@ -393,7 +393,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                 </>
                   : !dossier.workflow.action_progress ? <p>Action completion information unavailable.</p>
                   : dossier.workflow.action_progress?.actions.length ? <p>Advances when all actions are verified complete. Existing completed work is not automatically backfilled.</p>
-                  : <p>No actions configured. This milestone will not advance automatically.</p>}
+                  : <p>No actions configured. This stage will not advance automatically.</p>}
                 {dossier.workflow.goal_review?.retryable && props.onRetryGoalReview
                   && dossier.workflow.goal_review.receipt_ref !== submittedGoalReviewReceipt ? <>
                   <button type="button" className="workflow-secondary-button" disabled={retryingGoalReview} onClick={async () => {
@@ -487,7 +487,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
               </div>
               <div hidden={view !== "details"}>
               <details className="workflow-member-dossier-section workflow-member-milestone-history">
-                <summary>Recent milestone history</summary>
+                <summary>Recent stage history</summary>
                 {dossier.milestone_history.length > 0 ? (
                   <ol className="workflow-member-history">
                     {dossier.milestone_history.map((entry) => (
@@ -504,7 +504,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                     ))}
                   </ol>
                 ) : (
-                  <p>No recorded milestone changes.</p>
+                  <p>No recorded stage changes.</p>
                 )}
               </details>
               {dossier.workflow && !dossier.workflow.completed_at && dossier.workflow.override_state ? <section className="workflow-member-dossier-section">
