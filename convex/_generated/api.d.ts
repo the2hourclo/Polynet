@@ -127,6 +127,8 @@ import type * as communityMentionEmails from "../communityMentionEmails.js";
 import type * as communityMentionLifecycle from "../communityMentionLifecycle.js";
 import type * as communityNotificationAccess from "../communityNotificationAccess.js";
 import type * as communityOnboarding from "../communityOnboarding.js";
+import type * as communityPostCardRead from "../communityPostCardRead.js";
+import type * as communityPostCards from "../communityPostCards.js";
 import type * as communityPresenceCore from "../communityPresenceCore.js";
 import type * as communityPublic from "../communityPublic.js";
 import type * as communityReadCursorCore from "../communityReadCursorCore.js";
@@ -397,6 +399,8 @@ declare const fullApi: ApiFromModules<{
   communityMentionLifecycle: typeof communityMentionLifecycle;
   communityNotificationAccess: typeof communityNotificationAccess;
   communityOnboarding: typeof communityOnboarding;
+  communityPostCardRead: typeof communityPostCardRead;
+  communityPostCards: typeof communityPostCards;
   communityPresenceCore: typeof communityPresenceCore;
   communityPublic: typeof communityPublic;
   communityReadCursorCore: typeof communityReadCursorCore;

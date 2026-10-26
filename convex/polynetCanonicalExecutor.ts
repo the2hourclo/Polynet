@@ -80,6 +80,13 @@ const SITE_DEPLOY_MAX_FILES = 200;
 const SITE_DEPLOY_MAX_BYTES = 5 * 1024 * 1024;
 const FORM_SUBMIT_OPERATION = "community.form.submit";
 const REACT_OPERATION = "community.interaction.react";
+// Cards on posts (convex/communityPostCards.ts): anyone who can post starts a poll and
+// votes; an owner's agent shares a published Form; members answer a shared Form.
+const POLL_CREATE_OPERATION = "community.interaction.poll.create";
+const POLL_VOTE_OPERATION = "community.interaction.poll.vote";
+const POST_FORM_ANSWER_OPERATION = "community.interaction.form.answer";
+const POST_FORM_SHARE_OPERATION = "community.interaction.form.share";
+const POST_CARD_MEMBER_OPERATIONS = [POLL_CREATE_OPERATION, POLL_VOTE_OPERATION, POST_FORM_ANSWER_OPERATION];
 // A member marks their own lesson progress; locks come from lesson gates.
 const RESOURCE_PROGRESS_OPERATION = "community.resource.progress.set";
 const SELF_FORMS_DIRECTORY = "/members/me/forms/";
@@ -726,6 +733,11 @@ function capabilityDocument(args: {
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isReactCapability = args.operation === REACT_OPERATION &&
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
+  const isPostCardCapability = POST_CARD_MEMBER_OPERATIONS.includes(args.operation) &&
+    args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
+  const isFormShareCapability = args.operation === POST_FORM_SHARE_OPERATION &&
+    args.evidenceSurface === "external_mcp" &&
+    args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
   const isProgressCapability = (args.operation === RESOURCE_PROGRESS_OPERATION || args.operation === LESSON_RESPONSE_OPERATION) &&
     args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_agent";
   const isWorkflowApprovalCapability = args.operation === APPROVE_MILESTONE_OPERATION &&
@@ -743,7 +755,7 @@ function capabilityDocument(args: {
   const isSettingCapability = SETTING_OPERATIONS.includes(args.operation) &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
-  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isProgressCapability && !isSiteDeployCapability && !isClientCapability && !isDesignCapability && !isSettingCapability) {
+  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isPostCardCapability && !isFormShareCapability && !isProgressCapability && !isSiteDeployCapability && !isClientCapability && !isDesignCapability && !isSettingCapability) {
     return null;
   }
   const operationDefinition: Record<string, unknown> = {
@@ -751,7 +763,7 @@ function capabilityDocument(args: {
     version: 1,
     tool: "polynet_call",
     target: `/communities/${args.target.communitySlug}/capabilities/${args.operation}.json`,
-    authority_lane: isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability || isClientCapability || isDesignCapability || isSettingCapability ? "builder" : "member",
+    authority_lane: isFormShareCapability || isFunnelCapability || isAdmissionCapability || isWorkflowApprovalCapability || isSiteDeployCapability || isClientCapability || isDesignCapability || isSettingCapability ? "builder" : "member",
     idempotency_required: true,
   };
   if (isProgressCapability && args.operation === LESSON_RESPONSE_OPERATION) {
@@ -770,6 +782,38 @@ function capabilityDocument(args: {
       refusals: { lesson_locked: "a gate in an earlier stage is not done yet",
         lesson_elements_incomplete: "a required button, checklist or quiz in the lesson is not finished" },
       effects: ["set_own_lesson_progress"], forbidden_effects: ["set_progress_for_someone_else", "advance_workflow_milestone"] };
+  } else if (isPostCardCapability && args.operation === POLL_CREATE_OPERATION) {
+    operationDefinition.input = { required: ["question", "options"],
+      channel: "a channel slug from /channels/; the General channel when left out",
+      question: "up to 300 characters", options: "2 to 10 different choices, each up to 120 characters",
+      multiple: "true lets people pick more than one option (default false)",
+      result: "{ ref }: the new post. Votes are public: everyone in the channel sees the counts and who voted",
+      effects: ["post_poll"], forbidden_effects: ["vote_for_someone_else"] };
+  } else if (isPostCardCapability && args.operation === POLL_VOTE_OPERATION) {
+    operationDefinition.input = { required: ["ref", "options"],
+      ref: "interaction:root:<id> of a post whose card is a poll (see card in channel listings)",
+      options: "the option keys (o1, o2, ...) or labels you choose: one unless the poll is multiple; [] takes your vote back",
+      result: "the poll with counts, voters and your choices",
+      refusals: { poll_closed: "the poll was closed", poll_choice_invalid: "not one of the poll's options" },
+      effects: ["set_own_poll_vote"], forbidden_effects: ["vote_for_someone_else"] };
+  } else if (isPostCardCapability && args.operation === POST_FORM_ANSWER_OPERATION) {
+    operationDefinition.input = { required: ["ref", "answers"],
+      ref: "interaction:root:<id> of a post whose card is a form; the card lists its questions",
+      answers: 'question key -> answer. Text: a string. single_choice: the option index as a string ("0"). multiple_choice: a list of index strings',
+      submit: "true sends the answers (final); false saves a draft (default true)",
+      expected_revision: "the revision from your last save; 0 for a first save (default 0)",
+      result: "{ revision, submitted }",
+      refusals: { form_already_submitted: "you already sent answers to this form", form_answer_conflict: "your answers changed elsewhere; use the newer revision" },
+      effects: ["save_own_form_answers"], forbidden_effects: ["answer_for_someone_else"] };
+  } else if (isFormShareCapability) {
+    operationDefinition.input = { required: ["form_key"],
+      form_key: "a published form's key from the builder's Forms",
+      channel: "a channel slug from /channels/; the General channel when left out",
+      note: "a short line above the form (up to 1000 characters)",
+      answers_visible_to: "everyone (default: members see each other's answers) or builders (members only see who answered)",
+      result: "{ ref }: the new post with the form on it",
+      refusals: { post_form_unpublished: "publish the form first", post_form_not_found: "no form with that key" },
+      effects: ["post_form"], forbidden_effects: ["edit_form", "assign_form_to_workflow"] };
   } else if (isReactCapability) {
     operationDefinition.input = { required: ["ref", "emoji", "on"],
       ref: "interaction:root:<id> or interaction:reply:<id> from a channel or thread listing",
@@ -1272,7 +1316,7 @@ async function executeCanonicalList(args: {
       ...(args.evidenceSurface === "community_funnel_builder"
         ? []
         : MEMBER_CAPABILITIES),
-      ...[REACT_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...CLIENT_OPERATIONS, ...DESIGN_OPERATIONS, ...SETTING_OPERATIONS].filter(operation => capabilityDocument({ target, operation,
+      ...[REACT_OPERATION, ...POST_CARD_MEMBER_OPERATIONS, POST_FORM_SHARE_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...CLIENT_OPERATIONS, ...DESIGN_OPERATIONS, ...SETTING_OPERATIONS].filter(operation => capabilityDocument({ target, operation,
         evidenceSurface: args.evidenceSurface, principalKind: args.principalKind })),
     ];
     return {
@@ -2420,6 +2464,103 @@ async function executeCanonicalWrite(args: {
   );
 }
 
+const POST_CARD_REFUSALS: Record<string, string> = {
+  poll_question_required: "Write the poll's question.",
+  poll_question_too_long: "The question is over 300 characters.",
+  poll_options_count: "A poll needs 2 to 10 options.",
+  poll_option_too_long: "An option is over 120 characters.",
+  poll_options_duplicate: "Each option needs to be different.",
+  poll_closed: "This poll is closed.",
+  poll_choice_invalid: "Pick the poll's own options (one unless it allows several).",
+  poll_not_found: "That post has no poll.",
+  post_form_not_found: "That form or post isn't available.",
+  post_form_unpublished: "Publish the form before sharing it.",
+  form_already_submitted: "You already sent answers to this form.",
+  form_answer_conflict: "Your answers changed elsewhere; save with the newer revision.",
+  community_channel_posting_restricted: "You can't post in that channel.",
+};
+
+function postCardRefusal(error: unknown, fallback: string): PolynetCanonicalExecutionResult {
+  const text = error instanceof Error ? error.message : String(error);
+  const code = Object.keys(POST_CARD_REFUSALS).find((key) => text.includes(key));
+  if (code) return canonicalError(code, POST_CARD_REFUSALS[code]!);
+  // Form answer checks (shared/communityFormAnswers.ts) speak for themselves.
+  if (/^(Please answer|Invalid|Unknown question)|: /.test(text)) return canonicalError("invalid_form_answers", text.slice(0, 300));
+  return canonicalError("interaction_unavailable", fallback);
+}
+
+async function executePostCardCall(args: {
+  ctx: any; userId: string; principalKind: PolynetPrincipalKind; target: ResolvedCommunityTarget;
+  operation: string; rawInput: Record<string, unknown>; idempotencyKey: string;
+}): Promise<PolynetCanonicalExecutionResult> {
+  const { rawInput, operation, target } = args;
+  const allowed: Record<string, string[]> = {
+    [POLL_CREATE_OPERATION]: ["channel", "question", "options", "multiple"],
+    [POLL_VOTE_OPERATION]: ["ref", "options"],
+    [POST_FORM_ANSWER_OPERATION]: ["ref", "answers", "submit", "expected_revision"],
+    [POST_FORM_SHARE_OPERATION]: ["form_key", "channel", "note", "answers_visible_to"],
+  };
+  if (target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json` ||
+      Object.keys(rawInput).some((key) => !allowed[operation]!.includes(key)))
+    return canonicalError("invalid_tool_args", `Allowed fields: ${allowed[operation]!.join(", ")}.`);
+  const postsCard = operation === POLL_CREATE_OPERATION || operation === POST_FORM_SHARE_OPERATION;
+  if (postsCard) {
+    if (!target.authority.canWriteParticipation) return canonicalError("community_write_forbidden", "This principal cannot post in community chat.");
+    if (!args.idempotencyKey) return canonicalError("idempotency_key_required", "An idempotency key is required.");
+    const slug = typeof rawInput.channel === "string" ? rawInput.channel.trim() : "";
+    const channel = slug ? await resolveRepositoryChannel({ ctx: args.ctx, userId: args.userId, principalKind: args.principalKind, target, slug }) : null;
+    if (slug && !channel) return canonicalError("semantic_not_found", "Channel path not found or not accessible.");
+    const shared = {
+      trustedUserId: args.userId,
+      communityId: target.communityId,
+      ...(channel?.id ? { channelId: channel.id } : {}),
+      idempotencyKey: `polynet:${args.principalKind}:${args.idempotencyKey}`,
+      // An agent posts as the community agent for its member, as polynet_write does.
+      asCommunityAgent: args.principalKind !== "community_app",
+    };
+    try {
+      const value = operation === POLL_CREATE_OPERATION
+        ? await args.ctx.runMutation((internal as any).communityPostCards.createPollPostForTrustedUserInternal, {
+            ...shared, question: String(rawInput.question ?? ""),
+            options: Array.isArray(rawInput.options) ? rawInput.options.map((option) => String(option)) : [],
+            multiple: rawInput.multiple === true })
+        : await args.ctx.runMutation((internal as any).communityPostCards.createFormPostForTrustedUserInternal, {
+            ...shared, formKey: String(rawInput.form_key ?? ""), note: typeof rawInput.note === "string" ? rawInput.note : "",
+            answersVisibleTo: rawInput.answers_visible_to === "builders" ? "builders" : "everyone" });
+      return { ok: true, value: { ref: `interaction:root:${value.root_id}`, deduped: value.deduped } };
+    } catch (error) { return postCardRefusal(error, "The post could not be made."); }
+  }
+  const ref = parseCommunityInteractionEvidenceRef(rawInput.ref);
+  if (!ref || ref.objectType !== "root") return canonicalError("invalid_tool_args", "ref must be interaction:root:<id> of the post with the card.");
+  if (operation === POLL_VOTE_OPERATION) {
+    if (!Array.isArray(rawInput.options) || rawInput.options.length > 10 || !rawInput.options.every((option) => typeof option === "string"))
+      return canonicalError("invalid_tool_args", "options must be a list of option keys or labels.");
+    try {
+      // Labels are matched to keys against the poll itself, so agents can vote by what they read.
+      const card = await args.ctx.runQuery((internal as any).communityPostCards.readPollForTrustedUserInternal,
+        { trustedUserId: args.userId, rootId: String(ref.objectId) });
+      const keys = (rawInput.options as string[]).map((choice) => {
+        const wanted = choice.trim().toLowerCase();
+        return card.options.find((option: { key: string; label: string }) => option.key === choice || option.label.toLowerCase() === wanted)?.key ?? choice;
+      });
+      const value = await args.ctx.runMutation((internal as any).communityPostCards.votePostPollForTrustedUserInternal,
+        { trustedUserId: args.userId, rootId: String(ref.objectId), optionKeys: keys });
+      return { ok: true, value };
+    } catch (error) { return postCardRefusal(error, "That poll is not available."); }
+  }
+  const answers = rawInput.answers;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers) ||
+      !Object.values(answers).every((value) => typeof value === "string" || Array.isArray(value) && value.every((item) => typeof item === "string")))
+    return canonicalError("invalid_tool_args", "answers must map question keys to a string or a list of strings.");
+  const expected = rawInput.expected_revision ?? 0;
+  if (!Number.isSafeInteger(expected) || (expected as number) < 0) return canonicalError("invalid_tool_args", "expected_revision must be a whole number.");
+  try {
+    const value = await args.ctx.runMutation((internal as any).communityPostCards.savePostFormAnswersForTrustedUserInternal, {
+      trustedUserId: args.userId, rootId: String(ref.objectId), answers, expectedRevision: expected, submit: rawInput.submit !== false });
+    return { ok: true, value };
+  } catch (error) { return postCardRefusal(error, "That form is not available."); }
+}
+
 async function executeCanonicalCall(args: {
   ctx: any;
   authSubject: string;
@@ -2608,6 +2749,9 @@ async function executeCanonicalCall(args: {
         { targetType: ref.objectType, targetId: String(ref.objectId), emoji, on: rawInput.on, trustedUserId: args.userId });
       return { ok: true, value };
     } catch { return canonicalError("interaction_unavailable", "That post is not available to react to."); }
+  }
+  if (POST_CARD_MEMBER_OPERATIONS.includes(operation) || operation === POST_FORM_SHARE_OPERATION) {
+    return await executePostCardCall({ ...args, target, operation, rawInput, idempotencyKey });
   }
   if (operation === FORM_SUBMIT_OPERATION) {
     const request = typeof rawInput.form_request_ref === "string" ? /^form-request:([A-Za-z0-9]+)$/.exec(rawInput.form_request_ref) : null;

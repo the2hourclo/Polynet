@@ -56,6 +56,7 @@ import {
   textContainsEverybodyMentionToken,
 } from "./communityMentionBroadcasts";
 import { scheduleCommunityInteractionEvidenceSync } from "./communityInteractionEvidence";
+import { newPostCardReadCache, postCardPerson, readPostCardForRoot, type PostCardReadCache } from "./communityPostCardRead";
 import { readCanonicalUserIdentityProjection } from "./profileCore";
 import {
   ensureGeneralChannel,
@@ -514,7 +515,7 @@ function assertCommunityReadableReply(reply: InteractionReplyRow): void {
   }
 }
 
-async function loadCommunityInteractionTarget(args: {
+export async function loadCommunityInteractionTarget(args: {
   ctx: any;
   targetType: "root" | "reply";
   targetId: string;
@@ -529,7 +530,7 @@ async function loadCommunityInteractionTarget(args: {
   return { target, communityId: target.communityId };
 }
 
-function assertLiveInteractionTarget(target: InteractionRootRow | InteractionReplyRow): void {
+export function assertLiveInteractionTarget(target: InteractionRootRow | InteractionReplyRow): void {
   if (target.status !== "live") throw new Error("interaction_target_not_live");
 }
 
@@ -803,6 +804,7 @@ async function mapRootBundle(
   deduped: boolean,
   userIdCache?: Map<string, string | null>,
   viewerEmojis?: string[],
+  viewer?: { userId: any; cards: PostCardReadCache },
 ) {
   const blocks = await listContentBlocksForRoot(ctx, root._id);
   const embeds = await listEmbedsForRoot(ctx, root._id);
@@ -862,6 +864,8 @@ async function mapRootBundle(
     embeds: embeds.map(mapEmbed),
     mentions: await mapMentions(ctx, mentions, userIdCache),
     attachments,
+    // A poll or shared Form drawn on the post, read for this viewer.
+    post_card: await readPostCardForRoot(ctx, root, viewer?.userId ?? null, viewer?.cards ?? newPostCardReadCache()),
   };
 }
 
@@ -2430,9 +2434,10 @@ export const listCommunityInteractionRoots = query({
       kind,
     });
     const userIdCache = new Map<string, string | null>();
+    const viewer = { userId, cards: newPostCardReadCache() };
     const viewerMap = await loadViewerReactionMapForTargets(ctx, userId, "root", visibleRows.map((row) => row._id));
     const bundles = await Promise.all(
-      visibleRows.map((row) => mapRootBundle(ctx, row, false, userIdCache, viewerMap.get(normalizeIdValue(row._id)) ?? [])),
+      visibleRows.map((row) => mapRootBundle(ctx, row, false, userIdCache, viewerMap.get(normalizeIdValue(row._id)) ?? [], viewer)),
     );
     return {
       roots: bundles,
@@ -2478,6 +2483,7 @@ export const getCommunityChannelPinnedRoot = query({
         false,
         new Map<string, string | null>(),
         viewerMap.get(normalizeIdValue(root._id)) ?? [],
+        { userId, cards: newPostCardReadCache() },
       ),
     };
   },
@@ -2517,6 +2523,7 @@ export const getCommunityChannelInteractionRoot = query({
         false,
         new Map<string, string | null>(),
         viewerMap.get(normalizeIdValue(root._id)) ?? [],
+        { userId, cards: newPostCardReadCache() },
       ),
     };
   },
@@ -2637,7 +2644,7 @@ function applyReactionSummaryDelta(
   return Array.from(counts.entries()).map(([emojiValue, count]) => ({ emoji: emojiValue, count }));
 }
 
-async function requireTargetChannelAccess(args: {
+export async function requireTargetChannelAccess(args: {
   ctx: any; target: InteractionRootRow | InteractionReplyRow; userId: any;
 }) {
   // Non-channel dock interactions retain their existing separate authority.
@@ -2725,6 +2732,47 @@ export const toggleCommunityInteractionReaction = mutation({
 export const setCommunityInteractionReactionForTrustedUserInternal = internalMutation({
   args: { ...reactionTargetArgs, on: v.boolean(), trustedUserId: v.id("users") },
   handler: (ctx, { trustedUserId, ...args }) => setCommunityInteractionReactionCore(ctx, args, trustedUserId),
+});
+
+// Who reacted to a post or reply, grouped by emoji in the order the reactions
+// are shown. Anyone who can read the post can see who reacted, as in chat apps.
+const MAX_REACTORS_PER_TARGET = 300;
+export const listCommunityInteractionReactors = query({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    targetType: v.union(v.literal("root"), v.literal("reply")),
+    targetId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    const { target, communityId } = await loadCommunityInteractionTarget({ ctx, targetType: args.targetType, targetId: args.targetId });
+    assertLiveInteractionTarget(target);
+    await requireCommunityChatAccess({ ctx, communityId, userId });
+    await requireTargetChannelAccess({ ctx, target, userId });
+    const rows = await ctx.db
+      .query("communityInteractionReactions" as any)
+      .withIndex(args.targetType === "root" ? "by_root" : "by_reply", (q: any) =>
+        q.eq(args.targetType === "root" ? "rootId" : "replyId", target._id))
+      .take(MAX_REACTORS_PER_TARGET);
+    const cards = newPostCardReadCache();
+    const groups = new Map<string, Array<{ user_id: string | null; name: string; avatar_url: string | null; is_agent: boolean }>>();
+    for (const row of [...rows].sort((a: any, b: any) => a.createdAt - b.createdAt) as any[]) {
+      const emoji = String(row.emoji ?? "").trim().slice(0, 32);
+      if (!emoji) continue;
+      const person = row.actorUserId && row.actorType === "human"
+        ? { ...(await postCardPerson(ctx, row.actorUserId, cards)), is_agent: false }
+        : { user_id: null, name: "Community agent", avatar_url: null, is_agent: true };
+      groups.set(emoji, [...(groups.get(emoji) ?? []), person]);
+    }
+    const order = mapReactionSummary((target as any).reactionSummary).map((row) => row.emoji);
+    return {
+      reactions: [...groups.entries()]
+        .sort(([a], [b]) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999))
+        .map(([emoji, people]) => ({ emoji, people })),
+      truncated: rows.length === MAX_REACTORS_PER_TARGET,
+    };
+  },
 });
 
 async function editCommunityInteractionTargetCore(args: {

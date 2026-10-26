@@ -13,6 +13,7 @@ import {
 } from "./communityInteractionFeed";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
+import { PostCardView, ReactorsHover, postCardTitle } from "./CommunityPostCard";
 
 // The community's posts as one card each, newest activity first: the "posts"
 // presentation a layout can choose for the chat page. Same posts, replies,
@@ -90,10 +91,13 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
   const label = actorLabel(root, props.displayName, agentName);
   const profile = root.actor_user_id ? props.profilesByUserId[root.actor_user_id] ?? null : null;
   const badge = agentBadgeLabel(root.actor_type);
-  const text = splitPostTitle(
-    root.title,
-    stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0),
-  );
+  // A poll or form post shows its question or form as the title and the card as its body.
+  const text = bundle.post_card
+    ? { title: postCardTitle(bundle), body: "" }
+    : splitPostTitle(
+        root.title,
+        stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0),
+      );
   const thumbnail = postThumbnail(bundle);
   const likes = root.reaction_summary.find((row) => row.emoji === LIKE)?.count ?? 0;
   const liked = root.viewer_emojis.includes(LIKE);
@@ -144,18 +148,32 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
         </button>
         {thumbnail ? <img className="community-post-card-thumbnail" src={thumbnail.src} alt={thumbnail.alt} loading="lazy" /> : null}
       </div>
+      {bundle.post_card ? <PostCardView bundle={bundle} showQuestion={false} /> : null}
       <footer className="community-post-card-footer">
-        <button
-          type="button"
-          className={`community-post-card-action${liked ? " is-active" : ""}`}
-          aria-pressed={liked}
-          aria-label={liked ? "Unlike" : "Like"}
-          disabled={!props.onToggleReaction}
-          onClick={() => props.onToggleReaction?.("root", root.id, LIKE)}
-        >
-          <ThumbsUp size={17} aria-hidden="true" />
-          <span>{likes}</span>
-        </button>
+        <span className="community-post-card-like">
+          <button
+            type="button"
+            className={`community-post-card-action${liked ? " is-active" : ""}`}
+            aria-pressed={liked}
+            aria-label={liked ? "Unlike" : "Like"}
+            disabled={!props.onToggleReaction}
+            onClick={() => props.onToggleReaction?.("root", root.id, LIKE)}
+          >
+            <ThumbsUp size={17} aria-hidden="true" />
+          </button>
+          {/* The count names who liked it: pictures and names, each opening their profile. */}
+          <ReactorsHover target={{ type: "root", id: root.id }} emoji={LIKE} count={likes}
+            signature={`${LIKE}${likes}`} variant="faces">
+            <button
+              type="button"
+              className="community-post-card-like-count"
+              disabled={likes === 0}
+              aria-label={likes === 1 ? "1 like: see who" : `${likes} likes: see who`}
+            >
+              {likes}
+            </button>
+          </ReactorsHover>
+        </span>
         <button type="button" className="community-post-card-action" aria-label={`${root.reply_count} comments`} onClick={open}>
           <MessageSquare size={17} aria-hidden="true" />
           <span>{root.reply_count}</span>

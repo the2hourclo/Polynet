@@ -59,8 +59,13 @@ function MemberFormDialog(props: Props & { rows: MemberFormSummary[]; hasMore: b
   </div></div>, document.body);
 }
 const FORMAT_HINTS = { number: "Answer with a number.", date: "Answer with a date, like 2026-11-01.", url: "Answer with a full link, starting with https://." } as const;
+/** Where a form's answers live when they aren't an assigned form request: a Form shared in a post. */
+export type MemberFormSource = {
+  load: (session: AuthSession) => Promise<MemberFormRequest>;
+  save: (session: AuthSession, row: MemberFormRequest, answers: FormAnswers, submit: boolean) => Promise<{ revision: number; submitted: boolean }>;
+};
 /** With `preview`, the owner sees and clicks through the form exactly as members do; nothing is loaded or saved. */
-export function MemberFormRunner(props: Props & { requestId: string; onClose: () => void; preview?: MemberFormRequest }) {
+export function MemberFormRunner(props: Props & { requestId: string; onClose: () => void; preview?: MemberFormRequest; source?: MemberFormSource }) {
   const [request, setRequest] = useState<MemberFormRequest | null>(null);
   const [answers, setAnswers] = useState<FormAnswers>({});
   const [index, setIndex] = useState(0);
@@ -88,12 +93,14 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
     if (saving.current) return;
     saving.current = true; setBusy(true); setIntent("close");
     try { const ready = await props.ensureSession(session.current, "member_form"); if (!ready) throw new Error("session_unavailable"); if (!alive.current) return;
-      const row = await getMemberForm(ready, props.communityId, props.requestId); if (!alive.current) return;
+      const row = props.source ? await props.source.load(ready) : await getMemberForm(ready, props.communityId, props.requestId); if (!alive.current) return;
       current.current = row;
       saver.current = createMemberFormSave(row, async attempt => {
         const ready = await props.ensureSession(session.current, "member_form");
         if (!ready || !alive.current) throw new Error("session_unavailable");
-        return saveMemberForm(ready, props.communityId, { ...row, revision: attempt.revision }, attempt.answers, attempt.intent === "submit");
+        return props.source
+          ? props.source.save(ready, { ...row, revision: attempt.revision }, attempt.answers, attempt.intent === "submit")
+          : saveMemberForm(ready, props.communityId, { ...row, revision: attempt.revision }, attempt.answers, attempt.intent === "submit");
       });
       setRequest(row); setAnswers(row.answers); setError(null); setValidation(null); setFailedIntent(null);
       // Back where they left off: after the furthest answered question, or on the
