@@ -293,7 +293,8 @@
 .pn-billing-price span { font-size: 0.75rem; color: var(--text-secondary); }
 .pn-billing-community .pn-settings-row-head { justify-content: flex-start; gap: 0.75rem; }
 .pn-billing-community .pn-settings-row-text { flex: 1; }
-.pn-billing-community .pn-settings-label { font-size: 0.9375rem; }
+.pn-billing-community .pn-settings-label { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; font-size: 0.9375rem; }
+.pn-billing-community .pn-settings-badge { margin-left: 0; }
 .pn-billing-avatar {
   display: inline-grid;
   flex: none;
