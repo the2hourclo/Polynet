@@ -87,7 +87,6 @@
 .community-welcome-choice-mark { position:absolute; left:14px; top:15px; display:grid; place-items:center; width:16px; height:16px; border:1.5px solid var(--border-strong, var(--border-default)); border-radius:50%; color:#fff; }
 .community-welcome-choice-card.is-picked .community-welcome-choice-mark { border-color:var(--accent-brand, var(--accent-primary)); background:var(--accent-brand, var(--accent-primary)); }
 .community-welcome-choice-body { width:100%; padding-top:6px; border-top:1px solid color-mix(in srgb, var(--border-default) 70%, transparent); }
-.community-welcome-choice-empty { margin:0; color:var(--text-secondary); font-size:14px; }
 @media(max-width:600px) { .community-welcome-choice-cards { grid-template-columns:1fr; } }
 @media(prefers-reduced-motion:reduce) { .community-welcome-choice-card { transition:none; } }
 /* A long prompt to paste wraps, and scrolls past a few lines, so the steps after it stay in view. */

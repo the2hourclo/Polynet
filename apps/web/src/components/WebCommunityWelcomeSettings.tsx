@@ -486,7 +486,7 @@ function ChoiceEditor(props: { id: string; prompt: string; options: WelcomeChoic
   return <div id={props.id} tabIndex={-1} className="welcome-settings-choice">
     <div className="welcome-settings-choice-head">
       <span className="welcome-settings-step-icon"><LayoutGrid size={18} aria-hidden="true" /></span>
-      <span className="welcome-settings-step-copy"><small>Choice</small><span className="welcome-settings-step-note">Members pick one card and see only its steps.</span></span>
+      <span className="welcome-settings-step-copy"><small>Choice</small><span className="welcome-settings-step-note">Members pick one card and see only its steps. The first card shows until they pick another.</span></span>
     </div>
     <label className="welcome-settings-choice-field">
       <span>Question</span>

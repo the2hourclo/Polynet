@@ -476,9 +476,6 @@
 [data-community-theme] .community-welcome-choice-card small {
   font-size: var(--pn-type-small);
 }
-[data-community-theme] .community-welcome-choice-empty {
-  font-size: var(--pn-type-ui);
-}
 [data-community-theme] .community-sales-title {
   font-size: var(--pn-type-title);
 }
