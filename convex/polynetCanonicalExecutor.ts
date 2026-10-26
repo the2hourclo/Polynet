@@ -126,6 +126,7 @@ const designKindAt = (localPath: string) => DESIGN_KINDS.find(kind => DESIGN_REC
 // Every other Settings save (convex/polynetBuilderSettings.ts), read from one document.
 const BUILDER_SETTINGS_PATH = "/builder/settings.json";
 const BUILDER_WORKFLOW_TEMPLATES_PATH = "/builder/workflow-templates.json";
+const BUILDER_TRACKS_PATH = "/builder/tracks.json";
 const SETTING_OPERATIONS = BUILDER_SETTING_OPERATIONS.map(spec => spec.operation);
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
 
@@ -1343,6 +1344,7 @@ async function executeCanonicalList(args: {
           ...DESIGN_KINDS.map(kind => ({ path: mountedPath(target.communitySlug, DESIGN_RECORDS[kind].path), kind: "document", type: "builder", name: DESIGN_RECORDS[kind].name })),
           { path: mountedPath(target.communitySlug, BUILDER_SETTINGS_PATH), kind: "document", type: "builder", name: "Settings: general, sales page, welcome, workflows, forms, access, agent and channels" },
           { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_TEMPLATES_PATH), kind: "document", type: "builder", name: "Workflow templates: ready-made stage plans (agent-led journey)" },
+          { path: mountedPath(target.communitySlug, BUILDER_TRACKS_PATH), kind: "document", type: "builder", name: "Skill tracks: the community's roadmaps, their stages, steps and opening rules" },
           {
             path: mountedPath(
               target.communitySlug,
@@ -1591,6 +1593,15 @@ async function executeCanonicalRead(args: {
     if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload: readBuilderWorkflowTemplates() }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_TRACKS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityLessonTracks.listCommunityLessonTracks,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
       writable: false, searchable: false } };
   }
 

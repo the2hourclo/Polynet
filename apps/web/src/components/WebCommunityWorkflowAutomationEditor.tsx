@@ -11,6 +11,8 @@ type WorkflowCatalogProperty = { key: string; name: string; type: string; option
 export type WorkflowCatalog = {
   lessons: Array<{ id: string; title: string; course: string; courseId: string }> | null;
   properties: WorkflowCatalogProperty[] | null;
+  /** Roadmap tracks; missing until loaded. */
+  tracks?: Array<{ key: string; title: string }> | null;
 };
 
 type PropertyValue = string | number | boolean | string[] | null;
@@ -176,6 +178,10 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const isJoin = automation.trigger.type === "member_joined";
   const isLesson = automation.trigger.type === "lesson_completed";
   const isCourse = automation.trigger.type === "course_completed";
+  const isTrack = automation.trigger.type === "track_completed";
+  const tracks = props.catalog?.tracks ?? [];
+  const trackKey = automation.trigger.type === "track_completed" ? automation.trigger.trackKey : undefined;
+  const trackName = trackKey ? tracks.find((track) => track.key === trackKey)?.title ?? (props.catalog?.tracks ? "Unavailable track" : "A track") : "Any track";
   const lessons = props.catalog?.lessons ?? [];
   const courses = [...new Map(lessons.map((lesson) => [lesson.courseId, lesson.course])).entries()];
   const lessonId = automation.trigger.type === "lesson_completed" ? automation.trigger.resourceId : undefined;
@@ -196,7 +202,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const triggerIssue = triggerSelected ? workflowTriggerIssue(automation, props.channels, props.channelsUnavailable) : null;
   const triggerReady = triggerSelected && !triggerIssue;
   const triggerLabel = isSequence ? `${waitMinutes ? `${workflowDurationLabel(waitMinutes)} after` : "After"} ${(() => { const step = earlierSteps.find((item) => item.action.key === predecessorKey); return step ? `“${stepLabel(step).slice(0, 60)}”` : "an earlier step"; })()}` : isJoin ? "Member joins for the first time"
-    : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this milestone` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
+    : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this milestone` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "create_service_channel" ? "Create private channel" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
 
@@ -227,7 +233,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                 props.onChange({ ...replaceWorkflowDraftAction(automation, action), trigger: { type, predecessorActionKey: earlierSteps.at(-1)!.action.key } });
               } else if (type === "form_submitted") {
                 props.onChange({ ...replaceWorkflowDraftAction(automation, automation.action.type === "set_client_property" ? "set_client_property" : "prompt_agent"), trigger: { type, formKey: "" } });
-              } else if (type === "lesson_completed" || type === "course_completed") {
+              } else if (type === "lesson_completed" || type === "course_completed" || type === "track_completed") {
                 const action = automation.action.type === "set_client_property" || automation.action.type === "request_form" ? automation.action.type : "prompt_agent";
                 props.onChange({ ...replaceWorkflowDraftAction(automation, action), trigger: { type } });
               } else if (type === "member_contributed" || type === "milestone_elapsed") {
@@ -245,6 +251,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               <option value="form_submitted">Form submitted</option>
               <option value="lesson_completed">Lesson done</option>
               <option value="course_completed">Course finished</option>
+              <option value="track_completed">Roadmap track finished</option>
             </select>
           </label>
           {triggerSelected ? <>
@@ -281,6 +288,11 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                 {courseId && !courses.some(([id]) => id === courseId) ? <option value={courseId}>{courseName}</option> : null}
                 {courses.map(([id, name]) => <option key={id} value={id}>{name || "Untitled course"}</option>)}
               </select><small>Runs once when the member has every lesson in the course done.</small></label>
+            : isTrack ? <label>Track<select value={trackKey ?? ""} disabled={props.disabled} onChange={e => props.onChange({ ...automation, trigger: { type: "track_completed", ...(e.target.value ? { trackKey: e.target.value } : {}) } })}>
+                <option value="">Any track</option>
+                {trackKey && !tracks.some((track) => track.key === trackKey) ? <option value={trackKey}>{trackName}</option> : null}
+                {tracks.map((track) => <option key={track.key} value={track.key}>{track.title}</option>)}
+              </select><small>Runs once when the member has every step of this Roadmap track done.</small></label>
             : automation.trigger.type === "form_submitted" ? <label>Form<select value={automation.trigger.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, trigger: { type: "form_submitted", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select></label> : isTimed ? <div className="workflow-automation-field">
             <label htmlFor={`${id}-duration`}>After</label>
             <div className="workflow-action-choice-row">

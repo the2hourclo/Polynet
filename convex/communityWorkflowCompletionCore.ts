@@ -27,7 +27,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   // A property write is bookkeeping, not member work, so it never holds a stage
   // open, unless finishing a lesson or course sets it: then that is the work.
   const finishes = (rule: CommunityMemberWorkflowMilestone["automations"][number]) =>
-    rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed";
+    rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed" || rule.trigger.type === "track_completed";
   // A nudge only runs while they're still here, so waiting on it would keep them here.
   // A write on a path (another step follows it, or it follows another step) counts too.
   const followed = new Set(milestone.automations.flatMap(rule =>
@@ -48,7 +48,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
     const propertyKey = rule.action.type === "set_client_property" ? rule.action.propertyKey : null;
     const property = propertyKey ? await ctx.db.query("communityClientProperties")
       .withIndex("by_community_key", q => q.eq("communityId", workflow.communityId).eq("key", propertyKey)).unique() : null;
-    const finished = rule.trigger.type === "course_completed" ? "Course finished" : "Lesson done";
+    const finished = rule.trigger.type === "course_completed" ? "Course finished" : rule.trigger.type === "track_completed" ? "Track finished" : "Lesson done";
     const item: WorkflowActionProgress["actions"][number] = {
       automation_key: rule.key, action_key: rule.action.key, action_type: rule.action.type as WorkflowActionProgress["actions"][number]["action_type"],
       label: rule.action.type === "request_form" ? `Request ${form?.name ?? "selected form"}`
@@ -162,7 +162,8 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       item.waiting_for = predecessor?.label ?? "previous action";
     } else if (!seen && !item.evidence && finishes(rule) && !fired) {
       item.status = "waiting";
-      item.waiting_for = rule.trigger.type === "course_completed" ? "the course to be finished" : "the lesson to be done";
+      item.waiting_for = rule.trigger.type === "course_completed" ? "the course to be finished"
+        : rule.trigger.type === "track_completed" ? "the track to be finished" : "the lesson to be done";
     }
     // The lesson or course is done but the write failed, or ran before the
     // builder changed it. The trigger won't fire again, so a builder can rerun it.

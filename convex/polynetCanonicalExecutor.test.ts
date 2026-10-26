@@ -10,6 +10,7 @@ afterEach(() => {vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.useRealTimers();})
 
 import { api, internal } from "./_generated/api";
 import { executePolynetCanonicalTool } from "./polynetCanonicalExecutor";
+import { communityTracksFinishedByLesson } from "./communityLessonTracks";
 import { executeRetrievalHarnessTool } from "./runtimeAgentLoop";
 import schema from "./schema";
 import { connectWithAdapter, verifyWithAdapter, revokeWithAdapter, integrationAttemptAlias } from "./communityIntegrationActions";
@@ -648,6 +649,7 @@ const modules = import.meta.glob([
   "./communityResourceEvidence.ts",
   "./communityResources.ts",
   "./communityResourceProgress.ts",
+  "./communityLessonTracks.ts",
   "./communityClients.ts",
   "./communityThemes.ts",
   "./communityLayouts.ts",
@@ -3801,6 +3803,68 @@ test("the web app reads lesson fields with resources and sets the member's own p
     .toMatchObject({ ok: true });
 });
 
+test("owners add a follow-on skill track that opens after a checkpoint, and members read every track", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const ids = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: fixture.communityId, createdByUserId: fixture.ownerId, status: "live",
+      name: "Core", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    const page = async (title: string, sortOrder: number, lesson: Record<string, unknown> | null) =>
+      String(await ctx.db.insert("communityResources", {
+        communityId: fixture.communityId, moduleId, createdByUserId: fixture.ownerId, type: "post",
+        role: "page", status: "published", title, bodyMd: `${title} body`, bodyChars: title.length + 5,
+        pinned: false, sortOrder, ...(lesson ? { lesson: lesson as any } : {}), createdAt: now, updatedAt: now,
+      }));
+    return {
+      gate: await page("Connect & onboard", 1, { stage: "Get set up", stage_order: 1, order: 1, gate: true }),
+      later: await page("Map the business", 2, { stage: "Map", stage_order: 2, order: 1 }),
+      content: await page("Content basics", 3, null),
+    };
+  });
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const owner = { authSubject: fixture.ownerSubject, communityId: fixture.communityId };
+  await expect(asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+    ...owner, key: "content", expectedRevision: 0, title: "Content Employee", opensWhen: [{ type: "after_checkpoint", resource_id: ids.gate }],
+    stages: [{ name: "Start", steps: [{ resource_id: ids.content }] }],
+  })).resolves.toEqual({ key: "content", revision: 1 });
+  await expect(asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+    ...owner, key: "content", expectedRevision: 0, title: "Again", opensWhen: [], stages: [{ name: "S", steps: [{ resource_id: ids.content }] }],
+  })).rejects.toThrow(/track_revision_conflict/);
+  await expect(asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+    ...owner, key: "main", expectedRevision: 0, title: "Build your AI Employee", opensWhen: [], stages: [],
+  })).resolves.toEqual({ key: "main", revision: 1 });
+  const builder = await asOwner.query(api.communityLessonTracks.listCommunityLessonTracks, owner);
+  expect(builder.tracks.map((track: any) => [track.key, track.title, track.derived, track.revision])).toEqual([
+    ["main", "Build your AI Employee", true, 1],
+    ["content", "Content Employee", false, 1],
+  ]);
+
+  const asMember = t.withIdentity({ subject: fixture.memberSubject });
+  const member = { authSubject: fixture.memberSubject, communityId: fixture.communityId };
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...member, resourceId: ids.content, status: "in_progress" }))
+    .toMatchObject({ ok: false, code: "lesson_locked" });
+  const before = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, member);
+  expect(before.tracks.map((track: any) => [track.key, track.status, track.opens_reason])).toEqual([
+    ["main", "open", null],
+    ["content", "locked", 'Opens when you finish "Connect & onboard"'],
+  ]);
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...member, resourceId: ids.gate, status: "done" }))
+    .toMatchObject({ ok: true });
+  const after = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, member);
+  expect(after.tracks.map((track: any) => [track.key, track.status])).toEqual([["main", "in_progress"], ["content", "open"]]);
+  expect(after.stages.map((stage: any) => [stage.name, stage.locked])).toEqual([["Get set up", false], ["Map", false]]);
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...member, resourceId: ids.content, status: "done" }))
+    .toMatchObject({ ok: true });
+  await expect(asMember.query(api.communityLessonTracks.listCommunityLessonTracks, member)).rejects.toThrow();
+  // Finishing a track's last step is what the Workflow trigger "When they finish a track" reads.
+  expect(await t.run(async (ctx) => await communityTracksFinishedByLesson(ctx, fixture.communityId, fixture.memberId, ids.content)))
+    .toEqual([{ key: "content", title: "Content Employee" }]);
+  expect(await t.run(async (ctx) => await communityTracksFinishedByLesson(ctx, fixture.communityId, fixture.memberId, ids.gate))).toEqual([]);
+});
+
 test("members answer lesson buttons, checklists and quizzes, and owners see course completion", async () => {
   const t = convexTest(schema, modules);
   const fixture = await createFixture(t);
@@ -4347,6 +4411,49 @@ test("an owner's agent changes Settings through the MCP with the same saves the 
   await expect(settings(member)).rejects.toThrow("semantic_not_found");
   await expect(change("community.channel.create", { name: "mine" }, member)).rejects.toThrow("operation_not_found");
   expect(JSON.stringify(await member("polynet_list", { path: `/communities/${community}/capabilities/` }))).not.toContain("community.settings.save");
+});
+
+test("an owner's agent reads and saves skill tracks through /builder/tracks.json and community.track.*", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any) => async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+    return result.value as any;
+  };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const tracks = async (call = owner) => JSON.parse((await call("polynet_read", { path: `/communities/${community}/builder/tracks.json` })).body);
+  const change = (operation: string, input: Record<string, unknown>) => owner("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}` });
+  const lessonId = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: fixture.communityId, createdByUserId: fixture.ownerId, status: "live", name: "Core", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    return String(await ctx.db.insert("communityResources", {
+      communityId: fixture.communityId, moduleId, createdByUserId: fixture.ownerId, type: "post", role: "page", status: "published",
+      title: "Content basics", bodyMd: "body", bodyChars: 4, pinned: false, sortOrder: 1, createdAt: now, updatedAt: now,
+    }));
+  });
+
+  expect(JSON.stringify(await owner("polynet_list", { path: `/communities/${community}/builder/` }))).toContain("/builder/tracks.json");
+  const before = await tracks();
+  expect(before).toMatchObject({ contract: "polynet.builder_tracks.v1", tracks: [] });
+  expect(before.lessons).toEqual([{ id: lessonId, title: "Content basics", kind: null }]);
+  await change("community.track.save", { key: "content", expected_revision: 0, title: "Content Employee", opens_when: [],
+    stages: [{ name: "Start", steps: [{ resource_id: lessonId, checkpoint: true }] }] });
+  expect((await tracks()).tracks).toMatchObject([{ key: "content", title: "Content Employee", revision: 1, stages: [{ name: "Start" }] }]);
+  await expect(change("community.track.save", { key: "content", expected_revision: 1, title: "x", opens_when: [],
+    stages: [{ name: "S", steps: [{ resource_id: "missing" }] }] })).rejects.toThrow("setting_refused");
+  const archived = await change("community.track.archive", { key: "content", archived: true });
+  expect(archived).toMatchObject({ kind: "community_setting_change_proposed", result: { status: "staged" } });
+  expect((await tracks()).tracks).toHaveLength(1);
+  await expect(tracks(member)).rejects.toThrow("semantic_not_found");
 });
 
 test("hard-to-undo Settings changes are only proposed by the agent and happen when the owner taps Apply", async () => {

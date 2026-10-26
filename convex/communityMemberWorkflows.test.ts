@@ -23,6 +23,7 @@ const modules = import.meta.glob([
   "./communityEvidenceAudit.ts",
   "./communityMemberWorkflows.ts",
   "./communityResourceProgress.ts",
+  "./communityLessonTracks.ts",
   "./communityAdmin.ts",
   "./_generated/**/*.*s",
 ]);
@@ -1007,6 +1008,55 @@ test("finishing every lesson in a course requests the stage's checkpoint form on
     { communityId: f.communityId, userId: f.memberId, resourceId: second });
   expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect())).toHaveLength(1);
   expect(await t.run(ctx => ctx.db.query("communityFormRequests").collect())).toHaveLength(1);
+});
+
+test("finishing the last step of a Roadmap track sets a client property once; a missing track can't be named", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Phase", type: "select", options: ["Onboarding", "Building"] });
+  const { first, second } = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: f.communityId, createdByUserId: f.ownerId, status: "live", name: "Business X-Ray", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    const page = (title: string, sortOrder: number) => ctx.db.insert("communityResources", {
+      communityId: f.communityId, moduleId, createdByUserId: f.ownerId, type: "post", role: "page", status: "published",
+      title, bodyMd: "Go.", bodyChars: 3, pinned: false, sortOrder, createdAt: now, updatedAt: now,
+    } as any);
+    const first = await page("Map the business", 1), second = await page("Find the bottleneck", 2);
+    await ctx.db.insert("communityLessonTracks", {
+      communityId: f.communityId, key: "xray", title: "Business X-Ray deep dive", order: 1, show: "always", opensWhen: [],
+      stages: [{ name: "Map", steps: [{ resource_id: String(first) }, { resource_id: String(second), checkpoint: true }] }],
+      revision: 1, createdByUserId: f.ownerId, updatedByUserId: f.ownerId, createdAt: now, updatedAt: now,
+    });
+    return { first, second };
+  });
+  const configured = await configureAutomations(t, f.communityId, []);
+  const save = (trackKey: string) => owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [{ key: "", trigger: { type: "track_completed" as const, trackKey },
+      action: { key: "", type: "set_client_property" as const, propertyKey: "phase", value: "Building" } }],
+  });
+  await expect(save("nope")).rejects.toThrow("workflow_track_unavailable");
+  await save("xray");
+  const finish = async (resourceId: any) => {
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      await ctx.db.insert("communityResourceProgress", {
+        communityId: f.communityId, userId: f.memberId, resourceId, status: "done", startedAt: now, completedAt: now, updatedAt: now,
+      });
+    });
+    return await t.mutation(internalApi.communityMemberWorkflows.handleLessonCompletedInternal,
+      { communityId: f.communityId, userId: f.memberId, resourceId });
+  };
+  await finish(first);
+  expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect())).toHaveLength(0);
+  expect(await finish(second)).toMatchObject({ status: "handled" });
+  const runs = await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect());
+  expect(runs).toMatchObject([{ triggerType: "track_completed", status: "finished" }]);
+  await t.mutation(internalApi.communityMemberWorkflows.handleLessonCompletedInternal,
+    { communityId: f.communityId, userId: f.memberId, resourceId: second });
+  expect(await t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect())).toHaveLength(1);
 });
 
 test("a stage rule writes a client property when a lesson is done; an archived property fails the run, not the lesson", async () => {

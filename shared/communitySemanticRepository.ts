@@ -593,7 +593,8 @@ export function validatePolynetSemanticRepositoryOperationInput(args: {
         repositoryPath.localPath === "/builder/clients/" || /^\/builder\/clients\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
         /^\/builder\/clients\/views\/[a-z0-9_]{1,40}\/$/.test(repositoryPath.localPath) ||
         repositoryPath.localPath === "/builder/theme.json" || repositoryPath.localPath === "/builder/layout.json" ||
-        repositoryPath.localPath === "/builder/brand.json" || repositoryPath.localPath === "/builder/settings.json") {
+        repositoryPath.localPath === "/builder/brand.json" || repositoryPath.localPath === "/builder/settings.json" ||
+        repositoryPath.localPath === "/builder/tracks.json") {
       const isDirectory = repositoryPath.localPath.endsWith("/");
       const validated = validateCommunitySemanticOperationInput({ ...args,
         path: isDirectory ? POLYNET_JOIN_REQUESTS_DIRECTORY_PATH : "/community.md" });

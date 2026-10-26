@@ -19,7 +19,7 @@ import { buildAgentLedJourneyPlan } from "../shared/agentLedJourneyTemplate";
 export type BuilderSettingOperation = {
   operation: string;
   // Which Settings page it belongs to.
-  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members" | "appearance";
+  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members" | "appearance" | "knowledge";
   name: string;
   // The public function the Settings page calls ("module:function").
   calls: string;
@@ -383,6 +383,35 @@ BUILDER_SETTING_OPERATIONS.push(
   }),
 );
 
+// Skill tracks (Knowledge → Roadmap): the agent reads /builder/tracks.json and
+// saves whole tracks, as the Roadmap's track editor does.
+BUILDER_SETTING_OPERATIONS.push(
+  op({
+    operation: "community.track.save", area: "knowledge", name: "Create or change a skill track",
+    calls: "communityLessonTracks:saveCommunityLessonTrack", ref: api.communityLessonTracks.saveCommunityLessonTrack, kind: "mutation",
+    fields: {
+      key: 'track key (lowercase letters, digits, dashes); "main" is the community\'s first roadmap',
+      expected_revision: "revision from /builder/tracks.json; 0 creates a new track",
+      title: "what members see", summary: "one or two lines under the title, or null", cover_url: "https image URL, or null",
+      order: "position in the list (0 first)", show: "always (closed tracks show as Coming up) or when_open (hidden until open)",
+      opens_when: "rules that must all hold for the track to open, from rule_types in /builder/tracks.json; [] for always open",
+      stages: '[{"name":"…","steps":[{"resource_id":"<lesson id>","checkpoint":true}]}] in order; a checkpoint keeps the rest of the track closed until done. [] on "main" keeps reading its stages from the lessons',
+    },
+    required: ["key", "expected_revision", "title", "opens_when", "stages"], effects: ["save_skill_track"],
+  }),
+  op({
+    operation: "community.track.reorder", area: "knowledge", name: "Reorder skill tracks",
+    calls: "communityLessonTracks:reorderCommunityLessonTracks", ref: api.communityLessonTracks.reorderCommunityLessonTracks, kind: "mutation",
+    fields: { keys: "track keys in the order members should see them" }, required: ["keys"], effects: ["reorder_skill_tracks"],
+  }),
+  proposal({
+    operation: "community.track.archive", area: "knowledge", name: "Archive or restore a skill track",
+    calls: "communityLessonTracks:setCommunityLessonTrackArchived", ref: api.communityLessonTracks.setCommunityLessonTrackArchived, kind: "mutation",
+    fields: { key: "the track's key", archived: "true hides it from members (progress is kept); false brings it back" },
+    required: ["key", "archived"], effects: ["archive_skill_track"],
+  }),
+);
+
 // Writes the web app makes that are not an operation above, and why. A public
 // mutation or action the app calls that is in neither list fails the parity test.
 // Reasons start with one of: "agent path:" (another MCP path does it),
@@ -578,6 +607,8 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     // Ready-made stage plans live at /builder/workflow-templates.json, kept out
     // of this read so it stays inside the adapter's 24,000-character budget.
     workflow_templates: { path: "/builder/workflow-templates.json", available: ["agent_led_journey"] },
+    // Skill tracks (the Roadmap's several roadmaps) live at /builder/tracks.json.
+    tracks: { path: "/builder/tracks.json" },
     // Changes waiting for the owner's Apply, and recent outcomes.
     proposals,
   };

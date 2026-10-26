@@ -19,8 +19,13 @@ import { resolveSelfCommunityMembershipContext } from "./communityMembershipCont
 import { hydrateCommunityResourceBody } from "./communityResourceContent";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
 import { buildCommunityResourceEvidenceRef } from "../shared/communityEvidenceContract";
+import { readCommunityTrackMemberContext, readStoredCommunityTracks } from "./communityLessonTracks";
 import {
-  computeCommunityLessonStages,
+  computeCommunityTracks,
+  COMMUNITY_MAIN_TRACK_KEY,
+  resolveCommunityTrackDefinitions,
+} from "../shared/communityLessonTracks";
+import {
   gradeCommunityLessonResponse,
   parseCommunityLessonElements,
   type CommunityLessonElementWithAnswers,
@@ -87,23 +92,41 @@ export async function readProgressRows(ctx: any, communityId: any, userId: any) 
     .take(PROGRESS_READ_MAX_PAGES)) as ProgressRow[];
 }
 
-// Welcome lessons are the owner's chosen first steps, so a stage gate never
-// locks them; otherwise a member could be held on a lesson they can't finish.
-function lessonLocks(pages: CommunityResourceLike[], rows: ProgressRow[], welcomeIds: ReadonlySet<string>) {
+// Locks come from the community's skill tracks (shared/communityLessonTracks.ts):
+// a lesson is locked while every track it is in still has it closed. Welcome
+// lessons are the owner's chosen first steps, so nothing locks them; otherwise
+// a member could be held on a lesson they can't finish.
+async function lessonLocks(ctx: any, communityId: any, userId: any, pages: CommunityResourceLike[], rows: ProgressRow[], welcomeIds: ReadonlySet<string>) {
   const doneRefs = new Set(
     rows
       .filter((row) => row.status === "done")
       .map((row) => buildCommunityResourceEvidenceRef(normalizeIdValue(row.resourceId))),
   );
-  const result = computeCommunityLessonStages({
-    lessons: pages.map((page) => ({
-      ref: buildCommunityResourceEvidenceRef(normalizeIdValue(page._id)),
-      lesson: page.lesson ?? null,
-    })),
+  const lessons = pages.map((page) => ({ id: normalizeIdValue(page._id), title: page.title, lesson: page.lesson ?? null }));
+  const [stored, member] = await Promise.all([
+    readStoredCommunityTracks(ctx, communityId),
+    readCommunityTrackMemberContext(ctx, communityId, userId),
+  ]);
+  const { tracks, lockedRefs } = computeCommunityTracks({
+    tracks: resolveCommunityTrackDefinitions({ stored, lessons }),
+    lessons,
     doneRefs,
+    context: member.context,
+    milestoneName: member.milestoneName,
   });
-  for (const id of welcomeIds) result.lockedRefs.delete(buildCommunityResourceEvidenceRef(normalizeIdValue(id)));
-  return result;
+  for (const id of welcomeIds) lockedRefs.delete(buildCommunityResourceEvidenceRef(normalizeIdValue(id)));
+  // stages: the main track in the shape readers had before tracks.
+  const main = tracks.find((track) => track.key === COMMUNITY_MAIN_TRACK_KEY);
+  const stages = (main?.stages ?? []).map((stage) => ({
+    name: stage.name,
+    order: stage.position,
+    lesson_count: stage.step_count,
+    done_count: stage.done_count,
+    locked: stage.locked,
+    blocked_by: stage.blocked_by,
+  }));
+  // Tracks closed with "hide until open" stay off the member's list.
+  return { stages, tracks: tracks.filter((track) => track.open || track.show === "always"), lockedRefs };
 }
 
 function toIso(value: number | undefined) {
@@ -139,8 +162,8 @@ function requiredRemaining(elements: CommunityLessonElementWithAnswers[], respon
 }
 
 /** Lesson-by-lesson progress for one member, shared by the member's own read and the owner's. */
-async function buildMemberProgress(ctx: any, source: LessonPages, rows: ProgressRow[], welcomeIds: ReadonlySet<string>) {
-  const { stages, lockedRefs } = lessonLocks(source.pages, rows, welcomeIds);
+async function buildMemberProgress(ctx: any, communityId: any, userId: any, source: LessonPages, rows: ProgressRow[], welcomeIds: ReadonlySet<string>) {
+  const { stages, tracks, lockedRefs } = await lessonLocks(ctx, communityId, userId, source.pages, rows, welcomeIds);
   const rowByResource = new Map(rows.map((row) => [normalizeIdValue(row.resourceId), row]));
   const lessons = await Promise.all(source.pages.map(async (page) => {
     const id = normalizeIdValue(page._id);
@@ -163,7 +186,7 @@ async function buildMemberProgress(ctx: any, source: LessonPages, rows: Progress
       }),
     };
   }));
-  return { stages, lessons };
+  return { stages, tracks, lessons };
 }
 
 // Totals come from the course's visible lessons; done counts from the member's rows.
@@ -205,9 +228,9 @@ async function readOwnResourceProgress(ctx: any, args: any) {
     ? { ...visible, pages: visible.pages.filter((page) => welcomeIds.has(normalizeIdValue(page._id))), modules: [] }
     : visible;
   const rows = await readProgressRows(ctx, args.communityId, args.userId);
-  const { stages, lessons } = await buildMemberProgress(ctx, source, rows, welcomeIds);
+  const { stages, tracks, lessons } = await buildMemberProgress(ctx, args.communityId, args.userId, source, rows, welcomeIds);
   if (held) {
-    return { kind: "community_resource_progress", read_at: new Date().toISOString(), journey: null, courses: [], stages: [], lessons, truncated: false };
+    return { kind: "community_resource_progress", read_at: new Date().toISOString(), journey: null, courses: [], stages: [], tracks: [], lessons, truncated: false };
   }
 
   // The member's place in the community workflow, from the same owner as
@@ -246,6 +269,7 @@ async function readOwnResourceProgress(ctx: any, args: any) {
     journey,
     courses: courseSummaries(source, rows),
     stages,
+    tracks,
     lessons,
     truncated: source.truncated,
   };
@@ -272,7 +296,7 @@ async function findOwnRow(ctx: any, communityId: any, userId: any, resourceId: a
 }
 
 const UNAVAILABLE = { ok: false as const, code: "resource_unavailable", message: "That lesson is not available." };
-const LOCKED = { ok: false as const, code: "lesson_locked", message: "Finish the gate in an earlier stage first." };
+const LOCKED = { ok: false as const, code: "lesson_locked", message: "This lesson isn't open yet: finish the checkpoint before it, or the step that opens its track." };
 
 const setOwnResourceProgressArgs = {
     userId: v.id("users"),
@@ -292,7 +316,7 @@ export async function setOwnResourceProgress(ctx: any, args: any) {
   const existing = await findOwnRow(ctx, args.communityId, args.userId, resourceId);
   if (args.status !== "not_started") {
     const rows = await readProgressRows(ctx, args.communityId, args.userId);
-    if (lessonLocks(source.pages, rows, welcomeIds).lockedRefs.has(ref)) return LOCKED;
+    if ((await lessonLocks(ctx, args.communityId, args.userId, source.pages, rows, welcomeIds)).lockedRefs.has(ref)) return LOCKED;
   }
   if (args.status === "done") {
     const remaining = requiredRemaining(await lessonElements(ctx, page), existing?.responses);
@@ -361,7 +385,7 @@ export async function saveOwnLessonResponse(ctx: any, args: any) {
     return { ok: false as const, code: "element_unavailable", message: "That lesson has no element with this id." };
   }
   const rows = await readProgressRows(ctx, args.communityId, args.userId);
-  if (lessonLocks(source.pages, rows, welcomeIds).lockedRefs.has(ref)) return LOCKED;
+  if ((await lessonLocks(ctx, args.communityId, args.userId, source.pages, rows, welcomeIds)).lockedRefs.has(ref)) return LOCKED;
   let graded: ReturnType<typeof gradeCommunityLessonResponse> | null = null;
   if (args.value !== null) {
     try {
@@ -475,7 +499,7 @@ async function readMemberProgressReport(ctx: any, args: any) {
   }
   const source = await listMemberVisibleLessonPages(ctx, args.communityId);
   const rows = await readProgressRows(ctx, args.communityId, membership.userId);
-  const { stages, lessons } = await buildMemberProgress(ctx, source, rows, await communityWelcomeLessonIds(ctx, args.communityId));
+  const { stages, tracks, lessons } = await buildMemberProgress(ctx, args.communityId, membership.userId, source, rows, await communityWelcomeLessonIds(ctx, args.communityId));
   const profile = await resolveUserProfileDisplayProjection(ctx, membership.userId);
   return {
     kind: "community_member_progress_report",
@@ -486,6 +510,7 @@ async function readMemberProgressReport(ctx: any, args: any) {
     active: communityMembershipRowIsActive(membership),
     courses: courseSummaries(source, rows),
     stages,
+    tracks,
     lessons,
     truncated: source.truncated,
   };

@@ -17,7 +17,7 @@ export function workflowAutomationIssue(automation: CommunityMemberWorkflowAutom
     || (automation.trigger.type === "member_joined" && automation.action.type !== "create_service_channel" && automation.action.type !== "request_form")) return "Member joins requires Create private channel or Request form";
   if ((automation.action.type === "request_form" && !automation.action.formKey) || (automation.trigger.type === "form_submitted" && !automation.trigger.formKey)) return "Choose a published form";
   if (automation.trigger.type === "form_submitted" && automation.action.type === "request_form") return "Choose Ask agent";
-  if ((automation.trigger.type === "lesson_completed" || automation.trigger.type === "course_completed")
+  if ((automation.trigger.type === "lesson_completed" || automation.trigger.type === "course_completed" || automation.trigger.type === "track_completed")
     && automation.action.type !== "request_form" && automation.action.type !== "set_client_property") return "Choose Request form or Set client property";
   if (automation.action.type === "set_client_property" && !automation.action.propertyKey) return "Choose a client property";
   const triggerIssue = workflowTriggerIssue(automation, channels, unavailable);
