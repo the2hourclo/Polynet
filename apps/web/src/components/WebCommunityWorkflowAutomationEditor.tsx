@@ -1,7 +1,8 @@
 import { X } from "lucide-react";
 import { useId, useState } from "react";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH } from "../../../../shared/communityMemberWorkflow";
+import { COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition } from "../../../../shared/communityMemberWorkflow";
+import { workflowActionPhrase, workflowDurationLabel } from "./workflowStepSentences";
 import { WorkflowChannelPicker } from "./WorkflowChannelPicker";
 import { replaceWorkflowDraftAction, workflowAutomationIssue, workflowTriggerIssue, workflowChannelLabel, type WorkflowAutomationDraft } from "./workflowMilestoneDraft";
 
@@ -39,10 +40,104 @@ function PropertyValueField(props: { id: string; property: WorkflowCatalogProper
     onChange={(event) => props.onChange(event.target.value === "" ? null : property.type === "number" ? event.target.valueAsNumber : event.target.value)} /></label>;
 }
 
+// "Only if": the step runs when the member's client property matches, else it's skipped.
+function ConditionField(props: { id: string; condition: CommunityMemberWorkflowCondition | undefined;
+  properties: WorkflowCatalogProperty[] | null | undefined; disabled: boolean;
+  onChange: (condition: CommunityMemberWorkflowCondition | undefined) => void }) {
+  const { condition } = props;
+  const properties = props.properties ?? [];
+  if (!condition) {
+    return <div className="workflow-automation-field workflow-step-extra">
+      <button type="button" className="workflow-step-extra-add" disabled={props.disabled || !properties.length}
+        onClick={() => properties[0] && props.onChange({ propertyKey: properties[0].key, op: "is_set" })}>+ Only if…</button>
+      <small className="workflow-field-hint">{properties.length ? "Run this step only for some members, by a client property." : "Add a client property under Clients to run steps only for some members."}</small>
+    </div>;
+  }
+  const property = properties.find((item) => item.key === condition.propertyKey);
+  const needsValue = condition.op === "is" || condition.op === "is_not";
+  const options = property?.type === "checkbox" ? [["true", "Yes"], ["false", "No"]]
+    : property && (property.type === "select" || property.type === "multi_select") ? property.options.map((option) => [option, option]) : null;
+  const setValue = (raw: string) => props.onChange({ ...condition, value: property?.type === "checkbox" ? raw === "true" : property?.type === "number" && raw !== "" ? Number(raw) : raw });
+  return <fieldset className="workflow-agent-inputs">
+    <legend className="workflow-agent-inputs-title">Only if</legend>
+    <div className="workflow-action-choice-row">
+      <select aria-label="Client property" value={condition.propertyKey} disabled={props.disabled}
+        onChange={(event) => props.onChange({ propertyKey: event.target.value, op: condition.op === "is_empty" ? "is_empty" : "is_set" })}>
+        {!property ? <option value={condition.propertyKey}>{condition.propertyKey} (archived)</option> : null}
+        {properties.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
+      </select>
+      <select aria-label="Comparison" value={condition.op} disabled={props.disabled} onChange={(event) => {
+        const op = event.target.value as CommunityMemberWorkflowCondition["op"];
+        props.onChange(op === "is" || op === "is_not" ? { propertyKey: condition.propertyKey, op, value: condition.value ?? (options?.[0] ? (property?.type === "checkbox" ? true : options[0][0]) : "") } : { propertyKey: condition.propertyKey, op });
+      }}>
+        <option value="is">is</option><option value="is_not">isn't</option><option value="is_set">is filled in</option><option value="is_empty">is empty</option>
+      </select>
+      {needsValue ? options
+        ? <select aria-label="Value" value={String(condition.value ?? "")} disabled={props.disabled} onChange={(event) => setValue(event.target.value)}>
+            {options.map(([raw, text]) => <option key={raw} value={raw}>{text}</option>)}</select>
+        : <input id={`${props.id}-condition-value`} aria-label="Value" type={property?.type === "number" ? "number" : "text"} value={String(condition.value ?? "")}
+            disabled={props.disabled} onChange={(event) => setValue(event.target.value)} /> : null}
+    </div>
+    <small className="workflow-field-hint">Members who don't match skip this step and every step after it.</small>
+    <button type="button" className="workflow-agent-inputs-reset" disabled={props.disabled} onClick={() => props.onChange(undefined)}>Run for everyone</button>
+  </fieldset>;
+}
+
+// "What the agent sees" on an Ask-the-agent step. Unset keeps today's bundle;
+// once the owner picks, only the ticked inputs reach the agent.
+function AgentInputsField(props: { id: string; sees: string[] | undefined; catalog?: WorkflowCatalog;
+  forms?: Array<{ key: string; name: string }>; disabled: boolean; onChange: (sees: string[] | undefined) => void }) {
+  const { sees } = props;
+  if (!sees) {
+    return <div className="workflow-agent-inputs">
+      <span className="workflow-agent-inputs-title">What the agent sees</span>
+      <p className="workflow-field-hint">Facts about the member and the form that started this step.</p>
+      <button type="button" className="secondary" disabled={props.disabled} onClick={() => props.onChange(["facts"])}>Choose what it sees</button>
+    </div>;
+  }
+  const full = sees.length >= WORKFLOW_AGENT_SEES_MAX;
+  const toggle = (entry: string, on: boolean) => props.onChange(on ? [...sees, entry] : sees.filter((item) => item !== entry));
+  const box = (entry: string, label: string, hint?: string) => {
+    const checked = sees.includes(entry);
+    return <label key={entry} className="workflow-agent-input">
+      <input type="checkbox" checked={checked} disabled={props.disabled || (full && !checked)} onChange={(event) => toggle(entry, event.target.checked)} />
+      <span>{label}{hint ? <small>{hint}</small> : null}</span>
+    </label>;
+  };
+  const lessons = props.catalog?.lessons ?? [];
+  const pickedLessons = sees.filter((entry) => entry.startsWith("lesson:")).map((entry) => entry.slice(7));
+  return <fieldset className="workflow-agent-inputs" aria-describedby={`${props.id}-inputs-help`}>
+    <legend className="workflow-agent-inputs-title">What the agent sees</legend>
+    <div className="workflow-agent-input-group">
+      <span>About the member</span>
+      {box("facts", "Facts about them", "What they shared that the community keeps")}
+      {box("progress", "Course progress", "Lessons done and what comes next")}
+      {box("guide_channel", "Guide channel", "The last 20 messages")}
+    </div>
+    {props.forms?.length ? <div className="workflow-agent-input-group"><span>Form answers</span>
+      {props.forms.map((form) => box(`form:${form.key}`, form.name))}</div> : null}
+    {props.catalog?.properties?.length ? <div className="workflow-agent-input-group"><span>Client properties</span>
+      {props.catalog.properties.map((property) => box(`property:${property.key}`, property.name))}</div> : null}
+    <div className="workflow-agent-input-group"><span>Your content</span>
+      {pickedLessons.map((lessonId) => box(`lesson:${lessonId}`, lessons.find((lesson) => lesson.id === lessonId)?.title ?? "Unavailable lesson"))}
+      <select aria-label="Add a lesson the agent reads" value="" disabled={props.disabled || full || !lessons.length}
+        onChange={(event) => event.target.value && toggle(`lesson:${event.target.value}`, true)}>
+        <option value="">{lessons.length ? "Add a lesson it reads…" : "No published lessons yet"}</option>
+        {lessons.filter((lesson) => !pickedLessons.includes(lesson.id)).map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.course} · {lesson.title}</option>)}
+      </select>
+    </div>
+    <p className="workflow-field-hint" id={`${props.id}-inputs-help`}>
+      The form that started this step is always included. The member can see anything the agent repeats, so only tick what you're happy for them to read.{full ? ` Up to ${WORKFLOW_AGENT_SEES_MAX} inputs.` : ""}
+    </p>
+    <button type="button" className="workflow-agent-inputs-reset" disabled={props.disabled} onClick={() => props.onChange(undefined)}>Use the default</button>
+  </fieldset>;
+}
+
 type Props = {
   canAddJoin?: boolean;
   catalog?: WorkflowCatalog;
-  previousAction?: WorkflowAutomationDraft;
+  /** The steps above this one; a step can follow any of them except a nudge. */
+  earlierSteps?: CommunityMemberWorkflowAutomation[];
   forms?: Array<{ key: string; name: string }>;
   automation: WorkflowAutomationDraft;
   index: number;
@@ -66,9 +161,14 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const id = useId();
   const { automation } = props;
   const isSequence = automation.trigger.type === "previous_action_completed";
-  const previousLabel = props.previousAction?.action.type === "request_form"
-    ? `Request ${props.forms?.find(f => props.previousAction?.action.type === "request_form" && f.key === props.previousAction.action.formKey)?.name ?? "form"}`
-    : props.previousAction?.action.type === "prompt_agent" ? `Ask agent: ${props.previousAction.action.prompt.slice(0, 80)}` : "Create private channel";
+  const earlierSteps = (props.earlierSteps ?? []).filter((step) => !workflowRuleIsNudge(step) && step.action.key !== automation.action.key);
+  const stepNames = { forms: props.forms, channels: props.channels, catalog: props.catalog };
+  const stepLabel = (step: CommunityMemberWorkflowAutomation) => { const text = workflowActionPhrase(step, stepNames); return text.charAt(0).toUpperCase() + text.slice(1); };
+  const predecessorKey = automation.trigger.type === "previous_action_completed" ? automation.trigger.predecessorActionKey : "";
+  const waitMinutes = automation.trigger.type === "previous_action_completed" ? automation.trigger.delayMinutes ?? 0 : 0;
+  const [waitUnit, setWaitUnit] = useState(waitMinutes && waitMinutes % 1440 === 0 ? 1440 : waitMinutes && waitMinutes % 60 === 0 ? 60 : waitMinutes ? 1 : 1440);
+  const setSequence = (key: string, delay: number) => props.onChange({ ...automation,
+    trigger: { type: "previous_action_completed", predecessorActionKey: key, ...(delay > 0 ? { delayMinutes: delay } : {}) } });
   const isTimed = automation.trigger.type === "milestone_elapsed";
   const nudge = automation.trigger.type === "milestone_elapsed" && automation.trigger.nudge === true;
   const nudgeFlag = nudge ? { nudge: true } : {};
@@ -95,7 +195,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const actionSelected = !props.creation || props.creation.actionSelected;
   const triggerIssue = triggerSelected ? workflowTriggerIssue(automation, props.channels, props.channelsUnavailable) : null;
   const triggerReady = triggerSelected && !triggerIssue;
-  const triggerLabel = isSequence ? "Previous action completed" : isJoin ? "Member joins for the first time"
+  const triggerLabel = isSequence ? `${waitMinutes ? `${workflowDurationLabel(waitMinutes)} after` : "After"} ${(() => { const step = earlierSteps.find((item) => item.action.key === predecessorKey); return step ? `“${stepLabel(step).slice(0, 60)}”` : "an earlier step"; })()}` : isJoin ? "Member joins for the first time"
     : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this milestone` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "create_service_channel" ? "Create private channel" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
@@ -122,12 +222,14 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               const type = event.target.value;
               if (type === "member_joined") {
                 props.onChange({ ...replaceWorkflowDraftAction(automation, automation.action.type === "request_form" ? "request_form" : "create_service_channel"), trigger: { type } });
-              } else if (type === "previous_action_completed" && props.previousAction) {
-                props.onChange({ ...replaceWorkflowDraftAction(automation, automation.action.type === "request_form" ? "request_form" : "prompt_agent"), trigger: { type, predecessorActionKey: props.previousAction.action.key } });
+              } else if (type === "previous_action_completed" && earlierSteps.length) {
+                const action = automation.action.type === "request_form" || automation.action.type === "set_client_property" ? automation.action.type : "prompt_agent";
+                props.onChange({ ...replaceWorkflowDraftAction(automation, action), trigger: { type, predecessorActionKey: earlierSteps.at(-1)!.action.key } });
               } else if (type === "form_submitted") {
                 props.onChange({ ...replaceWorkflowDraftAction(automation, automation.action.type === "set_client_property" ? "set_client_property" : "prompt_agent"), trigger: { type, formKey: "" } });
               } else if (type === "lesson_completed" || type === "course_completed") {
-                props.onChange({ ...replaceWorkflowDraftAction(automation, automation.action.type === "set_client_property" ? "set_client_property" : "request_form"), trigger: { type } });
+                const action = automation.action.type === "set_client_property" || automation.action.type === "request_form" ? automation.action.type : "prompt_agent";
+                props.onChange({ ...replaceWorkflowDraftAction(automation, action), trigger: { type } });
               } else if (type === "member_contributed" || type === "milestone_elapsed") {
                 setTimeUnit(1440);
                 const action = automation.action.type === "request_form" ? "request_form" : "prompt_agent";
@@ -136,7 +238,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               props.creation?.onTriggerSelected();
             }}>
               <option value="" disabled>Choose a trigger</option>
-              <option value="previous_action_completed" disabled={!props.previousAction}>Previous action completed</option>
+              <option value="previous_action_completed" disabled={!earlierSteps.length && !isSequence}>After an earlier step</option>
               <option value="member_contributed">Member posts or replies</option>
               <option value="milestone_elapsed">Time in milestone</option>
               {(props.canAddJoin || isJoin) ? <option value="member_joined">Member joins</option> : null}
@@ -146,9 +248,29 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
             </select>
           </label>
           {triggerSelected ? <>
-          {isSequence ? <div className="workflow-field-hint">{props.previousAction && automation.trigger.type === "previous_action_completed" && automation.trigger.predecessorActionKey === props.previousAction.action.key
-            ? `After: ${previousLabel}. Starts after verified completion.`
-            : <>The preceding action changed. Choose a different trigger, then select Previous action completed again to reconnect.</>}</div> : isJoin ? null
+          {isSequence ? <>
+            <label>After this step
+              <select value={earlierSteps.some((step) => step.action.key === predecessorKey) ? predecessorKey : ""} disabled={props.disabled}
+                onChange={(event) => setSequence(event.target.value, waitMinutes)}>
+                <option value="" disabled>{earlierSteps.length ? "Choose an earlier step" : "Add a step above this one first"}</option>
+                {earlierSteps.map((step) => <option key={step.action.key} value={step.action.key}>{stepLabel(step)}</option>)}
+              </select>
+              <small>Starts once that step has finished.</small>
+            </label>
+            <div className="workflow-automation-field">
+              <label htmlFor={`${id}-wait`}>Wait first</label>
+              <div className="workflow-action-choice-row">
+                <input id={`${id}-wait`} type="number" min={0} max={Math.floor(525600 / waitUnit)} step={1} value={waitMinutes / waitUnit} disabled={props.disabled}
+                  onChange={(event) => setSequence(predecessorKey, Math.max(0, Math.round((Number.isFinite(event.target.valueAsNumber) ? event.target.valueAsNumber : 0) * waitUnit)))} />
+                <select aria-label="Wait unit" value={waitUnit} disabled={props.disabled} onChange={(event) => {
+                  const unit = Number(event.target.value);
+                  setWaitUnit(unit);
+                  setSequence(predecessorKey, waitMinutes / waitUnit * unit);
+                }}><option value={1}>minutes</option><option value={60}>hours</option><option value={1440}>days</option></select>
+              </div>
+              <small className="workflow-field-hint">{waitMinutes ? `Runs ${workflowDurationLabel(waitMinutes)} after that step finishes.` : "0 starts it straight away."}</small>
+            </div>
+          </> : isJoin ? null
             : isLesson ? <label>Lesson<select value={lessonId ?? ""} disabled={props.disabled} onChange={e => props.onChange({ ...automation, trigger: { type: "lesson_completed", ...(e.target.value ? { resourceId: e.target.value } : {}) } })}>
                 <option value="">Any lesson</option>
                 {lessonId && !lessons.some((lesson) => lesson.id === lessonId) ? <option value={lessonId}>{lessonName}</option> : null}
@@ -196,9 +318,9 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               props.creation?.onActionSelected();
             }}>
               <option value="" disabled>Choose an action</option>
-              {isJoin ? <option value="create_service_channel">Create private channel</option> : !isLesson && !isCourse ? <option value="prompt_agent">Ask community agent</option> : null}
+              {isJoin ? <option value="create_service_channel">Create private channel</option> : <option value="prompt_agent">Ask community agent</option>}
               {!isForm ? <option value="request_form">Request form</option> : null}
-              {!isJoin && !isSequence ? <option value="set_client_property">Set client property</option> : null}
+              {!isJoin ? <option value="set_client_property">Set client property</option> : null}
             </select>
           </label> : null}
 
@@ -221,18 +343,26 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                 <textarea rows={4} maxLength={COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH} value={automation.action.prompt}
                   disabled={props.disabled} aria-labelledby={`${id}-prompt-label`} aria-describedby={`${id}-prompt-help`}
                   placeholder="What should the community agent do for this member?"
-                  onChange={(event) => props.onChange({ ...automation, action: { key: automation.action.key, type: "prompt_agent", prompt: event.target.value } })} />
+                  onChange={(event) => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "prompt_agent" }>), prompt: event.target.value } })} />
               </label>
               <p className="workflow-field-hint" id={`${id}-prompt-help`}>
                 {automation.action.prompt.trim() ? "" : "Add instructions to save. "}
                 {isForm ? "Uses the submitted answers and responds once in the member’s assigned private service channel. Only the member and community managers may have access. Submission stays saved if delivery is unavailable."
                   : isSequence ? "Starts after the preceding action completes and responds in the member’s assigned private service channel. The next action waits until this response is delivered. No additional tool actions."
+                  : isLesson || isCourse ? "Starts once when they finish it and replies in the member’s private guide channel."
                   : isTimed ? "Delivered once to the member’s assigned service channel. Uses these instructions and community context, without private dossier data or additional tool actions. No delivery if the channel is unavailable."
                   : "The community agent uses this member’s community context and replies in the triggering thread."}
-                {!isSequence && !isTimed && !isForm && (isPrivate || channelId === undefined) ? " In private channels, the agent must be invited." : ""}
+                {!isSequence && !isTimed && !isForm && !isLesson && !isCourse && (isPrivate || channelId === undefined) ? " In private channels, the agent must be invited." : ""}
               </p>
+              <AgentInputsField id={id} sees={automation.action.sees} catalog={props.catalog} forms={props.forms} disabled={props.disabled}
+                onChange={(sees) => {
+                  const { sees: _previous, ...rest } = automation.action as Extract<typeof automation.action, { type: "prompt_agent" }>;
+                  props.onChange({ ...automation, action: sees ? { ...rest, sees } : rest });
+                }} />
             </>
           ) : null}
+          <ConditionField id={id} condition={automation.condition} properties={props.catalog?.properties} disabled={props.disabled}
+            onChange={(condition) => { const { condition: _previous, ...rest } = automation; props.onChange(condition ? { ...rest, condition } : rest); }} />
           </> : null}
           {props.hideHeading && (triggerIssue || (actionSelected && issue)) ? <p role="status" className="workflow-automation-issue">{triggerIssue || issue}</p> : null}
         </div>

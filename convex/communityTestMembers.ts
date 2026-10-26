@@ -262,7 +262,7 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
   const predecessor = trigger.type === "previous_action_completed"
     ? rules.find((other) => other.action?.key === trigger.predecessorActionKey) : null;
   const when = trigger.type === "member_joined" ? "When they join"
-    : trigger.type === "previous_action_completed" ? `After “${predecessor ? await actionText(predecessor.action) : "the previous step"}”`
+    : trigger.type === "previous_action_completed" ? `${trigger.delayMinutes ? `${durationText(trigger.delayMinutes)} after` : "After"} “${predecessor ? await actionText(predecessor.action) : "the previous step"}”`
     : trigger.type === "member_contributed" ? `When they post${trigger.channelId ? ` in #${(await nameOf(ctx, "communityChannels", trigger.channelId, "name")) ?? "a channel"}` : ""}`
     : trigger.type === "form_submitted" ? `When they submit the ${await formName(trigger.formKey)} form`
     : trigger.type === "milestone_elapsed" ? trigger.nudge
@@ -272,7 +272,11 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : trigger.type === "course_completed" ? `When they finish ${trigger.moduleId ? `the ${(await nameOf(ctx, "communityResourceModules", trigger.moduleId, "name")) ?? ""} course` : "any course"}`
     : "When its trigger happens";
   void communityId;
-  return { when, does: await actionText(action), timed: trigger.type === "milestone_elapsed" };
+  const condition = rule.condition;
+  const only = !condition ? "" : condition.op === "is_set" ? `, only if ${condition.propertyKey} is filled in`
+    : condition.op === "is_empty" ? `, only if ${condition.propertyKey} is empty`
+    : `, only if ${condition.propertyKey} ${condition.op === "is" ? "is" : "is not"} ${String(condition.value)}`;
+  return { when: when + only, does: await actionText(action), timed: trigger.type === "milestone_elapsed" || !!trigger.delayMinutes };
 }
 
 /**
@@ -327,7 +331,9 @@ export const getTestRunSequence = query({
           at: run ? new Date(run.finishedAt ?? run.updatedAt ?? run.createdAt).toISOString() : null,
           due_at: timer ? new Date(timer.dueAt).toISOString() : null,
           error: run?.status === "failed" ? String(run.errorCode ?? "unknown").replace(/_/g, " ") : null,
-          note: run?.actionResult?.resultCode === "agent_previewed" ? "Previewed, not sent" : null,
+          note: run?.actionResult?.resultCode === "agent_previewed" ? "Previewed, not sent"
+            : run?.actionResult?.resultCode === "condition_skipped" ? "Skipped: its “only if” didn't match"
+            : run?.actionResult?.resultCode === "path_skipped" ? "Skipped: the step before it was skipped" : null,
         });
       }
       stages.push({

@@ -159,8 +159,8 @@ it("sequential dependencies remain explicit when actions are deleted or reordere
   const next: CommunityMemberWorkflowAutomation = { key: "next", trigger: { type: "previous_action_completed", predecessorActionKey: automation.action.key },
     action: { key: "next-action", type: "request_form", formKey: "intake" } };
   expect(workflowSequenceIssue([automation, next])).toBeNull();
-  expect(workflowSequenceIssue([next])).toContain("immediately before");
-  expect(workflowSequenceIssue([next, automation])).toContain("immediately before");
+  expect(workflowSequenceIssue([next])).toContain("earlier step");
+  expect(workflowSequenceIssue([next, automation])).toContain("earlier step");
   expect(workflowTriggerIssue({ ...next, trigger: { type: "previous_action_completed", predecessorActionKey: "" } }, [], false)).toContain("preceding action");
   expect(workflowAutomationIssue(next, [], false)).toBeNull();
 });

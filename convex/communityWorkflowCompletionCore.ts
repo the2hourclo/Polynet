@@ -4,7 +4,7 @@ import type { QueryCtx } from "./_generated/server";
 import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, requireCommunityChatAccess } from "./communityCore";
 import { readSubmittedFormRecord, readSubmittedFormRecords, projectSubmittedFormEvidence } from "./communityFormEvidenceCore";
 import { resolveMemberServiceChannel } from "./communityMemberServiceChannelCore";
-import { workflowRuleIsNudge, workflowTriggerIdentity, type CommunityMemberWorkflowMilestone } from "../shared/communityMemberWorkflow";
+import { workflowRuleIsNudge, workflowRunWasSkipped, workflowTriggerIdentity, type CommunityMemberWorkflowMilestone } from "../shared/communityMemberWorkflow";
 import { getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
 import type { WorkflowMilestoneApproval, WorkflowActionProgress } from "../shared/communityMembershipContext";
 import { buildCommunityInteractionEvidenceRef } from "../shared/communityEvidenceContract";
@@ -29,8 +29,12 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   const finishes = (rule: CommunityMemberWorkflowMilestone["automations"][number]) =>
     rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed";
   // A nudge only runs while they're still here, so waiting on it would keep them here.
+  // A write on a path (another step follows it, or it follows another step) counts too.
+  const followed = new Set(milestone.automations.flatMap(rule =>
+    rule.trigger.type === "previous_action_completed" ? [rule.trigger.predecessorActionKey] : []));
   const work = milestone.automations.filter(rule => !workflowRuleIsNudge(rule)
-    && (rule.action.type !== "set_client_property" || finishes(rule)));
+    && (rule.action.type !== "set_client_property" || finishes(rule) || followed.has(rule.action.key)
+      || rule.trigger.type === "previous_action_completed"));
   if (!work.length) return { actions: [], all_actions_complete: false, scan_truncated: false };
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
     .withIndex("by_workflow_membership_createdAt", q => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
@@ -87,7 +91,11 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       if (run.status === "failed") status = "failed";
       else if (run.status === "running") status = "running";
       else if (result?.status === "complete" && result.actionKey === rule.action.key) {
-        if (rule.action.type === "request_form") {
+        if (workflowRunWasSkipped(run)) {
+          // A path not taken counts as done, but only under the "Only if" it was judged by.
+          if (run.finishedAt !== undefined && JSON.stringify(run.conditionSnapshot ?? null) === JSON.stringify(rule.condition ?? null))
+            evidence = { run_id: String(run._id), source_id: String(run._id), completed_at: run.finishedAt };
+        } else if (rule.action.type === "request_form") {
           const request = result.formRequestId ? await ctx.db.get(result.formRequestId) : null;
           if (request && request.workflowRunId === run._id && request.communityId === workflow.communityId
             && request.workflowId === workflow._id && request.membershipId === membership._id

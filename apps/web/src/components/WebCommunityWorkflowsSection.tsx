@@ -1,4 +1,4 @@
-import { DoorOpen, FlaskConical, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
+import { FlaskConical, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { WORKFLOW_SECTIONS, workflowSectionFromSearch, workflowSectionUrl, type WorkflowSection } from "../../../../shared/workflowSection";
@@ -30,6 +30,7 @@ import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
 import { WebCommunityTestRun, startTestRunInNewTab, testRunErrorMessage, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
 import { WebCommunityClientAccessPanel, WebCommunityClients } from "./WebCommunityAccess";
 import { WebCommunityAgentLedJourney } from "./WebCommunityAgentLedJourney";
+import { WebCommunityWorkflowSteps } from "./WebCommunityWorkflowSteps";
 import type { AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 import "./WebCommunityWorkflowsPage.css";
@@ -219,8 +220,11 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
     return grouped;
   }, [props.members]);
 
-  const openMilestone = (milestoneKey: string) => {
+  const [openTo, setOpenTo] = useState<{ automationKey?: string; addStep?: boolean } | null>(null);
+  const [boardView, setBoardView] = useState<"steps" | "members">("steps");
+  const openMilestone = (milestoneKey: string, to: { automationKey?: string; addStep?: boolean } | null = null) => {
     props.onClearActionError();
+    setOpenTo(to);
     setIsCreatingMilestone(!milestoneKey);
     setEditingMilestoneKey(milestoneKey || null);
   };
@@ -290,24 +294,38 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
         className="community-panel community-utility-panel workflow-pipeline-shell"
         aria-label="Workflow board"
       >
-        {props.board ? (
-          <div className="workflow-welcome-gate pn-wf-callout">
-            <span className="pn-wf-callout-icon" aria-hidden="true"><DoorOpen size={20} strokeWidth={2} /></span>
-            <span className="pn-wf-callout-text">
-              <strong>Welcome page <em className={`pn-wf-badge ${props.board.welcome_gate ? "is-on" : "is-off"}`}>{props.board.welcome_gate ? "On" : "Off"}</em></strong>
-              <small>{props.board.welcome_gate
-                ? "New members finish its steps before the community opens."
-                : "Turn it on to give new members steps to finish before the community opens."}</small>
-            </span>
-            <span className="pn-wf-callout-actions">
-              {props.testRun ? <button type="button" className="workflow-secondary-button" onClick={() => testStage(null)}>Test as a new member</button> : null}
-              <button type="button" className="workflow-secondary-button" onClick={props.onOpenWelcome}>Edit welcome page</button>
-            </span>
+        <div className="pn-wf-board-bar">
+          <div className="pn-wf-view-switch" role="tablist" aria-label="Show the workflow as">
+            {(["steps", "members"] as const).map((view) => <button key={view} type="button" role="tab"
+              aria-selected={boardView === view} onClick={() => setBoardView(view)}>{view === "steps" ? "Steps" : "Members"}</button>)}
           </div>
-        ) : null}
-        {props.onApplyAgentLedJourney && formsState !== "loading" ? <WebCommunityAgentLedJourney milestones={props.board?.milestones ?? null}
-          publishedForms={publishedForms} isSaving={props.isSaving} onApply={props.onApplyAgentLedJourney} /> : null}
+          <div className="pn-wf-board-actions">
+            <button type="button" className="workflow-secondary-button" onClick={addMilestone}
+              disabled={props.isSaving || !props.board || props.board.milestones.length >= COMMUNITY_MEMBER_WORKFLOW_MAX_MILESTONES}>
+              <Plus size={15} strokeWidth={2} aria-hidden="true" /> Add stage
+            </button>
+            {props.testRun ? <button type="button" className="pn-wf-primary" onClick={() => testStage(null)}>
+              <FlaskConical size={15} strokeWidth={2} aria-hidden="true" /> Test as a new member
+            </button> : null}
+          </div>
+        </div>
+        {props.board ? <p className="pn-wf-note">
+          {props.testRun ? "Test as a new member opens your community as a test member in a new tab, and Test run shows each step as it happens. " : ""}
+          {props.board.welcome_gate ? "The welcome page is on, so new members finish it before the community opens." : "The welcome page is off."}
+          {" "}<button type="button" className="pn-wf-link" onClick={props.onOpenWelcome}>Edit welcome page</button>
+        </p> : null}
         {testError ? <p role="alert" className="test-run-error">{testError}</p> : null}
+        {boardView === "steps" ? <>
+          <WebCommunityWorkflowSteps milestones={milestones} disabled={props.isSaving}
+            memberCounts={new Map([...membersByMilestone].map(([key, members]) => [key, members.length]))}
+            names={{ forms: publishedForms, channels: props.channels, catalog }}
+            onEditStage={(key) => openMilestone(key)}
+            onEditStep={(key, automationKey) => openMilestone(key, { automationKey })}
+            onAddStep={(key) => openMilestone(key, { addStep: true })}
+            onTestStage={props.testRun ? (key, index) => testStage(index === 0 ? null : key) : undefined} />
+          {props.onApplyAgentLedJourney && formsState !== "loading" ? <WebCommunityAgentLedJourney milestones={props.board?.milestones ?? null}
+            publishedForms={publishedForms} isSaving={props.isSaving} onApply={props.onApplyAgentLedJourney} /> : null}
+        </> : <>
         <div className="workflow-board-stage">
         <div className="workflow-milestone-canvas" aria-label="Member success milestones">
           {milestones.map((milestone, index) => {
@@ -376,14 +394,15 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
               props.board.milestones.length >= COMMUNITY_MEMBER_WORKFLOW_MAX_MILESTONES
             }
             onClick={addMilestone}
-            aria-label="Add milestone"
-            title="Add milestone"
+            aria-label="Add stage"
+            title="Add stage"
           >
             <Plus size={16} strokeWidth={2} aria-hidden="true" />
-            <span>Add milestone</span>
+            <span>Add stage</span>
           </button>
         </div>
         </div>
+        </>}
 
         {props.hasMore ? (
           <button
@@ -426,6 +445,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onOpenWelcom
         onClose={closeMilestone}
         onSave={saveMilestone}
         onDelete={deleteEditingMilestone}
+        openTo={openTo}
       />
       <WebCommunityWorkflowMemberDossierModal
         formResponses={props.forms?.responses && props.memberDossier ? <WebCommunityFormResponses key={`${props.forms.scopeKey}:${props.memberDossier.membership_id}`} gateway={props.forms} membershipId={props.memberDossier.membership_id} evidenceKey={JSON.stringify(props.memberDossier.submitted_form_evidence)} /> : null}

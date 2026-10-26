@@ -978,8 +978,8 @@ test("finishing every lesson in a course requests the stage's checkpoint form on
   const configured = await configureAutomations(t, f.communityId, []);
   await expect(owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
     communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
-    automations: [{ key: "", trigger: { type: "lesson_completed" as const }, action: { key: "", type: "prompt_agent" as const, prompt: "Hi" } }],
-  })).rejects.toThrow("lesson_trigger_action_invalid");
+    automations: [{ key: "", trigger: { type: "lesson_completed" as const }, action: { key: "", type: "create_service_channel" as const } }],
+  })).rejects.toThrow("workflow_join_action_invalid");
   await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
     communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
     automations: [{ key: "", trigger: { type: "course_completed" as const, moduleId: String(moduleId) },
@@ -1237,4 +1237,121 @@ test("a lesson-done property write that failed runs again once repaired, and an 
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const state = await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").first());
   expect(state).toMatchObject({ currentMilestoneKey: configured.secondKey });
+});
+
+
+// ---- Branches ("Only if"), waits, and lesson-started agent steps ----
+
+async function branchFixture() {
+  vi.useFakeTimers();
+  const t = convexTest(schema, modules), f = await fixture(t);
+  vi.setSystemTime(f.nowMs + 1_000);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  for (const name of ["Plan", "Tag", "Other"]) {
+    await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name, type: "text", options: [] });
+  }
+  const configured = await configureAutomations(t, f.communityId, []);
+  const values = () => t.run(async ctx => Object.fromEntries((await ctx.db.query("communityClientValues").collect()).map(row => [row.propertyKey, row.value])));
+  const runs = () => t.run(ctx => ctx.db.query("communityMemberWorkflowRuns").collect());
+  return { t, f, owner, configured, values, runs };
+}
+
+test("only-if branches: the matching path runs, the other path and everything after it is skipped, and the stage completes", async () => {
+  const { t, f, owner, configured, values, runs } = await branchFixture();
+  const set = (key: string, propertyKey: string, value: string) => ({ key, type: "set_client_property" as const, propertyKey, value });
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [
+      { trigger: { type: "member_contributed" as const }, action: set("draft-plan", "plan", "pro") },
+      { condition: { propertyKey: "plan", op: "is" as const, value: "Pro" }, trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-plan" }, action: set("draft-yes", "tag", "yes") },
+      { condition: { propertyKey: "plan", op: "is" as const, value: "basic" }, trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-plan" }, action: set("draft-no", "tag", "no") },
+      { trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-no" }, action: set("draft-after-no", "other", "x") },
+    ],
+  });
+  const rootId = await addRoot(t, f, "branch");
+  await t.mutation(internalApi.communityMemberWorkflows.handleChannelContributionRootInternal, { rootId });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await values()).toEqual({ plan: "pro", tag: "yes" });
+  const codes = (await runs()).map(run => run.actionResult?.resultCode).sort();
+  expect(codes).toEqual(["client_property_set", "client_property_set", "condition_skipped", "path_skipped"]);
+  const state = await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").first());
+  expect(state?.currentMilestoneKey).toBe(configured.secondKey);
+  vi.useRealTimers();
+});
+
+test("a wait after a step starts a timer from when that step finished, and runs once it is due", async () => {
+  const { t, f, owner, configured, values } = await branchFixture();
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [
+      { trigger: { type: "member_contributed" as const }, action: { key: "draft-a", type: "set_client_property" as const, propertyKey: "plan", value: "pro" } },
+      { trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-a", delayMinutes: 60 }, action: { key: "draft-b", type: "set_client_property" as const, propertyKey: "tag", value: "later" } },
+    ],
+  });
+  const rootId = await addRoot(t, f, "wait");
+  await t.mutation(internalApi.communityMemberWorkflows.handleChannelContributionRootInternal, { rootId });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await values()).toEqual({ plan: "pro" });
+  const [timer] = await t.run(ctx => ctx.db.query("communityMemberWorkflowTimers").collect());
+  expect(timer).toMatchObject({ status: "pending" });
+  expect(timer.dueAt - timer.startedAt!).toBe(60 * 60_000);
+  await t.mutation(internalApi.communityMemberWorkflows.processDueMilestoneTimersInternal, {});
+  expect(await values()).toEqual({ plan: "pro" });
+  vi.setSystemTime(timer.dueAt + 1);
+  await t.mutation(internalApi.communityMemberWorkflows.processDueMilestoneTimersInternal, {});
+  expect(await values()).toEqual({ plan: "pro", tag: "later" });
+  vi.useRealTimers();
+});
+
+test("a lesson can ask the agent directly; a replay of the same lesson asks only once", async () => {
+  const t = convexTest(schema, modules), f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER_SUBJECT });
+  const lessonId = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: f.communityId, createdByUserId: f.ownerId, status: "live", name: "Start", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    return ctx.db.insert("communityResources", {
+      communityId: f.communityId, moduleId, createdByUserId: f.ownerId, type: "post", role: "page", status: "published",
+      title: "What is a skill", bodyMd: "Go.", bodyChars: 3, pinned: false, sortOrder: 1, createdAt: now, updatedAt: now,
+    } as any);
+  });
+  const configured = await configureAutomations(t, f.communityId, []);
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [{ trigger: { type: "lesson_completed" as const }, action: { type: "prompt_agent" as const, prompt: "Ask what they'll build first." } }],
+  });
+  await t.run(async (ctx) => {
+    await ctx.db.patch(f.channelId, { systemRole: undefined, slug: "service", position: 1, accessMode: "restricted" });
+    for (const principalKey of [`user:${f.memberId}`, "community_agent"]) await ctx.db.insert("communityChannelParticipants", {
+      communityId: f.communityId, channelId: f.channelId, principalKey,
+      ...(principalKey !== "community_agent" ? { membershipId: f.membershipId, membershipActivationSequence: 1 } : {}),
+      status: "active", createdByUserId: f.ownerId, createdAt: f.nowMs, updatedAt: f.nowMs,
+    });
+    const now = Date.now();
+    await ctx.db.insert("communityResourceProgress", { communityId: f.communityId, userId: f.memberId, resourceId: lessonId, status: "done", startedAt: now, completedAt: now, updatedAt: now } as any);
+  });
+  await owner.mutation(api.communityMemberWorkflows.setBuilderMemberServiceChannel, { communityId: f.communityId, membershipId: f.membershipId, channelId: f.channelId, expectedRevision: 0 });
+  const finish = () => t.mutation(internalApi.communityMemberWorkflows.handleLessonCompletedInternal, { communityId: f.communityId, userId: f.memberId, resourceId: lessonId });
+  expect(await finish()).toMatchObject({ status: "handled", results: [{ status: "agent_started" }] });
+  await finish();
+  const requests = await t.run(ctx => ctx.db.query("communityAgentServeRequests").collect());
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({ triggerKind: "workflow", workflowPromptSnapshot: "Ask what they'll build first." });
+  expect(requests[0].workflowTimerId).toBeTruthy();
+});
+
+test("a step can follow any earlier step, but not a later one or a nudge", async () => {
+  const { f, owner, configured } = await branchFixture();
+  const save = (automations: any[]) => owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New", automations });
+  const a = { trigger: { type: "member_contributed" as const }, action: { key: "draft-a", type: "set_client_property" as const, propertyKey: "plan", value: "x" } };
+  await expect(save([{ trigger: { type: "previous_action_completed", predecessorActionKey: "draft-a" }, action: { type: "prompt_agent", prompt: "Hi" } }, a]))
+    .rejects.toThrow("workflow_previous_action_invalid");
+  await expect(save([{ trigger: { type: "milestone_elapsed", delayMinutes: 10, nudge: true }, action: { key: "draft-n", type: "prompt_agent", prompt: "Nudge" } },
+    { trigger: { type: "previous_action_completed", predecessorActionKey: "draft-n" }, action: { type: "prompt_agent", prompt: "Hi" } }]))
+    .rejects.toThrow("workflow_previous_action_invalid");
+  await expect(save([a, { condition: { propertyKey: "plan", op: "is" }, trigger: { type: "member_contributed" }, action: { type: "prompt_agent", prompt: "Hi" } }]))
+    .rejects.toThrow("workflow_condition_invalid");
+  vi.useRealTimers();
 });
