@@ -167,3 +167,29 @@ test("a test run can start at a later stage, show its sequence and skip a timed 
   // Only the manager who started a run can drive it.
   await expect(t.withIdentity({ subject: STRANGER }).mutation(api.communityTestMembers.runTestMemberTimedStepsNow, args)).rejects.toThrow();
 });
+
+test("ending a run archives the private channel a Workflow opened for it", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(nowMs + 60_000);
+  const t = convexTest(schema, modules);
+  const f = await fixture(t);
+  const owner = t.withIdentity({ subject: OWNER });
+  const started = await owner.mutation(api.communityTestMembers.startTestMember, { communityId: f.communityId });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const channels = await t.run(async (ctx) => {
+    const channel = (name: string, createdAt: number) => ctx.db.insert("communityChannels", {
+      communityId: f.communityId, slug: name, name, accessMode: "restricted", postingPolicy: "members",
+      status: "active", position: 1, createdAt, updatedAt: createdAt,
+    } as any);
+    const opened = await channel("test-member-1", nowMs + 120_000);
+    const older = await channel("older", nowMs - 1);
+    const user = await ctx.db.query("users").withIndex("by_authSubject", (q: any) => q.eq("authSubject", started.auth_subject)).unique();
+    const membership = await ctx.db.query("communityMemberships")
+      .withIndex("by_community_user", (q: any) => q.eq("communityId", f.communityId).eq("userId", user!._id)).unique();
+    await ctx.db.patch(membership!._id, { serviceChannelId: opened } as any);
+    return { opened, older };
+  });
+  await owner.mutation(api.communityTestMembers.endTestMember, { communityId: f.communityId, testMemberId: started.id as any });
+  const after = await t.run(async (ctx) => [(await ctx.db.get(channels.opened))!.status, (await ctx.db.get(channels.older))!.status]);
+  expect(after).toEqual(["archived", "active"]);
+});

@@ -11,6 +11,7 @@ import { activateCommunityMembershipCore } from "./communityMembershipLifecycle"
 import { deleteMemberWorkflowPosition, getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
 import { enrollWorkflowMilestoneTimers } from "./communityMemberWorkflowTimerCore";
 import { runWorkflowTimerNow } from "./communityMemberWorkflows";
+import { archiveActiveCommunityChannel } from "./communityChannelCore";
 import { deleteCommunityPresenceForUser } from "./communityPresenceCore";
 import { deleteCommunityReadCursorsForUserCommunity } from "./communityReadCursorCore";
 import { deleteCommunityJoinRequestByPair } from "./communityJoinRequestCore";
@@ -76,6 +77,13 @@ async function deleteTestMemberData(ctx: any, row: TestMemberRow, nowMs: number)
         .withIndex("by_member_entry", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membershipId))
         .take(CLEANUP_BATCH));
       await deleteMemberWorkflowPosition({ ctx, communityId, membershipId });
+    }
+    // The private channel a Workflow opened for the run goes with it.
+    const serviceChannelId = (membership as { serviceChannelId?: any }).serviceChannelId;
+    const channel = serviceChannelId ? await ctx.db.get(serviceChannelId) : null;
+    if (channel && String(channel.communityId) === String(communityId) && channel.status === "active"
+      && !channel.systemRole && (channel.createdAt ?? 0) >= row.createdAt) {
+      await archiveActiveCommunityChannel({ ctx, communityId, channelId: channel._id, actorUserId: row.ownerUserId, nowMs });
     }
     await ctx.db.delete(membershipId);
     await adjustCommunityActiveMemberCountForMembershipTransition({
