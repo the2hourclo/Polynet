@@ -28,7 +28,11 @@ export type CommunityMemberWorkflowTrigger =
   /** Every lesson in a course done. Absent moduleId means any course. */
   | { type: "course_completed"; moduleId?: string }
   /** Every step of a skill track done. Absent trackKey means any track. */
-  | { type: "track_completed"; trackKey?: string };
+  | { type: "track_completed"; trackKey?: string }
+  /** A client property on their record changed (to `value`, when set), by the
+   * owner, the member, a form or an agent. A Workflow step's own write never
+   * fires it, so automations can't loop. It never holds the stage. */
+  | { type: "client_property_changed"; propertyKey: string; value?: string | number | boolean };
 
 export function normalizeWorkflowDelayMinutes(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 525600) {
@@ -181,6 +185,7 @@ export function workflowTriggerIdentity(trigger: CommunityMemberWorkflowTrigger)
     : trigger.type === "lesson_completed" ? [trigger.type, trigger.resourceId ?? null]
     : trigger.type === "course_completed" ? [trigger.type, trigger.moduleId ?? null]
     : trigger.type === "track_completed" ? [trigger.type, trigger.trackKey ?? null]
+    : trigger.type === "client_property_changed" ? [trigger.type, trigger.propertyKey, trigger.value ?? null]
     : trigger.type === "member_joined" ? [trigger.type]
     : trigger.nudge ? [trigger.type, trigger.delayMinutes, "nudge"] : [trigger.type, trigger.delayMinutes]);
 }
@@ -312,8 +317,8 @@ export function workflowSequenceIssue(rules: CommunityMemberWorkflowAutomation[]
 export function workflowRuleUsesTimer(rule: { trigger: CommunityMemberWorkflowTrigger; action: { type: string } }): boolean {
   return rule.trigger.type === "milestone_elapsed"
     || (rule.trigger.type === "previous_action_completed" && (rule.trigger.delayMinutes ?? 0) > 0)
-    || ((rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed" || rule.trigger.type === "track_completed")
-      && rule.action.type === "prompt_agent");
+    || ((rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed" || rule.trigger.type === "track_completed"
+      || rule.trigger.type === "client_property_changed") && rule.action.type === "prompt_agent");
 }
 
 function normalizeWorkflowConditionClause(value: unknown): CommunityMemberWorkflowConditionClause {

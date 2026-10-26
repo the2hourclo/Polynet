@@ -213,6 +213,14 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const isLesson = automation.trigger.type === "lesson_completed";
   const isCourse = automation.trigger.type === "course_completed";
   const isTrack = automation.trigger.type === "track_completed";
+  const isRecord = automation.trigger.type === "client_property_changed";
+  const recordKey = automation.trigger.type === "client_property_changed" ? automation.trigger.propertyKey : "";
+  const recordValue = automation.trigger.type === "client_property_changed" ? automation.trigger.value : undefined;
+  const recordProperty = props.catalog?.properties?.find((item) => item.key === recordKey);
+  const recordOptions = recordProperty?.type === "checkbox" ? [["true", "Yes"], ["false", "No"]]
+    : recordProperty && (recordProperty.type === "select" || recordProperty.type === "multi_select") ? recordProperty.options.map((option) => [option, option]) : null;
+  const setRecord = (key: string, value?: string | number | boolean) => props.onChange({ ...automation,
+    trigger: { type: "client_property_changed", propertyKey: key, ...(value === undefined || value === "" ? {} : { value }) } });
   const tracks = props.catalog?.tracks ?? [];
   const trackKey = automation.trigger.type === "track_completed" ? automation.trigger.trackKey : undefined;
   const trackName = trackKey ? tracks.find((track) => track.key === trackKey)?.title ?? (props.catalog?.tracks ? "Unavailable track" : "A track") : "Any track";
@@ -236,6 +244,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const triggerIssue = triggerSelected ? workflowTriggerIssue(automation, props.channels, props.channelsUnavailable) : null;
   const triggerReady = triggerSelected && !triggerIssue;
   const triggerLabel = isSequence ? `${waitMinutes ? `${workflowDurationLabel(waitMinutes)} after` : "After"} ${(() => { const step = earlierSteps.find((item) => item.action.key === predecessorKey); return step ? `“${stepLabel(step).slice(0, 60)}”` : "an earlier step"; })()}` : isJoin ? "Member joins for the first time"
+    : isRecord ? `Record changes · ${recordProperty?.name ?? (recordKey || "Choose a field")}`
     : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this stage` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "send_email" ? "Send an email"
@@ -260,7 +269,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
         <div className="workflow-milestone-automation-fields" id={`${id}-fields`}>
           {!props.hideTypeSelects ? <label>When
             <select value={triggerSelected ? automation.trigger.type : ""} disabled={props.disabled} onChange={event => {
-              const next = applyWorkflowTriggerType(automation, event.target.value as WorkflowTriggerType, earlierSteps);
+              const next = applyWorkflowTriggerType(automation, event.target.value as WorkflowTriggerType, earlierSteps, props.catalog?.properties?.[0]?.key);
               if (!next) return;
               if (next.trigger.type === "milestone_elapsed") setTimeUnit(1440);
               props.onChange(next);
@@ -275,6 +284,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               <option value="lesson_completed">Lesson done</option>
               <option value="course_completed">Course finished</option>
               <option value="track_completed">Roadmap track finished</option>
+              <option value="client_property_changed">Member record changes</option>
             </select>
           </label> : null}
           {triggerSelected ? <>
@@ -301,6 +311,21 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               <small className="workflow-field-hint">{waitMinutes ? `Runs ${workflowDurationLabel(waitMinutes)} after that step finishes.` : "0 starts it straight away."}</small>
             </div>
           </> : isJoin ? null
+            : isRecord ? <div className="workflow-automation-field">
+              <label>Field<select value={recordKey} disabled={props.disabled} onChange={(event) => setRecord(event.target.value)}>
+                {!recordKey ? <option value="" disabled>Choose a field</option> : null}
+                {recordKey && !recordProperty ? <option value={recordKey}>{recordKey} (archived)</option> : null}
+                {(props.catalog?.properties ?? []).map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
+              </select></label>
+              <label>Changes to{recordOptions
+                ? <select value={recordValue === undefined ? "" : String(recordValue)} disabled={props.disabled || !recordKey}
+                    onChange={(event) => setRecord(recordKey, recordProperty?.type === "checkbox" && event.target.value ? event.target.value === "true" : event.target.value)}>
+                    <option value="">Any new value</option>
+                    {recordOptions.map(([raw, text]) => <option key={raw} value={raw}>{text}</option>)}</select>
+                : <input type={recordProperty?.type === "number" ? "number" : "text"} value={recordValue === undefined ? "" : String(recordValue)} placeholder="Any new value"
+                    disabled={props.disabled || !recordKey} onChange={(event) => setRecord(recordKey, recordProperty?.type === "number" && event.target.value !== "" ? Number(event.target.value) : event.target.value)} />}</label>
+              <small className="workflow-field-hint">Runs when you, the member, a form or an agent changes it. A Workflow step's own change doesn't count, so automations can't loop. It never holds them in this stage.</small>
+            </div>
             : isLesson ? <label>Lesson<select value={lessonId ?? ""} disabled={props.disabled} onChange={e => props.onChange({ ...automation, trigger: { type: "lesson_completed", ...(e.target.value ? { resourceId: e.target.value } : {}) } })}>
                 <option value="">Any lesson</option>
                 {lessonId && !lessons.some((lesson) => lesson.id === lessonId) ? <option value={lessonId}>{lessonName}</option> : null}
@@ -399,9 +424,10 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                 {isForm ? "Uses the submitted answers and responds once in the member’s assigned private service channel. Only the member and community managers may have access. Submission stays saved if delivery is unavailable."
                   : isSequence ? "Starts after the preceding action completes and responds in the member’s assigned private service channel. The next action waits until this response is delivered. No additional tool actions."
                   : isLesson || isCourse ? "Starts once when they finish it and replies in the member’s private guide channel."
+                  : isRecord ? "Starts when their record changes and replies in the member’s private guide channel."
                   : isTimed ? "Delivered once to the member’s assigned service channel. Uses these instructions and community context, without private dossier data or additional tool actions. No delivery if the channel is unavailable."
                   : "The community agent uses this member’s community context and replies in the triggering thread."}
-                {!isSequence && !isTimed && !isForm && !isLesson && !isCourse && (isPrivate || channelId === undefined) ? " In private channels, the agent must be invited." : ""}
+                {!isSequence && !isTimed && !isForm && !isLesson && !isCourse && !isRecord && (isPrivate || channelId === undefined) ? " In private channels, the agent must be invited." : ""}
               </p>
               <AgentInputsField id={id} sees={automation.action.sees} catalog={props.catalog} forms={props.forms} disabled={props.disabled}
                 onChange={(sees) => {

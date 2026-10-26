@@ -32,6 +32,13 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   // A write on a path (another step follows it, or it follows another step) counts too.
   const followed = new Set(milestone.automations.flatMap(rule =>
     rule.trigger.type === "previous_action_completed" ? [rule.trigger.predecessorActionKey] : []));
+  // A record-change automation reacts if it happens: it and its later steps are
+  // tracked apart (reactive_actions, so a chain can follow them) and never hold the stage.
+  const reactive = new Set<string>();
+  for (const rule of milestone.automations) {
+    if (rule.trigger.type === "client_property_changed"
+      || (rule.trigger.type === "previous_action_completed" && reactive.has(rule.trigger.predecessorActionKey))) reactive.add(rule.action.key);
+  }
   const work = milestone.automations.filter(rule => !workflowRuleIsNudge(rule)
     && ((rule.action.type !== "set_client_property" && rule.action.type !== "send_email") || finishes(rule) || followed.has(rule.action.key)
       || rule.trigger.type === "previous_action_completed"));
@@ -161,6 +168,9 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       const predecessor = actions.find(a => a.action_key === predecessorKey);
       item.status = "waiting";
       item.waiting_for = predecessor?.label ?? "previous action";
+    } else if (!seen && !item.evidence && rule.trigger.type === "client_property_changed") {
+      item.status = "waiting";
+      item.waiting_for = "their record to change";
     } else if (!seen && !item.evidence && finishes(rule) && !fired) {
       item.status = "waiting";
       item.waiting_for = rule.trigger.type === "course_completed" ? "the course to be finished"
@@ -171,7 +181,10 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
     if (rule.action.type === "set_client_property" && fired && !newestRunning && !item.evidence) item.retryable = true;
     actions.push(item);
   }
-  return { actions, all_actions_complete: actions.length > 0 && actions.every(a => a.status === "complete"), scan_truncated: runs.length > 256 };
+  const holding = actions.filter(a => !reactive.has(a.action_key));
+  const reacting = actions.filter(a => reactive.has(a.action_key));
+  return { actions: holding, ...(reacting.length ? { reactive_actions: reacting } : {}),
+    all_actions_complete: holding.length > 0 && holding.every(a => a.status === "complete"), scan_truncated: runs.length > 256 };
 }
 
 

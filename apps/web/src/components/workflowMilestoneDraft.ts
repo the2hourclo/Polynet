@@ -27,6 +27,7 @@ export function workflowAutomationIssue(automation: CommunityMemberWorkflowAutom
 }
 
 export function workflowTriggerIssue(automation: CommunityMemberWorkflowAutomation, channels: CloudCommunityChannel[], unavailable: boolean): string | null {
+  if (automation.trigger.type === "client_property_changed" && !automation.trigger.propertyKey) return "Choose a field on the member record";
   if (automation.trigger.type === "previous_action_completed" && !automation.trigger.predecessorActionKey) return "Choose a preceding action";
   if (automation.trigger.type === "form_submitted" && !automation.trigger.formKey) return "Choose a published form";
   if (automation.trigger.type === "milestone_elapsed") {
@@ -109,8 +110,12 @@ export type WorkflowActionType = CommunityMemberWorkflowAutomation["action"]["ty
 
 /** Switch a rule to another trigger, keeping the action when the new trigger allows it. */
 export function applyWorkflowTriggerType(automation: WorkflowAutomationDraft, type: WorkflowTriggerType,
-  earlierSteps: CommunityMemberWorkflowAutomation[]): WorkflowAutomationDraft | null {
+  earlierSteps: CommunityMemberWorkflowAutomation[], firstPropertyKey = ""): WorkflowAutomationDraft | null {
   const action = automation.action.type;
+  if (type === "client_property_changed") {
+    return { ...replaceWorkflowDraftAction(automation, action === "create_service_channel" ? "prompt_agent" : action),
+      trigger: { type, propertyKey: automation.trigger.type === type ? automation.trigger.propertyKey : firstPropertyKey } };
+  }
   if (type === "member_joined") {
     return { ...replaceWorkflowDraftAction(automation, action === "request_form" ? "request_form" : "create_service_channel"), trigger: { type } };
   }

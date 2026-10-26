@@ -31,6 +31,7 @@ import {
   normalizeWorkflowCondition,
   workflowConditionClauses,
   workflowConditionGroupHolds,
+  workflowConditionHolds,
   workflowRuleUsesTimer,
   workflowRunWasSkipped,
   normalizeWorkflowMilestoneContext,
@@ -146,6 +147,7 @@ const automationInputValidator = v.object({
     v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
     v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
     v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("client_property_changed"), propertyKey: v.string(), value: v.optional(v.union(v.string(), v.number(), v.boolean())) }),
   ),
   action: v.union(
     v.object({ key: v.optional(v.string()), type: v.literal("create_service_channel") }),
@@ -301,7 +303,8 @@ function normalizeAutomations(
       || (input.trigger.type === "member_joined" && action.type !== "create_service_channel" && action.type !== "request_form")) throw new Error("workflow_join_action_invalid");
     // Lesson and course completion request a Form, write a property, or ask the
     // agent (through a timer that starts the moment the lesson is done).
-    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed")
+    if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed"
+      || input.trigger.type === "client_property_changed")
       && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent" && action.type !== "send_email") {
       throw new Error("lesson_trigger_action_invalid");
     }
@@ -343,6 +346,8 @@ function normalizeAutomations(
         : input.trigger.type === "lesson_completed" ? { type: "lesson_completed", ...(input.trigger.resourceId ? { resourceId: input.trigger.resourceId } : {}) }
         : input.trigger.type === "course_completed" ? { type: "course_completed", ...(input.trigger.moduleId ? { moduleId: input.trigger.moduleId } : {}) }
         : input.trigger.type === "track_completed" ? { type: "track_completed", ...(input.trigger.trackKey ? { trackKey: input.trigger.trackKey } : {}) }
+        : input.trigger.type === "client_property_changed" ? { type: "client_property_changed", propertyKey: input.trigger.propertyKey.trim(),
+          ...(input.trigger.value === undefined || input.trigger.value === "" ? {} : { value: typeof input.trigger.value === "string" ? input.trigger.value.trim().slice(0, 200) : input.trigger.value }) }
         : input.trigger.type === "milestone_elapsed"
         ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowDelayMinutes(input.trigger.delayMinutes), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
         : { type: "member_contributed", ...(input.trigger.channelId !== undefined ? { channelId: input.trigger.channelId } : {}) },
@@ -513,6 +518,12 @@ export const updateBuilderWorkflowMilestone = mutation({
         const id = ctx.db.normalizeId("communityResourceModules", automation.trigger.moduleId);
         const module = id ? await ctx.db.get(id) : null;
         if (!module || module.communityId !== args.communityId) throw new Error("workflow_course_unavailable");
+      }
+      if (automation.trigger.type === "client_property_changed") {
+        const propertyKey = automation.trigger.propertyKey;
+        const property = propertyKey ? await ctx.db.query("communityClientProperties")
+          .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", propertyKey)).unique() : null;
+        if (!property || property.archivedAt) throw new Error("client_property_not_found");
       }
       if (automation.trigger.type === "track_completed" && automation.trigger.trackKey && automation.trigger.trackKey !== COMMUNITY_MAIN_TRACK_KEY) {
         const trackKey = automation.trigger.trackKey;
@@ -1176,7 +1187,7 @@ export const reconcileCompletedWorkflowActionsInternal = internalMutation({
     const progress = await readWorkflowActionProgress(ctx, { workflow, membership, milestone: current.milestone,
       milestoneEnteredAt: current.milestoneEnteredAt, transitionSeq: state?.transitionSeq ?? 0 });
     if (progress.scan_truncated) return { status: "completion_scan_truncated" };
-    const completed = progress.actions.find(a => a.evidence?.run_id === String(run._id));
+    const completed = [...progress.actions, ...(progress.reactive_actions ?? [])].find(a => a.evidence?.run_id === String(run._id));
     if (!completed) return { status: "incomplete" };
     for (const automation of current.milestone.automations) {
       if (automation.trigger.type !== "previous_action_completed"
@@ -1715,6 +1726,40 @@ export const handleLessonCompletedInternal = internalMutation({
           results.push(await runRule(automation, `track_completed:${track.key}:${membership._id}:${membership.activationSequence ?? 0}`));
         }
       }
+    }
+    return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
+  },
+});
+
+// A client property on the member's record changed. The change's timeline
+// event is the receipt, so a replay never runs a rule twice. Writes made by a
+// Workflow step never get here (communityClients skips them), so rules can't loop.
+export const handleClientPropertyChangedInternal = internalMutation({
+  args: { communityId: v.id("communities"), membershipId: v.id("communityMemberships"), eventId: v.id("communityClientEvents") },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event || event.type !== "property_set" || !event.propertyKey || String(event.membershipId) !== String(args.membershipId)) return { status: "event_missing" as const };
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    if (!workflow || workflow.milestones.length < 1) return { status: "workflow_ineligible" as const };
+    const membership = await ctx.db.get(args.membershipId);
+    if (!membership || membership.communityId !== args.communityId || !communityMembershipRowIsActive(membership)) return { status: "membership_ineligible" as const };
+    const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+    const current = resolveCurrentMilestone({ workflow, membership, state });
+    if (current.completedAt) return { status: "workflow_completed" as const };
+    const matches = (current.milestone as CommunityMemberWorkflowMilestone).automations.filter(a => a.trigger.type === "client_property_changed"
+      && a.trigger.propertyKey === event.propertyKey
+      && (a.trigger.value === undefined || workflowConditionHolds({ propertyKey: a.trigger.propertyKey, op: "is", value: a.trigger.value }, event.value as any)));
+    const results = [];
+    for (const automation of matches) {
+      const receipt = `client_property_changed:${args.eventId}`;
+      if (automation.action.type !== "prompt_agent") {
+        results.push(await executeWorkflowAutomation({ ctx, workflow, membership, current, automation, timerReceiptRef: receipt }));
+        continue;
+      }
+      // An agent step needs a durable source, so the change starts it through a timer due now.
+      const timer = await startWorkflowSourceTimer({ ctx, workflow, membership, current, transitionSeq: Number(state?.transitionSeq ?? 0),
+        automation, startedAt: Date.now(), sourceRef: receipt });
+      results.push({ status: await runWorkflowTimerNow(ctx, timer) ? "agent_started" as const : "already_executed" as const });
     }
     return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
   },
