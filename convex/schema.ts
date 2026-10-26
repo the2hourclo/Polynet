@@ -3317,6 +3317,22 @@ export default defineSchema({
     .index("by_community_resource", ["communityId", "resourceId"])
     .index("by_community_updatedAt", ["communityId", "updatedAt"]),
 
+  // Earlier versions of a lesson's body, so an owner (or their agent) can go
+  // back. One row per editing session: autosave keeps changing the body every
+  // second or so, and only the version before a pause of a few minutes is kept.
+  communityResourceRevisions: defineTable({
+    communityId: v.id("communities"),
+    resourceId: v.id("communityResources"),
+    title: v.string(),
+    bodyMd: v.string(),
+    bodyChars: v.number(),
+    bodyHash: v.string(),
+    // When this version was last saved, before it was replaced.
+    savedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_resource_createdAt", ["resourceId", "createdAt"]),
+
   communitySourceUnits: defineTable({
     communityId: v.id("communities"),
     crawlJobId: v.id("communitySourceCrawlJobs"),

@@ -1102,12 +1102,21 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   min-width: min(100%, 12rem);
 }
 /* The Resources · Roadmap · Graph switcher keeps clear of the shell's top-right
-   icons (messages, display, settings, your picture) in every look. */
+   icons (messages, display, view as member, settings, your picture) in every
+   look: it sits beside the Knowledge title, on the left, and the header keeps
+   the icons' width free on the right whatever is in the bar (Rashid,
+   2026-10-26: the chat icon sat on Graph). Reading a lesson, the switcher
+   stays on the back link's row at the right, inside that same clearance. */
 @media (min-width: 641px) {
   .product-shell-surface .community-knowledge-page .community-knowledge-header,
   .product-shell-surface[data-channels-feel] .community-knowledge-page .community-knowledge-header,
   .product-shell-surface .community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .community-knowledge-header {
-    padding-right: 11.5rem;
+    padding-right: calc(var(--web-topbar-right-action-safe-inset, 11.5rem) + 1rem);
+  }
+  .product-shell-surface .community-knowledge-page:not([data-reading]) .community-knowledge-header {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    column-gap: 1.75rem;
   }
 }
 

@@ -597,6 +597,7 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityResources:updateCommunityLessonBoard": "agent path: /builder/resources/ changesets (edit_page with lesson stage, order and title)",
   "communityResources:reorderCommunityResourceModules": "agent path: /builder/resources/ changesets",
   "communityResources:deleteCommunityResource": "agent path: /builder/resources/ changesets (delete_page)",
+  "communityResources:restoreCommunityResourceRevision": "agent path: /builder/resources/ (a page lists its revisions; read one, then edit_page with its body_md and title)",
   "communityResources:deleteCommunityResourceModule": "agent path: /builder/resources/ changesets (delete_category)",
   "communityResources:importGitHubSourceFiles": "agent path: /builder/resources/ changesets (polynet push sends local files)",
   "communityResources:importGoogleDriveSourceFiles": "agent path: /builder/resources/ changesets (polynet push sends local files)",

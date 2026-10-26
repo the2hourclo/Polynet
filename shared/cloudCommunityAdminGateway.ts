@@ -1512,6 +1512,38 @@ export async function saveCloudCommunityResource<SessionT, TResult = unknown>(
   return payload as TResult;
 }
 
+/** One earlier version of a lesson, from its Version history. */
+export type CloudCommunityResourceRevision = {
+  id: string;
+  resource_id: string;
+  title: string;
+  saved_at: string | null;
+  replaced_at: string | null;
+  body_chars: number;
+  body_md: string;
+};
+
+export async function listCloudCommunityResourceRevisions<SessionT>(
+  params: CloudCommunityAdminGatewayParams<SessionT> & { resourceId: string },
+): Promise<CloudCommunityResourceRevision[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  const payload = await client.query("communityResources:listCommunityResourceRevisions" as any, {
+    authSubject,
+    resourceId: params.resourceId,
+  });
+  return coerceGatewayRows<CloudCommunityResourceRevision>(payload);
+}
+
+export async function restoreCloudCommunityResourceRevision<SessionT>(
+  params: CloudCommunityAdminGatewayParams<SessionT> & { revisionId: string },
+): Promise<void> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  await client.mutation("communityResources:restoreCommunityResourceRevision" as any, {
+    authSubject,
+    revisionId: params.revisionId,
+  });
+}
+
 export type CloudCommunityLessonBoardUpdate = { resourceId: string; stage: string; stageOrder?: number; order?: number; title?: string };
 
 /** Roadmap editing: stages and lesson order (and titles) for many lessons in one write. */

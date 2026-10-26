@@ -117,6 +117,10 @@ export type CommunityResourcesActions = {
     saveInlineEditResource: (options?: { keepEditing?: boolean }) => Promise<boolean>;
     // Puts a picture in Polynet's storage and returns its address (lesson editor).
     uploadImage?: (file: File) => Promise<string>;
+    // Version history (earlier versions, newest first) and putting one back;
+    // Undo after Done restores the text the editing began with.
+    listVersions?: (resourceId: string) => Promise<CommunityResourceVersion[]>;
+    restoreVersion?: (target: CommunityResourceRestoreTarget) => Promise<boolean>;
     onChangeTitle: (value: string) => void;
     onChangeUrl: (value: string) => void;
     onChangeBody: (value: string) => void;
@@ -125,3 +129,17 @@ export type CommunityResourcesActions = {
   handleDeleteResource: (resourceId: string) => Promise<boolean> | boolean;
   handleCreateBlankPageDraft: (moduleId: string, lesson?: { order: number; stage?: string; stage_order?: number }) => Promise<CommunityResource | null>;
 };
+
+export type CommunityResourceVersion = {
+  id: string;
+  resource_id: string;
+  title: string;
+  saved_at: string | null;
+  replaced_at: string | null;
+  body_chars: number;
+  body_md: string;
+};
+
+export type CommunityResourceRestoreTarget =
+  | { revisionId: string }
+  | { resourceId: string; title: string; bodyMd: string | null };

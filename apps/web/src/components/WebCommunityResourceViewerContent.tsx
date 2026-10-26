@@ -28,7 +28,7 @@ import { markCommunityLessonElementBlocks } from "../../../../shared/communityLe
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
-import { Check, Eye, FileText, ListOrdered, PenLine, PlayCircle } from "lucide-react";
+import { Check, Eye, FileText, History, ListOrdered, PenLine, PlayCircle } from "lucide-react";
 import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import {
   isLessonFileLink,
@@ -151,6 +151,8 @@ export type WebCommunityResourceInlineEditor = {
   /** Saves and keeps editing (autosave). */
   onSaveInPlace?: (() => Promise<boolean>) | null;
   onUploadImage?: ((file: File) => Promise<string>) | null;
+  /** Opens the lesson's Version history. */
+  onOpenVersions?: (() => void) | null;
   onCancel: () => void;
 };
 
@@ -717,6 +719,17 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
                   {isPreviewing ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}
                   <span className="lesson-editor-header-label">{isPreviewing ? "Edit" : "Preview"}</span>
                 </button>
+                {editor.onOpenVersions ? (
+                  <button
+                    className="lesson-editor-header-button"
+                    type="button"
+                    onClick={() => editor.onOpenVersions?.()}
+                    title="Earlier versions of this lesson"
+                  >
+                    <History aria-hidden="true" />
+                    <span className="lesson-editor-header-label">History</span>
+                  </button>
+                ) : null}
                 <button
                   className="lesson-editor-header-button is-primary"
                   type="button"

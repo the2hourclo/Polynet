@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -10,6 +11,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronsDown, Chevro
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
 import type {
   CommunityResource,
+  CommunityResourceVersion,
   CommunityResourceModule,
   CommunityResourcesActions,
   CommunityResourcesCapabilities,
@@ -21,6 +23,7 @@ import {
   type WebLessonActivity,
 } from "./WebCommunityResourceViewerContent";
 import { WebDeleteResourceModal } from "./WebDeleteResourceModal";
+import { WebLessonVersionHistory } from "./WebLessonVersionHistory";
 import { ResourceCourseCatalog, type ResourceCourseProgress } from "./ResourceCourseCatalog";
 import { setMemberViewOn, useMemberView, useOfferMemberView } from "./memberViewStore";
 import { createBrowserCommunityEmbedStorage, type CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
@@ -740,11 +743,80 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     }
   };
 
+  // Undo after Done: the lesson as it stood when editing began. Autosave keeps
+  // saving while the owner types, so once editing ends the saved lesson is
+  // compared with this, and if it changed a toast offers to put it back.
+  type EditSessionStart = { resourceId: string; title: string; bodyMd: string | null };
+  const editSessionStartRef = useRef<EditSessionStart | null>(null);
+  const [undoCheck, setUndoCheck] = useState<EditSessionStart | null>(null);
+  const [undoOffer, setUndoOffer] = useState<EditSessionStart | null>(null);
+  const [undoNote, setUndoNote] = useState<string | null>(null);
+  const [historyResourceId, setHistoryResourceId] = useState<string | null>(null);
+  const editingResourceId = actions.resourceEditor.editingResourceId;
+  const wasEditingRef = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = wasEditingRef.current;
+    wasEditingRef.current = editingResourceId;
+    if (!previous || editingResourceId === previous) return;
+    const start = editSessionStartRef.current;
+    editSessionStartRef.current = null;
+    if (start?.resourceId === previous) setUndoCheck(start);
+  }, [editingResourceId]);
+  // The list reloads after the last save; compare once it has.
+  useEffect(() => {
+    if (!undoCheck) return;
+    const saved = state.resources.find((resource) => resource.id === undoCheck.resourceId);
+    if (saved && (saved.title !== undoCheck.title || (saved.body_md ?? "") !== (undoCheck.bodyMd ?? ""))) {
+      setUndoOffer(undoCheck);
+      setUndoNote(null);
+      setUndoCheck(null);
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setUndoCheck(null), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [undoCheck, state.resources]);
+  useEffect(() => {
+    if (!undoOffer && !undoNote) return;
+    const timeoutId = window.setTimeout(() => {
+      setUndoOffer(null);
+      setUndoNote(null);
+    }, undoOffer ? 15000 : 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [undoOffer, undoNote]);
+  const undoLastEdit = async () => {
+    const offer = undoOffer;
+    if (!offer || !actions.resourceEditor.restoreVersion) return;
+    setUndoOffer(null);
+    const ok = await actions.resourceEditor.restoreVersion({ resourceId: offer.resourceId, title: offer.title, bodyMd: offer.bodyMd });
+    setUndoNote(ok ? "Changes undone." : "Couldn't undo. Open History to restore an earlier version.");
+  };
+  const historyResource = historyResourceId ? state.resources.find((resource) => resource.id === historyResourceId) ?? null : null;
+  const listVersions = actions.resourceEditor.listVersions;
+  const loadHistory = useCallback(
+    () => (historyResourceId && listVersions ? listVersions(historyResourceId) : Promise.resolve([])),
+    [historyResourceId, listVersions],
+  );
+  const restoreHistoryVersion = async (version: CommunityResourceVersion) => {
+    if (!actions.resourceEditor.restoreVersion) return false;
+    // The editor's text would be saved over the restored version, so editing stops first.
+    if (actions.resourceEditor.editingResourceId === version.resource_id) {
+      editSessionStartRef.current = null;
+      actions.resourceEditor.cancelInlineEditResource();
+      setActiveResourceEditField(null);
+    }
+    const ok = await actions.resourceEditor.restoreVersion({ revisionId: version.id });
+    if (ok) setUndoNote("Earlier version restored. The one it replaced is in History.");
+    return ok;
+  };
+
   const startResourceInlineEdit = (
     resource: CommunityResource,
     field: WebCommunityResourceInlineEditorField,
   ) => {
     handleSelectResource(resource);
+    if (actions.resourceEditor.editingResourceId !== resource.id) {
+      editSessionStartRef.current = { resourceId: resource.id, title: resource.title, bodyMd: resource.body_md };
+    }
     actions.resourceEditor.beginInlineEditResource(resource);
     setActiveResourceEditField(field);
   };
@@ -881,6 +953,9 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           onSave: saveResourceInlineEdit,
           onSaveInPlace: () => actions.resourceEditor.saveInlineEditResource({ keepEditing: true }),
           onUploadImage: actions.resourceEditor.uploadImage ?? null,
+          onOpenVersions: actions.resourceEditor.listVersions && actions.resourceEditor.restoreVersion
+            ? () => setHistoryResourceId(selectedResource.id)
+            : null,
           onCancel: cancelResourceInlineEdit,
         }
       : null;
@@ -1101,6 +1176,33 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
         )}
       </div>
 
+      {historyResourceId ? (
+        <WebLessonVersionHistory
+          resourceTitle={historyResource?.title ?? ""}
+          load={loadHistory}
+          onRestore={restoreHistoryVersion}
+          onClose={() => setHistoryResourceId(null)}
+        />
+      ) : null}
+      {undoOffer || undoNote ? (
+        <div className="lesson-undo-toast" role="status" aria-live="polite">
+          <span>{undoOffer ? "Lesson saved." : undoNote}</span>
+          {undoOffer ? (
+            <button type="button" onClick={() => void undoLastEdit()}>Undo changes</button>
+          ) : null}
+          <button
+            type="button"
+            className="lesson-undo-toast-close"
+            aria-label="Dismiss"
+            onClick={() => {
+              setUndoOffer(null);
+              setUndoNote(null);
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       <WebDeleteResourceModal
         isOpen={Boolean(pendingDeleteResource)}
         resourceTitle={pendingDeleteResource?.title ?? null}

@@ -7,15 +7,18 @@ import {
   deleteCloudCommunityResourceModule,
   ingestCloudCommunitySources,
   listCloudCommunityResourceModuleRows,
+  listCloudCommunityResourceRevisions,
   listCloudCommunityResourceRows,
   moveCloudCommunityResourceToModule,
   prepareCloudCommunityBrandingField,
   reorderCloudCommunityResourceModules,
   reorderCloudCommunityResources,
+  restoreCloudCommunityResourceRevision,
   saveCloudCommunityResource,
   saveCloudCommunityResourceModule,
   uploadCloudCommunityResourceImage,
   uploadCloudCommunityResourceSourceFile,
+  type CloudCommunityResourceRevision,
   type CloudCommunitySourceIngestionResult,
 } from "./cloudCommunityAdminGateway";
 
@@ -397,6 +400,40 @@ export function useCommunityResourceController<
       current.setIsSavingResource(false);
     }
   }, [loadCommunityResources, resetResourceEditor]);
+
+  // Version history: a lesson's earlier versions, and putting one back.
+  // Undo after Done puts back the text the editing began with.
+  const handleListCommunityResourceRevisions = useCallback(async (resourceId: string): Promise<CloudCommunityResourceRevision[]> => {
+    const current = argsRef.current;
+    const session = await resolveUsableSession(current.session, current.ensureSession);
+    if (!session) throw new Error("Sign in again to see earlier versions.");
+    return listCloudCommunityResourceRevisions({ session, resourceId });
+  }, []);
+
+  const handleRestoreCommunityResource = useCallback(async (
+    target: { revisionId: string } | { resourceId: string; title: string; bodyMd: string | null },
+  ): Promise<boolean> => {
+    const current = argsRef.current;
+    const session = await resolveUsableSession(current.session, current.ensureSession);
+    if (!session || !current.activeCommunityId) return false;
+    try {
+      if ("revisionId" in target) {
+        await restoreCloudCommunityResourceRevision({ session, revisionId: target.revisionId });
+      } else {
+        await saveCloudCommunityResource({
+          session,
+          resourceId: target.resourceId,
+          isPatch: true,
+          payload: { title: target.title, body_md: target.bodyMd },
+        });
+      }
+      await loadCommunityResources(current.activeCommunityId, session);
+      return true;
+    } catch (error) {
+      current.setResourceError(error instanceof Error ? error.message : "Couldn't restore that version.");
+      return false;
+    }
+  }, [loadCommunityResources]);
 
   const handleUploadCommunityResourceImage = useCallback(async (file: File | Blob) => {
     const current = argsRef.current;
@@ -909,6 +946,8 @@ export function useCommunityResourceController<
     handleSaveCommunityResourceModule,
     handleSetCommunityResourceModuleStatus,
     handleSetCommunityResourceModuleLessonStyle,
+    handleListCommunityResourceRevisions,
+    handleRestoreCommunityResource,
     handleDeleteCommunityResourceModule,
     handleReorderCommunityResourceModules,
     handleReorderCommunityResources,
