@@ -4330,6 +4330,59 @@ test("the layout is its own design record over the MCP: publishing it never rese
     .rejects.toThrow();
 });
 
+test("a long lesson goes up whole in sections, reads back section by section, and an oversized section is refused, never cut", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const call = async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(asOwner), authSubject: fixture.ownerSubject, userId: fixture.ownerId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+    return result.value as any;
+  };
+  const community = "canonical-community";
+  // About the size of AIEB's Asset Explorer lesson (27.8k characters), in three sections.
+  const part = (title: string) => `## ${title}\n\n${"Each asset has a score and an owner. ".repeat(250)}\n`;
+  const long = ["Start by listing what you own.", part("Find your assets"), part("Score them"), part("Pick the first one")].join("\n\n").trim();
+  expect(long.length).toBeGreaterThan(27_000);
+  const courses = (body: string) => resolveCourses([{
+    key: "01-start", folder: "01-start", name: "Start here", description: "", status: "live",
+    lessons: [{ path: "01-start/01-assets.md", title: "Asset Explorer", lesson: { stage: "Map", order: 1 }, source_md: body }],
+  }], "https://canonical-community.polynet.page");
+
+  const plan = await planContentPush({ community, courses: courses(long), call });
+  const staged = await stageChangeset({ community, changeset: plan.changesets[0], call });
+  await asOwner.mutation(api.communityResources.applyCommunityResourceBuilderChangeset, {
+    communityId: fixture.communityId, changesetId: staged.ref as any,
+  });
+  const page = (await t.run(async (ctx) => await ctx.db.query("communityResources").collect())).find((row: any) => row.title === "Asset Explorer")!;
+  const stored = await t.run(async (ctx) =>
+    (await ctx.db.query("communityResourceContents").collect()).find((row: any) => row.resourceId === page._id)?.bodyMd);
+  expect(stored).toBe(long);
+
+  // An agent sees the sections and reads one at a time by offset.
+  await t.run(async (ctx) => { await ctx.db.patch(page._id, { status: "published" }); });
+  const module = (await t.run(async (ctx) => await ctx.db.query("communityResourceModules").collect())).find((row: any) => row.name === "Start here")!;
+  const path = `/communities/${community}/resources/start-here~${module._id}/asset-explorer~${page._id}.md`;
+  const first = await call("polynet_read", { path });
+  expect(first.sections.map((section: any) => section.heading)).toEqual([null, "Find your assets", "Score them", "Pick the first one"]);
+  const third = first.sections[2];
+  const section = await call("polynet_read", { path, offset: third.offset, limit: third.chars });
+  expect(section.body.startsWith("## Score them")).toBe(true);
+
+  // One section over 20,000 characters is refused whole, with what to do, and nothing is staged.
+  const oversized = `${long}\n\n## Appendix\n\n${"x".repeat(20_500)}`;
+  const refused = await planContentPush({ community, courses: courses(oversized), call })
+    .then((next) => stageChangeset({ community, changeset: next.changesets[0], call }))
+    .catch((error: Error) => error);
+  expect(String(refused)).toContain('The section "Appendix" is');
+  expect(String(refused)).toContain("Add a ## heading inside it");
+  expect(await t.run(async (ctx) =>
+    (await ctx.db.query("communityResourceContents").collect()).find((row: any) => row.resourceId === page._id)?.bodyMd)).toBe(long);
+});
+
 test("the community brand is a design record with no publish step, for managers only", async () => {
   const t = convexTest(schema, modules);
   const fixture = await createFixture(t);

@@ -6,7 +6,7 @@
 //
 //   node packages/polynet-cli/tools/build-contracts.mjs
 import { readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
@@ -17,6 +17,8 @@ export const CONTRACTS = {
   "embed.mjs": "shared/communityEmbed.ts",
   "theme.mjs": "shared/communityTheme.ts",
   "layout.mjs": "shared/communityLayout.ts",
+  "sections.mjs": "shared/communityLessonSections.ts",
+  "brand.mjs": "shared/communityBrand.ts",
 };
 
 export async function buildContract(source) {
@@ -24,7 +26,11 @@ export async function buildContract(source) {
   const { outputText } = ts.transpileModule(text, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, removeComments: false },
   });
-  return `// Generated from ${source} by tools/build-contracts.mjs. Do not edit.\n${outputText}`;
+  // A contract that imports another (the brand reads the theme) imports its copy.
+  const linked = Object.entries(CONTRACTS).reduce((code, [file, other]) =>
+    code.replaceAll(`from "./${basename(other, ".ts")}"`, `from "./${file}"`), outputText);
+  if (/from "\.\.?\//.test(linked.replace(/from "\.\/[a-z]+\.mjs"/g, ""))) throw new Error(`${source} imports a file that isn't a contract.`);
+  return `// Generated from ${source} by tools/build-contracts.mjs. Do not edit.\n${linked}`;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

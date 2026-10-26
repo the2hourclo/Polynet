@@ -23,7 +23,7 @@ import {
   readCheckedFiles, uploadBuckets,
 } from "../lib.mjs";
 import { checkSite, formatProblems } from "../checks.mjs";
-import { checkCourses, checkLayout, checkTheme, describeOperation, lessonEmbeds, planContentPush, readCourses, resolveCourses, stageChangeset } from "../content.mjs";
+import { checkBrand, checkCourses, checkLayout, checkTheme, checkThemeAgainstBrand, describeOperation, lessonEmbeds, planContentPush, readCourses, resolveCourses, stageChangeset } from "../content.mjs";
 import { designFiles, draftPreviewUrl, initFromTemplate, listTemplates, publishFolderDraft, pullDesign, saveFolderDraft, watchDesign } from "../design.mjs";
 import { createMcpClient, PolynetToolError } from "../mcp.mjs";
 import { readProject, siteFiles } from "../project.mjs";
@@ -255,18 +255,19 @@ async function checkProject(project) {
       for (const item of list) problems.push({ level, path: item.path, message: item.message });
     }
   }
-  let theme = null;
-  for (const [kind, file, checkRecord] of [["theme", project.theme, checkTheme], ["layout", project.layout, checkLayout]]) {
+  const records = {};
+  for (const [kind, file] of [["brand", project.brand], ["theme", project.theme], ["layout", project.layout]]) {
     if (!file) continue;
     const where = file.slice(project.root.length + 1) || `${kind}.json`;
     try {
-      const record = JSON.parse(await readFile(file, "utf8"));
-      if (kind === "theme") theme = record;
-      problems.push(...checkRecord(record, where));
+      records[kind] = JSON.parse(await readFile(file, "utf8"));
+      problems.push(...DESIGN_CHECKS[kind](records[kind], where));
     } catch (error) {
       problems.push({ level: "error", path: where, message: `Not valid JSON (${error.message}).` });
     }
   }
+  if (records.theme && records.brand) problems.push(...checkThemeAgainstBrand(records.theme, records.brand));
+  const theme = records.theme ?? null;
   return { problems: problems.sort((a, b) => (a.level === b.level ? 0 : a.level === "error" ? -1 : 1)), files, courses, theme };
 }
 
@@ -290,7 +291,7 @@ async function check(args) {
     const lessons = courses.reduce((n, course) => n + course.lessons.length, 0);
     console.log(errors
       ? `\n${errors} problem${errors === 1 ? "" : "s"} to fix first.`
-      : `✓ Checked ${files.length} site files${courses.length ? `, ${courses.length} courses and ${lessons} lessons` : ""}${[project.theme && "the theme", project.layout && "the layout"].filter(Boolean).map((part) => ` and ${part}`).join("")}.`);
+      : `✓ Checked ${files.length} site files${courses.length ? `, ${courses.length} courses and ${lessons} lessons` : ""}${[project.brand && "the brand", project.theme && "the theme", project.layout && "the layout"].filter(Boolean).map((part) => ` and ${part}`).join("")}.`);
   }
   if (errors) process.exit(1);
 }
@@ -432,9 +433,8 @@ async function init(args) {
   }
   const root = designDir(args);
   const community = flagValue(args, "--community");
-  // Only a template that keeps the founder's theme needs to ask Polynet for it.
-  const keepsTheme = (await listTemplates()).find((entry) => entry.name === template)?.apply?.theme === "keep_existing";
-  const call = community && keepsTheme
+  // With a community, the template starts from its brand and keeps its theme where the template says so.
+  const call = community
     ? createMcpClient({ url: `${API_URL}/runtime/mcp`, token: await accessToken() }).call
     : undefined;
   const chosen = await initFromTemplate({ root, template, community, call });
@@ -442,7 +442,8 @@ async function init(args) {
   // The design skills travel with the folder, so the founder's agent designs with them.
   await installSkills(root);
   if (JSON_OUTPUT) return console.log(JSON.stringify({ ok: true, template: chosen }, null, 2));
-  const kept = { kept: "  Kept this folder's theme.json.", community: `  Kept ${community}'s own theme in theme.json.` }[chosen.theme];
+  const kept = { kept: "  Kept this folder's theme.json.", community: `  Kept ${community}'s own theme in theme.json.`,
+    brand: "  Made theme.json from your brand's colours and fonts on the template's look." }[chosen.theme];
   say(`✓ Started from ${chosen.label ?? template} in ${root}.`, ...(kept ? [kept] : []), "  Edit theme.json (or ask your agent to: Polynet's design skills are in .claude/skills and .agents/skills),", "  then run polynet dev to see it on your community.");
 }
 
@@ -458,7 +459,7 @@ async function pull(args) {
   }
 }
 
-const DESIGN_CHECKS = { theme: checkTheme, layout: checkLayout };
+const DESIGN_CHECKS = { brand: checkBrand, theme: checkTheme, layout: checkLayout };
 
 async function saveDraftOnce({ project, files, call }) {
   const result = await saveFolderDraft({ root: project.root, files, community: project.community, call,

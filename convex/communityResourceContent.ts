@@ -5,6 +5,10 @@ import {
   normalizeIdValue,
   normalizeOptionalText,
 } from "./communityCore";
+import {
+  COMMUNITY_RESOURCE_BODY_MAX_CHARS,
+  checkCommunityResourceBody,
+} from "../shared/communityLessonSections";
 
 export type CommunityResourceContentLike = {
   _id: any;
@@ -24,6 +28,21 @@ export function normalizeCommunityResourceBodyMd(
   maxChars = COMMUNITY_RESOURCE_BODY_DEFAULT_MAX_CHARS,
 ): string | null {
   return normalizeOptionalText(raw, maxChars) ?? null;
+}
+
+/**
+ * A body someone wrote (the editor, a changeset, an agent): refused whole,
+ * with a message saying what to change, when it is too long for a page or one
+ * of its sections is. Never cut off. See shared/communityLessonSections.ts.
+ */
+export function normalizeAuthoredCommunityResourceBodyMd(raw: unknown): string | null {
+  const bodyMd = String(raw ?? "").trim();
+  if (!bodyMd) return null;
+  const problems = checkCommunityResourceBody(bodyMd);
+  if (problems.length) {
+    throw new Error(`community_resource_body_too_long: ${problems.map((problem) => problem.message).join(" ")}`);
+  }
+  return bodyMd;
 }
 
 async function getCommunityResourceContentRow(

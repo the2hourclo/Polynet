@@ -18,14 +18,16 @@ import { parseCommunityLessonMarkdown } from "./contracts/lesson.mjs";
 import { parseCommunityEmbedBlock, COMMUNITY_EMBED_LANGUAGE } from "./contracts/embed.mjs";
 import { normalizeCommunityTheme } from "./contracts/theme.mjs";
 import { normalizeCommunityLayout } from "./contracts/layout.mjs";
+import { checkCommunityResourceBody } from "./contracts/sections.mjs";
+import { normalizeCommunityBrand, themeDriftsFromBrand } from "./contracts/brand.mjs";
 
-// The server's limits (convex/communityResources.ts). Over them, the server
-// cuts text off silently, so check refuses first.
+// The server's limits (convex/communityResources.ts). A lesson body's limits
+// (sections of up to 20,000 characters) come from contracts/sections.mjs.
 export const LIMITS = {
-  bodyChars: 20_000,
   titleChars: 120,
   descriptionChars: 1_200,
   changesetOperations: 25,
+  changesetBodyChars: 250_000,
   summaryChars: 1_000,
 };
 
@@ -172,9 +174,8 @@ export function checkCourses(courses, siteFiles) {
       if (lesson.title.length > LIMITS.titleChars) {
         problems.push({ level: "error", path: lesson.path, message: `The title is ${lesson.title.length} characters; Polynet keeps ${LIMITS.titleChars}.` });
       }
-      const chars = (lesson.body_md ?? lesson.source_md).length;
-      if (chars > LIMITS.bodyChars) {
-        problems.push({ level: "error", path: lesson.path, message: `The lesson is ${chars.toLocaleString("en-US")} characters; Polynet keeps ${LIMITS.bodyChars.toLocaleString("en-US")} and would cut off the end. Split it into two lessons.` });
+      for (const problem of checkCommunityResourceBody(lesson.body_md ?? lesson.source_md)) {
+        problems.push({ level: "error", path: lesson.path, message: problem.message });
       }
       for (const block of embedBlocks(lesson.source_md)) {
         const parsed = parseCommunityEmbedBlock(block.raw);
@@ -220,6 +221,24 @@ export function checkLayout(raw, path = "layout.json") {
     path: problem.path ? `${path} → ${problem.path}` : path,
     message: problem.message,
   }));
+}
+
+export function checkBrand(raw, path = "brand.json") {
+  const result = normalizeCommunityBrand(raw);
+  if (result.ok) return [];
+  return result.problems.map((problem) => ({
+    level: "error",
+    path: problem.path ? `${path} → ${problem.path}` : path,
+    message: problem.message,
+  }));
+}
+
+/** Warnings, never errors: where a theme strays from the brand it should carry. */
+export function checkThemeAgainstBrand(theme, brand, path = "theme.json") {
+  const checkedTheme = normalizeCommunityTheme(theme);
+  const checkedBrand = normalizeCommunityBrand(brand);
+  if (!checkedTheme.ok || !checkedBrand.ok) return [];
+  return themeDriftsFromBrand(checkedTheme.theme, checkedBrand.brand).map((message) => ({ level: "warning", path, message }));
 }
 
 // ------------------------------------------------------------------- planning
@@ -350,32 +369,40 @@ export async function planContentPush({ community, courses, call }) {
   return { changesets: packChangesets(community, courseChanges), courseChanges, untracked, unverified };
 }
 
+const bodyChars = (operation) => String(operation.body_md ?? "").length;
+
 /**
- * Packs course changes into changesets of at most 25 operations. A new
- * course's pages name it by module_key, so they must share its changeset: when
- * a new course has more than 24 lessons, the rest wait for the next push (once
- * the course exists).
+ * Packs course changes into changesets of at most 25 operations whose lesson
+ * bodies fit one changeset's budget. A new course's pages name it by
+ * module_key, so they must share its changeset: the lessons that don't fit
+ * wait for the next push (once the course exists).
  */
 export function packChangesets(community, courseChanges) {
   const max = LIMITS.changesetOperations;
+  const budget = LIMITS.changesetBodyChars;
   const changesets = [];
-  let current = { courses: [], operations: [] };
+  let current = { courses: [], operations: [], chars: 0 };
   const flush = () => {
     if (!current.operations.length) return;
     const summary = `polynet push: ${current.courses.join(", ")}`.slice(0, LIMITS.summaryChars);
     changesets.push({ summary, operations: current.operations, idempotency_key: changeId(community, current.operations), courses: current.courses });
-    current = { courses: [], operations: [] };
+    current = { courses: [], operations: [], chars: 0 };
   };
+  const fits = (operation) => current.operations.length < max && current.chars + bodyChars(operation) <= budget;
   for (const change of courseChanges) {
     let operations = change.operations;
     if (change.created) {
-      operations = operations.slice(0, max);
-      if (current.operations.length + operations.length > max) flush();
+      let count = 0;
+      let chars = 0;
+      while (count < Math.min(max, operations.length) && chars + bodyChars(operations[count]) <= budget) chars += bodyChars(operations[count++]);
+      operations = operations.slice(0, count);
+      if (current.operations.length + operations.length > max || current.chars + chars > budget) flush();
     }
-    for (let i = 0; i < operations.length; i += 1) {
-      if (current.operations.length >= max) flush();
+    for (const operation of operations) {
+      if (!fits(operation)) flush();
       if (!current.courses.includes(change.course)) current.courses.push(change.course);
-      current.operations.push(operations[i]);
+      current.operations.push(operation);
+      current.chars += bodyChars(operation);
     }
   }
   flush();

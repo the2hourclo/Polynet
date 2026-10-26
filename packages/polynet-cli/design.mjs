@@ -9,6 +9,8 @@ import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises"
 import { existsSync, watch } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeCommunityBrand, themeFromCommunityBrand } from "./contracts/brand.mjs";
+import { normalizeCommunityTheme } from "./contracts/theme.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const TEMPLATES_DIR = join(HERE, "templates");
@@ -19,7 +21,10 @@ const STATE_FILE = join(".polynet", "design.json");
 
 // The design records a folder holds, each with its own draft and revision on
 // Polynet, so publishing a layout never resets the theme or the other way round.
-export const DESIGN_RECORDS = ["theme", "layout"];
+// The brand (shared/communityBrand.ts) is what the community should feel like:
+// members never see it, so it is saved but never published.
+export const DESIGN_RECORDS = ["brand", "theme", "layout"];
+const UNPUBLISHED_RECORDS = new Set(["brand"]);
 
 const recordPath = (community, kind) => `/communities/${community}/builder/${kind}.json`;
 const capability = (community, operation) => `/communities/${community}/capabilities/${operation}.json`;
@@ -60,7 +65,7 @@ async function callDesign({ community, call, operation, input }) {
 
 /** Saves a record as the draft only managers see. Refuses if the draft moved past `expectedRevision`. */
 export async function saveDesignDraft({ community, kind, record, expectedRevision, call }) {
-  return await callDesign({ community, call, operation: `community.${kind}.save_draft`,
+  return await callDesign({ community, call, operation: UNPUBLISHED_RECORDS.has(kind) ? `community.${kind}.save` : `community.${kind}.save_draft`,
     input: { [kind]: record, expected_draft_revision: expectedRevision } });
 }
 
@@ -93,16 +98,17 @@ async function writeRevision(root, community, kind, revision) {
 
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
-/** The folder's design files: theme.json and layout.json unless polynet.json says otherwise. */
+/** The folder's design files: brand.json, theme.json and layout.json unless polynet.json says otherwise. */
 export const designFiles = (root, config = {}) => ({
+  brand: resolve(root, config.brand ?? "brand.json"),
   theme: resolve(root, config.theme ?? "theme.json"),
   layout: resolve(root, config.layout ?? "layout.json"),
 });
 
 /**
- * Writes the community's current drafts into the folder. The layout is written
- * when the community has one of its own or the folder already has layout.json,
- * so a theme-only folder stays theme-only.
+ * Writes the community's current drafts into the folder. The brand and layout
+ * are written when the community has one of its own or the folder already has
+ * the file, so a theme-only folder stays theme-only.
  */
 export async function pullDesign({ root, files, community, call, kinds = DESIGN_RECORDS }) {
   const pulled = {};
@@ -130,6 +136,18 @@ export async function listTemplates({ templatesDir = TEMPLATES_DIR } = {}) {
     }
   }
   return templates;
+}
+
+/** The folder's brand, when it says anything a theme can use. */
+async function readBrandFile(file) {
+  if (!existsSync(file)) return null;
+  try {
+    const result = normalizeCommunityBrand(JSON.parse(await readFile(file, "utf8")));
+    if (!result.ok) return null;
+    return result.brand.colours?.length || result.brand.fonts?.length ? result.brand : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -160,16 +178,29 @@ export async function initFromTemplate({ root, template, community, call, templa
       theme = "community";
     }
   }
+  // The community's brand, if it has one: a template's look then starts from
+  // the founder's own colours and fonts instead of the template's.
+  if (!existsSync(files.brand) && community && call) await pullDesign({ root, files, community, call, kinds: ["brand"] });
+  const brand = await readBrandFile(files.brand);
   await mkdir(root, { recursive: true });
   for (const entry of await readdir(source)) {
     if (entry === "template.json" || (entry === "theme.json" && theme !== "template")) continue;
+    if (entry === "theme.json" && brand) {
+      const base = normalizeCommunityTheme(JSON.parse(await readFile(join(source, entry), "utf8")));
+      if (base.ok) {
+        const schemes = base.theme.schemes.light && base.theme.schemes.dark ? "both" : base.theme.schemes.dark ? "dark" : "light";
+        await writeFile(files.theme, json(themeFromCommunityBrand(brand, base.theme, schemes)));
+        theme = "brand";
+        continue;
+      }
+    }
     await cp(join(source, entry), join(root, entry), { recursive: true });
   }
   return { ...chosen, theme };
 }
 
 /**
- * Saves each design file the folder has (theme.json, layout.json) as its
+ * Saves each design file the folder has (brand.json, theme.json, layout.json) as its
  * record's draft. `check(kind, record, file)` returns problems (the CLI passes
  * its contract checks); any error stops every save before Polynet sees one.
  */
@@ -201,7 +232,7 @@ export async function saveFolderDraft({ root, files, community, call, check }) {
 /** Publishes each draft the folder last saved. */
 export async function publishFolderDraft({ root, community, call }) {
   const revisions = await readState(root, community);
-  const kinds = DESIGN_RECORDS.filter((kind) => revisions[kind] !== undefined);
+  const kinds = DESIGN_RECORDS.filter((kind) => revisions[kind] !== undefined && !UNPUBLISHED_RECORDS.has(kind));
   if (!kinds.length) throw new Error("Nothing saved from this folder yet. Run polynet dev first.");
   const published = {};
   for (const kind of kinds) published[kind] = await publishDesignDraft({ community, kind, expectedRevision: revisions[kind], call });

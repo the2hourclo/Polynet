@@ -212,7 +212,7 @@ const RESOURCE_CHANGESET_OPERATION_SCHEMA: PlatformOperationJsonSchema = {
     description_md: { type: ["string", "null"], maxLength: 1_200 },
     body_md: {
       type: ["string", "null"],
-      maxLength: 20_000,
+      maxLength: 240_000,
       description:
         "create_page / edit_page: the page's Markdown. Reading a page returns its earlier versions under revisions; read builder/resources/<revision id>.json for one's body_md, and send it (with its title) in edit_page to restore it.",
     },

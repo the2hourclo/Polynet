@@ -394,7 +394,9 @@ export function useCommunityResourceController<
         : error instanceof Error
           ? error.message
           : current.saveFailureMessage;
-      current.setResourceError(message);
+      // A body that's too long comes back with what to change; show just that.
+      const tooLong = /community_resource_body_too_long: ([^\n]+)/.exec(message);
+      current.setResourceError(tooLong ? tooLong[1] : message);
       return false;
     } finally {
       current.setIsSavingResource(false);

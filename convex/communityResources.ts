@@ -59,11 +59,13 @@ import {
 import {
   deleteCommunityResourceBodyContent,
   hydrateCommunityResourceBody,
+  normalizeAuthoredCommunityResourceBodyMd,
   normalizeCommunityResourceBodyMd,
   writeCommunityResourceBodyContent,
   listCommunityResourceRevisionRows,
   type CommunityResourceRevisionLike,
 } from "./communityResourceContent";
+import { COMMUNITY_RESOURCE_BODY_MAX_CHARS, communityLessonSections } from "../shared/communityLessonSections";
 import { recordCommunityActivityEventBestEffort } from "./communityActivity";
 import { readCommunityPaidLockedLessonIds } from "./communityLessonTracks";
 import {
@@ -125,6 +127,9 @@ const COMMUNITY_RESOURCE_BUILDER_HEALTH_ISSUE_LIMIT = 50;
 const COMMUNITY_RESOURCE_BUILDER_HEALTH_SPARSE_BODY_CHARS = 240;
 const COMMUNITY_RESOURCE_BUILDER_HEALTH_STALE_DRAFT_MS = 14 * 24 * 60 * 60 * 1000;
 const COMMUNITY_RESOURCE_BUILDER_CHANGESET_MAX_OPERATIONS = 25;
+// A changeset is one stored record, so its page bodies share one budget that
+// keeps it well inside the database's record size. A page body alone always fits.
+const COMMUNITY_RESOURCE_BUILDER_CHANGESET_MAX_BODY_CHARS = 250_000;
 const COMMUNITY_RESOURCE_BUILDER_CHANGESET_SUMMARY_MAX_CHARS = 2000;
 const COMMUNITY_RESOURCE_BUILDER_CHANGESET_TTL_MS = 24 * 60 * 60 * 1000;
 const COMMUNITY_RESOURCE_BUILDER_CHANGESET_EXPIRED_MESSAGE =
@@ -2139,6 +2144,14 @@ function boundedToolLimit(raw: unknown): number {
   return Math.max(1, Math.min(COMMUNITY_RESOURCE_DIRECTORY_TOOL_MAX_LIMIT, parsed));
 }
 
+// A long page's sections, so an agent can read it one section at a time with
+// offset and limit. Pages with one section leave it out.
+function readSectionOutline(body: string) {
+  const sections = communityLessonSections(body);
+  if (sections.length < 2) return undefined;
+  return sections.map(({ index, heading, offset, chars }) => ({ index, heading, offset, chars }));
+}
+
 function boundedReadOffset(raw: unknown): number {
   const parsed = Math.floor(Number(raw ?? 0));
   if (!Number.isFinite(parsed)) return 0;
@@ -2306,7 +2319,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
     throw new Error("community_resource_changeset_too_large");
   }
 
-  return rawOperations.map((raw, index) => {
+  const operations = rawOperations.map((raw, index): CommunityResourceBuilderChangesetOperation => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       throw new Error(`community_resource_changeset_operation_${index}_invalid`);
     }
@@ -2358,7 +2371,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
           : null),
         title: normalizeName(record.title),
         body_md: hasOwnField(record, "body_md")
-          ? strictLessonBody(normalizeCommunityResourceBodyMd(record.body_md, 20_000))
+          ? strictLessonBody(normalizeAuthoredCommunityResourceBodyMd(record.body_md))
           : null,
         source_resource_id: normalizeOptionalModuleId(record.source_resource_id),
         ...(hasOwnField(record, "type") ? { type: normalizeResourceType(record.type) } : null),
@@ -2378,7 +2391,7 @@ function normalizeCommunityResourceBuilderChangesetOperations(
       };
       if (hasOwnField(record, "module_id")) next.module_id = normalizeOptionalModuleId(record.module_id);
       if (hasOwnField(record, "title")) next.title = normalizeName(record.title);
-      if (hasOwnField(record, "body_md")) next.body_md = strictLessonBody(normalizeCommunityResourceBodyMd(record.body_md, 20_000));
+      if (hasOwnField(record, "body_md")) next.body_md = strictLessonBody(normalizeAuthoredCommunityResourceBodyMd(record.body_md));
       if (hasOwnField(record, "source_resource_id")) {
         next.source_resource_id = normalizeOptionalModuleId(record.source_resource_id);
       }
@@ -2424,6 +2437,12 @@ function normalizeCommunityResourceBuilderChangesetOperations(
     }
     throw new Error("community_resource_changeset_operation_unsupported");
   });
+  const bodyChars = operations.reduce((total, operation) =>
+    total + ("body_md" in operation ? String(operation.body_md ?? "").length : 0), 0);
+  if (bodyChars > COMMUNITY_RESOURCE_BUILDER_CHANGESET_MAX_BODY_CHARS) {
+    throw new Error(`community_resource_changeset_too_large: These pages hold ${bodyChars.toLocaleString("en-US")} characters together; one changeset carries up to ${COMMUNITY_RESOURCE_BUILDER_CHANGESET_MAX_BODY_CHARS.toLocaleString("en-US")}. Stage the rest in the next changeset.`);
+  }
+  return operations;
 }
 
 function communityResourceBuilderChangesetOperationSummary(
@@ -2937,7 +2956,7 @@ async function createPageFromChangesetOperation(args: {
       resourceId: created._id,
       bodyMd: args.operation.body_md,
       nowMs: args.nowMs,
-      maxChars: 20_000,
+      maxChars: COMMUNITY_RESOURCE_BODY_MAX_CHARS,
     });
   }
   const hydrated = await hydrateCommunityResourceBody(args.ctx, created) ?? created;
@@ -3016,7 +3035,7 @@ async function editPageFromChangesetOperation(args: {
       resourceId: updated._id,
       bodyMd: args.operation.body_md ?? null,
       nowMs: args.nowMs,
-      maxChars: 20_000,
+      maxChars: COMMUNITY_RESOURCE_BODY_MAX_CHARS,
     });
   }
   const hydrated = await hydrateCommunityResourceBody(args.ctx, updated) ?? updated;
@@ -4136,6 +4155,7 @@ async function buildCommunityResourceDirectoryReadPayload(args: {
       offset,
       limit,
       total_chars: body.length,
+      sections: readSectionOutline(body),
       truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
       unavailable_reason: readContentUnavailableReason(row),
     },
@@ -4230,6 +4250,7 @@ async function buildBatchReadResourceResult(args: {
       offset: 0,
       limit: contentLimit,
       total_chars: body.length,
+      sections: readSectionOutline(body),
       truncated: Boolean(body && (bodySlice?.length ?? 0) < body.length),
       unavailable_reason: readContentUnavailableReason(row),
     },
@@ -4477,6 +4498,7 @@ export const readCommunityResourceDirectoryInternal = internalQuery({
         offset,
         limit,
         total_chars: body.length,
+        sections: readSectionOutline(body),
         truncated: Boolean(body && offset + (bodySlice?.length ?? 0) < body.length),
         unavailable_reason: readContentUnavailableReason(row),
       },
@@ -5319,7 +5341,7 @@ export const restoreCommunityResourceRevision = mutation({
       resourceId: resource._id,
       bodyMd: revision.bodyMd,
       nowMs,
-      maxChars: 20_000,
+      maxChars: COMMUNITY_RESOURCE_BODY_MAX_CHARS,
       previousTitle,
       forceRevision: true,
     });
@@ -6101,7 +6123,7 @@ export const compactCommunityResourceBodyStorage = mutation({
           resourceId: row._id,
           bodyMd: row.bodyMd,
           nowMs,
-          maxChars: 20_000,
+          maxChars: COMMUNITY_RESOURCE_BODY_MAX_CHARS,
           resourceUpdatedAt: row.updatedAt,
         });
       }
@@ -10075,7 +10097,12 @@ export const saveCommunityResource = mutation({
         : existing.moduleId;
       const nextRole = normalizeResourceRole(nextRoleRaw);
       const bodyChanged = Object.prototype.hasOwnProperty.call(payload, "body_md");
-      const nextBodyMd = bodyChanged ? normalizeCommunityResourceBodyMd(payload.body_md, 20_000) : null;
+      // Sources keep their old ceiling; pages are refused whole rather than cut off.
+      const nextBodyMd = !bodyChanged
+        ? null
+        : normalizeResourceRole(nextRoleRaw) === "source"
+          ? normalizeCommunityResourceBodyMd(payload.body_md, 20_000)
+          : normalizeAuthoredCommunityResourceBodyMd(payload.body_md);
       const nextBodyChars = bodyChanged ? String(nextBodyMd ?? "").trim().length : communityResourceBodyChars(existing);
       const nextUrl = normalizeOptionalUrl(nextUrlRaw);
       const nextFileKey = normalizeOptionalFileKey(nextFileKeyRaw);
@@ -10181,7 +10208,7 @@ export const saveCommunityResource = mutation({
           resourceId: updated._id,
           bodyMd: nextBodyMd,
           nowMs,
-          maxChars: 20_000,
+          maxChars: COMMUNITY_RESOURCE_BODY_MAX_CHARS,
           previousTitle: String(existing.title ?? ""),
         });
       }
@@ -10211,7 +10238,9 @@ export const saveCommunityResource = mutation({
         ? "review"
         : "draft";
     const title = normalizeName(payload.title);
-    const bodyMd = normalizeCommunityResourceBodyMd(payload.body_md, 20_000);
+    const bodyMd = role === "source"
+      ? normalizeCommunityResourceBodyMd(payload.body_md, 20_000)
+      : normalizeAuthoredCommunityResourceBodyMd(payload.body_md);
     const url = normalizeOptionalUrl(payload.url);
     const fileKey = normalizeOptionalFileKey(payload.file_key);
     const sourceIngestionStatus = Object.prototype.hasOwnProperty.call(payload, "source_ingestion_status")
@@ -10286,7 +10315,7 @@ export const saveCommunityResource = mutation({
         resourceId: created._id,
         bodyMd,
         nowMs,
-        maxChars: 20_000,
+        maxChars: COMMUNITY_RESOURCE_BODY_MAX_CHARS,
       });
     }
     const hydrated = await hydrateCommunityResourceBody(ctx, created) ?? created;

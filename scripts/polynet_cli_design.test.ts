@@ -8,7 +8,7 @@ import { normalizeCommunityTheme } from "../shared/communityTheme";
 import {
   TEMPLATES_DIR, designFiles, draftPreviewUrl, initFromTemplate, listTemplates, publishFolderDraft, pullDesign, saveFolderDraft,
 } from "../packages/polynet-cli/design.mjs";
-import { checkLayout, checkTheme } from "../packages/polynet-cli/content.mjs";
+import { checkBrand, checkLayout, checkTheme, checkThemeAgainstBrand } from "../packages/polynet-cli/content.mjs";
 
 test("every template is a valid design record on the current contract", async () => {
   const templates = await listTemplates();
@@ -37,7 +37,7 @@ test("a folder goes from template to draft to published, and a stale folder can'
   // A stand-in for the MCP: one community's theme and layout, each with its own draft revisions.
   const fake = fakeDesignServer();
   const { call, calls, server } = fake;
-  const check = (kind: string, record: unknown) => (kind === "theme" ? checkTheme(record) : checkLayout(record));
+  const check = (kind: string, record: unknown) => (kind === "theme" ? checkTheme(record) : kind === "layout" ? checkLayout(record) : checkBrand(record));
 
   const first = await saveFolderDraft({ root, files, community: "the-2-hour-club", call, check });
   expect(first).toMatchObject({ ok: true, saved: { theme: { draft_revision: 1 } } });
@@ -91,6 +91,7 @@ function fakeDesignServer() {
   const server: Record<string, { draft: unknown; draft_revision: number; published: unknown }> = {
     theme: { draft: {}, draft_revision: 0, published: null },
     layout: { draft: {}, draft_revision: 0, published: null },
+    brand: { draft: { version: 1 }, draft_revision: 0, published: null },
   };
   const calls: string[] = [];
   const call = async (tool: string, input: any) => {
@@ -99,9 +100,9 @@ function fakeDesignServer() {
       const kind = input.path.match(/builder\/(\w+)\.json$/)[1];
       return { body: JSON.stringify({ ...server[kind], contract: 1 }) };
     }
-    const [, kind, step] = input.operation.match(/^community\.(\w+)\.(save_draft|publish)$/);
+    const [, kind, step] = input.operation.match(/^community\.(\w+)\.(save_draft|save|publish)$/);
     if (input.input.expected_draft_revision !== server[kind].draft_revision) throw new Error(`${kind}_revision_conflict: The draft changed.`);
-    if (step === "save_draft") server[kind] = { ...server[kind], draft: input.input[kind], draft_revision: server[kind].draft_revision + 1 };
+    if (step !== "publish") server[kind] = { ...server[kind], draft: input.input[kind], draft_revision: server[kind].draft_revision + 1 };
     else server[kind] = { ...server[kind], published: server[kind].draft };
     return { result: { ...server[kind] } };
   };
@@ -124,16 +125,46 @@ test("a layout template keeps the founder's own colours and fonts, and uses its 
   expect(JSON.parse(readFileSync(join(folder, "layout.json"), "utf8"))).toEqual({ version: 1, nav: "top" });
 
   // An empty folder for a community with a published theme gets the community's theme.
-  const call = async () => ({ body: JSON.stringify({ contract: 1, draft: ours, draft_revision: 3, published: ours }) });
+  const call = async (_tool: string, input: any) => (input.path.endsWith("/brand.json")
+    ? { body: JSON.stringify({ contract: 1, draft: { version: 1 }, draft_revision: 0, published: null }) }
+    : { body: JSON.stringify({ contract: 1, draft: ours, draft_revision: 3, published: ours }) });
   const fresh = join(mkdtempSync(join(tmpdir(), "polynet-design-")), "c");
   expect(await initFromTemplate({ root: fresh, template: "feed", templatesDir, community: "the-2-hour-club", call })).toMatchObject({ theme: "community" });
   expect(JSON.parse(readFileSync(join(fresh, "theme.json"), "utf8"))).toEqual(ours);
   expect(JSON.parse(readFileSync(join(fresh, ".polynet", "design.json"), "utf8"))).toEqual({ community: "the-2-hour-club", revisions: { theme: 3 } });
 
   // A community with no theme yet starts from the template's.
-  const none = async () => ({ body: JSON.stringify({ contract: 1, draft: {}, draft_revision: 0, published: null }) });
+  const none = async (_tool: string, _input: any) => ({ body: JSON.stringify({ contract: 1, draft: {}, draft_revision: 0, published: null }) });
   const blank = join(mkdtempSync(join(tmpdir(), "polynet-design-")), "c");
   expect(await initFromTemplate({ root: blank, template: "feed", templatesDir, community: "new-club", call: none })).toMatchObject({ theme: "template" });
   expect(JSON.parse(readFileSync(join(blank, "theme.json"), "utf8"))).toEqual({ version: 1, radius: 2 });
   expect(existsSync(join(blank, "layout.json"))).toBe(true);
+});
+
+test("a template starts from the community's brand: its colours and fonts, on the template's look", async () => {
+  const fake = fakeDesignServer();
+  const brand = { version: 1, words: ["calm", "sharp", "warm"], colours: [{ hex: "#C2410C", role: "primary" }, { hex: "#F5F0E8", role: "neutral" }],
+    fonts: [{ name: "Inter", use: "both" }] };
+  fake.server.brand = { draft: brand, draft_revision: 2, published: null };
+  const root = join(mkdtempSync(join(tmpdir(), "polynet-design-")), "c");
+  const chosen = await initFromTemplate({ root, template: "stopwatch", community: "the-2-hour-club", call: fake.call });
+  expect(chosen.theme).toBe("brand");
+  const files = designFiles(root);
+  expect(JSON.parse(readFileSync(files.brand, "utf8"))).toEqual(brand);
+  const theme = JSON.parse(readFileSync(files.theme, "utf8"));
+  expect(normalizeCommunityTheme(theme)).toMatchObject({ ok: true });
+  expect(JSON.stringify(theme)).not.toContain("#3FD15A");
+  expect(checkThemeAgainstBrand(theme, brand)).toEqual([]);
+  // The stopwatch green, kept by hand, is far from this brand: check warns, never fails.
+  const green = JSON.parse(readFileSync(join(TEMPLATES_DIR, "stopwatch", "theme.json"), "utf8"));
+  expect(checkThemeAgainstBrand(green, brand).every((problem: any) => problem.level === "warning")).toBe(true);
+  expect(checkThemeAgainstBrand(green, brand).length).toBeGreaterThan(0);
+
+  // The brand is saved with the folder but never published; members don't see it.
+  const saved = await saveFolderDraft({ root, files, community: "the-2-hour-club", call: fake.call,
+    check: (kind: string, record: unknown) => (kind === "theme" ? checkTheme(record) : kind === "brand" ? checkBrand(record) : checkLayout(record)) });
+  expect(saved).toMatchObject({ ok: true, saved: { brand: { draft_revision: 3 }, theme: { draft_revision: 1 } } });
+  const published = await publishFolderDraft({ root, community: "the-2-hour-club", call: fake.call });
+  expect(Object.keys(published)).toEqual(["theme"]);
+  expect(fake.calls).not.toContain("community.brand.publish");
 });
