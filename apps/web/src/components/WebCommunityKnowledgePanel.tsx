@@ -60,6 +60,8 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   // With several tracks the Roadmap opens on the tracks home; with one, on its board.
   const [trackKey, setTrackKey] = useState<string | null>(null);
   const [trackEditor, setTrackEditor] = useState<{ key: string | null } | null>(null);
+  // A lesson open on the Roadmap lays the page out for reading, like Resources.
+  const [roadmapReading, setRoadmapReading] = useState(false);
   const activeTrack = tracks.length === 1 ? tracks[0] : tracks.find((track) => track.key === trackKey) ?? null;
   const boardResources = useMemo(
     () => (activeTrack ? communityTrackResources(resources.state.resources, activeTrack) : resources.state.resources),
@@ -187,7 +189,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     <section
       className="community-knowledge-page"
       aria-label="Knowledge"
-      data-reading={activeView === "resources" && resources.state.selectedModuleId ? "" : undefined}
+      data-reading={(activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapReading) ? "" : undefined}
     >
       <div className="community-knowledge-header">
         <h1>Knowledge</h1>
@@ -233,6 +235,8 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                 onRequireSignIn={context.requireSignIn}
                 lessonActivity={lessonActivity}
                 editing={roadmapEditing}
+                title={activeTrack?.title}
+                onReadingChange={setRoadmapReading}
                 header={activeTrack && (tracks.length > 1 || canManage) ? (
                   <WebCommunityTrackHeader
                     tracks={tracks}
@@ -244,7 +248,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                   />
                 ) : undefined}
               />
-              {activeTrack ? <WebCommunityTrackOpens track={activeTrack} tracks={tracks} onOpenTrack={setTrackKey} /> : null}
+              {activeTrack && !roadmapReading ? <WebCommunityTrackOpens track={activeTrack} tracks={tracks} onOpenTrack={setTrackKey} /> : null}
             </>
           )}
           {trackEditor && context.session && context.communityId ? (
