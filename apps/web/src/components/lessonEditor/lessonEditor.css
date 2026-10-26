@@ -1434,3 +1434,44 @@ select.lesson-editor-field {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* Callouts in the editor match the read view: the icon (a button that
+   switches the type) in its own column, then the typed title and the text.
+   The type's name lives in the button's menu only. */
+.lesson-editor .md-callout > .md-callout-label { display: contents; }
+.lesson-editor .md-callout > .md-callout-label .lesson-editor-callout-type {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
+  margin: 0;
+  padding: 4px;
+  gap: 2px;
+  color: color-mix(in srgb, var(--md-callout-tone) 80%, var(--text-primary));
+}
+.lesson-editor .md-callout > .md-callout-label .lesson-editor-callout-type > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.lesson-editor .md-callout > .md-callout-label .lesson-editor-callout-caret { width: 12px; height: 12px; opacity: 0.7; }
+.lesson-editor-callout-title {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 4px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.7;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.lesson-editor-callout-title::placeholder { color: var(--text-faint, var(--text-muted)); font-weight: 600; }
+.lesson-editor .md-callout > .md-callout-body { grid-column: 2; }

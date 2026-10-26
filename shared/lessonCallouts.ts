@@ -2,8 +2,12 @@
 // "> [!TIP]" alerts GitHub and Obsidian read, so agents and the CLI can write
 // them and other Markdown tools still show something sensible.
 //
-//   > [!TIP]
-//   > Connect one tool first.
+//   > [!TIP] One tool first
+//   > Connect one tool before you add the next.
+//
+// Text after the marker on its first line is the callout's title, as in
+// Obsidian; the type only sets the colour and icon, and readers never see its
+// name (Rashid, 2026-10-26).
 
 export type LessonCalloutType = "tip" | "note" | "important" | "action" | "warning";
 
@@ -33,4 +37,35 @@ export function lessonCallout(type: LessonCalloutType) {
 
 export function lessonCalloutMarker(type: LessonCalloutType): string {
   return `[!${lessonCallout(type).marker}]`;
+}
+
+/** The first line of a top-level quote that opens with a callout marker. */
+const CALLOUT_MARKER_LINE = /^(>[ \t]?)\[!([A-Za-z]+)\](?:[ \t]+(\S.*?))?[ \t]*$/;
+
+/**
+ * Takes each top-level callout's title ("" when it has none) off its marker
+ * line, in order, so a Markdown parser that joins a quote's lines still sees
+ * the marker on a line of its own. Code blocks are left alone.
+ */
+export function extractLessonCalloutTitles(source: string): { source: string; titles: string[] } {
+  const titles: string[] = [];
+  let fence: string | null = null;
+  let previous = "";
+  const lines = source.split("\n").map((line) => {
+    const before = previous;
+    previous = line;
+    const opener = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (opener) {
+      if (!fence) fence = opener[1][0];
+      else if (opener[1][0] === fence) fence = null;
+      return line;
+    }
+    if (fence || before.startsWith(">")) return line;
+    const match = CALLOUT_MARKER_LINE.exec(line);
+    const type = match ? lessonCalloutType(match[2]) : null;
+    if (!match || !type) return line;
+    titles.push(match[3] ?? "");
+    return `${match[1]}[!${match[2]}]`;
+  });
+  return { source: lines.join("\n"), titles };
 }

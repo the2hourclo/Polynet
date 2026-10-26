@@ -340,3 +340,12 @@
 
 /* A cover-less course in Overlay: the letter sits above the words' dark wash. */
 :root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-cover-initial { transform: translateY(-30%); }
+
+/* Split card (Rashid, 2026-10-26): the picture on top, then the words on
+   their own softly tinted panel with a hairline between, so the cover and
+   the text read as two parts of one card. Boxed cover cards only: the list,
+   text, overlay and open (no box) styles and the Reader look keep theirs. */
+:root:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"], [data-course-cards~="edge-none"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {
+  border-top: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--pn-accent, var(--accent-brand)) 4%, color-mix(in srgb, var(--text-primary) 2.5%, var(--bg-card)));
+}

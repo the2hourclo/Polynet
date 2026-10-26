@@ -300,7 +300,9 @@ describe("callouts", () => {
     expect(tip.firstChild!.textContent).toBe("Connect one tool first.");
     expect(tip.childCount).toBe(2);
     expect(caution.attrs.callout).toBe("warning");
-    expect(caution.textContent).toBe("Keys stay out of the chat.");
+    // Text after the marker on its own line is the callout's title.
+    expect(caution.attrs.calloutTitle).toBe("Keys stay out of the chat.");
+    expect(caution.textContent).toBe("");
     expect(quote.attrs.callout).toBeNull();
     expect(parsed.serialize(parsed.doc)).toBe(BODY);
   });
@@ -315,6 +317,16 @@ describe("callouts", () => {
     expect(again.eq(doc.child(1))).toBe(true);
     // Members' reader sees a blockquote whose text starts with the marker.
     expect(JSON.stringify(readerTree(out))).toContain("[!ACTION]");
+  });
+
+  it("keeps a typed title on the marker line and reads it back", () => {
+    const parsed = parseLessonMarkdown(schema, "Intro.");
+    const titled = schema.nodes.blockquote.create({ callout: "tip", calloutTitle: "One tool first" }, [schema.nodes.paragraph.create(null, schema.text("Connect one tool."))]);
+    const out = serializeLessonDocument(schema, parsed.doc.type.create(null, [titled]));
+    expect(out).toBe("> [!TIP] One tool first\n> Connect one tool.");
+    const again = parseLessonMarkdown(schema, out).doc.child(0);
+    expect(again.attrs.calloutTitle).toBe("One tool first");
+    expect(again.textContent).toBe("Connect one tool.");
   });
 
   it("drops an empty new callout and turns a plain quote into one", () => {
