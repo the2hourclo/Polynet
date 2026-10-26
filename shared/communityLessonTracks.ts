@@ -275,13 +275,13 @@ export function checkCommunityTrackDefinition(
   if (!/^[a-z0-9][a-z0-9-]{0,47}$/.test(track.key)) problems.push("The track key must be lowercase letters, digits and dashes.");
   if (!track.title.trim() || track.title.length > COMMUNITY_TRACK_LIMITS.title) problems.push("Give the track a title of up to 120 characters.");
   if ((track.summary ?? "").length > COMMUNITY_TRACK_LIMITS.summary) problems.push("Keep the summary under 600 characters.");
-  if (track.stages.length > COMMUNITY_TRACK_LIMITS.stages) problems.push("A track can have up to 40 stages.");
+  if (track.stages.length > COMMUNITY_TRACK_LIMITS.stages) problems.push("A track can have up to 40 sections.");
   if (track.opens_when.length > COMMUNITY_TRACK_LIMITS.rules) problems.push("A track can have up to 8 opening rules.");
   const steps = track.stages.flatMap((stage) => stage.steps);
   if (steps.length > COMMUNITY_TRACK_LIMITS.steps) problems.push("A track can have up to 300 steps.");
   const seen = new Set<string>();
   for (const stage of track.stages) {
-    if (!stage.name.trim()) problems.push("Every stage needs a name.");
+    if (!stage.name.trim()) problems.push("Every section needs a name.");
   }
   for (const step of steps) {
     if (!known.lessonIds.has(step.resource_id)) problems.push(`Lesson ${step.resource_id} isn't in this community's library.`);

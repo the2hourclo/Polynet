@@ -94,7 +94,7 @@ function TrackCard({ track, onOpen, onEdit }: { track: CommunityTrackView; onOpe
       ? `${track.step_count} lessons · all done`
       : track.status === "in_progress"
         ? `${track.done_count} of ${track.step_count} lessons done`
-        : `${track.stages.length} ${track.stages.length === 1 ? "stage" : "stages"} · ${track.step_count} lessons`;
+        : `${track.stages.length} ${track.stages.length === 1 ? "section" : "sections"} · ${track.step_count} lessons`;
   return (
     <li className="track-card" data-status={track.status}>
       <button type="button" className="track-card-main" onClick={onOpen}>
@@ -298,7 +298,7 @@ export function WebCommunityTrackEditor<SessionT>(props: {
         const existing = loaded.tracks.find((track) => track.key === props.trackKey);
         setDraft(existing ?? {
           key: "", title: "", summary: "", order: loaded.tracks.length, show: "always", opens_when: [],
-          stages: [{ name: "Stage 1", steps: [] }], revision: 0, derived: false,
+          stages: [{ name: "Section 1", steps: [] }], revision: 0, derived: false,
         });
       })
       .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : "Tracks are unavailable."); });
@@ -421,12 +421,12 @@ export function WebCommunityTrackEditor<SessionT>(props: {
 
         {editsStages ? (
           <fieldset className="track-fieldset">
-            <legend>Stages and steps</legend>
+            <legend>Sections and lessons</legend>
             {draft.stages.map((stage, stageIndex) => (
               <div className="track-stage" key={stageIndex}>
                 <div className="track-stage-head">
                   <span className="track-stage-number">{stageIndex + 1}</span>
-                  <input aria-label="Stage name" value={stage.name} onChange={(event) => setStages(draft.stages.map((current, i) => (i === stageIndex ? { ...current, name: event.target.value } : current)))} />
+                  <input aria-label="Section name" value={stage.name} onChange={(event) => setStages(draft.stages.map((current, i) => (i === stageIndex ? { ...current, name: event.target.value } : current)))} />
                   <button type="button" className="track-icon" aria-label="Move stage up" onClick={() => setStages(move(draft.stages, stageIndex, stageIndex - 1))}><ArrowUp size={14} /></button>
                   <button type="button" className="track-icon" aria-label="Move stage down" onClick={() => setStages(move(draft.stages, stageIndex, stageIndex + 1))}><ArrowDown size={14} /></button>
                   <button type="button" className="track-icon" aria-label="Remove stage" onClick={() => setStages(draft.stages.filter((_, i) => i !== stageIndex))}><Trash2 size={14} /></button>
@@ -463,8 +463,8 @@ export function WebCommunityTrackEditor<SessionT>(props: {
                 </select>
               </div>
             ))}
-            <button type="button" className="track-add" onClick={() => setStages([...draft.stages, { name: `Stage ${draft.stages.length + 1}`, steps: [] }])}>
-              <Plus size={14} /> Add a stage
+            <button type="button" className="track-add" onClick={() => setStages([...draft.stages, { name: `Section ${draft.stages.length + 1}`, steps: [] }])}>
+              <Plus size={14} /> Add a section
             </button>
             <p className="track-hint">A lesson can be in several tracks. Members who finished it in one track have it done in all of them.</p>
           </fieldset>
