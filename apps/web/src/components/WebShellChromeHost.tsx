@@ -83,6 +83,16 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   "global_settings",
 ]);
 
+// ?pods=aside|header previews the other pods placement (screenshots).
+const PODS_PLACE_OVERRIDE: "aside" | "header" | null = (() => {
+  try {
+    const value = new URLSearchParams(window.location.search).get("pods");
+    return value === "aside" || value === "header" ? value : null;
+  } catch {
+    return null;
+  }
+})();
+
 export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const pickEverywhere = useMemberPickEverywhere();
   const communityTheme = useWebCommunityThemeStyle(
@@ -149,6 +159,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
           },
         }
       : null,
+    pods: null,
   };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&
@@ -277,8 +288,29 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     if (courseCardsAttribute) root.dataset.courseCards = courseCardsAttribute;
     else delete root.dataset.courseCards;
   }, [courseCardsAttribute]);
+  // Classroom shows invite-only channels as pods instead of topic chips.
+  const podChannels = isTopCommunityNav
+    ? props.communityShell.communityChannels.filter((channel) => channel.access_mode === "restricted").sort((a, b) => a.position - b.position)
+    : [];
+  communityFrame.pods = isTopCommunityNav ? {
+    place: PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside",
+    pods: podChannels,
+    unread: Object.fromEntries(podChannels.map((channel) => [channel.slug, Boolean(props.communityShell.communityChannelIndicators[channel.slug]?.chat)])),
+    selectedSlug: props.communityShell.communityTab === "chat" ? props.communityShell.selectedCommunityChannelSlug || null : null,
+    onOpen: (channel) => {
+      props.communityShell.onSelectCommunityTab("chat");
+      props.communityShell.onSelectCommunityChannel(channel);
+    },
+    onLeave: () => {
+      const home = props.communityShell.communityChannels.find((channel) => channel.is_general)
+        ?? props.communityShell.communityChannels.find((channel) => channel.access_mode !== "restricted");
+      if (home) props.communityShell.onSelectCommunityChannel(home);
+    },
+  } : null;
+  const showPodsCard = Boolean(communityFrame.pods && communityFrame.pods.place === "aside" && podChannels.length > 0);
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
+  const hasCommunityAside = communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat");
   const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
@@ -317,9 +349,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     ) : unthemedMainSurface;
   // With the top tab bar the page sits under it, beside the layout's aside.
   const mainSurface = isTopCommunityNav ? (
-    <div className={`community-top-body${communityAsideBlocks.length > 0 ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
+    <div className={`community-top-body${hasCommunityAside ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
       <div className="community-top-main">{themedMainSurface}</div>
-      <WebCommunityAside blocks={communityAsideBlocks} />
+      {hasCommunityAside ? <WebCommunityAside blocks={communityAsideBlocks} pods={communityFrame.pods} /> : null}
     </div>
   ) : channelsFeelAttribute === "publication" ? (
     <div className="channels-feel-body">

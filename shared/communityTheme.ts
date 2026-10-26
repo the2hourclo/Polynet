@@ -88,6 +88,10 @@ export type CommunityThemeV1 = {
   // The "More from this creator" list of the owner's other communities at
   // the foot of the chat's members panel. Off unless the owner turns it on.
   sibling_communities: "hide" | "show";
+  // Where Classroom shows a member's pods (their invite-only rooms): a card
+  // at the top of the right column, or a stack of faces in the header that
+  // opens the list. Channels lists them with the other channels either way.
+  pods_place: "aside" | "header";
 };
 
 export type CommunityThemeProblem = {
@@ -176,6 +180,7 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   rail_size: "standard",
   rail_color: "polynet",
   sibling_communities: "hide",
+  pods_place: "aside",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -218,6 +223,7 @@ const ENUMS = {
   rail_size: ["standard", "large"],
   rail_color: ["polynet", "blend", "tint", "brand"],
   sibling_communities: ["hide", "show"],
+  pods_place: ["aside", "header"],
 } as const;
 
 const RANGES = {

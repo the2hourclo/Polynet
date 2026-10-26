@@ -57,7 +57,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "chat_view" | "rail_size" | "rail_color" | "sibling_communities";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "chat_view" | "rail_size" | "rail_color" | "sibling_communities" | "pods_place";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -82,6 +82,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   channels_look: ["Page style", [["current", "Polynet (today)"], ["quiet", "Quiet: plain menu, one column"], ["reader", "Reader: reading column, post lists"], ["publication", "Publication: masthead, editorial cards"]]],
   chat_view: ["Chat view", [["centered", "Centred: a reading column"], ["wide", "Wide: full width, lined up on the left"]]],
   sibling_communities: ["Your other communities", [["hide", "Hidden"], ["show", "Show them under members"]]],
+  pods_place: ["Where pods show", [["aside", "Top of the right column"], ["header", "In the header"]]],
   rail_size: ["Icon size", [["standard", "Standard"], ["large", "Bigger"]]],
   rail_color: ["Colour", [["polynet", "Polynet (today)"], ["blend", "Blend with the page"], ["tint", "Soft brand tint"], ["brand", "Solid brand colour"]]],
 };
@@ -732,6 +733,10 @@ function AppearanceEditor(props: EditorProps) {
     <Group title="Chat">
       {choice("chat_view")}
       <p className="appearance-hint">Wide runs messages across the whole chat, with avatars, names, joins and dates lined up on the left. Members can switch views in the Display menu; this sets what they see first.</p>
+    </Group>
+    <Group title="Pods">
+      {choice("pods_place")}
+      <p className="appearance-hint">Classroom shows each invite-only channel as a pod, with the faces of everyone who can see it. Pick where members find them.</p>
     </Group>
     <Group title="Members panel">
       {choice("sibling_communities")}
