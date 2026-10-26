@@ -404,7 +404,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
                           }} />
                       ) : <TextView id={`${id}-block-${block.uid}`} markdown={block.markdown} onEdit={() => editText(block.uid)} />
                     ) : block.type === "choice" ? (
-                      <ChoiceEditor id={`${id}-block-${block.uid}`} prompt={block.prompt} options={block.options}
+                      <ChoiceEditor id={`${id}-block-${block.uid}`} prompt={block.prompt} options={block.options} agent={Boolean(block.agent)}
+                        onAgent={(agent) => updateChoice(block.uid, (current) => ({ ...current, agent: agent || undefined }))}
                         onChange={(prompt, choiceOptions) => updateChoice(block.uid, (current) => ({ ...current, prompt, options: choiceOptions }))} />
                     ) : block.type === "next" ? (
                       <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break">
@@ -481,7 +482,10 @@ function TextView(props: { id: string; markdown: string; onEdit: () => void }) {
 
 // A choice as the owner writes it: the question, a tab per card, and the
 // picked card's name, one-line hint and steps (markdown, like a text block).
-function ChoiceEditor(props: { id: string; prompt: string; options: WelcomeChoiceOption[]; onChange: (prompt: string, options: WelcomeChoiceOption[]) => void }) {
+function ChoiceEditor(props: {
+  id: string; prompt: string; options: WelcomeChoiceOption[]; agent: boolean;
+  onChange: (prompt: string, options: WelcomeChoiceOption[]) => void; onAgent: (agent: boolean) => void;
+}) {
   const [active, setActive] = useState(0);
   const at = Math.min(active, props.options.length - 1);
   const option = props.options[at];
@@ -504,6 +508,10 @@ function ChoiceEditor(props: { id: string; prompt: string; options: WelcomeChoic
     <label className="welcome-settings-choice-field">
       <span>Question</span>
       <input value={props.prompt} maxLength={WELCOME_CHOICE_PROMPT_MAX} placeholder="Which app do you use?" onChange={(event) => props.onChange(event.target.value, props.options)} />
+    </label>
+    <label className="welcome-settings-choice-agent">
+      <input type="checkbox" checked={props.agent} onChange={(event) => props.onAgent(event.target.checked)} />
+      <span><strong>Show your agent as the plugin</strong><small>Its photo and name sit above the cards, connected to the app the member picks.</small></span>
     </label>
     <div className="welcome-settings-choice-tabs" role="tablist" aria-label="Cards">
       {props.options.map((item, index) => (

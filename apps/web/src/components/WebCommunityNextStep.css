@@ -113,3 +113,11 @@
 .community-welcome-skip small { color:var(--text-secondary); font-size:12px; font-weight:400; }
 .community-welcome-skip:hover > span { text-decoration-color:currentColor; }
 .community-welcome-skip:focus-visible { outline:2px solid var(--focus-ring, var(--accent-brand)); outline-offset:2px; border-radius:6px; }
+.community-welcome-connector { display:flex; align-items:center; gap:14px; padding:12px 14px; border:1px solid var(--border-default); border-radius:calc(14px * var(--pn-radius-scale, 1)); background:color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 5%, var(--bg-card, var(--surface-workspace))); }
+.community-welcome-connector-faces { display:flex; align-items:center; gap:6px; flex:none; }
+.community-welcome-connector-agent { display:grid; place-items:center; width:44px; height:44px; overflow:hidden; border-radius:calc(12px * var(--pn-radius-scale, 1)); background:var(--accent-brand, var(--accent-primary)); color:#fff; }
+.community-welcome-connector-agent img, .community-welcome-connector-agent .community-agent-face { width:44px !important; height:44px !important; object-fit:cover; border-radius:inherit; }
+.community-welcome-connector-link { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; border:1px dashed color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 55%, var(--border-default)); color:var(--accent-brand, var(--accent-primary)); }
+.community-welcome-connector-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.community-welcome-connector-text strong { font-size:15px; }
+.community-welcome-connector-text small { color:var(--text-secondary); font-size:13px; }

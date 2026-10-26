@@ -585,7 +585,7 @@ const WELCOME_TITLE_MAX = 120;
 const WELCOME_MESSAGE_MAX = 4_000;
 const welcomeBlockValidator = v.union(
   v.object({ type: v.literal("text"), markdown: v.string() }),
-  v.object({ type: v.literal("choice"), prompt: v.string(), options: v.array(v.object({ label: v.string(), hint: v.string(), markdown: v.string(), icon: v.optional(v.string()) })) }),
+  v.object({ type: v.literal("choice"), prompt: v.string(), options: v.array(v.object({ label: v.string(), hint: v.string(), markdown: v.string(), icon: v.optional(v.string()) })), agent: v.optional(v.boolean()) }),
   v.object({ type: v.literal("form"), formKey: v.string() }),
   v.object({ type: v.literal("lesson"), resourceId: v.string() }),
   v.object({ type: v.literal("next") }),

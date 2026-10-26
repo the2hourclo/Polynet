@@ -241,3 +241,7 @@
 .welcome-settings-visibility { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 /* A disabled Discard or Preview fades like Save, so it doesn't read as ready to press. */
 .welcome-settings .welcome-settings-bar-actions .workflow-secondary-button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.welcome-settings-choice-agent { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.welcome-settings-choice-agent input { margin-top: 3px; accent-color: var(--accent-brand, var(--accent-primary)); }
+.welcome-settings-choice-agent span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.welcome-settings-choice-agent small { color: var(--text-secondary); font-size: 12px; }

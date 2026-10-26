@@ -1,4 +1,5 @@
-import { Check } from "lucide-react";
+import { Check, Plug } from "lucide-react";
+import { CommunityAgentIcon, useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import type { AuthSession } from "../auth";
 import { getMemberWelcomePage, subscribeMemberForms, type MemberFormSummary, type MemberWelcomePage } from "../../../../shared/cloudCommunityFormRequestsGateway";
@@ -62,7 +63,7 @@ export function WelcomeScreenView(props: {
     </div>
     {screen?.blocks.map((block, index) => block.type === "text"
       ? <div key={index} className="community-welcome-message">{rendered[index]}</div>
-      : block.type === "choice" ? <WelcomeChoiceView key={`${props.index}:${index}`} prompt={block.prompt} options={block.options}
+      : block.type === "choice" ? <WelcomeChoiceView key={`${props.index}:${index}`} prompt={block.prompt} options={block.options} agent={block.agent}
         storageKey={props.choiceStorageKey ? `${props.choiceStorageKey}:${props.index}:${index}` : undefined} />
       : block.type === "next" ? null : <Fragment key={index}>{props.renderStep(block)}</Fragment>)}
     {screen && !screen.step ? <footer className="community-welcome-next">
@@ -75,7 +76,7 @@ export function WelcomeScreenView(props: {
 }
 
 /** Cards to pick from (the app they use, say); the picked card's steps show below it. */
-export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoiceOption[]; storageKey?: string }) {
+export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoiceOption[]; storageKey?: string; agent?: boolean }) {
   // The first card is the default until the member picks another.
   const [picked, setPicked] = useState<number>(() => {
     if (!props.storageKey) return 0;
@@ -93,6 +94,7 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
     if (props.storageKey) try { localStorage.setItem(props.storageKey, String(index)); } catch { /* still shows */ }
   };
   return <div className="community-welcome-choice">
+    {props.agent && option ? <WelcomeAgentConnector app={option} /> : null}
     {props.prompt ? <p id={groupId} className="community-welcome-choice-prompt">{props.prompt}</p> : null}
     <div className="community-welcome-choice-cards" role="radiogroup" aria-labelledby={props.prompt ? groupId : undefined}
       aria-label={props.prompt ? undefined : "Choose one"} style={{ ["--choice-count" as string]: props.options.length }}>
@@ -124,6 +126,22 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
 /** The builder's video or image link, shown the way lessons show media. */
 export function welcomeMediaMarkdown(url: string): string {
   return /\.(?:png|jpe?g|gif|webp|avif|svg)(?:[?#].*)?$/i.test(url) ? `![](${url})` : `<${url}>`;
+}
+
+/** The community's agent, shown as the plugin that connects to the app the member picked. */
+function WelcomeAgentConnector(props: { app: WelcomeChoiceOption }) {
+  const name = useCommunityAgentName(null) || "Your agent";
+  return <div className="community-welcome-connector">
+    <span className="community-welcome-connector-faces" aria-hidden="true">
+      <span className="community-welcome-connector-agent"><CommunityAgentIcon size={40} /></span>
+      <span className="community-welcome-connector-link"><Plug size={14} /></span>
+      <span className="community-welcome-choice-icon">{props.app.icon ? <ChoiceIconMark icon={props.app.icon} /> : <strong>{props.app.label.slice(0, 1)}</strong>}</span>
+    </span>
+    <span className="community-welcome-connector-text">
+      <strong>{name}</strong>
+      <small>Plugin and connector · works inside {props.app.label}</small>
+    </span>
+  </div>;
 }
 
 /** A card's logo, in its own colours. */
