@@ -209,7 +209,10 @@ export function WebCommunityOffersSettings<SessionT>(props: {
                       <button type="button" className="pn-settings-button" disabled={busy !== null || draft !== null} onClick={() => setDraft(draftOf(offer))}>Edit</button>
                       {offer.is_base ? null : (
                         <button type="button" className="pn-settings-button" disabled={busy !== null}
-                          onClick={() => void run(`archive:${offer.key}`, () => setCloudCommunityOfferArchived({ session: props.session!, communityId: props.communityId, key: offer.key, archived: true }))}>
+                          onClick={() => {
+                            if (!window.confirm(`Stop selling ${offer.name}? Members on it keep it, and you can restore it later.`)) return;
+                            void run(`archive:${offer.key}`, () => setCloudCommunityOfferArchived({ session: props.session!, communityId: props.communityId, key: offer.key, archived: true }));
+                          }}>
                           Archive
                         </button>
                       )}
