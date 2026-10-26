@@ -158,9 +158,11 @@ export async function setPollVoteCore(ctx: any, args: { rootId: string; optionKe
   return await readPollCard(ctx, poll, userId, newPostCardReadCache());
 }
 
-export async function setPollClosedCore(ctx: any, args: { rootId: string; closed: boolean }, userId: any) {
+export async function setPollClosedCore(ctx: any, args: { rootId: string; closed: boolean; communityId?: any }, userId: any) {
   const root = await readableRoot(ctx, args.rootId, userId);
   const poll = await pollForRoot(ctx, root._id);
+  // An owner's agent is mounted on one community and closes polls only there.
+  if (args.communityId && normalizeIdValue(poll.communityId) !== normalizeIdValue(args.communityId)) throw new Error("community_forbidden");
   const cache = newPostCardReadCache();
   const allowed = normalizeIdValue(poll.createdByUserId) === normalizeIdValue(userId) ||
     await viewerManagesCommunity(ctx, poll.communityId, userId, cache);
@@ -288,7 +290,7 @@ export const votePostPoll = mutation({
   handler: async (ctx, { userId, authSubject, ...args }) => setPollVoteCore(ctx, args, await viewerId(ctx, { userId, authSubject })),
 });
 export const setPostPollClosed = mutation({
-  args: { ...viewerArgs, rootId: v.string(), closed: v.boolean() },
+  args: { ...viewerArgs, rootId: v.string(), closed: v.boolean(), communityId: v.optional(v.id("communities")) },
   handler: async (ctx, { userId, authSubject, ...args }) => setPollClosedCore(ctx, args, await viewerId(ctx, { userId, authSubject })),
 });
 export const getPostFormForViewer = query({

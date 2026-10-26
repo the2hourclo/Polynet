@@ -377,6 +377,9 @@ export const saveCommunityEvent = mutation({
   args: {
     userId: v.optional(v.id("users")),
     authSubject: v.optional(v.string()),
+    // Set by an owner's agent, which is mounted on one community: events are
+    // created there, and only that community's events can be changed.
+    communityId: v.optional(v.id("communities")),
     eventId: v.optional(v.union(v.string(), v.null())),
     payload: v.any(),
   },
@@ -395,7 +398,9 @@ export const saveCommunityEvent = mutation({
 
     if (eventId) {
       const existing = (await ctx.db.get(eventId as any)) as CommunityEventLike | null;
-      if (!existing) throw new Error("community_event_not_found");
+      if (!existing || (args.communityId && normalizeIdValue(existing.communityId) !== normalizeIdValue(args.communityId))) {
+        throw new Error("community_event_not_found");
+      }
       await requireCommunityManager({
         ctx,
         communityId: existing.communityId,
@@ -474,8 +479,11 @@ export const saveCommunityEvent = mutation({
       return mapCommunityEventRow(updated);
     }
 
-    const communityId = payload.community_id as any;
+    const communityId = (args.communityId ?? payload.community_id) as any;
     if (!communityId) throw new Error("community_id_required");
+    if (args.communityId && payload.community_id && normalizeIdValue(payload.community_id) !== normalizeIdValue(args.communityId)) {
+      throw new Error("community_forbidden");
+    }
     const { community } = await requireCommunityManager({
       ctx,
       communityId,
@@ -522,6 +530,7 @@ export const cancelCommunityEvent = mutation({
   args: {
     userId: v.optional(v.id("users")),
     authSubject: v.optional(v.string()),
+    communityId: v.optional(v.id("communities")),
     eventId: v.string(),
   },
   handler: async (ctx, args) => {
@@ -532,6 +541,9 @@ export const cancelCommunityEvent = mutation({
     });
     const event = (await ctx.db.get(args.eventId as any)) as CommunityEventLike | null;
     if (!event) return { ok: true };
+    if (args.communityId && normalizeIdValue(event.communityId) !== normalizeIdValue(args.communityId)) {
+      throw new Error("community_event_not_found");
+    }
     await requireCommunityManager({
       ctx,
       communityId: event.communityId,

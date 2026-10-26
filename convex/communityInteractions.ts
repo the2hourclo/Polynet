@@ -3089,13 +3089,17 @@ export const editCommunityInteractionMessageForTrustedUserInternal = internalMut
 // Authors delete their own posts; moderators may delete others' only when
 // `allowModerator` (Studio). The door deletes own posts only.
 async function deleteCommunityInteractionMessageCore(ctx: any, args: {
-  targetType: "root" | "reply"; targetId: string;
+  targetType: "root" | "reply"; targetId: string; communityId?: any;
 }, userId: any, allowModerator: boolean) {
   const { target, communityId } = await loadCommunityInteractionTarget({
     ctx,
     targetType: args.targetType,
     targetId: args.targetId,
   });
+  // An owner's agent is mounted on one community and removes posts only there.
+  if (args.communityId && normalizeIdValue(communityId) !== normalizeIdValue(args.communityId)) {
+    throw new Error("interaction_delete_forbidden");
+  }
   await requireCommunityChatAccess({ ctx, communityId, userId });
   await requireTargetChannelAccess({ ctx, target, userId });
   const isOwner = normalizeIdValue(target.actorUserId) === normalizeIdValue(userId);
@@ -3128,7 +3132,7 @@ const deleteTargetArgs = {
 };
 
 export const deleteCommunityInteractionMessage = mutation({
-  args: { userId: v.optional(v.id("users")), authSubject: v.optional(v.string()), ...deleteTargetArgs },
+  args: { userId: v.optional(v.id("users")), authSubject: v.optional(v.string()), communityId: v.optional(v.id("communities")), ...deleteTargetArgs },
   handler: async (ctx, { userId, authSubject, ...args }) =>
     deleteCommunityInteractionMessageCore(ctx, args, await resolveUserIdForAuthenticatedRequest({
       ctx, userId, authSubject: authSubject ?? null,

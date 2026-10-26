@@ -19,7 +19,8 @@ import { buildAgentLedJourneyPlan } from "../shared/agentLedJourneyTemplate";
 export type BuilderSettingOperation = {
   operation: string;
   // Which Settings page it belongs to.
-  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members" | "appearance" | "knowledge";
+  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members" | "appearance" | "knowledge"
+    | "events" | "testing" | "posts" | "self";
   name: string;
   // The public function the Settings page calls ("module:function").
   calls: string;
@@ -35,6 +36,9 @@ export type BuilderSettingOperation = {
   identity?: "auth" | "user";
   // Fixed arguments added to every call.
   extra?: Record<string, unknown>;
+  // Arguments the app's function takes that the agent deliberately doesn't
+  // send, and why. The parity test holds every other argument to a field.
+  omits?: Record<string, string>;
   // false when the function isn't scoped to one community.
   community?: false;
   // "owner_apply": hard to undo, so the agent only proposes it. It runs when
@@ -60,6 +64,8 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
       visibility: "published (listed in Discover) or unlisted",
     },
     required: ["expected_settings_revision"], merge: "community_settings",
+    omits: { monthlyAmountBaseUnits: "prices go through community.pricing.set, which needs the owner's Apply",
+      annualAmountBaseUnits: "prices go through community.pricing.set", currency: "set with the price, by the owner", currencyDecimals: "set with the price, by the owner" },
     effects: ["update_community_identity"],
   }),
   op({
@@ -157,7 +163,8 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     calls: "communityAccess:grantCommunityAccess", ref: internal.communityAccess.grantCommunityAccessInternal, kind: "mutation",
     identity: "user", extra: { via: "agent" },
     fields: { membership_id: "an existing member, or", email: "someone to invite by email", reason: "why (shown in the history)",
-      ends_at: "ISO date or instant, or null for no end date" },
+      ends_at: "ISO date or instant, or null for no end date",
+      offer_key: "optional: the offer they get, from /builder/offers.json (left out: the base membership)" },
     required: ["reason"], effects: ["grant_owner_access"],
   }),
   op({
@@ -182,6 +189,7 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     operation: "community.agent.save", area: "agent", name: "Community agent",
     calls: "communityAgent:saveCommunityAgentConfig", ref: api.communityAgent.saveCommunityAgentConfig, kind: "mutation",
     fields: { community_system_prompt: "how the community's agent behaves", landing_json: "the agent page's opening, as /builder/settings.json shows it" },
+    omits: { systemPrompt: "older name for community_system_prompt" },
     required: [], effects: ["update_community_agent"],
   }),
   op({
@@ -232,6 +240,7 @@ BUILDER_SETTING_OPERATIONS.push(
     fields: { name: "the theme's name (unique in this community, up to 60 characters)",
       theme: "a community theme v1 record, for example the draft from /builder/theme.json" },
     required: ["name", "theme"], effects: ["save_named_theme"],
+    omits: { savedThemeId: "replacing a saved theme's look is community.theme.saved.replace" },
   }),
   op({
     operation: "community.theme.saved.rename", area: "appearance", name: "Rename a saved theme",
@@ -264,6 +273,9 @@ BUILDER_SETTING_OPERATIONS.push(
     fields: { expected_settings_revision: "settings_revision from /builder/settings.json",
       monthly_amount_base_units: "monthly price in cents, or null for none", annual_amount_base_units: "yearly price in cents, or null for none" },
     required: ["expected_settings_revision"], merge: "community_settings", effects: ["change_price"],
+    omits: { ...Object.fromEntries(["name", "slug", "oneLiner", "about", "avatarStorageId", "avatarUrl", "avatarFocusX", "avatarFocusY", "avatarZoom",
+      "bannerStorageId", "bannerUrl", "bannerFocusX", "bannerFocusY", "bannerZoom", "visibility"].map(key => [key, "community.settings.save changes the profile"])),
+      currency: "Polynet keeps the community's currency", currencyDecimals: "Polynet keeps the community's currency" },
   }),
   proposal({
     operation: "community.free_access.set", area: "pricing", name: "Who can join for free",
@@ -450,12 +462,115 @@ BUILDER_SETTING_OPERATIONS.push(
     fields: { channel_id: "an invite-only channel from /builder/offers.json", offer_keys: "offers that get it (higher offers are included); [] for only people you add" },
     required: ["channel_id", "offer_keys"], effects: ["set_channel_offer_audience"],
   }),
+  // Everything else an owner does in the app (Rashid, 2026-10-26: "literally
+  // everything" is agent-editable): events, test runs, the member board and posts.
+  op({
+    operation: "community.event.save", area: "events", name: "Create or change an event",
+    calls: "communityEvents:saveCommunityEvent", ref: api.communityEvents.saveCommunityEvent, kind: "mutation",
+    fields: { event_id: "an event id from /builder/events.json to change it; leave out to create one",
+      payload: "the event: title, starts_at and ends_at (ISO), timezone (IANA, e.g. Europe/London), description_md, "
+        + "location_type (online, physical or tbd), location_label, url, visibility (members or public), "
+        + "recurrence_frequency (none, daily, weekly or monthly), recurrence_interval, recurrence_until (ISO), status (live or cancelled). "
+        + "When changing, left-out keys keep their value" },
+    required: ["payload"], effects: ["save_event"],
+  }),
+  op({
+    operation: "community.event.cancel", area: "events", name: "Cancel an event",
+    calls: "communityEvents:cancelCommunityEvent", ref: api.communityEvents.cancelCommunityEvent, kind: "mutation",
+    fields: { event_id: "from /builder/events.json (community.event.save with status live brings it back)" },
+    required: ["event_id"], effects: ["cancel_event"],
+  }),
+  op({
+    operation: "community.test_member.start", area: "testing", name: "Start a test run",
+    calls: "communityTestMembers:startTestMember", ref: api.communityTestMembers.startTestMember, kind: "mutation",
+    fields: { milestone_key: "optional: start in this Workflow stage instead of joining at the first" },
+    required: [], effects: ["start_test_member"],
+  }),
+  op({
+    operation: "community.test_member.run_waits_now", area: "testing", name: "Skip a test run's waits",
+    calls: "communityTestMembers:runTestMemberTimedStepsNow", ref: api.communityTestMembers.runTestMemberTimedStepsNow, kind: "mutation",
+    fields: { test_member_id: "from /builder/test-runs.json", automation_key: "optional: run only this automation's wait" },
+    required: ["test_member_id"], effects: ["run_test_member_timers"],
+  }),
+  op({
+    operation: "community.test_member.autoplay", area: "testing", name: "Autoplay a test run's next step",
+    calls: "communityTestMemberAutoplay:autoplayTestMemberStep", ref: api.communityTestMemberAutoplay.autoplayTestMemberStep, kind: "mutation",
+    fields: { test_member_id: "from /builder/test-runs.json", stop: "true pauses Autoplay",
+      on_screen_pace: "optional: ms per move when the test member's tab is open and does each step on screen" },
+    required: ["test_member_id"], effects: ["autoplay_test_member_step"],
+  }),
+  op({
+    operation: "community.test_member.end", area: "testing", name: "End a test run",
+    calls: "communityTestMembers:endTestMember", ref: api.communityTestMembers.endTestMember, kind: "mutation",
+    fields: { test_member_id: "from /builder/test-runs.json; the test member and everything it did are deleted" },
+    required: ["test_member_id"], effects: ["end_test_member"],
+  }),
+  op({
+    operation: "community.workflow.member.retry_review", area: "workflows", name: "Retry a member's stage review",
+    calls: "communityMemberWorkflows:retryBuilderMemberGoalReview", ref: api.communityMemberWorkflows.retryBuilderMemberGoalReview, kind: "mutation",
+    fields: { membership_id: "the member", expected_workflow_id: "from the member's workflow context", expected_workflow_revision: "workflow revision",
+      expected_milestone_key: "the stage they're in now", expected_milestone_entered_at: "when they entered it (ms)",
+      expected_activation_sequence: "from the member's workflow context", expected_transition_seq: "from the member's workflow context",
+      expected_receipt_ref: "goal_review.receipt_ref from the member's workflow context (only when retryable)" },
+    required: ["membership_id", "expected_workflow_id", "expected_workflow_revision", "expected_milestone_key", "expected_milestone_entered_at",
+      "expected_activation_sequence", "expected_transition_seq", "expected_receipt_ref"],
+    effects: ["retry_goal_review"],
+  }),
+  op({
+    operation: "community.workflow.member.retry_action", area: "workflows", name: "Retry a member's failed automation",
+    calls: "communityMemberWorkflows:retryBuilderMemberWorkflowAction", ref: api.communityMemberWorkflows.retryBuilderMemberWorkflowAction, kind: "mutation",
+    fields: { membership_id: "the member", expected_workflow_id: "from the member's workflow context", expected_workflow_revision: "workflow revision",
+      expected_milestone_key: "the stage they're in now", expected_milestone_entered_at: "when they entered it (ms)",
+      expected_activation_sequence: "from the member's workflow context", expected_transition_seq: "from the member's workflow context",
+      automation_key: "the automation to run again (see /builder/workflow-runs.json)" },
+    required: ["membership_id", "expected_workflow_id", "expected_workflow_revision", "expected_milestone_key", "expected_milestone_entered_at",
+      "expected_activation_sequence", "expected_transition_seq", "automation_key"],
+    effects: ["retry_workflow_action"],
+  }),
+  op({
+    operation: "community.workflow.member.service_channel.set", area: "workflows", name: "A member's service channel",
+    calls: "communityMemberWorkflows:setBuilderMemberServiceChannel", ref: api.communityMemberWorkflows.setBuilderMemberServiceChannel, kind: "mutation",
+    fields: { membership_id: "the member", channel_id: "a private channel from /builder/settings.json where you serve them, or null",
+      expected_revision: "service_channel.revision from the member's workflow context" },
+    required: ["membership_id", "channel_id", "expected_revision"], effects: ["set_member_service_channel"],
+  }),
+  op({
+    operation: "community.post.poll.close", area: "posts", name: "Close or reopen a poll",
+    calls: "communityPostCards:setPostPollClosed", ref: api.communityPostCards.setPostPollClosed, kind: "mutation",
+    fields: { root_id: "the id after interaction:root: in the poll post's ref", closed: "true closes voting; false reopens it" },
+    required: ["root_id", "closed"], effects: ["close_poll"],
+  }),
+  op({
+    operation: "community.source.ingest", area: "knowledge", name: "Index the agent's knowledge sources",
+    calls: "communityResources:ingestCommunitySources", ref: (api as any).communityResources.ingestCommunitySources, kind: "action",
+    fields: { limit: "optional: how many sources to index this time", retry_failed: "true tries sources that failed before" },
+    required: [], effects: ["index_sources"],
+  }),
+  proposal({
+    operation: "community.source.crawl", area: "knowledge", name: "Add a website to the agent's knowledge",
+    calls: "communityResources:crawlCommunitySourceRoot", ref: (api as any).communityResources.crawlCommunitySourceRoot, kind: "action",
+    fields: { root_url: "https address to start from", max_pages: "optional page limit", max_depth: "optional link depth" },
+    required: ["root_url"], effects: ["crawl_website"],
+  }),
+  proposal({
+    operation: "community.post.remove", area: "posts", name: "Remove a post or reply",
+    calls: "communityInteractions:deleteCommunityInteractionMessage", ref: api.communityInteractions.deleteCommunityInteractionMessage, kind: "mutation",
+    fields: { target_type: "root (a post) or reply", target_id: "the id after interaction:root: or interaction:reply: in its ref" },
+    required: ["target_type", "target_id"], effects: ["remove_post"],
+  }),
 );
 
 // Writes the web app makes that are not an operation above, and why. A public
-// mutation or action the app calls that is in neither list fails the parity test.
-// Reasons start with one of: "agent path:" (another MCP path does it),
-// "human only:" or "not a setting:".
+// mutation or action the app calls that is in neither list (nor in
+// convex/polynetMemberSelfSettings.ts) fails the parity test
+// (scripts/settings_agent_parity.test.ts). Rashid (2026-10-26): literally
+// everything in Polynet is agent-editable, so each reason starts with one of:
+//   "agent path:"  another MCP path does it; the test checks each community.* /
+//                  member.* operation and /builder/ path it names exists;
+//   "human only:"  money, sign-ins and one-time secrets, which stay with a person;
+//   "member's own:" something a person does as themselves (their posts, answers,
+//                  messages, leaving), never an owner's change to someone else;
+//   "plumbing:"    not a choice anyone makes (presence, read markers, counts, sign-in).
 export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   // Other MCP paths already do these.
   "communityClients:createClientProperty": "agent path: community.client.property.define",
@@ -465,108 +580,94 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityClients:setClientSettings": "agent path: community.client.settings.set",
   "communityThemes:saveCommunityThemeDraft": "agent path: community.theme.save_draft",
   "communityThemes:publishCommunityThemeDraft": "agent path: community.theme.publish",
-  "communityThemes:discardCommunityThemeDraft": "agent path: save the published theme as the draft",
+  "communityThemes:discardCommunityThemeDraft": "agent path: community.theme.save_draft with the published theme from /builder/theme.json",
   "communityLayouts:saveCommunityLayoutDraft": "agent path: community.layout.save_draft",
   "communityLayouts:publishCommunityLayoutDraft": "agent path: community.layout.publish",
-  "communityLayouts:discardCommunityLayoutDraft": "agent path: save the published layout as the draft",
-  "communityResources:saveCommunityResource": "agent path: builder/resources changesets, applied by the owner",
-  "communityResources:saveCommunityResourceModule": "agent path: builder/resources changesets",
-  "communityResources:moveCommunityResourceToModule": "agent path: builder/resources changesets (move_resource)",
-  "communityResources:reorderCommunityResources": "agent path: builder/resources changesets",
-  "communityResources:updateCommunityLessonBoard": "agent path: builder/resources changesets (edit_page with lesson stage, order and title)",
-  "communityResources:reorderCommunityResourceModules": "agent path: builder/resources changesets",
-  "communityResources:deleteCommunityResource": "agent path: builder/resources changesets (delete_page)",
-  "communityResources:deleteCommunityResourceModule": "agent path: builder/resources changesets (delete_category)",
+  "communityLayouts:discardCommunityLayoutDraft": "agent path: community.layout.save_draft with the published layout from /builder/layout.json",
+  "communityResources:saveCommunityResource": "agent path: /builder/resources/ changesets, applied by the owner",
+  "communityResources:saveCommunityResourceModule": "agent path: /builder/resources/ changesets",
+  "communityResources:moveCommunityResourceToModule": "agent path: /builder/resources/ changesets (move_resource)",
+  "communityResources:reorderCommunityResources": "agent path: /builder/resources/ changesets",
+  "communityResources:updateCommunityLessonBoard": "agent path: /builder/resources/ changesets (edit_page with lesson stage, order and title)",
+  "communityResources:reorderCommunityResourceModules": "agent path: /builder/resources/ changesets",
+  "communityResources:deleteCommunityResource": "agent path: /builder/resources/ changesets (delete_page)",
+  "communityResources:deleteCommunityResourceModule": "agent path: /builder/resources/ changesets (delete_category)",
+  "communityResources:importGitHubSourceFiles": "agent path: /builder/resources/ changesets (polynet push sends local files)",
+  "communityResources:importGoogleDriveSourceFiles": "agent path: /builder/resources/ changesets (polynet push sends local files)",
+  "communityResources:generateCommunityResourceSourceUploadUrl": "agent path: /builder/resources/ changesets carry the files' text",
+  "communityResources:resolveCommunityResourceImageUrl": "agent path: community.settings.upload_url, then the image's storage id",
+  "communityBuilderKnowledgeSetup:buildBuilderKnowledgeResources": "agent path: /builder/resources/ changesets build the same pages",
+  "communityBuilderKnowledgeSetup:completeBuilderKnowledgeSetup": "agent path: /builder/resources/ changesets (first-run setup is a screen for people)",
+  "communityAdmin:approveCommunityJoinRequest": "agent path: community.admission.approve",
+  "communityAdmin:denyCommunityJoinRequest": "agent path: community.admission.deny",
+  "communityMemberWorkflows:approveBuilderMemberMilestone": "agent path: community.workflow.approve_milestone",
+  "communityInteractions:createCommunityInteractionComposerMessage": "agent path: polynet_write to a channel in /channels/",
+  "communityInteractions:editCommunityInteractionMessage": "agent path: polynet_write mode update on your own post",
+  "communityInteractions:toggleCommunityInteractionReaction": "agent path: community.interaction.react",
+  "communityPostCards:createPollPost": "agent path: community.interaction.poll.create",
+  "communityPostCards:votePostPoll": "agent path: community.interaction.poll.vote",
+  "communityPostCards:createFormPost": "agent path: community.interaction.form.share",
+  "communityPostCards:savePostFormAnswers": "agent path: community.interaction.form.answer",
+  "communityFormRequests:saveMyAnswers": "agent path: community.form.submit",
+  "communityResourceProgress:setOwnLessonResponse": "agent path: community.resource.response.set",
+  "communityResourceProgress:setOwnResourceProgressStatus": "agent path: community.resource.progress.set",
+  // Can't be done by an agent.
   "communitySettingProposals:applyCommunitySettingProposal": "human only: the owner applies what an agent proposed",
   "communitySettingProposals:rejectCommunitySettingProposal": "human only: the owner rejects what an agent proposed",
   "communityResources:applyCommunityResourceBuilderChangeset": "human only: the owner applies what an agent staged",
   "communityResources:rejectCommunityResourceBuilderChangeset": "human only: the owner rejects what an agent staged",
-  "communityAdmin:approveCommunityJoinRequest": "agent path: community.admission.approve",
-  "communityAdmin:denyCommunityJoinRequest": "agent path: community.admission.deny",
-  "communityMemberWorkflows:approveBuilderMemberMilestone": "agent path: community.workflow.approve_milestone",
   "communityAccess:createAccessIntegration": "human only: the API key and signing secret are shown once, to the owner",
   "communityAccess:rotateAccessIntegrationSecret": "human only: the new secret is shown once, to the owner",
-  // Can't be done by an agent.
+  "communityAccess:createMyCommunityLicenseKey": "human only: a member's license key is shown once, to them",
   "creatorCommerce:startConnectOnboarding": "human only: Stripe verifies the owner in person; an agent can only hand over the link",
   "founderBilling:startFounderSubscriptionCheckout": "human only: the founder pays with their own card",
   "founderBilling:startFounderBillingPortal": "human only: the founder's own billing portal",
   "founderBilling:startPublicBuilderCheckout": "human only: the founder pays with their own card",
   "communityLifecycle:createCommunity": "human only: creating a community needs the founder's paid plan checkout",
+  "communityCommerce:startPublicCommunityCheckout": "human only: a visitor paying with their own card",
+  "communityOfferCheckout:startCommunityOfferUpgrade": "human only: a member paying for a higher offer",
+  "communityCommerce:redeemPurchaseClaim": "human only: a visitor claiming what they paid for",
+  "communityCommerce:redeemPendingPurchaseClaims": "human only: a visitor claiming what they paid for",
   "communityResources:beginGitHubSourceOAuth": "human only: signing in to GitHub",
   "communityResources:finalizeGitHubSourceOAuth": "human only: signing in to GitHub",
   "communityResources:beginGoogleDriveSourceOAuth": "human only: signing in to Google",
   "communityResources:finalizeGoogleDriveSourceOAuth": "human only: signing in to Google",
+  "communityResources:disconnectGitHubSourceConnection": "human only: the owner's own GitHub sign-in",
+  "communityResources:disconnectGoogleDriveSourceConnection": "human only: the owner's own Google sign-in",
+  "communityResources:listGitHubSourceRepositories": "human only: browsing the owner's GitHub after their sign-in",
+  "communityResources:listGitHubSourceFiles": "human only: browsing the owner's GitHub after their sign-in",
+  "communityResources:listGoogleDriveSourceFiles": "human only: browsing the owner's Drive after their sign-in",
   "communityIntegrationActions:requestConnection": "human only: signing in to a connected app",
   "communityIntegrationActions:verifyConnection": "human only: signing in to a connected app",
-  // Not a community setting: a person's own actions, imports and the owner's tools.
-  "communityResources:disconnectGitHubSourceConnection": "not a setting: the owner's own GitHub sign-in",
-  "communityResources:disconnectGoogleDriveSourceConnection": "not a setting: the owner's own Google sign-in",
-  "communityResources:listGitHubSourceRepositories": "not a setting: browsing the owner's GitHub",
-  "communityResources:listGitHubSourceFiles": "not a setting: browsing the owner's GitHub",
-  "communityResources:listGoogleDriveSourceFiles": "not a setting: browsing the owner's Drive",
-  "communityResources:importGitHubSourceFiles": "not a setting: importing files (agents push with polynet push)",
-  "communityResources:importGoogleDriveSourceFiles": "not a setting: importing files (agents push with polynet push)",
-  "communityResources:generateCommunityResourceSourceUploadUrl": "not a setting: uploading source files",
-  "communityResources:ingestCommunitySources": "not a setting: indexing uploaded sources",
-  "communityResources:crawlCommunitySourceRoot": "not a setting: indexing a website",
-  "communityResources:resolveCommunityResourceImageUrl": "not a setting: reads an image link",
-  "communityBuilderKnowledgeSetup:buildBuilderKnowledgeResources": "not a setting: first-run setup",
-  "communityBuilderKnowledgeSetup:completeBuilderKnowledgeSetup": "not a setting: first-run setup",
-  "communityIntegrationActions:disconnect": "not a setting: the owner's own connected app",
-  "communityIntegrationConnections:setPilotEnabled": "not a setting: Polynet's own pilot switch",
-  "communityMemberWorkflows:retryBuilderMemberGoalReview": "not a setting: one member's review on the board",
-  "communityMemberWorkflows:retryBuilderMemberWorkflowAction": "not a setting: one member's automation on the board",
-  "communityMemberWorkflows:setBuilderMemberServiceChannel": "not a setting: one member's service channel on the board",
-  "communityTestMembers:startTestMember": "not a setting: the owner's test run",
-  "communityTestMembers:endTestMember": "not a setting: the owner's test run",
-  "communityTestMembers:runTestMemberTimedStepsNow": "not a setting: the owner's test run",
-  "communityTestMemberAutoplay:autoplayTestMemberStep": "not a setting: the owner's test run (Autoplay)",
-  "communityTestMemberAutoplay:reportAutoplayScreenStep": "not a setting: a test run tab reporting an Autoplay step",
-  "communityEvents:saveCommunityEvent": "not a setting: the Events page (and it isn't scoped to one community yet)",
-  "communityEvents:cancelCommunityEvent": "not a setting: the Events page",
-  "communityAccess:createMyCommunityLicenseKey": "not a setting: a member's own license key",
-  "communityAdmin:saveCommunityMemberSettings": "not a setting: a member's own notifications",
-  "communityAdmin:leaveCommunity": "not a setting: a member leaving",
-  "communityAdmin:syncCommunityMembershipCount": "not a setting: a count refresh",
-  "communityLayouts:setMyCommunityLayoutChoice": "not a setting: a member's own Display choice",
-  "communityAttention:acknowledgeCommunityChatRead": "not a setting: read markers",
-  "communityAttention:markCommunitySurfaceSeen": "not a setting: read markers",
-  "communityChat:createThreadUserMessage": "not a setting: chatting",
-  "communityChat:setCommunityTyping": "not a setting: chatting",
-  "communityChat:clearCommunityTyping": "not a setting: chatting",
-  "communityInteractions:createCommunityInteractionComposerMessage": "not a setting: posting",
-  "communityInteractions:editCommunityInteractionMessage": "not a setting: posting",
-  "communityInteractions:deleteCommunityInteractionMessage": "not a setting: posting",
-  "communityInteractions:toggleCommunityInteractionReaction": "not a setting: reacting (agents use community.interaction.react)",
-  "communityPostCards:createPollPost": "not a setting: posting (agents use community.interaction.poll.create)",
-  "communityPostCards:votePostPoll": "not a setting: voting (agents use community.interaction.poll.vote)",
-  "communityPostCards:setPostPollClosed": "not a setting: closing your own poll from the post itself",
-  "communityPostCards:createFormPost": "not a setting: posting (agents use community.interaction.form.share)",
-  "communityPostCards:savePostFormAnswers": "not a setting: answering (agents use community.interaction.form.answer)",
-  "communityEmbedValues:saveOwnEmbedValue": "not a setting: a member's own widget answers",
-  "communityFormRequests:saveMyAnswers": "not a setting: a member's own form answers (agents use community.form.submit)",
-  "communityResourceProgress:setOwnLessonResponse": "not a setting: a member's own lesson answers",
-  "communityResourceProgress:setOwnResourceProgressStatus": "not a setting: a member's own progress",
-  "communityCommerce:startPublicCommunityCheckout": "not a setting: a visitor paying",
-  "communityOfferCheckout:startCommunityOfferUpgrade": "not a setting: a member paying for a higher offer",
-  "communityCommerce:redeemPurchaseClaim": "not a setting: a visitor paying",
-  "communityCommerce:redeemPendingPurchaseClaims": "not a setting: a visitor paying",
-  "communityPublic:joinPublicCommunity": "not a setting: a visitor joining",
-  "communityPublic:joinPublicCommunityBySlug": "not a setting: a visitor joining",
-  "communityPublic:cancelMyJoinRequestBySlug": "not a setting: a visitor joining",
-  "communityPublic:heartbeatCommunityPresence": "not a setting: presence",
-  "communityPublic:recordPublicFunnelVisitBySlug": "not a setting: visit counts",
-  "businessAnalytics:identifyBusinessVisitor": "not a setting: analytics",
-  "businessAnalytics:recordBusinessPageVisit": "not a setting: analytics",
-  "directMessages:*": "not a setting: direct messages",
-  "threads:*": "not a setting: conversations with the agent",
-  "profiles:*": "not a setting: a person's own profile",
-  "emailPreferences:updateMyEmailPreferences": "not a setting: a person's own email preferences",
-  "auth:bootstrapActor": "not a setting: signing in",
-  "memberEntryDestination:resolveMemberEntryDestination": "not a setting: where a member lands",
-  "operatorAccess:recordOperatorDashboardAccess": "not a setting: Polynet's operator dashboard",
-  "emailDiagnostics:getOperatorEmailAuthDiagnostic": "not a setting: Polynet's operator dashboard",
-  "operatorSentryDiagnostics:getOperatorFrontendErrorDiagnostics": "not a setting: Polynet's operator dashboard",
+  "communityIntegrationActions:disconnect": "human only: the owner's own connected-app sign-in",
+  "communityIntegrationConnections:setPilotEnabled": "human only: Polynet's own pilot switch, not the community's",
+  "operatorAccess:recordOperatorDashboardAccess": "human only: Polynet's operator dashboard",
+  "emailDiagnostics:getOperatorEmailAuthDiagnostic": "human only: Polynet's operator dashboard",
+  "operatorSentryDiagnostics:getOperatorFrontendErrorDiagnostics": "human only: Polynet's operator dashboard",
+  // A person acting as themselves.
+  "communityTestMemberAutoplay:reportAutoplayScreenStep": "member's own: a test member's open tab reporting the step it did on screen",
+  "communityPublic:joinPublicCommunity": "member's own: a visitor joining",
+  "communityPublic:joinPublicCommunityBySlug": "member's own: a visitor joining",
+  "communityPublic:cancelMyJoinRequestBySlug": "member's own: a visitor taking back their request",
+  "communityAdmin:leaveCommunity": "member's own: a member leaving (owners remove with community.member.remove)",
+  "communityEmbedValues:saveOwnEmbedValue": "member's own: a member's widget answers inside a lesson",
+  "directMessages:*": "member's own: a person's direct messages",
+  "threads:*": "member's own: a person's conversations with their agent",
+  "profiles:checkHandleAvailability": "member's own: member.profile.save refuses a taken handle",
+  // Not a choice anyone makes.
+  "communityAdmin:syncCommunityMembershipCount": "plumbing: a count refresh",
+  "communityAttention:acknowledgeCommunityChatRead": "plumbing: read markers",
+  "communityAttention:markCommunitySurfaceSeen": "plumbing: read markers",
+  "communityChat:createThreadUserMessage": "plumbing: the agent dock's message to its own runtime",
+  "communityChat:setCommunityTyping": "plumbing: typing dots",
+  "communityChat:clearCommunityTyping": "plumbing: typing dots",
+  "communityPublic:heartbeatCommunityPresence": "plumbing: presence",
+  "communityPublic:recordPublicFunnelVisitBySlug": "plumbing: visit counts",
+  "businessAnalytics:identifyBusinessVisitor": "plumbing: analytics",
+  "businessAnalytics:recordBusinessPageVisit": "plumbing: analytics",
+  "auth:bootstrapActor": "plumbing: signing in",
+  "profiles:resolveOnboardingProfileDetail": "plumbing: account setup reading a new person's profile",
+  "memberEntryDestination:resolveMemberEntryDestination": "plumbing: where a member lands",
 };
 
 export const builderSettingOperation = (operation: string) =>
