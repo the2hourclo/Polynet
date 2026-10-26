@@ -103,13 +103,26 @@ export function WebCommunityOfferChooser(props: { choice: CommunityOfferChoice; 
   const { choice } = props;
   const shown = choice.offers.length > 0;
   // Settings › Offers links here with #offers.
+  // The cards load after the page, and the media above them can still push
+  // them down, so try a few times; a page can hold the chooser twice (the
+  // sales page's inline and card copies), so scroll to the one that shows.
   useEffect(() => {
     if (!shown || typeof window === "undefined" || window.location.hash !== "#offers") return;
-    document.getElementById("offers")?.scrollIntoView({ block: "center" });
+    const scroll = () => {
+      const visible = Array.from(document.querySelectorAll<HTMLElement>(".pn-offer-chooser"))
+        .find((element) => element.offsetParent !== null && !element.closest(".pn-offer-sales-preview"));
+      visible?.scrollIntoView({ block: "center" });
+    };
+    const timers = [0, 300, 900, 1800].map((delay) => window.setTimeout(scroll, delay));
+    // Stop as soon as the visitor scrolls themselves.
+    const stop = () => timers.forEach((timer) => window.clearTimeout(timer));
+    window.addEventListener("wheel", stop, { once: true, passive: true });
+    window.addEventListener("touchstart", stop, { once: true, passive: true });
+    return () => { stop(); window.removeEventListener("wheel", stop); window.removeEventListener("touchstart", stop); };
   }, [shown]);
   if (!shown) return null;
   return (
-    <fieldset className="pn-offer-chooser" id="offers">
+    <fieldset className="pn-offer-chooser" data-offers-anchor="">
       <legend>Choose your offer</legend>
       {choice.offers.map((offer, index) => {
         const price = offer.prices.find((item) => item.billing_period === props.preferredPeriod) ?? offer.prices[0] ?? null;
