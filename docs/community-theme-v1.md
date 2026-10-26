@@ -71,6 +71,7 @@ look; both follow the member's own Light/Dark choice.
 | `chat_view` | `centered` (the look's reading column, with joins and dates centred) or `wide` (messages run full width from the left edge, with avatar and name on the left and notices, dates and the message box lined up on the left). Members can pick their own in the Display menu |
 | `rail_size` | Draft. `standard`, `large` (bigger community icons in the far-left rail while this community is open) |
 | `sibling_communities` | `hide` (default), `show` (lists the owner's other communities, "More from this creator", at the foot of the chat's members panel) |
+| `pods_place` | `aside` (default: a "Your pods" card at the top of Classroom's right column), `header` (a stack of faces in the Classroom header that opens the pods list) |
 | `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
 
 Ready-made course card looks (Classroom, the default, plus Classic, Lifted,

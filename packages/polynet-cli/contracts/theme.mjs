@@ -69,6 +69,7 @@ export const DEFAULT_COMMUNITY_THEME = {
     rail_size: "standard",
     rail_color: "polynet",
     sibling_communities: "hide",
+    pods_place: "aside",
 };
 const COLOR_KEYS = [
     "background", "surface", "text", "muted", "border", "accent", "on_accent", "button", "on_button",
@@ -108,6 +109,7 @@ const ENUMS = {
     rail_size: ["standard", "large"],
     rail_color: ["polynet", "blend", "tint", "brand"],
     sibling_communities: ["hide", "show"],
+    pods_place: ["aside", "header"],
 };
 const RANGES = {
     heading_weight: [300, 900],

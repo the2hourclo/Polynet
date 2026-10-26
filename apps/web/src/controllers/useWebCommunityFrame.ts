@@ -4,6 +4,7 @@ import { DEFAULT_COMMUNITY_LAYOUT, type CommunityLayoutV1 } from "../../../../sh
 import type { CommunityShellCommunity } from "../../../../shared/communityTypes";
 import type { AppTheme } from "../../../../shared/theme";
 import type { WebCommunityLayoutChoice } from "./useWebCommunityLayout";
+import type { WebCommunityPodsFrame } from "../components/WebCommunityPods";
 
 // What the community's own area knows about the frame around it: the active
 // layout plus the community and actions the layout's blocks (community card,
@@ -25,6 +26,9 @@ export type WebCommunityFrame = {
   // The member's Light/Dark, for the Display menu. Null where the community's
   // look has one scheme only, so the choice would change nothing.
   displayMode: { current: AppTheme; onChoose: (theme: AppTheme) => void } | null;
+  // Classroom's pods (the member's invite-only channels) and where they sit.
+  // Null outside Classroom, where they stay in the channel list.
+  pods: WebCommunityPodsFrame | null;
 };
 
 export const WebCommunityFrameContext = createContext<WebCommunityFrame>({
@@ -39,6 +43,7 @@ export const WebCommunityFrameContext = createContext<WebCommunityFrame>({
   onPostSearch: () => {},
   layoutChoice: null,
   displayMode: null,
+  pods: null,
 });
 
 export function useWebCommunityFrame(): WebCommunityFrame {

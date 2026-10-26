@@ -6,11 +6,13 @@ import { UserAvatar } from "../../../../shared/UserAvatar";
 import { communityJoinUrl, useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
 import { WebCommunityNotificationsMenu } from "./WebCommunityNotificationsMenu";
+import { WebCommunityPodsButton } from "./WebCommunityPods";
 
 // The community's navigation as a tab bar across the top, for layouts with
 // navigation.position "top". Same tabs, channels, indicators and owner tools
 // as the side column (shared/CommunityNav.tsx); only the arrangement differs.
-// Channels show as category chips under the tabs on the chat tab.
+// Shared channels show as category chips under the tabs on the chat tab;
+// invite-only ones are pods (WebCommunityPods), never chips.
 // The first row is the header: the community, a search across its posts, and
 // the member's tools (invite, messages, notifications).
 
@@ -30,7 +32,7 @@ export function WebCommunityTopNav({
   // Extra header tools, placed after notifications (e.g. the Display menu).
   trailing?: ReactNode;
 }) {
-  const { layout, postSearch, onPostSearch } = useWebCommunityFrame();
+  const { layout, postSearch, onPostSearch, pods } = useWebCommunityFrame();
   const [copied, setCopied] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const community = communityShell.activeCommunity;
@@ -43,7 +45,9 @@ export function WebCommunityTopNav({
   const joinUrl = communityJoinUrl(community?.slug);
   const canInvite = Boolean(communityShell.canViewMembersActiveCommunity && joinUrl);
   const channels = [...communityShell.communityChannels].sort((a, b) => a.position - b.position);
-  const showChips = activeTab === "chat" && channels.length > 1;
+  const topics = channels.filter((channel) => channel.access_mode !== "restricted");
+  const inPod = Boolean(pods?.selectedSlug && pods.pods.some((pod) => pod.slug === pods.selectedSlug));
+  const showChips = activeTab === "chat" && topics.length > 1 && !inPod;
   const mentionChannels = channels.filter((channel) => communityShell.communityChannelIndicators[channel.slug]?.mentions);
   const search = (query: string) => {
     onPostSearch(query);
@@ -141,6 +145,7 @@ export function WebCommunityTopNav({
               <span>{copied ? "Copied" : "Invite"}</span>
             </button>
           ) : null}
+          {pods ? <WebCommunityPodsButton pods={pods} /> : null}
           {communityShell.directMessagesButton ?? null}
           <WebCommunityNotificationsMenu
             communityId={community?.id ?? null}
@@ -164,7 +169,7 @@ export function WebCommunityTopNav({
       </nav>
       {showChips ? (
         <div className="community-top-nav-chips" role="group" aria-label="Categories">
-          {channels.map((channel) => {
+          {topics.map((channel) => {
             const selected = communityShell.selectedCommunityChannelSlug === channel.slug
               || (!communityShell.selectedCommunityChannelSlug && channel.is_general);
             const unread = communityShell.communityChannelIndicators[channel.slug]?.chat;
