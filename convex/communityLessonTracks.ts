@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import {
   communityMembershipRowIsActive,
@@ -144,69 +144,109 @@ export const listCommunityLessonTracks = query({
   },
 });
 
+const saveTrackArgs = {
+  userId: v.optional(v.id("users")),
+  authSubject: v.optional(v.string()),
+  communityId: v.id("communities"),
+  key: v.string(),
+  expectedRevision: v.number(),
+  title: v.string(),
+  summary: v.optional(v.union(v.string(), v.null())),
+  coverUrl: v.optional(v.union(v.string(), v.null())),
+  order: v.optional(v.number()),
+  show: v.optional(v.union(v.literal("always"), v.literal("when_open"))),
+  opensWhen: v.array(communityTrackRuleValidator),
+  stages: trackStagesValidator,
+};
+
+async function saveTrack(ctx: any, userId: any, args: any) {
+  const rows = await listRows(ctx, args.communityId);
+  const existing = rows.find((row) => row.key === args.key) ?? null;
+  if ((existing?.revision ?? 0) !== args.expectedRevision) {
+    throw new ConvexError({ code: "track_revision_conflict", current: existing?.revision ?? 0 });
+  }
+  if (!existing && rows.filter((row) => !row.archivedAt).length >= COMMUNITY_TRACK_LIMITS.tracks) {
+    throw new ConvexError({ code: "track_limit", max: COMMUNITY_TRACK_LIMITS.tracks });
+  }
+  const lessons = await libraryLessons(ctx, args.communityId);
+  const stages = args.stages.map((stage: { name: string; steps: Array<{ resource_id: string; checkpoint?: boolean }> }) => ({ name: stage.name.trim(), steps: stage.steps }));
+  const definition: CommunityTrackDefinition = {
+    key: args.key,
+    title: args.title.trim(),
+    summary: args.summary?.trim() || null,
+    cover_url: args.coverUrl?.trim() || null,
+    order: args.order ?? existing?.order ?? (args.key === COMMUNITY_MAIN_TRACK_KEY ? 0 : rows.length + 1),
+    show: args.show ?? existing?.show ?? "always",
+    opens_when: args.opensWhen,
+    stages,
+  };
+  const trackKeys = new Set([COMMUNITY_MAIN_TRACK_KEY, ...rows.filter((row) => !row.archivedAt).map((row) => row.key), args.key]);
+  const problems = checkCommunityTrackDefinition(definition, { lessonIds: new Set(lessons.map((lesson: any) => lesson.id)), trackKeys });
+  if (args.key !== COMMUNITY_MAIN_TRACK_KEY && stages.length === 0) problems.push("Add at least one stage with a lesson.");
+  if (problems.length) throw new ConvexError({ code: "track_invalid", problems });
+  const now = Date.now();
+  const fields = {
+    title: definition.title,
+    summary: definition.summary ?? undefined,
+    coverUrl: definition.cover_url ?? undefined,
+    order: definition.order,
+    show: definition.show,
+    opensWhen: definition.opens_when,
+    stages,
+    archivedAt: undefined,
+    updatedByUserId: userId,
+    updatedAt: now,
+  };
+  if (existing) {
+    await ctx.db.patch(existing._id, { ...fields, revision: existing.revision + 1 });
+    return { key: args.key, revision: existing.revision + 1 };
+  }
+  await ctx.db.insert("communityLessonTracks", {
+    communityId: args.communityId, key: args.key, ...fields, revision: 1, createdByUserId: userId, createdAt: now,
+  });
+  return { key: args.key, revision: 1 };
+}
+
 /** Creates or replaces one track. expectedRevision 0 creates it; a stale revision is refused. */
 export const saveCommunityLessonTrack = mutation({
-  args: {
-    userId: v.optional(v.id("users")),
-    authSubject: v.optional(v.string()),
-    communityId: v.id("communities"),
-    key: v.string(),
-    expectedRevision: v.number(),
-    title: v.string(),
-    summary: v.optional(v.union(v.string(), v.null())),
-    coverUrl: v.optional(v.union(v.string(), v.null())),
-    order: v.optional(v.number()),
-    show: v.optional(v.union(v.literal("always"), v.literal("when_open"))),
-    opensWhen: v.array(communityTrackRuleValidator),
-    stages: trackStagesValidator,
-  },
+  args: saveTrackArgs,
+  handler: async (ctx, args) => saveTrack(ctx, await requireManager(ctx, args), args),
+});
+
+/** The same save for setup scripts run with the deployment's admin key (npx convex run). */
+export const saveCommunityLessonTrackInternal = internalMutation({
+  args: saveTrackArgs,
   handler: async (ctx, args) => {
-    const userId = await requireManager(ctx, args);
-    const rows = await listRows(ctx, args.communityId);
-    const existing = rows.find((row) => row.key === args.key) ?? null;
-    if ((existing?.revision ?? 0) !== args.expectedRevision) {
-      throw new ConvexError({ code: "track_revision_conflict", current: existing?.revision ?? 0 });
-    }
-    if (!existing && rows.filter((row) => !row.archivedAt).length >= COMMUNITY_TRACK_LIMITS.tracks) {
-      throw new ConvexError({ code: "track_limit", max: COMMUNITY_TRACK_LIMITS.tracks });
-    }
-    const lessons = await libraryLessons(ctx, args.communityId);
-    const stages = args.stages.map((stage) => ({ name: stage.name.trim(), steps: stage.steps }));
-    const definition: CommunityTrackDefinition = {
-      key: args.key,
-      title: args.title.trim(),
-      summary: args.summary?.trim() || null,
-      cover_url: args.coverUrl?.trim() || null,
-      order: args.order ?? existing?.order ?? (args.key === COMMUNITY_MAIN_TRACK_KEY ? 0 : rows.length + 1),
-      show: args.show ?? existing?.show ?? "always",
-      opens_when: args.opensWhen,
-      stages,
+    if (!args.userId) throw new ConvexError({ code: "track_user_required" });
+    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+    return await saveTrack(ctx, args.userId, args);
+  },
+});
+
+/** Courses and their lessons in order, with ids, for setup scripts that build tracks. */
+export const listCommunityLessonLibraryInternal = internalQuery({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const community: any = await ctx.db.query("communities").withIndex("by_slug", (q: any) => q.eq("slug", args.slug)).first();
+    if (!community) throw new ConvexError({ code: "community_not_found" });
+    const communityId = community._id;
+    const modules = await ctx.db.query("communityResourceModules").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).collect();
+    const pages = (await ctx.db.query("communityResources").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).take(1000))
+      .filter((row: any) => (row.role ?? "page") === "page");
+    const tracks = await readStoredCommunityTracks(ctx, communityId);
+    const revisions = Object.fromEntries((await listRows(ctx, communityId)).map((row) => [row.key, row.revision]));
+    return {
+      community_id: String(communityId),
+      owner_id: String(community.ownerId),
+      tracks: tracks.map((track) => ({ key: track.key, title: track.title, revision: revisions[track.key] ?? 0 })),
+      courses: modules.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((module: any) => ({
+        id: String(module._id),
+        name: module.name ?? null,
+        lessons: pages.filter((page: any) => String(page.moduleId) === String(module._id))
+          .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+          .map((page: any) => ({ id: String(page._id), title: page.title, stage: page.lesson?.stage ?? null })),
+      })),
     };
-    const trackKeys = new Set([COMMUNITY_MAIN_TRACK_KEY, ...rows.filter((row) => !row.archivedAt).map((row) => row.key), args.key]);
-    const problems = checkCommunityTrackDefinition(definition, { lessonIds: new Set(lessons.map((lesson: any) => lesson.id)), trackKeys });
-    if (args.key !== COMMUNITY_MAIN_TRACK_KEY && stages.length === 0) problems.push("Add at least one stage with a lesson.");
-    if (problems.length) throw new ConvexError({ code: "track_invalid", problems });
-    const now = Date.now();
-    const fields = {
-      title: definition.title,
-      summary: definition.summary ?? undefined,
-      coverUrl: definition.cover_url ?? undefined,
-      order: definition.order,
-      show: definition.show,
-      opensWhen: definition.opens_when,
-      stages,
-      archivedAt: undefined,
-      updatedByUserId: userId,
-      updatedAt: now,
-    };
-    if (existing) {
-      await ctx.db.patch(existing._id, { ...fields, revision: existing.revision + 1 });
-      return { key: args.key, revision: existing.revision + 1 };
-    }
-    await ctx.db.insert("communityLessonTracks", {
-      communityId: args.communityId, key: args.key, ...fields, revision: 1, createdByUserId: userId, createdAt: now,
-    });
-    return { key: args.key, revision: 1 };
   },
 });
 
