@@ -648,6 +648,7 @@ const modules = import.meta.glob([
   "./communityResourceEvidence.ts",
   "./communityResources.ts",
   "./communityResourceProgress.ts",
+  "./communityLessonTracks.ts",
   "./communityClients.ts",
   "./communityThemes.ts",
   "./communityLayouts.ts",
@@ -3799,6 +3800,64 @@ test("the web app reads lesson fields with resources and sets the member's own p
   expect(state.lessons.find((lesson: any) => lesson.ref === `resource:${ids.gate}`)).toMatchObject({ status: "done" });
   expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...args, resourceId: ids.skill, status: "in_progress" }))
     .toMatchObject({ ok: true });
+});
+
+test("owners add a follow-on skill track that opens after a checkpoint, and members read every track", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const ids = await t.run(async (ctx) => {
+    const now = Date.now();
+    const moduleId = await ctx.db.insert("communityResourceModules", {
+      communityId: fixture.communityId, createdByUserId: fixture.ownerId, status: "live",
+      name: "Core", sortOrder: 1, createdAt: now, updatedAt: now,
+    });
+    const page = async (title: string, sortOrder: number, lesson: Record<string, unknown> | null) =>
+      String(await ctx.db.insert("communityResources", {
+        communityId: fixture.communityId, moduleId, createdByUserId: fixture.ownerId, type: "post",
+        role: "page", status: "published", title, bodyMd: `${title} body`, bodyChars: title.length + 5,
+        pinned: false, sortOrder, ...(lesson ? { lesson: lesson as any } : {}), createdAt: now, updatedAt: now,
+      }));
+    return {
+      gate: await page("Connect & onboard", 1, { stage: "Get set up", stage_order: 1, order: 1, gate: true }),
+      later: await page("Map the business", 2, { stage: "Map", stage_order: 2, order: 1 }),
+      content: await page("Content basics", 3, null),
+    };
+  });
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const owner = { authSubject: fixture.ownerSubject, communityId: fixture.communityId };
+  await expect(asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+    ...owner, key: "content", expectedRevision: 0, title: "Content Employee", opensWhen: [{ type: "after_checkpoint", resource_id: ids.gate }],
+    stages: [{ name: "Start", steps: [{ resource_id: ids.content }] }],
+  })).resolves.toEqual({ key: "content", revision: 1 });
+  await expect(asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+    ...owner, key: "content", expectedRevision: 0, title: "Again", opensWhen: [], stages: [{ name: "S", steps: [{ resource_id: ids.content }] }],
+  })).rejects.toThrow(/track_revision_conflict/);
+  await expect(asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+    ...owner, key: "main", expectedRevision: 0, title: "Build your AI Employee", opensWhen: [], stages: [],
+  })).resolves.toEqual({ key: "main", revision: 1 });
+  const builder = await asOwner.query(api.communityLessonTracks.listCommunityLessonTracks, owner);
+  expect(builder.tracks.map((track: any) => [track.key, track.title, track.derived, track.revision])).toEqual([
+    ["main", "Build your AI Employee", true, 1],
+    ["content", "Content Employee", false, 1],
+  ]);
+
+  const asMember = t.withIdentity({ subject: fixture.memberSubject });
+  const member = { authSubject: fixture.memberSubject, communityId: fixture.communityId };
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...member, resourceId: ids.content, status: "in_progress" }))
+    .toMatchObject({ ok: false, code: "lesson_locked" });
+  const before = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, member);
+  expect(before.tracks.map((track: any) => [track.key, track.status, track.opens_reason])).toEqual([
+    ["main", "open", null],
+    ["content", "locked", 'Opens when you finish "Connect & onboard"'],
+  ]);
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...member, resourceId: ids.gate, status: "done" }))
+    .toMatchObject({ ok: true });
+  const after = await asMember.query(api.communityResourceProgress.getOwnResourceProgress, member);
+  expect(after.tracks.map((track: any) => [track.key, track.status])).toEqual([["main", "in_progress"], ["content", "open"]]);
+  expect(after.stages.map((stage: any) => [stage.name, stage.locked])).toEqual([["Get set up", false], ["Map", false]]);
+  expect(await asMember.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, { ...member, resourceId: ids.content, status: "done" }))
+    .toMatchObject({ ok: true });
+  await expect(asMember.query(api.communityLessonTracks.listCommunityLessonTracks, member)).rejects.toThrow();
 });
 
 test("members answer lesson buttons, checklists and quizzes, and owners see course completion", async () => {

@@ -107,6 +107,7 @@ import type * as communityLaunchSetup from "../communityLaunchSetup.js";
 import type * as communityLegacyAttachmentUploads from "../communityLegacyAttachmentUploads.js";
 import type * as communityBrands from "../communityBrands.js";
 import type * as communityLayouts from "../communityLayouts.js";
+import type * as communityLessonTracks from "../communityLessonTracks.js";
 import type * as communityLessonValidators from "../communityLessonValidators.js";
 import type * as communityLifecycle from "../communityLifecycle.js";
 import type * as communityLive from "../communityLive.js";
@@ -377,6 +378,7 @@ declare const fullApi: ApiFromModules<{
   communityLegacyAttachmentUploads: typeof communityLegacyAttachmentUploads;
   communityBrands: typeof communityBrands;
   communityLayouts: typeof communityLayouts;
+  communityLessonTracks: typeof communityLessonTracks;
   communityLessonValidators: typeof communityLessonValidators;
   communityLifecycle: typeof communityLifecycle;
   communityLive: typeof communityLive;

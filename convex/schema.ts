@@ -1586,6 +1586,37 @@ export default defineSchema({
 
   // Looks an owner saved under a name, to switch back to later. Applying one
   // copies it into communityThemes' draft; publishing stays a separate step.
+  // Skill tracks (shared/communityLessonTracks.ts): roadmaps over the lesson
+  // library. Key "main" holds the existing roadmap's title and rules; with no
+  // stages of its own, its stages come from the lesson fields.
+  communityLessonTracks: defineTable({
+    communityId: v.id("communities"),
+    key: v.string(),
+    title: v.string(),
+    summary: v.optional(v.string()),
+    coverUrl: v.optional(v.string()),
+    order: v.number(),
+    show: v.union(v.literal("always"), v.literal("when_open")),
+    opensWhen: v.array(v.union(
+      v.object({ type: v.literal("after_track"), track: v.string() }),
+      v.object({ type: v.literal("after_checkpoint"), resource_id: v.string() }),
+      v.object({ type: v.literal("workflow_stage"), milestone_key: v.string() }),
+      v.object({ type: v.literal("client_property"), property: v.string(), equals: v.union(v.string(), v.number(), v.boolean()) }),
+    )),
+    stages: v.array(v.object({
+      name: v.string(),
+      steps: v.array(v.object({ resource_id: v.string(), checkpoint: v.optional(v.boolean()) })),
+    })),
+    revision: v.number(),
+    archivedAt: v.optional(v.number()),
+    createdByUserId: v.id("users"),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_key", ["communityId", "key"]),
+
   communitySavedThemes: defineTable({
     communityId: v.id("communities"),
     name: v.string(),
