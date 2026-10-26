@@ -1102,12 +1102,12 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   min-width: min(100%, 12rem);
 }
 /* The Resources · Roadmap · Graph switcher keeps clear of the shell's top-right
-   icons (messages, display, settings) in every look. */
+   icons (messages, display, settings, your picture) in every look. */
 @media (min-width: 641px) {
   .product-shell-surface .community-knowledge-page .community-knowledge-header,
   .product-shell-surface[data-channels-feel] .community-knowledge-page .community-knowledge-header,
   .product-shell-surface .community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .community-knowledge-header {
-    padding-right: 8.5rem;
+    padding-right: 11.5rem;
   }
 }
 

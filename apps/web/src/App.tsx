@@ -2913,6 +2913,15 @@ export default function App() {
   }
   const shellChromeHostProps = buildWebShellChromeHostProps({
     onOpenCommunityMembers: handleOpenCommunityMembers,
+    viewerFace: session
+      ? {
+          name: profileUi.profileName,
+          avatarUrl: profileUi.profileAvatarUrl || null,
+          focusX: profileUi.profileAvatarFocusX,
+          focusY: profileUi.profileAvatarFocusY,
+          zoom: profileUi.profileAvatarZoom,
+        }
+      : null,
     showMobileAppShell,
     showMobileSettingsShell,
     showMobilePublicFunnel,
