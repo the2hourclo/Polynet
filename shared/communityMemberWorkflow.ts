@@ -115,7 +115,25 @@ export type CommunityMemberWorkflowMilestone = {
   /** The owner's colour for this stage, from COMMUNITY_MEMBER_WORKFLOW_STAGE_COLORS. */
   color?: CommunityMemberWorkflowStageColor;
   automations: CommunityMemberWorkflowAutomation[];
+  /** Automations the owner switched off: kept, never run, and never holding a member here. */
+  pausedAutomations?: CommunityMemberWorkflowAutomation[];
 };
+
+/**
+ * Split a stage's rules into the ones that run and the ones switched off.
+ * A step after a switched-off rule is off too, since it could never start.
+ */
+export function splitPausedWorkflowAutomations<T extends CommunityMemberWorkflowAutomation>(rules: T[], paused: (rule: T, index: number) => boolean) {
+  const off = new Set<string>();
+  rules.forEach((rule, index) => { if (paused(rule, index)) off.add(rule.key); });
+  let grew = true;
+  while (grew) {
+    grew = false;
+    const offActions = new Set(rules.filter((rule) => off.has(rule.key)).map((rule) => rule.action.key));
+    for (const rule of rules) if (!off.has(rule.key) && rule.trigger.type === "previous_action_completed" && offActions.has(rule.trigger.predecessorActionKey)) { off.add(rule.key); grew = true; }
+  }
+  return { active: rules.filter((rule) => !off.has(rule.key)), paused: rules.filter((rule) => off.has(rule.key)) };
+}
 
 // Owner-picked stage colours, after Airtable's section colours: a dot on the
 // stage heading and a thin edge on its automations, so a stage is easy to spot.

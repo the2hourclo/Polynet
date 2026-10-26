@@ -36,6 +36,7 @@ import {
   normalizeCommunityMemberWorkflowSourceRef,
   normalizeWorkflowDelayMinutes,
   workflowTriggerIdentity,
+  splitPausedWorkflowAutomations,
   type CommunityMemberWorkflowAction,
   type CommunityMemberWorkflowAutomation,
   type CommunityMemberWorkflowMilestone,
@@ -122,6 +123,8 @@ const automationInputValidator = v.object({
   })),
   sequenceEnabledAt: v.optional(v.number()),
   sequenceEnabledRevision: v.optional(v.number()),
+  // Server-owned; accepted so a rule read from /builder/settings.json can be sent back as is.
+  timerGeneration: v.optional(v.string()),
   trigger: v.union(
     v.object({ type: v.literal("member_joined") }),
     v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string(), delayMinutes: v.optional(v.number()) }),
@@ -151,6 +154,8 @@ const automationInputValidator = v.object({
     }),
     v.object({ key: v.optional(v.string()), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
   ),
+  /** Switched off: kept but never run. Steps after it are off too. */
+  paused: v.optional(v.boolean()),
 });
 
 function normalizeWorkflowEmailAction(key: string, input: { subject: string; body: string }): CommunityMemberWorkflowAction {
@@ -462,13 +467,19 @@ export const updateBuilderWorkflowMilestone = mutation({
       goal: normalizeWorkflowMilestoneContext(args.goal ?? current.goal),
       requireHumanApproval: args.requireHumanApproval ?? current.requireHumanApproval ?? false,
       ...(args.color === undefined ? current.color ? { color: current.color } : {} : stageColor(args.color)),
-      automations: normalizeAutomations(args.automations, current.automations ?? [], workflow.revision + 1),
+      ...(() => {
+        // One list in, so a step can follow any rule; then off rules (and the steps after them) are set aside.
+        const all = normalizeAutomations(args.automations, [...(current.automations ?? []), ...(current.pausedAutomations ?? [])], workflow.revision + 1);
+        const { active, paused } = splitPausedWorkflowAutomations(all, (_rule, index) => args.automations[index]?.paused === true);
+        return { automations: active, ...(paused.length ? { pausedAutomations: paused } : {}) };
+      })(),
     };
+    const everyRule = [...milestone.automations, ...(milestone.pausedAutomations ?? [])];
     const joinRules = milestone.automations.filter(a => a.trigger.type === "member_joined");
     if (joinRules.length > 0 && milestoneIndex !== 0) throw new Error("workflow_join_requires_first_milestone");
     const joinLanes = joinRules.map(a => a.action.type === "request_form" ? `form:${a.action.formKey}` : a.action.type);
     if (new Set(joinLanes).size !== joinLanes.length) throw new Error("workflow_join_action_duplicate");
-    for (const rawChannelId of new Set(milestone.automations.flatMap((automation) =>
+    for (const rawChannelId of new Set(everyRule.flatMap((automation) =>
       automation.trigger.type === "member_contributed" && automation.trigger.channelId !== undefined ? [automation.trigger.channelId] : []))) {
       const channelId = ctx.db.normalizeId("communityChannels", rawChannelId);
       const channel = channelId ? await ctx.db.get(channelId) : null;
@@ -476,7 +487,7 @@ export const updateBuilderWorkflowMilestone = mutation({
         throw new Error("community_member_workflow_channel_unavailable");
       }
     }
-    for (const automation of milestone.automations) {
+    for (const automation of everyRule) {
       // The property must exist and the value must fit it now; the run checks
       // again, because the owner can change the property later.
       if (automation.action.type === "set_client_property") {
@@ -511,7 +522,7 @@ export const updateBuilderWorkflowMilestone = mutation({
         if (!offer || offer.archivedAt) throw new Error("workflow_offer_unavailable");
       }
     }
-    for (const formKey of new Set(milestone.automations.flatMap(a => [
+    for (const formKey of new Set(everyRule.flatMap(a => [
       ...(a.action.type === "request_form" ? [a.action.formKey] : []),
       ...(a.trigger.type === "form_submitted" ? [a.trigger.formKey] : []),
     ]))) {

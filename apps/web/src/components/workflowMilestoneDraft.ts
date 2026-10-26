@@ -44,7 +44,18 @@ export function workflowTriggerIssue(automation: CommunityMemberWorkflowAutomati
 }
 
 // Editor-only state. Hidden prompt drafts must never enter the saved contract.
-export type WorkflowAutomationDraft = CommunityMemberWorkflowAutomation & { promptDraft: string };
+export type WorkflowAutomationDraft = CommunityMemberWorkflowAutomation & { promptDraft: string; paused?: boolean };
+
+/** A stage's rules for editing: the running ones, then the switched-off ones marked paused. */
+export function workflowStageDrafts(milestone: CommunityMemberWorkflowMilestone): WorkflowAutomationDraft[] {
+  return [...milestone.automations.map(toWorkflowAutomationDraft),
+    ...(milestone.pausedAutomations ?? []).map((rule) => ({ ...toWorkflowAutomationDraft(rule), paused: true }))];
+}
+
+/** What a stage save sends for rules the editor doesn't show: the switched-off ones, as they are. */
+export function pausedWorkflowAutomationInputs(milestone: CommunityMemberWorkflowMilestone | null | undefined) {
+  return (milestone?.pausedAutomations ?? []).map((rule) => ({ ...rule, paused: true }));
+}
 
 export function toWorkflowAutomationDraft(automation: CommunityMemberWorkflowAutomation): WorkflowAutomationDraft {
   return {

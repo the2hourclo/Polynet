@@ -918,3 +918,15 @@
 .workflow-stage-swatch.is-none { background: linear-gradient(135deg, transparent 46%, var(--text-muted) 46% 54%, transparent 54%); }
 .workflow-stage-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--bg-primary, #fff), 0 0 0 4px var(--stage-color, var(--text-muted)); }
 .workflow-stage-swatch:focus-visible { outline: 2px solid var(--accent-selection); outline-offset: 3px; }
+
+/* On/off per automation, like Airtable's toggle. Off rows stay listed, quieter. */
+.pn-au-switch { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2rem; padding: 0 0.625rem 0 0.375rem; border: 1px solid var(--border-default);
+  border-radius: 0.5rem; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
+.pn-au-switch:hover:not(:disabled) { background: var(--hover-overlay); }
+.pn-au-switch:focus-visible { outline: 2px solid var(--accent-selection); outline-offset: 2px; }
+.pn-au-switch-track { position: relative; width: 1.75rem; height: 1rem; border-radius: 999px; background: var(--border-default); transition: background 120ms ease; }
+.pn-au-switch-thumb { position: absolute; top: 0.125rem; left: 0.125rem; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--bg-card, #fff); transition: transform 120ms ease; }
+.pn-au-switch.is-on { color: var(--text-primary); }
+.pn-au-switch.is-on .pn-au-switch-track { background: var(--bg-button); }
+.pn-au-switch.is-on .pn-au-switch-thumb { transform: translateX(0.75rem); background: var(--bg-button-text, #fff); }
+.pn-au-item.is-off .pn-au-item-text > span, .pn-au-item.is-off > svg { color: var(--text-muted, var(--text-secondary)); }
