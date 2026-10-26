@@ -60,17 +60,14 @@ test("board keeps fixed lanes and uses defined canonical surfaces", () => {
   expect(css).not.toContain("--surface-raised");
 });
 
-test("board actions remain discoverable without hover", () => {
-  expect(css).not.toContain(".workflow-milestone-column:hover .workflow-milestone-edit-button");
-  expect(component).toContain('<MoreHorizontal size={18} aria-hidden="true" />');
-  expect(component).not.toContain("<Pencil");
-  // "Add milestone" is the last lane on the board, after the milestones.
-  expect(component).toMatch(/\}\)\}\s*<button\s+className="workflow-add-milestone-button"/);
-  expect(css).toContain("border-bottom: 1px solid var(--stroke-divider-accent)");
-  expect(css).toContain(".workflow-board-stage");
-  expect(css).toContain("padding-inline: 8px");
-  expect(css).toContain("background: var(--community-rail-control-bg)");
-  expect(css).toContain("border: var(--community-rail-button-border)");
-  expect(component).toContain('aria-label="Add stage"');
-  expect(component).toContain("aria-label={`Edit ${milestone.name}`}");
+test("Workflows has one row of tabs and stages are set up from the automations list", () => {
+  // The old Automations | Members switch under the tabs is gone: Members is the Members database tab.
+  expect(component).not.toContain("pn-wf-view-switch");
+  expect(component).toContain('workflows: "Automations", runs: "Run history", clients: "Members", forms: "Forms", welcome: "Welcome page"');
+  const automations = readFileSync(new URL("../apps/web/src/components/WebCommunityWorkflowAutomations.tsx", import.meta.url), "utf8");
+  expect(automations).toContain("aria-label={`Stage settings for ${milestone.name}`}");
+  expect(automations).toContain("onClick={props.onAddStage}");
+  // One accent, no colour per kind of trigger (polynet-ui/airtable-study).
+  const page = readFileSync(new URL("../apps/web/src/components/WebCommunityWorkflowsPage.css", import.meta.url), "utf8");
+  expect(page).not.toContain("--au-people");
 });
