@@ -390,7 +390,23 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<null | "filter" | "display" | "more" | "add_property" | "properties" | "rename" | "new_view" | "stuck" | "give" | BulkKind>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [openId, setOpenId] = useState<string | null>(null);
+  // The open member lives in ?member= so the browser Back button returns to the list.
+  const [openId, setOpenId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("member"));
+  useEffect(() => {
+    const sync = () => { pushedMember.current = false; setOpenId(new URLSearchParams(window.location.search).get("member")); };
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  const pushedMember = useRef(false);
+  const openMember = (id: string | null) => {
+    if (!id && pushedMember.current) { pushedMember.current = false; window.history.back(); return; }
+    pushedMember.current = Boolean(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("member", id); else url.searchParams.delete("member");
+    if (id) window.history.pushState(window.history.state, "", url);
+    else if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, "", url);
+    setOpenId(id);
+  };
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -491,7 +507,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
       {messages}
       {bulkPanel}{addPropertyPanel}
       <MemberPage gateway={gateway} client={open} fields={fields} properties={properties} nowMs={nowMs}
-        onBack={() => { setOpenId(null); setPanel(null); setBulkFor(null); }} onChanged={() => setReload((n) => n + 1)}
+        onBack={() => { openMember(null); setPanel(null); setBulkFor(null); }} onChanged={() => setReload((n) => n + 1)}
         onSetValue={(key, value) => setValue(open.membership_id, key, value)}
         onBulk={(kind) => { setBulkFor([open.membership_id]); setPanel(kind); }} onAddProperty={() => setPanel("add_property")} />
     </div>;
@@ -644,7 +660,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
           </tr></thead>
           <tbody>
             {!rows.length ? <tr><td colSpan={columns.length + 2} className="pn-members-none">{clients.length ? "No members in this view." : "No members yet. They show up here when they join."}</td></tr>
-              : rows.map((client) => <tr key={client.membership_id} className={selected.has(client.membership_id) ? "is-selected" : undefined} onClick={() => setOpenId(client.membership_id)}>
+              : rows.map((client) => <tr key={client.membership_id} className={selected.has(client.membership_id) ? "is-selected" : undefined} onClick={() => openMember(client.membership_id)}>
                 <td className="pn-members-check" onClick={(event) => event.stopPropagation()}>
                   <input type="checkbox" aria-label={`Select ${client.name}`} checked={selected.has(client.membership_id)}
                     onChange={(event) => setSelected((previous) => { const next = new Set(previous); if (event.target.checked) next.add(client.membership_id); else next.delete(client.membership_id); return next; })} />
