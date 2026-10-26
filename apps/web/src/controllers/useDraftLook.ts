@@ -6,7 +6,7 @@ import { DEFAULT_COMMUNITY_THEME, type CommunityThemeV1 } from "../../../../shar
 // colours. The owner sets the community's default in Settings → Appearance →
 // Customize (theme tokens channels_look, rail_size, rail_color), so it follows
 // the theme's draft, preview and publish. Anyone can try another one from the
-// Display menu at the top right; that pick is this browser's only
+// Display menu at the top right (owners and admins only); that pick is this browser's only
 // (localStorage) until "Community default" clears it. The address overrides
 // both for screenshots: ?feel=, ?rail_size=, ?rail_color=.
 
@@ -97,8 +97,11 @@ export function communityDraftLook(theme: CommunityThemeV1 | null): DraftLook {
   };
 }
 
-/** The look in force: the address, then this browser's pick, then the community's default. */
-export function useDraftLook(theme: CommunityThemeV1 | null): { look: DraftLook; picked: boolean } {
+/** The look in force: the address, then this browser's pick, then the community's default.
+ *  Only the owner's team can try other looks (Rashid, 2026-10-26), so a member's
+ *  old pick from before that is ignored. */
+export function useDraftLook(theme: CommunityThemeV1 | null, options: { canPick?: boolean } = {}): { look: DraftLook; picked: boolean } {
+  const canPick = options.canPick ?? true;
   const [picks, setPicks] = useState<Partial<DraftLook>>(() => (typeof window === "undefined" ? {} : readPicks()));
   useEffect(() => {
     const onChange = () => setPicks(readPicks());
@@ -107,7 +110,7 @@ export function useDraftLook(theme: CommunityThemeV1 | null): { look: DraftLook;
   }, []);
   const base = communityDraftLook(theme);
   return useMemo(() => ({
-    look: { ...base, ...picks, ...URL_OVERRIDE },
-    picked: Object.keys(picks).length > 0,
-  }), [base.feel, base.railSize, base.railColor, picks]);
+    look: { ...base, ...(canPick ? picks : {}), ...URL_OVERRIDE },
+    picked: canPick && Object.keys(picks).length > 0,
+  }), [base.feel, base.railSize, base.railColor, picks, canPick]);
 }

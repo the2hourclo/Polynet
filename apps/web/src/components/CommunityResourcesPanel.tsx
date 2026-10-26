@@ -6,9 +6,8 @@ import {
   type DragEvent,
   type MouseEvent,
 } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronsDown, ChevronsUp, GripVertical, Plus } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronsDown, ChevronsUp, Eye, EyeOff, GripVertical, Plus } from "lucide-react";
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
-import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import type {
   CommunityResource,
   CommunityResourceModule,
@@ -370,7 +369,6 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   const [isCreatingPageDraft, setIsCreatingPageDraft] = useState(false);
   const pageDraftCreationInFlightRef = useRef(false);
   const canManageResources = capabilities.canOperateResources && !isPreviewMode;
-  const previewSwitcherStyle = buildPlatformSwitcherStyle(2, isPreviewMode ? 1 : 0);
 
   const pendingDeleteResource = useMemo(
     () => state.resources.find((resource) => resource.id === pendingDeleteResourceId) ?? null,
@@ -891,31 +889,17 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           >
             {capabilities.canOperateResources ? (
               <div className="resources-header-view-actions">
-                <div className="resources-preview-mode-control">
-                  <span className="resources-preview-mode-label">Preview mode</span>
-                  <div
-                    className="platform-switcher platform-switcher-compact resources-preview-mode-switcher"
-                    aria-label="Preview mode"
-                    style={previewSwitcherStyle}
-                  >
-                    <button
-                      className={`platform-switcher-btn${!isPreviewMode ? " is-active" : ""}`}
-                      type="button"
-                      aria-pressed={!isPreviewMode}
-                      onClick={() => setIsPreviewMode(false)}
-                    >
-                      Off
-                    </button>
-                    <button
-                      className={`platform-switcher-btn${isPreviewMode ? " is-active" : ""}`}
-                      type="button"
-                      aria-pressed={isPreviewMode}
-                      onClick={() => setIsPreviewMode(true)}
-                    >
-                      On
-                    </button>
-                  </div>
-                </div>
+                {/* The owner's look at the page as members see it: one small pill. */}
+                <button
+                  type="button"
+                  className={`resources-preview-pill${isPreviewMode ? " is-on" : ""}`}
+                  aria-pressed={isPreviewMode}
+                  title={isPreviewMode ? "Back to editing" : "See this page as members see it"}
+                  onClick={() => setIsPreviewMode(!isPreviewMode)}
+                >
+                  {isPreviewMode ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                  <span>{isPreviewMode ? "Exit member view" : "View as member"}</span>
+                </button>
               </div>
             ) : null}
           </div>

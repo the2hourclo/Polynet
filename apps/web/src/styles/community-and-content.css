@@ -9711,6 +9711,32 @@ button.chat-reply-quote:hover {
   margin-left: auto;
 }
 
+/* "View as member": the owner's preview toggle, a quiet pill. */
+.resources-preview-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.resources-preview-pill:hover { background: var(--hover-overlay); color: var(--text-primary); }
+.resources-preview-pill:focus-visible { outline: 2px solid var(--border-active); outline-offset: 2px; }
+.resources-preview-pill svg { width: 0.9375rem; height: 0.9375rem; }
+.resources-preview-pill.is-on {
+  border-color: transparent;
+  background: var(--bg-button, var(--accent-brand));
+  color: var(--bg-button-text, #fff);
+}
+
 .resources-preview-mode-control {
   display: inline-flex;
   align-items: center;

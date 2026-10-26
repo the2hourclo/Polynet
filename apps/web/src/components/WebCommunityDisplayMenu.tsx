@@ -52,7 +52,9 @@ const RAIL_COLOR_ICONS: Record<RailColor, LucideIcon> = {
 const PANEL_WIDTH = 288;
 const VIEWPORT_MARGIN = 12;
 
-export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look: { look: DraftLook; picked: boolean } }) {
+// Members get Light/Dark and Classroom/Channels; the draft look and left-rail
+// choices are the owner's tools for comparing looks (Rashid, 2026-10-26).
+export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look: { look: DraftLook; picked: boolean }; canTryLooks: boolean }) {
   const { community, layoutChoice, displayMode } = useWebCommunityFrame();
   const draftLook = props.look.look;
   const channelsFeel = draftLook.feel;
@@ -130,7 +132,7 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look:
       choose: () => layoutChoice.onChoose(null),
     });
   }
-  const feelOptions: Option[] = props.placement === "bar"
+  const feelOptions: Option[] = props.placement === "bar" && props.canTryLooks
     ? CHANNELS_FEELS.map((entry) => ({
         key: `feel:${entry.key}`,
         label: entry.label,
@@ -140,7 +142,7 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look:
         choose: () => chooseDraftLook({ feel: entry.key }),
       }))
     : [];
-  const railOptions: Option[] = [
+  const railOptions: Option[] = !props.canTryLooks ? [] : [
         ...RAIL_SIZES.map((entry) => ({
           key: `rail-size:${entry.key}`,
           label: entry.label,
@@ -158,7 +160,7 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look:
           choose: () => chooseDraftLook({ railColor: entry.key }),
         })),
       ];
-  if (props.look.picked) {
+  if (props.canTryLooks && props.look.picked) {
     railOptions.push({
       key: "look:default",
       label: "Community default",

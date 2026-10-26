@@ -91,7 +91,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   );
   const communityThemeAttribute = communityTheme.attribute;
   // The owner's default from Customize, or this browser's Display menu pick.
-  const draftLookState = useDraftLook(communityTheme.theme);
+  const canTryLooks = Boolean(props.communityShell.canManageMembersActiveCommunity);
+  const draftLookState = useDraftLook(communityTheme.theme, { canPick: canTryLooks });
   const draftLook = draftLookState.look;
   // The community's layout applies wherever its own navigation shows, owner
   // tools included, so the tab bar doesn't jump between pages.
@@ -177,8 +178,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     props.communityShell.showDesktopCommunityNav &&
     !welcome &&
     !isTopCommunityNav &&
-    // Draft looks experiment: the menu always has the draft look choices.
-    (hasDisplayChoices || DRAFT_LOOKS_IN_DISPLAY_MENU) ? <WebCommunityDisplayMenu placement="bar" look={draftLookState} /> : null;
+    // Draft looks experiment: the owner's menu always has the draft look choices.
+    (hasDisplayChoices || (DRAFT_LOOKS_IN_DISPLAY_MENU && canTryLooks)) ? <WebCommunityDisplayMenu placement="bar" look={draftLookState} canTryLooks={canTryLooks} /> : null;
   const shellHeader = props.showMobileAppShell ? (
     isMobileDedicatedRoot || isMobileDiscoverRoot ? null : (
       <WebMobileTopBar
@@ -213,10 +214,10 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       <WebCommunityOwnerBar
         communityShell={props.communityShell}
         homeTab={communityLayout.navigation.home === "agent" ? "chat" : communityLayout.navigation.home}
-        trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>}
+        trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} canTryLooks={canTryLooks} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>}
       />
     ) : isTopCommunityNav ? (
-      <WebCommunityTopNav communityShell={props.communityShell} trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>} />
+      <WebCommunityTopNav communityShell={props.communityShell} trailing={<><WebCommunityDisplayMenu placement="top" look={draftLookState} canTryLooks={canTryLooks} /><WebAccountSettingsButton communityShell={props.communityShell} placement="top" /></>} />
     ) : (
       <WebCommunityNavSurface
         communityShell={props.communityShell}
@@ -319,7 +320,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     </div>
   ) : channelsFeelAttribute === "publication" ? (
     <div className="channels-feel-body">
-      <WebChannelsFeelMasthead tab={activeCommunityTab} />
+      <WebChannelsFeelMasthead tab={activeCommunityTab} home={communityLayout.navigation.home} />
       {themedMainSurface}
     </div>
   ) : themedMainSurface;

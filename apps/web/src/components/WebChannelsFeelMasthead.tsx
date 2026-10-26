@@ -15,11 +15,15 @@ function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
 }
 
-export function WebChannelsFeelMasthead(props: { tab: CommunityTab }) {
+// The full masthead heads the community's home page only; Knowledge, Events
+// and the rest carry their own title row, so the content starts at the top
+// (Rashid, 2026-10-26). Chat keeps the slim bar wherever it sits.
+export function WebChannelsFeelMasthead(props: { tab: CommunityTab; home: CommunityTab }) {
   const frame = useWebCommunityFrame();
   const [copied, setCopied] = useState(false);
   const community = frame.community;
   if (!community) return null;
+  if (props.tab !== "chat" && props.tab !== props.home) return null;
   if (props.tab !== "chat" && props.tab !== "resources" && props.tab !== "events") return null;
   const joinUrl = communityJoinUrl(community.slug);
   const canInvite = frame.canInvite && joinUrl && frame.onCopyJoinLink;
