@@ -29,6 +29,7 @@ export function workflowAutomationIssue(automation: CommunityMemberWorkflowAutom
 
 export function workflowTriggerIssue(automation: CommunityMemberWorkflowAutomation, channels: CloudCommunityChannel[], unavailable: boolean): string | null {
   if (automation.trigger.type === "client_property_changed" && !automation.trigger.propertyKey) return "Choose a field on the member record";
+  if (automation.trigger.type === "property_date" && !automation.trigger.propertyKey) return "Add a date field to the member record, then choose it";
   if (automation.trigger.type === "previous_action_completed" && !automation.trigger.predecessorActionKey) return "Choose a preceding action";
   if (automation.trigger.type === "form_submitted" && !automation.trigger.formKey) return "Choose a published form";
   if (automation.trigger.type === "milestone_elapsed") {
@@ -111,11 +112,16 @@ export type WorkflowActionType = CommunityMemberWorkflowAutomation["action"]["ty
 
 /** Switch a rule to another trigger, keeping the action when the new trigger allows it. */
 export function applyWorkflowTriggerType(automation: WorkflowAutomationDraft, type: WorkflowTriggerType,
-  earlierSteps: CommunityMemberWorkflowAutomation[], firstPropertyKey = ""): WorkflowAutomationDraft | null {
+  earlierSteps: CommunityMemberWorkflowAutomation[], properties: Array<{ key: string; type: string }> = []): WorkflowAutomationDraft | null {
   const action = automation.action.type;
+  const keep = action === "create_service_channel" ? "prompt_agent" : action;
   if (type === "client_property_changed") {
-    return { ...replaceWorkflowDraftAction(automation, action === "create_service_channel" ? "prompt_agent" : action),
-      trigger: { type, propertyKey: automation.trigger.type === type ? automation.trigger.propertyKey : firstPropertyKey } };
+    return { ...replaceWorkflowDraftAction(automation, keep),
+      trigger: { type, propertyKey: automation.trigger.type === type ? automation.trigger.propertyKey : properties[0]?.key ?? "" } };
+  }
+  if (type === "property_date") {
+    return { ...replaceWorkflowDraftAction(automation, keep), trigger: automation.trigger.type === type ? automation.trigger
+      : { type, propertyKey: properties.find((property) => property.type === "date")?.key ?? "", offsetDays: 0 } };
   }
   if (type === "member_joined") {
     return { ...replaceWorkflowDraftAction(automation, action === "request_form" ? "request_form" : "create_service_channel"), trigger: { type } };

@@ -1425,6 +1425,40 @@ test("a record-change automation that never fires doesn't keep the member in the
   vi.useRealTimers();
 });
 
+test("a date on the member record runs its rule once, offset days before it, and never for dates long gone", async () => {
+  const { t, f, owner, configured, values, runs } = await branchFixture();
+  await owner.mutation(api.communityClients.createClientProperty, { communityId: f.communityId, name: "Renewal", type: "date", options: [] });
+  const set = (key: string, propertyKey: string, value: string) => ({ key, type: "set_client_property" as const, propertyKey, value });
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [{ trigger: { type: "property_date" as const, propertyKey: "renewal", offsetDays: -3 }, action: set("draft-soon", "tag", "soon") }],
+  });
+  const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const renewal = day(f.nowMs + 10 * 86_400_000);
+  const dueAt = Date.parse(`${renewal}T09:00:00Z`) - 3 * 86_400_000;
+  const setRenewal = (value: string) => owner.mutation(api.communityClients.setClientPropertyValue, { communityId: f.communityId, membershipId: String(f.membershipId), key: "renewal", value });
+  await setRenewal(renewal);
+  const tick = async () => { await t.mutation(internalApi.communityMemberWorkflows.processDuePropertyDateTriggersInternal, {}); await t.finishAllScheduledFunctions(vi.runAllTimers); };
+  vi.setSystemTime(dueAt - 60_000);
+  await tick();
+  expect((await values()).tag).toBeUndefined();
+  vi.setSystemTime(dueAt + 60_000);
+  await tick();
+  await tick();
+  expect((await values()).tag).toBe("soon");
+  expect((await runs()).filter(run => run.triggerType === "property_date")).toHaveLength(1);
+  // A date that came round long ago never fires.
+  await t.run(async ctx => { for (const run of await ctx.db.query("communityMemberWorkflowRuns").collect()) await ctx.db.delete(run._id); });
+  await setRenewal(day(f.nowMs - 30 * 86_400_000));
+  await tick();
+  expect((await runs()).filter(run => run.triggerType === "property_date")).toHaveLength(0);
+  await expect(owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 4, name: "New",
+    automations: [{ trigger: { type: "property_date" as const, propertyKey: "plan", offsetDays: 0 }, action: set("draft-x", "tag", "x") }],
+  })).rejects.toThrow(/workflow_property_not_a_date/);
+  vi.useRealTimers();
+});
+
 test("a wait after a step starts a timer from when that step finished, and runs once it is due", async () => {
   const { t, f, owner, configured, values } = await branchFixture();
   await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {

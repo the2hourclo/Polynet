@@ -4729,6 +4729,7 @@ test("an owner's agent builds Workflows through the MCP: a coloured stage, an em
   // Only if with an AND group, and its Otherwise path.
   expect(definition.body).toContain("otherwise");
   expect(definition.body).toContain("client_property_changed");
+  expect(definition.body).toContain("property_date");
   const first = updated.automations[0];
   const group = { propertyKey: "plan", op: "is", value: "Pro", match: "all", also: [{ propertyKey: "goal", op: "is_set" }] };
   const after = { type: "previous_action_completed", predecessorActionKey: first.action.key };

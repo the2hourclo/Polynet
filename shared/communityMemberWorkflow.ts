@@ -35,7 +35,30 @@ export type CommunityMemberWorkflowTrigger =
   | { type: "client_property_changed"; propertyKey: string; value?: string | number | boolean }
   /** The member moved onto an offer (joined on it or upgraded), or off it. Absent offerKey means any offer. */
   | { type: "offer_started"; offerKey?: string }
-  | { type: "offer_ended"; offerKey?: string };
+  | { type: "offer_ended"; offerKey?: string }
+  /** A date field on their record comes round: `offsetDays` before (negative),
+   * on (0) or after it, at 09:00 UTC. Only for dates still ahead when they're in
+   * the stage; it never holds the stage. */
+  | { type: "property_date"; propertyKey: string; offsetDays: number };
+
+export const WORKFLOW_PROPERTY_DATE_MAX_OFFSET_DAYS = 365;
+/** The hour (UTC) a date trigger runs on its day. */
+export const WORKFLOW_PROPERTY_DATE_HOUR_UTC = 9;
+
+export function normalizeWorkflowOffsetDays(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || Math.abs(value) > WORKFLOW_PROPERTY_DATE_MAX_OFFSET_DAYS) {
+    throw new Error("workflow_offset_days_invalid");
+  }
+  return value;
+}
+
+/** When a date trigger is due for a stored YYYY-MM-DD value, or null when the value isn't a date. */
+export function workflowPropertyDateDueAt(value: unknown, offsetDays: number): number | null {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const day = Date.parse(`${value}T00:00:00Z`);
+  if (!Number.isFinite(day)) return null;
+  return day + WORKFLOW_PROPERTY_DATE_HOUR_UTC * 3_600_000 + offsetDays * 86_400_000;
+}
 
 export function normalizeWorkflowDelayMinutes(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 525600) {
@@ -189,6 +212,7 @@ export function workflowTriggerIdentity(trigger: CommunityMemberWorkflowTrigger)
     : trigger.type === "course_completed" ? [trigger.type, trigger.moduleId ?? null]
     : trigger.type === "track_completed" ? [trigger.type, trigger.trackKey ?? null]
     : trigger.type === "client_property_changed" ? [trigger.type, trigger.propertyKey, trigger.value ?? null]
+    : trigger.type === "property_date" ? [trigger.type, trigger.propertyKey, trigger.offsetDays]
     : trigger.type === "offer_started" || trigger.type === "offer_ended" ? [trigger.type, trigger.offerKey ?? null]
     : trigger.type === "member_joined" ? [trigger.type]
     : trigger.nudge ? [trigger.type, trigger.delayMinutes, "nudge"] : [trigger.type, trigger.delayMinutes]);
@@ -323,7 +347,7 @@ export function workflowRuleUsesTimer(rule: { trigger: CommunityMemberWorkflowTr
     || (rule.trigger.type === "previous_action_completed" && (rule.trigger.delayMinutes ?? 0) > 0)
     || ((rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed" || rule.trigger.type === "track_completed"
         || rule.trigger.type === "offer_started" || rule.trigger.type === "offer_ended"
-        || rule.trigger.type === "client_property_changed")
+        || rule.trigger.type === "client_property_changed" || rule.trigger.type === "property_date")
       && rule.action.type === "prompt_agent");
 }
 

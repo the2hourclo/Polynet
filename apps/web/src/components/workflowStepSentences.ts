@@ -90,6 +90,11 @@ export function workflowTriggerPhrase(automation: CommunityMemberWorkflowAutomat
       const track = trigger.trackKey ? names.catalog?.tracks?.find((item) => item.key === trigger.trackKey)?.title : null;
       return trigger.trackKey ? `When they finish ${track ? `the ${quote(track, 50)} track` : "a track"}` : "When they finish any track";
     }
+    case "property_date": {
+      const days = Math.abs(trigger.offsetDays);
+      const field = `their ${propertyName(trigger.propertyKey, names)} date`;
+      return trigger.offsetDays === 0 ? `On ${field}` : `${days} day${days === 1 ? "" : "s"} ${trigger.offsetDays < 0 ? "before" : "after"} ${field}`;
+    }
     case "client_property_changed":
       return `When ${propertyName(trigger.propertyKey, names)} changes${trigger.value === undefined ? "" : ` to ${formatValue(trigger.value)}`}`;
     case "member_contributed": {
