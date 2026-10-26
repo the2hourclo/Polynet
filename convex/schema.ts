@@ -1415,6 +1415,9 @@ export default defineSchema({
     // receipt it came from (one timer per receipt and rule).
     startedAt: v.optional(v.number()),
     sourceRef: v.optional(v.string()),
+    // The owner skipped the wait (Run now, Test run, Autoplay): an agent step
+    // it starts may run before the rule's own due time.
+    runEarlyAt: v.optional(v.number()),
     status: v.union(v.literal("pending"), v.literal("consumed"), v.literal("obsolete")),
     createdAt: v.number(),
     finishedAt: v.optional(v.number()),

@@ -134,7 +134,7 @@ export async function requireServiceWorkflowDestination(ctx: any, request: any) 
     await readServiceMemberContext(ctx, request);
     resolved = { membership, workflow, automation };
   } else if (!resolved || !run || timer.status === "obsolete"
-    || resolved.dueAt > Date.now()
+    || (resolved.dueAt > Date.now() && timer.runEarlyAt === undefined)
     || run.communityId !== request.communityId || run.workflowId !== timer.workflowId
     || run.membershipId !== timer.membershipId || run.automationKey !== timer.automationKey
     || run.triggerReceiptRef !== `workflow-timer:${timer._id}`

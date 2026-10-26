@@ -2058,6 +2058,8 @@ export async function runWorkflowTimerNow(ctx: any, timer: any): Promise<boolean
     await ctx.db.patch(timer._id, { status: "obsolete", finishedAt: nowMs });
     return false;
   }
+  // Ahead of time: the agent step's authority check needs to know it was skipped on purpose.
+  if (resolved.dueAt > nowMs) await ctx.db.patch(timer._id, { runEarlyAt: nowMs });
   await executeWorkflowAutomation({ ctx, ...resolved, workflowTimerId: timer._id, timerReceiptRef: `workflow-timer:${timer._id}` });
   await ctx.db.patch(timer._id, { status: "consumed", finishedAt: nowMs });
   return true;
