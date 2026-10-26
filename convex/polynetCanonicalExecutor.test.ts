@@ -4038,6 +4038,21 @@ test("owners and their external agent read clients and set their own client prop
   const stored = await t.run(async (ctx) => await ctx.db.query("communityClientValues").collect());
   expect(stored).toMatchObject([{ propertyKey: "tier", value: "VIP", updatedVia: "agent" }]);
 
+  // Views: the agent reads one view's members, saves its own, and only proposes removals and bulk changes.
+  expect((clients as any).value.views.map((view: any) => view.key)).toContain("stuck");
+  expect((clients as any).value.fields.some((field: any) => field.key === "prop:tier")).toBe(true);
+  await expect(owner.callOp("community.client.view.save", { view: { name: "VIPs", columns: ["status", "prop:tier"],
+    filters: [{ field: "prop:tier", op: "is", value: ["VIP"] }] } })).resolves.toMatchObject({ ok: true, value: { result: { view: { key: "vips" } } } });
+  const vips = await owner.run("polynet_list", { path: "/communities/canonical-community/builder/clients/views/vips/" });
+  expect(vips, JSON.stringify(vips)).toMatchObject({ ok: true });
+  expect((vips as any).value.entries.map((entry: any) => entry.ref)).toEqual([`membership:${membership._id}`]);
+  await expect(owner.run("polynet_list", { path: "/communities/canonical-community/builder/clients/views/nope/" }))
+    .resolves.toMatchObject({ ok: false, code: "client_view_not_found" });
+  await expect(owner.callOp("community.client.property.define", { key: "tier", archive: true })).resolves.toMatchObject({ ok: false, code: "invalid_tool_args" });
+  await expect(owner.callOp("community.client.bulk", { action: { type: "message", body: "Hi {first_name}" }, membership_ids: [String(membership._id)] }))
+    .resolves.toMatchObject({ ok: true, value: { review: "owner_apply", kind: "community_setting_change_proposed" } });
+  expect(await t.run(async (ctx) => await ctx.db.query("communityClientBulkActions").collect())).toEqual([]);
+
   // Members and the community-owned agent get neither the list nor the operations.
   const member = as("external_mcp", fixture.memberSubject, fixture.memberId);
   await expect(member.run("polynet_list", { path: "/communities/canonical-community/builder/clients/" }))

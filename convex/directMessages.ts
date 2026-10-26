@@ -1847,3 +1847,45 @@ export const generateDirectMessageAttachmentUploadUrlForUser = mutation({
     };
   },
 });
+
+/**
+ * An owner's or admin's message to one member, sent from the Members page's
+ * bulk "Message" (convex/communityClients.ts). Same conversation, blocks,
+ * relationship check and email nudge as a message typed by hand; the per-person
+ * DM counters are left to the bulk action's own daily cap, which the caller enforces.
+ */
+export async function sendCommunityManagerDirectMessage(ctx: any, args: {
+  senderUserId: any; targetUserId: any; communityId: any; text: string;
+}): Promise<{ conversationId: string; seq: number }> {
+  if (normalizeIdValue(args.targetUserId) === normalizeIdValue(args.senderUserId)) throw new Error("dm_target_self");
+  await requireDirectMessageRelationshipAccess({
+    ctx, viewerUserId: args.senderUserId, targetUserId: args.targetUserId,
+    preferredCommunityId: args.communityId, requiredCommunityId: null,
+  });
+  const nowMs = Date.now();
+  let conversation = await findDirectConversationByUsers(ctx, args.senderUserId, args.targetUserId);
+  const isNewConversation = !conversation;
+  if (!conversation) {
+    const conversationId = await ctx.db.insert("dmConversations" as any, {
+      kind: DIRECT_CONVERSATION_KIND,
+      canonicalKey: buildDirectConversationCanonicalKey(args.senderUserId, args.targetUserId),
+      createdByUserId: args.senderUserId,
+      createdFromCommunityId: args.communityId,
+      lastSeq: 0,
+      createdAt: nowMs,
+      updatedAt: nowMs,
+    });
+    conversation = (await ctx.db.get(conversationId)) as DirectMessageConversationLike | null;
+  }
+  if (!conversation) throw new Error("dm_conversation_create_failed");
+  await ensureUserParticipant({ ctx, conversationId: conversation._id, userId: args.senderUserId, nowMs, touchActivity: true });
+  await ensureUserParticipant({ ctx, conversationId: conversation._id, userId: args.targetUserId, nowMs,
+    touchActivity: isNewConversation, fallbackActivityAt: conversation.updatedAt });
+  const { participant } = await requireActiveUserParticipant({ ctx, conversationId: conversation._id, userId: args.senderUserId });
+  const message = await appendDirectMessageFromUser({
+    ctx, conversation, senderUserId: args.senderUserId, senderParticipantId: participant._id, text: args.text, attachments: [],
+  });
+  await scheduleDirectMessageEmailNotification({ ctx, conversationId: conversation._id, messageSeq: message.seq,
+    recipientUserId: args.targetUserId, senderUserId: args.senderUserId });
+  return { conversationId: String(conversation._id), seq: message.seq };
+}

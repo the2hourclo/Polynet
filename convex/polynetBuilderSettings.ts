@@ -335,6 +335,39 @@ BUILDER_SETTING_OPERATIONS.push(
   }),
 );
 
+// The Members page (Rashid, 2026-10-26). Views are direct; removing a view or a
+// property, and changing many members at once, wait for the owner's Apply.
+BUILDER_SETTING_OPERATIONS.push(
+  op({
+    operation: "community.client.view.save", area: "members", name: "Save a Members view",
+    calls: "communityClients:saveClientView", ref: internal.communityClients.saveClientViewInternal, kind: "mutation",
+    identity: "user", extra: { via: "agent" },
+    fields: { key: "an existing view's key to change it; leave out to add a view",
+      view: '{ "name", "columns": [field keys], "filters": [{ "field", "op", "value" }], "match": "all"|"any", "sort": { "field", "direction": "asc"|"desc" } }. Field keys and the ops each field takes are in /builder/clients/ (fields)',
+      position: "the view's place in the tab row (a number)" },
+    required: ["view"], effects: ["save_client_view"],
+  }),
+  proposal({
+    operation: "community.client.view.delete", area: "members", name: "Delete a Members view",
+    calls: "communityClients:deleteClientView", ref: api.communityClients.deleteClientView, kind: "mutation",
+    fields: { key: "the view's key" }, required: ["key"], effects: ["delete_client_view"],
+  }),
+  proposal({
+    operation: "community.client.property.archive", area: "members", name: "Remove a property",
+    calls: "communityClients:archiveClientProperty", ref: api.communityClients.archiveClientProperty, kind: "mutation",
+    fields: { key: "the property's key" }, required: ["key"], effects: ["archive_client_property"],
+  }),
+  proposal({
+    operation: "community.client.bulk", area: "members", name: "Change or message many members at once",
+    calls: "communityClients:runClientBulkAction", ref: api.communityClients.runClientBulkAction, kind: "mutation",
+    fields: {
+      action: '{ "type": "set_property", "propertyKey", "value" (null clears) } | { "type": "message", "body" } (a direct message from the owner; {first_name} and {name} are filled in) | { "type": "flag", "body"? } | { "type": "note", "body" }',
+      membership_ids: "up to 200 membership ids from /builder/clients/ (one view's members: /builder/clients/views/<key>/)",
+    },
+    required: ["action", "membership_ids"], effects: ["bulk_set_client_property", "bulk_message_members", "bulk_log_client_event"],
+  }),
+);
+
 // Replacing or deleting a saved theme loses that look, so the owner applies it.
 BUILDER_SETTING_OPERATIONS.push(
   proposal({
@@ -358,6 +391,9 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   // Other MCP paths already do these.
   "communityClients:createClientProperty": "agent path: community.client.property.define",
   "communityClients:updateClientProperty": "agent path: community.client.property.define (with key)",
+  "communityClients:setClientPropertyValue": "agent path: community.client.value.set",
+  "communityClients:recordClientEvent": "agent path: community.client.event.record",
+  "communityClients:setClientSettings": "agent path: community.client.settings.set",
   "communityThemes:saveCommunityThemeDraft": "agent path: community.theme.save_draft",
   "communityThemes:publishCommunityThemeDraft": "agent path: community.theme.publish",
   "communityThemes:discardCommunityThemeDraft": "agent path: save the published theme as the draft",

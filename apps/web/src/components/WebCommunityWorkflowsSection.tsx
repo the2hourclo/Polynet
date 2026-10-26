@@ -28,7 +28,8 @@ import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflow
 import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
 import { WebCommunityTestRun, startTestRunInNewTab, testRunErrorMessage, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
-import { WebCommunityClientAccessPanel, WebCommunityClients } from "./WebCommunityAccess";
+import { WebCommunityClientAccessPanel } from "./WebCommunityAccess";
+import { WebCommunityMembers } from "./WebCommunityMembers";
 import { WebCommunityAgentLedJourney } from "./WebCommunityAgentLedJourney";
 import { WebCommunityWorkflowSteps } from "./WebCommunityWorkflowSteps";
 import type { AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
@@ -142,7 +143,7 @@ export function WebCommunityWorkflowsSection(
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  const tabs = WORKFLOW_SECTIONS.map(id => ({ id, label: id === "test" ? "Test run" : id[0].toUpperCase() + id.slice(1), disabled: switching }));
+  const tabs = WORKFLOW_SECTIONS.map(id => ({ id, label: id === "test" ? "Test run" : id === "clients" ? "Members" : id[0].toUpperCase() + id.slice(1), disabled: switching }));
   // Page header and underlined section tabs, after Substack's dashboard.
   return <div className="workflow-page workflow-sections pn-wf">
     <header className="pn-wf-header">
@@ -163,8 +164,8 @@ export function WebCommunityWorkflowsSection(
             onOpenRecord={(membershipId) => { void select("workflows"); props.onOpenMemberDossier(membershipId); }} />
           : <p role="status">Only the community's owner and admins can run tests.</p>
         : section === "clients" ? props.access
-          ? <WebCommunityClients key={props.access.scopeKey} gateway={props.access} />
-          : <p role="status">Only the community's owner and admins can see clients.</p>
+          ? <WebCommunityMembers key={props.access.scopeKey} gateway={props.access} />
+          : <p role="status">Only the community's owner and admins can see members.</p>
         : props.forms
         ? <WebCommunityForms key={props.forms.scopeKey} gateway={props.forms} leaveGuard={beforeLeave} />
         : <p role="status">Forms are unavailable.</p>}

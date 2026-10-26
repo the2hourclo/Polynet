@@ -11,7 +11,9 @@ import { getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurre
 import { readMemberFactsForLens } from "./memberOntologyCore";
 import { courseSummaries, listMemberVisibleLessonPages, readProgressRows } from "./communityResourceProgress";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
-import { listActiveCommunityAccessIntegrations, readClientAccessForList, readCommunityAccessTimelineEntries } from "./communityAccessSync";
+import { listActiveCommunityAccessIntegrations, readClientAccessForList, readCommunityAccessTimelineEntries, verifiedEmailOf } from "./communityAccessSync";
+import { internal } from "./_generated/api";
+import { sendCommunityManagerDirectMessage } from "./directMessages";
 import { canonicalReceiptAttemptValidator, completeCanonicalOperationReceipt } from "./polynetCanonicalReceipts";
 import {
   COMMUNITY_CLIENT_PROPERTY_LIMIT,
@@ -28,6 +30,17 @@ import {
   type CommunityClientPropertyDefinition,
   type CommunityClientPropertyValue,
 } from "../shared/communityClients";
+import {
+  COMMUNITY_CLIENT_BULK_LIMIT,
+  COMMUNITY_CLIENT_DEFAULT_VIEWS,
+  COMMUNITY_CLIENT_MESSAGE_MAX,
+  COMMUNITY_CLIENT_VIEW_LIMIT,
+  CommunityClientViewError,
+  communityClientFields,
+  communityClientViewKey,
+  normalizeCommunityClientView,
+  personalizeCommunityClientMessage,
+} from "../shared/communityClientViews";
 
 // The owner's client list. Every client field except owner properties is read
 // fresh from the record that owns it; nothing here copies membership, payment,
@@ -422,7 +435,7 @@ async function listClients(ctx: any, args: any) {
 
   const clients = await Promise.all(page.page.map(async (membership: any) => {
     const active = communityMembershipRowIsActive(membership);
-    const [profile, subscription, progressRows, forms, facts, values, milestoneState, lastFlaggedAt, lastContactedAt, referral, testMember, access] = await Promise.all([
+    const [profile, subscription, progressRows, forms, facts, values, milestoneState, lastFlaggedAt, lastContactedAt, referral, testMember, access, user, presence] = await Promise.all([
       resolveUserProfileDisplayProjection(ctx, membership.userId),
       readLatestSubscription(ctx, membership._id),
       readProgressRows(ctx, args.communityId, membership.userId),
@@ -438,6 +451,9 @@ async function listClients(ctx: any, args: any) {
         .withIndex("by_community_user", (q: any) => q.eq("communityId", args.communityId).eq("userId", membership.userId)).first(),
       findTestMemberByUserId(ctx, membership.userId),
       readClientAccessForList(ctx, { community, membership, integrations, nowMs }),
+      ctx.db.get(membership.userId),
+      ctx.db.query("communityPresence")
+        .withIndex("by_community_user", (q: any) => q.eq("communityId", args.communityId).eq("userId", membership.userId)).first(),
     ]);
     const stage = workflow && active && workflow.milestones.length
       ? (() => { try { return resolveCurrentMilestone({ workflow, membership, state: milestoneState }); } catch { return null; } })()
@@ -455,6 +471,8 @@ async function listClients(ctx: any, args: any) {
       avatar_url: profile.avatar_url ?? null,
       // An owner's test run, not a real member: leave it out of real-member work.
       is_test: Boolean(testMember),
+      // Verified emails only, the same address connected services get. Test members have none.
+      email: testMember ? null : verifiedEmailOf(user),
       status: deriveCommunityClientStatus({
         active,
         subscription: subscription ? { status: subscription.status, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd } : null,
@@ -476,6 +494,8 @@ async function listClients(ctx: any, args: any) {
       forms_submitted: forms.count,
       last_form_submitted_at: toIso(forms.last_submitted_at_ms),
       last_active_at: toIso(lastActiveAtMs),
+      // When they last had the community open (presence heartbeat), signed in or not doing anything.
+      last_seen_at: toIso(presence?.lastSeenAt),
       last_progress_at: toIso(lastProgressAtMs),
       stuck: deriveCommunityClientStuck({ active, lastProgressAtMs, nowMs, days: stuckDays }),
       last_flagged_at: toIso(lastFlaggedAt),
@@ -494,9 +514,222 @@ async function listClients(ctx: any, args: any) {
     read_at: new Date(nowMs).toISOString(),
     stuck_days: stuckDays,
     properties: definitions,
+    fields: communityClientFields({ properties: definitions, courses: courseSummaries(lessons, []) }),
     clients,
     next_cursor: page.isDone ? null : page.continueCursor,
     lessons_truncated: lessons.truncated,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Saved views. A community starts with the default views; the first change
+// copies them in, so the owner can then edit or delete any of them.
+
+async function readViewRows(ctx: any, communityId: any) {
+  const rows = await ctx.db.query("communityClientViews")
+    .withIndex("by_community_key", (q: any) => q.eq("communityId", communityId)).take(COMMUNITY_CLIENT_VIEW_LIMIT + 1);
+  return rows.sort((a: any, b: any) => a.position - b.position || a.createdAt - b.createdAt);
+}
+
+function projectView(row: any) {
+  return { key: row.key as string, name: row.name as string, columns: row.columns as string[], filters: row.filters,
+    match: row.match as "all" | "any", sort: row.sort ?? null };
+}
+
+async function readViews(ctx: any, communityId: any) {
+  const settings = await readSettings(ctx, communityId);
+  if (!settings?.viewsSeededAt) return COMMUNITY_CLIENT_DEFAULT_VIEWS.map((view) => ({ ...view, filters: [...view.filters] }));
+  return (await readViewRows(ctx, communityId)).map(projectView);
+}
+
+async function seedViews(ctx: any, args: { communityId: any; userId: any; via: "web" | "agent" }) {
+  const settings = await readSettings(ctx, args.communityId);
+  if (settings?.viewsSeededAt) return;
+  const nowMs = Date.now();
+  for (const [position, view] of COMMUNITY_CLIENT_DEFAULT_VIEWS.entries()) {
+    await ctx.db.insert("communityClientViews", { communityId: args.communityId, key: view.key, name: view.name,
+      columns: view.columns, filters: view.filters, match: view.match, ...(view.sort ? { sort: view.sort } : {}),
+      position, updatedByUserId: args.userId, updatedVia: args.via, createdAt: nowMs, updatedAt: nowMs });
+  }
+  if (settings) await ctx.db.patch(settings._id, { viewsSeededAt: nowMs });
+  else await ctx.db.insert("communityClientSettings", { communityId: args.communityId, stuckDays: COMMUNITY_CLIENT_STUCK_DEFAULT_DAYS,
+    viewsSeededAt: nowMs, updatedByUserId: args.userId, updatedAt: nowMs });
+}
+
+async function readFieldsFor(ctx: any, communityId: any) {
+  const [properties, lessons] = await Promise.all([listActiveProperties(ctx, communityId), listMemberVisibleLessonPages(ctx, communityId)]);
+  return communityClientFields({ properties: properties.map(projectProperty), courses: courseSummaries(lessons, []) });
+}
+
+async function listViews(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  return { views: await readViews(ctx, args.communityId), fields: await readFieldsFor(ctx, args.communityId) };
+}
+
+const viewError = (error: unknown) => error instanceof CommunityClientViewError ? new CommunityClientError(error.code, error.message) : error;
+
+// key: an existing view to change; leave it out to add a new one.
+const saveViewArgs = { ...managerArgs, key: v.optional(v.string()), view: v.any(), position: v.optional(v.number()),
+  via: v.optional(v.union(v.literal("web"), v.literal("agent"))) };
+
+async function saveView(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  let view;
+  try { view = normalizeCommunityClientView(args.view, await readFieldsFor(ctx, args.communityId)); } catch (error) { throw viewError(error); }
+  const via = args.via ?? "web";
+  await seedViews(ctx, { communityId: args.communityId, userId: args.userId, via });
+  const rows = await readViewRows(ctx, args.communityId);
+  const nowMs = Date.now();
+  const fields = { name: view.name, columns: view.columns, filters: view.filters, match: view.match, sort: view.sort ?? undefined,
+    updatedByUserId: args.userId, updatedVia: via, updatedAt: nowMs };
+  if (args.position !== undefined && !Number.isFinite(args.position)) throw new CommunityClientError("client_view_invalid", "position");
+  if (typeof args.key === "string") {
+    const row = rows.find((other: any) => other.key === args.key);
+    if (!row) throw new CommunityClientError("client_view_not_found", args.key);
+    await ctx.db.patch(row._id, { ...fields, ...(args.position !== undefined ? { position: args.position } : {}) });
+    return { view: { key: row.key, ...view } };
+  }
+  if (rows.length >= COMMUNITY_CLIENT_VIEW_LIMIT) throw new CommunityClientError("client_view_limit_reached");
+  const base = communityClientViewKey(view.name);
+  const taken = new Set(rows.map((row: any) => row.key));
+  let key = base;
+  for (let n = 2; taken.has(key); n++) key = `${base}_${n}`;
+  await ctx.db.insert("communityClientViews", { communityId: args.communityId, key, ...fields,
+    position: args.position ?? Math.max(-1, ...rows.map((row: any) => row.position)) + 1, createdAt: nowMs });
+  return { view: { key, ...view } };
+}
+
+const deleteViewArgs = { ...managerArgs, key: v.string() };
+
+async function deleteView(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  await seedViews(ctx, { communityId: args.communityId, userId: args.userId, via: "web" });
+  const row = (await readViewRows(ctx, args.communityId)).find((other: any) => other.key === args.key);
+  if (!row) throw new CommunityClientError("client_view_not_found", args.key);
+  await ctx.db.delete(row._id);
+  return { deleted: row.key };
+}
+
+// ---------------------------------------------------------------------------
+// Bulk actions: one change for many selected clients. Each member's change is
+// the same write a single edit makes (the property's value and the timeline
+// entry, or a direct message plus a "contacted" entry), so the activity log
+// reads the same whichever way it was done.
+
+const BULK_BATCH = 20;
+// Direct messages one community's managers may send in bulk per day, so a
+// mistake or a runaway agent can't spam the whole community.
+const BULK_MESSAGES_PER_DAY = 500;
+
+const runBulkArgs = {
+  ...managerArgs,
+  action: v.object({
+    type: v.string(),
+    propertyKey: v.optional(v.string()),
+    value: v.optional(v.any()),
+    body: v.optional(v.string()),
+  }),
+  membershipIds: v.array(v.string()),
+};
+
+async function runBulkAction(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  const ids = [...new Set(args.membershipIds as string[])];
+  if (!ids.length || ids.length > COMMUNITY_CLIENT_BULK_LIMIT) throw new CommunityClientError("client_bulk_selection_invalid");
+  const memberships = [];
+  for (const id of ids) memberships.push(await requireMembershipInCommunity(ctx, args.communityId, id));
+  const { type } = args.action;
+  const row: Record<string, unknown> = { type };
+  if (type === "set_property") {
+    if (typeof args.action.propertyKey !== "string") throw new CommunityClientError("client_property_not_found");
+    const property = await findProperty(ctx, args.communityId, args.action.propertyKey);
+    row.propertyKey = property.key;
+    row.value = normalizeCommunityClientPropertyValue(property, args.action.value ?? null);
+  } else if (type === "message" || type === "note" || type === "flag") {
+    const body = typeof args.action.body === "string" ? args.action.body.trim() : "";
+    const max = type === "message" ? COMMUNITY_CLIENT_MESSAGE_MAX : CLIENT_EVENT_BODY_MAX;
+    if (body.length > max || (type !== "flag" && !body)) throw new CommunityClientError("client_event_body_invalid");
+    if (body) row.body = body;
+    if (type === "message") {
+      const since = Date.now() - 24 * 60 * 60 * 1000;
+      const recent = await ctx.db.query("communityClientBulkActions")
+        .withIndex("by_community_createdAt", (q: any) => q.eq("communityId", args.communityId).gte("createdAt", since)).take(200);
+      const sent = recent.filter((other: any) => other.type === "message").reduce((sum: number, other: any) => sum + other.membershipIds.length, 0);
+      if (sent + memberships.length > BULK_MESSAGES_PER_DAY) throw new CommunityClientError("client_bulk_message_limit_reached");
+    }
+  } else {
+    throw new CommunityClientError("client_bulk_action_invalid");
+  }
+  const createdAt = Date.now();
+  const id = await ctx.db.insert("communityClientBulkActions", {
+    communityId: args.communityId, actorUserId: args.userId, ...row,
+    membershipIds: memberships.map((membership: any) => membership._id), cursor: 0, status: "running", results: [], createdAt,
+  } as any);
+  await ctx.scheduler.runAfter(0, (internal as any).communityClients.processClientBulkActionInternal, { bulkActionId: id, via: args.via ?? "web" });
+  return { bulk_action_id: String(id), type, count: memberships.length, status: "running" };
+}
+
+export const processClientBulkActionInternal = internalMutation({
+  args: { bulkActionId: v.id("communityClientBulkActions"), via: v.union(v.literal("web"), v.literal("agent")) },
+  handler: async (ctx, args) => {
+    const bulk = await ctx.db.get(args.bulkActionId);
+    if (!bulk || bulk.status !== "running") return;
+    const batch = bulk.membershipIds.slice(bulk.cursor, bulk.cursor + BULK_BATCH);
+    const results = [...bulk.results];
+    // The actor must still manage the community when each batch runs.
+    let allowed = true;
+    try { await requireCommunityManager({ ctx, communityId: bulk.communityId, userId: bulk.actorUserId }); } catch { allowed = false; }
+    const property = bulk.type === "set_property" && allowed
+      ? await ctx.db.query("communityClientProperties")
+        .withIndex("by_community_key", (q: any) => q.eq("communityId", bulk.communityId).eq("key", bulk.propertyKey)).unique()
+      : null;
+    for (const membershipId of batch) {
+      const membership = await ctx.db.get(membershipId);
+      if (!allowed) { results.push({ membershipId, ok: false, code: "not_allowed" }); continue; }
+      if (!membership || membership.communityId !== bulk.communityId) { results.push({ membershipId, ok: false, code: "not_found" }); continue; }
+      try {
+        if (bulk.type === "set_property") {
+          if (!property || property.archivedAt) throw new CommunityClientError("client_property_not_found");
+          await writeValue(ctx, { communityId: bulk.communityId, membership, property, actorUserId: bulk.actorUserId, via: args.via,
+            value: bulk.value ?? null });
+        } else if (bulk.type === "message") {
+          const profile = await resolveUserProfileDisplayProjection(ctx, membership.userId);
+          const text = personalizeCommunityClientMessage(bulk.body ?? "", profile.display_name ?? "");
+          await sendCommunityManagerDirectMessage(ctx, { senderUserId: bulk.actorUserId, targetUserId: membership.userId,
+            communityId: bulk.communityId, text });
+          await ctx.db.insert("communityClientEvents", { communityId: bulk.communityId, membershipId, type: "contacted",
+            actorUserId: bulk.actorUserId, via: args.via, channel: "message", body: text.slice(0, CLIENT_EVENT_BODY_MAX), createdAt: Date.now() });
+        } else {
+          await ctx.db.insert("communityClientEvents", { communityId: bulk.communityId, membershipId,
+            type: bulk.type === "flag" ? "flagged" : "note", actorUserId: bulk.actorUserId, via: args.via,
+            ...(bulk.body ? { body: bulk.body } : {}), createdAt: Date.now() });
+        }
+        results.push({ membershipId, ok: true });
+      } catch (error) {
+        const code = /([a-z]+_[a-z_]+)/.exec(String((error as Error)?.message ?? ""))?.[1] ?? "failed";
+        results.push({ membershipId, ok: false, code });
+      }
+    }
+    const cursor = bulk.cursor + batch.length;
+    const done = cursor >= bulk.membershipIds.length;
+    await ctx.db.patch(bulk._id, { cursor, results, ...(done ? { status: "done" as const, finishedAt: Date.now() } : {}) });
+    if (!done) await ctx.scheduler.runAfter(0, (internal as any).communityClients.processClientBulkActionInternal, args);
+  },
+});
+
+const readBulkArgs = { ...managerArgs, bulkActionId: v.string() };
+
+async function readBulkAction(ctx: any, args: any) {
+  await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
+  const id = ctx.db.normalizeId("communityClientBulkActions", args.bulkActionId);
+  const bulk = id ? await ctx.db.get(id) : null;
+  if (!bulk || normalizeIdValue(bulk.communityId) !== normalizeIdValue(args.communityId)) throw new CommunityClientError("client_bulk_action_not_found");
+  const failed = bulk.results.filter((row: any) => !row.ok);
+  return {
+    kind: "community_client_bulk_action", bulk_action_id: String(bulk._id), type: bulk.type, status: bulk.status,
+    total: bulk.membershipIds.length, done: bulk.results.length, succeeded: bulk.results.length - failed.length,
+    failed: failed.map((row: any) => ({ membership_id: String(row.membershipId), code: row.code ?? "failed" })),
+    created_at: toIso(bulk.createdAt), finished_at: toIso(bulk.finishedAt),
   };
 }
 
@@ -519,6 +752,10 @@ export const recordClientEventInternal = internalMutation({ args: { ...recordEve
 export const readClientTimelineInternal = internalQuery({ args: readTimelineArgs, handler: readTimeline });
 export const setClientSettingsInternal = internalMutation({ args: { ...setSettingsArgs, ...receiptArgs }, handler: withReceipt(setSettings) });
 export const listClientsInternal = internalQuery({ args: listClientsArgs, handler: listClients });
+export const listClientViewsInternal = internalQuery({ args: managerArgs, handler: listViews });
+export const saveClientViewInternal = internalMutation({ args: { ...saveViewArgs, ...receiptArgs }, handler: withReceipt(saveView) });
+export const readClientBulkActionInternal = internalQuery({ args: readBulkArgs, handler: readBulkAction });
+
 
 // The same reads and writes for the signed-in owner or admin in the web app.
 function signedIn<A extends { userId: unknown }>(validators: A) {
@@ -558,4 +795,20 @@ export const setClientSettings = mutation({
 });
 export const listClientsForOwner = query({
   args: signedIn(listClientsArgs), handler: async (ctx, args) => listClients(ctx, await signedInArgs(ctx, args)),
+});
+export const listClientViews = query({
+  args: signedIn(managerArgs), handler: async (ctx, args) => listViews(ctx, await signedInArgs(ctx, args)),
+});
+export const saveClientView = mutation({
+  args: signedIn(saveViewArgs), handler: async (ctx, args) => saveView(ctx, { ...(await signedInArgs(ctx, args)), via: "web" }),
+});
+export const deleteClientView = mutation({
+  args: signedIn(deleteViewArgs), handler: async (ctx, args) => deleteView(ctx, await signedInArgs(ctx, args)),
+});
+// The page and an agent's applied proposal both run this, as whoever taps it.
+export const runClientBulkAction = mutation({
+  args: signedIn(runBulkArgs), handler: async (ctx, args) => runBulkAction(ctx, await signedInArgs(ctx, args)),
+});
+export const getClientBulkAction = query({
+  args: signedIn(readBulkArgs), handler: async (ctx, args) => readBulkAction(ctx, await signedInArgs(ctx, args)),
 });

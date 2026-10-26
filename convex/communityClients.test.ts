@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { api } from "./_generated/api";
 import schema from "./schema";
@@ -12,9 +12,12 @@ import {
   normalizeCommunityClientPropertyDraft,
   normalizeCommunityClientPropertyValue,
 } from "../shared/communityClients";
+import { applyCommunityClientView, communityClientFields, normalizeCommunityClientView, personalizeCommunityClientMessage } from "../shared/communityClientViews";
 
 const modules = import.meta.glob([
   "./communityClients.ts",
+  "./directMessages.ts",
+  "./directMessageEmails.ts",
   "./_generated/**/*.*s",
 ]);
 
@@ -228,5 +231,104 @@ describe("client list", () => {
     const after = (await f.asOwner.query(api.communityClients.listClientsForOwner, { communityId })).clients
       .find((client: any) => client.name === "thomas");
     expect(after.last_contacted_at).toBe(thomas.last_contacted_at);
+  });
+});
+
+describe("views and bulk actions", () => {
+  test("default views read without writing; the first change copies them in and can then be edited or deleted", async () => {
+    const f = await fixture();
+    const communityId = f.communityId;
+    const first = await f.asOwner.query(api.communityClients.listClientViews, { communityId });
+    expect(first.views.map((view: any) => view.key)).toEqual(["all", "stuck", "not_seen", "just_finished", "about_to_cancel", "cancelled", "previous"]);
+    expect(first.fields.some((field: any) => field.key === "last_seen_at")).toBe(true);
+    expect(await f.t.run((ctx) => ctx.db.query("communityClientViews").collect())).toEqual([]);
+
+    await f.asOwner.mutation(api.communityClients.createClientProperty, { communityId, name: "Tier", type: "select", options: ["VIP", "Standard"] });
+    const saved = await f.asOwner.mutation(api.communityClients.saveClientView, { communityId,
+      view: { name: "VIPs", columns: ["status", "prop:tier"], filters: [{ field: "prop:tier", op: "is", value: ["VIP"] }], sort: { field: "joined_at", direction: "desc" } } });
+    expect(saved.view.key).toBe("vips");
+    await expect(f.asOwner.mutation(api.communityClients.saveClientView, { communityId,
+      view: { name: "Typo", filters: [{ field: "prop:teir", op: "is", value: ["VIP"] }] } })).rejects.toThrow("client_view_invalid");
+    await f.asOwner.mutation(api.communityClients.deleteClientView, { communityId, key: "previous" });
+    const after = await f.asOwner.query(api.communityClients.listClientViews, { communityId });
+    expect(after.views.map((view: any) => view.key)).toEqual(["all", "stuck", "not_seen", "just_finished", "about_to_cancel", "cancelled", "vips"]);
+    await expect(f.asOutsider.mutation(api.communityClients.saveClientView, { communityId, view: { name: "Mine" } })).rejects.toThrow();
+  });
+
+  test("the list's rows filter the same way the page and the agent read a view", async () => {
+    const f = await fixture();
+    const communityId = f.communityId;
+    const list = await f.asOwner.query(api.communityClients.listClientsForOwner, { communityId });
+    const { views } = await f.asOwner.query(api.communityClients.listClientViews, { communityId });
+    const names = (key: string) => applyCommunityClientView(list.clients, views.find((view: any) => view.key === key), Date.now())
+      .map((client: any) => client.name).sort();
+    expect(names("stuck")).toEqual(["dean"]);
+    expect(names("about_to_cancel")).toEqual(["thomas"]);
+    expect(names("cancelled")).toEqual(["former"]);
+    // Nobody has opened the community yet, so everyone still here counts as not seen.
+    expect(names("not_seen")).toEqual(["dean", "thomas"]);
+  });
+
+  test("a bulk action sets a property, flags and messages each selected member, and logs it on their timeline", async () => {
+    vi.useFakeTimers();
+    try {
+      const f = await fixture();
+      const communityId = f.communityId;
+      await f.t.run(async (ctx) => {
+        await ctx.db.insert("communityMemberships", { communityId, userId: f.ownerId, role: "admin", active: true,
+          activationSequence: 1, activatedAt: Date.now(), createdAt: Date.now(), updatedAt: Date.now() } as any);
+      });
+      await f.asOwner.mutation(api.communityClients.createClientProperty, { communityId, name: "Cohort", type: "select", options: ["October", "November"] });
+      const ids = [String(f.activeMembership), String(f.stuckMembership)];
+      const run = async (action: any) => {
+        const started = await f.asOwner.mutation(api.communityClients.runClientBulkAction, { communityId, action, membershipIds: ids });
+        await f.t.finishAllScheduledFunctions(vi.runAllTimers);
+        return await f.asOwner.query(api.communityClients.getClientBulkAction, { communityId, bulkActionId: started.bulk_action_id });
+      };
+      expect(await run({ type: "set_property", propertyKey: "cohort", value: "october" })).toMatchObject({ status: "done", total: 2, succeeded: 2, failed: [] });
+      const list = await f.asOwner.query(api.communityClients.listClientsForOwner, { communityId });
+      expect(list.clients.filter((client: any) => client.properties.cohort === "October").map((client: any) => client.name).sort()).toEqual(["dean", "thomas"]);
+
+      expect(await run({ type: "flag", body: "Check in this week" })).toMatchObject({ succeeded: 2 });
+      expect(await run({ type: "message", body: "Hi {first_name}, how is your first skill going?" })).toMatchObject({ succeeded: 2 });
+      const messages = await f.t.run((ctx) => ctx.db.query("dmMessages").collect());
+      expect(messages.map((row: any) => row.contentJson.text).sort()).toEqual([
+        "Hi dean, how is your first skill going?", "Hi thomas, how is your first skill going?"]);
+      const timeline = await f.asOwner.query(api.communityClients.getClientTimeline, { communityId, membershipId: String(f.activeMembership) });
+      const summaries = timeline.entries.map((entry: any) => entry.summary);
+      expect(summaries).toContain("Owner contacted by message: Hi thomas, how is your first skill going?");
+      expect(summaries).toContain("Owner flagged: Check in this week");
+      expect(summaries).toContain('Owner set cohort to "October"');
+
+      await expect(f.asOwner.mutation(api.communityClients.runClientBulkAction, { communityId,
+        action: { type: "message", body: "  " }, membershipIds: ids })).rejects.toThrow("client_event_body_invalid");
+      await expect(f.asOutsider.mutation(api.communityClients.runClientBulkAction, { communityId,
+        action: { type: "flag" }, membershipIds: ids })).rejects.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("view rules", () => {
+  const fields = communityClientFields({ properties: [{ key: "tier", name: "Tier", type: "select", options: ["VIP"] }] });
+  test("unknown fields and ops are refused, so a typo never shows everyone", () => {
+    expect(() => normalizeCommunityClientView({ name: "x", columns: ["nope"] }, fields)).toThrow("client_view_invalid");
+    expect(() => normalizeCommunityClientView({ name: "x", filters: [{ field: "stuck", op: "contains", value: "a" }] }, fields)).toThrow("client_view_invalid");
+    expect(normalizeCommunityClientView({ name: " Hot  leads ", filters: [{ field: "prop:tier", op: "is", value: ["VIP", "VIP"] }] }, fields))
+      .toMatchObject({ name: "Hot leads", filters: [{ field: "prop:tier", op: "is", value: ["VIP"] }], match: "all", sort: null });
+  });
+  test("dates filter by days, and empty values sort last", () => {
+    const now = Date.parse("2026-10-26T12:00:00Z");
+    const rows = [
+      { name: "a", status: "active", last_seen_at: "2026-10-25T12:00:00Z" },
+      { name: "b", status: "active", last_seen_at: "2026-10-10T12:00:00Z" },
+      { name: "c", status: "active", last_seen_at: null },
+    ];
+    const seen = (op: any) => applyCommunityClientView(rows, { filters: [{ field: "last_seen_at", op, value: 7 }], match: "all", sort: null }, now).map((row) => row.name);
+    expect(seen("within_days")).toEqual(["a"]);
+    expect(seen("more_than_days_ago")).toEqual(["b", "c"]);
+    expect(applyCommunityClientView(rows, { filters: [], match: "all", sort: { field: "last_seen_at", direction: "asc" } }, now).map((row) => row.name)).toEqual(["b", "a", "c"]);
+    expect(personalizeCommunityClientMessage("Hi {first_name} ({name})", "Ava Brooks")).toBe("Hi Ava (Ava Brooks)");
   });
 });
