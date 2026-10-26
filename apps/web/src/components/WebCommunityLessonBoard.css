@@ -173,8 +173,7 @@ input.lesson-journey-lesson-title { flex: 1; }
 .lesson-step-outline .knowledge-resource-item-status > svg { width: 11px; height: 11px; }
 .lesson-step-edit { justify-self: start; margin-top: 8px; }
 
-.lesson-step-footer { max-width: var(--lesson-reading-measure, 42.5rem); margin: 3rem auto 4rem; padding-top: 1.75rem; border-top: 1px solid var(--border-default);
-  display: grid; gap: 1.25rem; }
+.lesson-step-footer { display: grid; gap: 1.25rem; flex: 1; min-width: 0; }
 .lesson-step-done {
   display: inline-flex; align-items: center; gap: 12px;
   padding: 12px 18px 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--pn-radius-button, 10px);
@@ -204,10 +203,6 @@ input.lesson-journey-lesson-title { flex: 1; }
 }
 .lesson-step-next > span { display: grid; gap: 2px; min-width: 0; }
 .lesson-step-next small { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
-/* Under the centred lesson, the same way the reader centres it. */
-@container lesson-page (min-width: 77.5rem) {
-  .community-knowledge-page[data-reading] .lesson-step-footer-wrap { padding-right: var(--lesson-outline-span); }
-}
 [data-community-theme] .lesson-board-primary-button {
   border-radius: var(--pn-radius-button); box-shadow: var(--pn-shadow-button);
 }
