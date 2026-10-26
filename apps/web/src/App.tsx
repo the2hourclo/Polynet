@@ -9,7 +9,7 @@ import {
 } from "react";
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
-import { WebCommunityWelcome } from "./components/WebCommunityWelcome";
+import { WebCommunityWelcome, WelcomeSkippedReminder } from "./components/WebCommunityWelcome";
 import { useTestMemberAutoplayFollow, useTestMemberRunCheck } from "./components/WebTestRunBar";
 import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
@@ -3060,6 +3060,10 @@ export default function App() {
     );
     if (popup) shellChromeHostProps.welcomeOverlay = welcome;
     else shellChromeHostProps.welcomeSurface = welcome;
+  } else if (session && activeCommunityId && activePage === "community" && !isPublicCommunityFunnel) {
+    // A setup screen the member skipped on the welcome page waits here as a reminder.
+    shellChromeHostProps.welcomeOverlay = <WelcomeSkippedReminder key={`${activeCommunityId}:${session.user.id}`}
+      communityId={activeCommunityId} session={session} ensureSession={ensureUsableAuthSession} />;
   }
 
   if (shouldHoldRouteForAccess) {
