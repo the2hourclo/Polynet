@@ -338,3 +338,19 @@ describe("callouts", () => {
     expect(serializeLessonDocument(schema, parsed.doc.type.create(null, [note]))).toBe("> [!NOTE]\n> Drive needs Workspace.");
   });
 });
+
+describe("blocks Markdown can't nest", () => {
+  it("can't be wrapped into a callout or a list item", () => {
+    const deck = schema.nodes.slideDeck.create({ lead: "", slides: [{ src: "https://x.test/1.png", alt: "", note: "" }] });
+    const quiz = schema.nodes.lessonBlock.create({ language: "quiz", info: "pick", body: "Which?\n- [ ] A\n- [x] B" });
+    const raw = schema.nodes.rawMarkdown.create({ source: "| a |\n|---|" });
+    for (const node of [deck, quiz, raw]) {
+      expect(schema.nodes.blockquote.validContent(schema.nodes.blockquote.create().content.append(
+        schema.nodes.blockquote.create(null, node).content,
+      ))).toBe(false);
+      expect(() => schema.nodes.blockquote.createChecked(null, node)).toThrow();
+      expect(() => schema.nodes.listItem.createChecked(null, [schema.nodes.paragraph.create(), node])).toThrow();
+    }
+    expect(() => schema.nodes.blockquote.createChecked(null, schema.nodes.paragraph.create(null, schema.text("ok")))).not.toThrow();
+  });
+});

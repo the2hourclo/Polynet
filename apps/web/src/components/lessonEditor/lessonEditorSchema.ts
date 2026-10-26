@@ -2,7 +2,7 @@ import { Node, mergeAttributes, type AnyExtension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Blockquote from "@tiptap/extension-blockquote";
 import Heading from "@tiptap/extension-heading";
-import { BulletList, OrderedList } from "@tiptap/extension-list";
+import { BulletList, ListItem, OrderedList } from "@tiptap/extension-list";
 
 // The lesson editor's document model, without any React. Every node here maps
 // to one Markdown construct (lessonMarkdown.ts), so the editor can only make
@@ -39,8 +39,20 @@ const LessonOrderedList = OrderedList.extend({
   },
 });
 
+// What a quote, callout or list item may hold: text blocks only. A slide deck,
+// a follow-along card (quiz, checklist, button, form) or a raw Markdown block
+// can't be wrapped into one: Markdown can't hold them there, so on the next
+// save their contents came back as loose text (Rashid, 2026-10-26: slides
+// "collapsed into a callout … and turned into text").
+const WRAPPABLE_BLOCKS = "paragraph | heading | bulletList | orderedList | blockquote | codeBlock | horizontalRule | image | video";
+
+const LessonListItem = ListItem.extend({
+  content: `paragraph (${WRAPPABLE_BLOCKS})*`,
+});
+
 /** A quote, or a callout when its first line names a type: `> [!TIP]`. */
 export const LessonBlockquote = Blockquote.extend({
+  content: `(${WRAPPABLE_BLOCKS})+`,
   addAttributes() {
     return {
       callout: {
@@ -202,6 +214,7 @@ export function lessonEditorBaseExtensions(): AnyExtension[] {
       heading: false,
       bulletList: false,
       orderedList: false,
+      listItem: false,
       underline: false,
       paragraph: { HTMLAttributes: { class: "md-paragraph" } },
       blockquote: false,
@@ -222,6 +235,7 @@ export function lessonEditorBaseExtensions(): AnyExtension[] {
     LessonBlockquote.configure({ HTMLAttributes: { class: "md-blockquote" } }),
     LessonBulletList.configure({ HTMLAttributes: { class: "md-list" } }),
     LessonOrderedList.configure({ HTMLAttributes: { class: "md-list" } }),
+    LessonListItem,
     LessonImage,
     LessonVideo,
     LessonFencedBlock,

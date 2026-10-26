@@ -521,6 +521,43 @@ export function useCommunityResourceController<
     [loadCommunityResources],
   );
 
+  // Article or Video course, switched from the lesson page (Rashid, 2026-10-26).
+  const handleSetCommunityResourceModuleLessonStyle = useCallback(
+    async (module: ResourceModuleT, lessonStyle: "article" | "video") => {
+      const current = argsRef.current;
+      const session = await resolveUsableSession(current.session, current.ensureSession);
+      if (!session || !current.activeCommunityId) return false;
+      const previousModules: ResourceModuleT[] = [];
+      current.setCommunityResourceModules((modules) => {
+        previousModules.splice(0, previousModules.length, ...modules);
+        return modules.map((candidate) =>
+          candidate.id === module.id
+            ? ({ ...candidate, lesson_style: lessonStyle } as ResourceModuleT)
+            : candidate,
+        );
+      });
+      try {
+        await saveCloudCommunityResourceModule({
+          session,
+          moduleId: module.id,
+          isPatch: true,
+          payload: { lesson_style: lessonStyle },
+        });
+        return true;
+      } catch (error) {
+        current.setCommunityResourceModules(previousModules);
+        const message = typeof error === "string"
+          ? error
+          : error instanceof Error
+            ? error.message
+            : "Failed to update the lesson style.";
+        current.setResourceModuleError(message);
+        return false;
+      }
+    },
+    [],
+  );
+
   const handleReorderCommunityResourceModules = useCallback(async (moduleIds: string[]) => {
     const current = argsRef.current;
     const session = await resolveUsableSession(current.session, current.ensureSession);
@@ -871,6 +908,7 @@ export function useCommunityResourceController<
     loadCommunityResources,
     handleSaveCommunityResourceModule,
     handleSetCommunityResourceModuleStatus,
+    handleSetCommunityResourceModuleLessonStyle,
     handleDeleteCommunityResourceModule,
     handleReorderCommunityResourceModules,
     handleReorderCommunityResources,

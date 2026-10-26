@@ -88,6 +88,7 @@ export type CommunityResourcesActions = {
   openNewModuleModal: () => void;
   handleEditModule: (module: CommunityResourceModule) => void;
   handleSetModuleStatus: (module: CommunityResourceModule, status: "draft" | "live") => Promise<boolean> | boolean;
+  handleSetModuleLessonStyle?: (module: CommunityResourceModule, lessonStyle: CommunityResourceModuleLessonStyle) => Promise<boolean> | boolean;
   handleDeleteModule: (moduleId: string) => Promise<boolean> | boolean;
   handleReorderModules: (moduleIds: string[]) => Promise<boolean> | boolean;
   handleReorderResources: (moduleId: string | null, resourceIds: string[]) => Promise<boolean> | boolean;
