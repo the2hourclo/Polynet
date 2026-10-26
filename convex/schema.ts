@@ -3342,6 +3342,9 @@ export default defineSchema({
     bannerFocusX: v.optional(v.number()),
     bannerFocusY: v.optional(v.number()),
     bannerZoom: v.optional(v.number()),
+    // How lessons read: "article" (a clean Medium-like page, the default) or
+    // "video" (a classic course, the lesson text on a card under the video).
+    lessonStyle: v.optional(v.union(v.literal("article"), v.literal("video"))),
     sortOrder: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),

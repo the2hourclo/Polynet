@@ -34,6 +34,7 @@ import {
   normalizeOptionalText,
   normalizeOptionalUrl,
   normalizeResourceRole,
+  normalizeResourceModuleLessonStyle,
   normalizeResourceModuleStatus,
   normalizeResourceSourceIngestionKind,
   normalizeResourceSourceIngestionStatus,
@@ -6231,6 +6232,9 @@ export const saveCommunityResourceModule = mutation({
         bannerFocusX: normalizeBannerFocus(payload.banner_focus_x ?? existing.bannerFocusX),
         bannerFocusY: normalizeBannerFocus(payload.banner_focus_y ?? existing.bannerFocusY),
         bannerZoom: normalizeBannerZoom(payload.banner_zoom ?? existing.bannerZoom),
+        ...(Object.prototype.hasOwnProperty.call(payload, "lesson_style")
+          ? { lessonStyle: normalizeResourceModuleLessonStyle(payload.lesson_style) }
+          : {}),
         updatedAt: nowMs,
       });
       if (previousBannerStorageId && String(previousBannerStorageId) !== String(nextBannerStorageId ?? "")) {
@@ -6279,6 +6283,7 @@ export const saveCommunityResourceModule = mutation({
       bannerFocusX: normalizeBannerFocus(payload.banner_focus_x),
       bannerFocusY: normalizeBannerFocus(payload.banner_focus_y),
       bannerZoom: normalizeBannerZoom(payload.banner_zoom),
+      lessonStyle: normalizeResourceModuleLessonStyle(payload.lesson_style),
       sortOrder: nextSortOrder,
       createdAt: nowMs,
       updatedAt: nowMs,
