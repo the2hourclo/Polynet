@@ -29,7 +29,8 @@ import {
   normalizeCommunityMemberWorkflowPrompt,
   normalizeWorkflowAgentSees,
   normalizeWorkflowCondition,
-  workflowConditionHolds,
+  workflowConditionClauses,
+  workflowConditionGroupHolds,
   workflowRuleUsesTimer,
   workflowRunWasSkipped,
   normalizeWorkflowMilestoneContext,
@@ -114,12 +115,23 @@ type ChannelContributionRow =
   | Doc<"communityInteractionRoots">
   | Doc<"communityInteractionReplies">;
 
+// One "Only if" clause: a member property compared with a value.
+const workflowConditionClauseValidator = v.object({
+  propertyKey: v.string(),
+  op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
+  value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+});
+
 const automationInputValidator = v.object({
   key: v.optional(v.string()),
   condition: v.optional(v.object({
     propertyKey: v.string(),
     op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
     value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+    // More clauses, joined by match (all = AND, any = OR); otherwise runs when they don't hold.
+    match: v.optional(v.union(v.literal("all"), v.literal("any"))),
+    also: v.optional(v.array(workflowConditionClauseValidator)),
+    otherwise: v.optional(v.boolean()),
   })),
   sequenceEnabledAt: v.optional(v.number()),
   sequenceEnabledRevision: v.optional(v.number()),
@@ -1467,10 +1479,15 @@ async function executeWorkflowAutomation(args: {
   const predecessorRun = args.workflowPreviousRunId ? await args.ctx.db.get(args.workflowPreviousRunId) : null;
   let skipCode: "path_skipped" | "condition_skipped" | null = workflowRunWasSkipped(predecessorRun) ? "path_skipped" : null;
   if (!skipCode && args.automation.condition) {
-    const value = await args.ctx.db.query("communityClientValues")
-      .withIndex("by_membership_property", (q: any) => q.eq("membershipId", args.membership._id).eq("propertyKey", args.automation.condition!.propertyKey))
-      .unique();
-    if (!workflowConditionHolds(args.automation.condition, value?.value)) skipCode = "condition_skipped";
+    const values = new Map<string, any>();
+    for (const clause of workflowConditionClauses(args.automation.condition)) {
+      if (values.has(clause.propertyKey)) continue;
+      const row = await args.ctx.db.query("communityClientValues")
+        .withIndex("by_membership_property", (q: any) => q.eq("membershipId", args.membership._id).eq("propertyKey", clause.propertyKey))
+        .unique();
+      values.set(clause.propertyKey, row?.value);
+    }
+    if (!workflowConditionGroupHolds(args.automation.condition, (key) => values.get(key))) skipCode = "condition_skipped";
   }
   const workflowRunId = await args.ctx.db.insert("communityMemberWorkflowRuns", {
     activationSequence: Number(args.membership.activationSequence ?? 0),

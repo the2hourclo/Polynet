@@ -85,11 +85,22 @@ export function fillWorkflowEmailFields(text: string, values: { name: string; co
 
 /** "Only if": the step runs when the member's client property matches; otherwise
  * it is skipped (counted as done) and every step after it on that path is skipped too. */
-export type CommunityMemberWorkflowCondition = {
+export type CommunityMemberWorkflowConditionClause = {
   propertyKey: string;
   op: "is" | "is_not" | "is_set" | "is_empty";
   value?: string | number | boolean;
 };
+
+/** The first clause sits on the condition itself; `also` adds up to three more,
+ * joined by `match` (all = AND, any = OR). An `otherwise` step runs exactly when
+ * the clauses do NOT hold: it is the other branch of a sibling Only if. */
+export type CommunityMemberWorkflowCondition = CommunityMemberWorkflowConditionClause & {
+  match?: "all" | "any";
+  also?: CommunityMemberWorkflowConditionClause[];
+  otherwise?: boolean;
+};
+
+export const WORKFLOW_CONDITION_MAX_CLAUSES = 4;
 
 export type CommunityMemberWorkflowAutomation = {
   key: string;
@@ -305,8 +316,8 @@ export function workflowRuleUsesTimer(rule: { trigger: CommunityMemberWorkflowTr
       && rule.action.type === "prompt_agent");
 }
 
-export function normalizeWorkflowCondition(value: unknown): CommunityMemberWorkflowCondition | undefined {
-  if (value === undefined || value === null) return undefined;
+function normalizeWorkflowConditionClause(value: unknown): CommunityMemberWorkflowConditionClause {
+  if (!value || typeof value !== "object") throw new Error("workflow_condition_invalid");
   const raw = value as Record<string, unknown>;
   const propertyKey = String(raw.propertyKey ?? "").trim();
   const op = raw.op;
@@ -319,9 +330,42 @@ export function normalizeWorkflowCondition(value: unknown): CommunityMemberWorkf
   return { propertyKey, op, value: typeof v === "string" ? v.slice(0, 200) : v };
 }
 
-/** Pure check of a client property value against a condition. */
-export function workflowConditionHolds(condition: CommunityMemberWorkflowCondition,
-  value: string | number | boolean | string[] | null | undefined): boolean {
+export function normalizeWorkflowCondition(value: unknown): CommunityMemberWorkflowCondition | undefined {
+  if (value === undefined || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const first = normalizeWorkflowConditionClause(raw);
+  if (raw.also !== undefined && raw.also !== null && !Array.isArray(raw.also)) throw new Error("workflow_condition_invalid");
+  const also = ((raw.also as unknown[] | undefined) ?? []).map(normalizeWorkflowConditionClause);
+  if (also.length + 1 > WORKFLOW_CONDITION_MAX_CLAUSES) throw new Error("workflow_condition_too_many_clauses");
+  const match = raw.match ?? "all";
+  if (match !== "all" && match !== "any") throw new Error("workflow_condition_invalid");
+  if (raw.otherwise !== undefined && raw.otherwise !== null && typeof raw.otherwise !== "boolean") throw new Error("workflow_condition_invalid");
+  return {
+    ...first,
+    ...(also.length ? { also, match } : {}),
+    ...(raw.otherwise === true ? { otherwise: true } : {}),
+  };
+}
+
+/** Every clause of a condition, first one first. */
+export function workflowConditionClauses(condition: CommunityMemberWorkflowCondition): CommunityMemberWorkflowConditionClause[] {
+  const { propertyKey, op, value } = condition;
+  return [{ propertyKey, op, ...(value === undefined ? {} : { value }) }, ...(condition.also ?? [])];
+}
+
+type WorkflowConditionValue = string | number | boolean | string[] | null | undefined;
+
+/** Does the step run? Clauses joined by all/any; an otherwise step flips the answer. */
+export function workflowConditionGroupHolds(condition: CommunityMemberWorkflowCondition,
+  valueOf: (propertyKey: string) => WorkflowConditionValue): boolean {
+  const results = workflowConditionClauses(condition).map((clause) => workflowConditionHolds(clause, valueOf(clause.propertyKey)));
+  const holds = condition.match === "any" ? results.some(Boolean) : results.every(Boolean);
+  return condition.otherwise ? !holds : holds;
+}
+
+/** Pure check of a client property value against one clause. */
+export function workflowConditionHolds(condition: CommunityMemberWorkflowConditionClause,
+  value: WorkflowConditionValue): boolean {
   const empty = value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
   if (condition.op === "is_set") return !empty;
   if (condition.op === "is_empty") return empty;

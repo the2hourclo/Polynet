@@ -4545,7 +4545,7 @@ test("an owner's agent reads Run history at /builder/workflow-runs.json and memb
   expect((await member("polynet_read", { path: `/communities/${community}/builder/workflow-runs.json` })).ok).toBe(false);
 });
 
-test("an owner's agent builds Workflows through the MCP: a coloured stage, an email step and an Only if", async () => {
+test("an owner's agent builds Workflows through the MCP: a coloured stage, an email step and an Only if with an Otherwise", async () => {
   const t = convexTest(schema, modules);
   const fixture = await createFixture(t);
   const community = "canonical-community";
@@ -4576,4 +4576,16 @@ test("an owner's agent builds Workflows through the MCP: a coloured stage, an em
   expect(updated).toMatchObject({ color: "blue", automations: [{ action: { type: "send_email", subject: "Hi {first_name}", body: "Day one." } }] });
   await expect(change("community.workflow.stage.update", { expected_revision: revision + 2, milestone_key: stage.key, name: "Onboarding", color: "neon",
     automations: [] })).rejects.toThrow("community_member_workflow_stage_color_invalid");
+
+  // Only if with an AND group, and its Otherwise path.
+  expect(definition.body).toContain("otherwise");
+  const first = updated.automations[0];
+  const group = { propertyKey: "plan", op: "is", value: "Pro", match: "all", also: [{ propertyKey: "goal", op: "is_set" }] };
+  const after = { type: "previous_action_completed", predecessorActionKey: first.action.key };
+  await change("community.workflow.stage.update", { expected_revision: revision + 2, milestone_key: stage.key, name: "Onboarding",
+    automations: [first,
+      { condition: group, trigger: after, action: { type: "send_email", subject: "Pro", body: "For Pro." } },
+      { condition: { ...group, otherwise: true }, trigger: after, action: { type: "send_email", subject: "Everyone else", body: "For the rest." } }] });
+  const branched = (await workflows()).milestones.find((item: any) => item.key === stage.key);
+  expect(branched.automations.map((rule: any) => rule.condition ?? null)).toEqual([null, group, { ...group, otherwise: true }]);
 });

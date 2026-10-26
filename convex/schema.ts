@@ -13,6 +13,13 @@ const workflowRequirementEvidenceValidator = v.array(v.object({
   sourceRef: v.string(), satisfiedAt: v.number(),
 }));
 
+// One "Only if" clause: a member property compared with a value.
+const workflowConditionClauseValidator = v.object({
+  propertyKey: v.string(),
+  op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
+  value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+});
+
 // One rule of a Workflow stage: a trigger and an action.
 const workflowAutomationValidator = v.object({
   key: v.string(),
@@ -23,6 +30,10 @@ const workflowAutomationValidator = v.object({
     propertyKey: v.string(),
     op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
     value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+    // More clauses, joined by match (all = AND, any = OR); otherwise runs when they don't hold.
+    match: v.optional(v.union(v.literal("all"), v.literal("any"))),
+    also: v.optional(v.array(workflowConditionClauseValidator)),
+    otherwise: v.optional(v.boolean()),
   })),
   trigger: v.union(
     v.object({ type: v.literal("member_joined") }),
@@ -1429,6 +1440,10 @@ export default defineSchema({
       propertyKey: v.string(),
       op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
       value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+      // More clauses, joined by match (all = AND, any = OR); otherwise runs when they don't hold.
+      match: v.optional(v.union(v.literal("all"), v.literal("any"))),
+      also: v.optional(v.array(workflowConditionClauseValidator)),
+      otherwise: v.optional(v.boolean()),
     })),
     actionSnapshot: v.union(
       v.object({ key: v.string(), type: v.literal("evaluate_goal") }),

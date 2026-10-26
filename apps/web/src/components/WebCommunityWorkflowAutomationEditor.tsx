@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useId, useState } from "react";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition } from "../../../../shared/communityMemberWorkflow";
+import { COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH, COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX, WORKFLOW_CONDITION_MAX_CLAUSES, workflowConditionClauses, workflowRuleIsNudge, type CommunityMemberWorkflowAutomation, type CommunityMemberWorkflowCondition, type CommunityMemberWorkflowConditionClause } from "../../../../shared/communityMemberWorkflow";
 import { workflowActionPhrase, workflowDurationLabel } from "./workflowStepSentences";
 import { WorkflowChannelPicker } from "./WorkflowChannelPicker";
 import { applyWorkflowTriggerType, replaceWorkflowDraftAction, type WorkflowTriggerType, workflowAutomationIssue, workflowTriggerIssue, workflowChannelLabel, type WorkflowAutomationDraft } from "./workflowMilestoneDraft";
@@ -42,7 +42,41 @@ function PropertyValueField(props: { id: string; property: WorkflowCatalogProper
     onChange={(event) => props.onChange(event.target.value === "" ? null : property.type === "number" ? event.target.valueAsNumber : event.target.value)} /></label>;
 }
 
-// "Only if": the step runs when the member's client property matches, else it's skipped.
+type ConditionClause = CommunityMemberWorkflowConditionClause;
+
+// One "<property> <is/isn't/is filled in/is empty> <value>" row of an Only if.
+function ConditionClauseRow(props: { id: string; clause: ConditionClause; properties: WorkflowCatalogProperty[];
+  disabled: boolean; onChange: (clause: ConditionClause) => void; onRemove?: () => void }) {
+  const { clause, properties } = props;
+  const property = properties.find((item) => item.key === clause.propertyKey);
+  const needsValue = clause.op === "is" || clause.op === "is_not";
+  const options = property?.type === "checkbox" ? [["true", "Yes"], ["false", "No"]]
+    : property && (property.type === "select" || property.type === "multi_select") ? property.options.map((option) => [option, option]) : null;
+  const setValue = (raw: string) => props.onChange({ ...clause, value: property?.type === "checkbox" ? raw === "true" : property?.type === "number" && raw !== "" ? Number(raw) : raw });
+  return <div className="workflow-action-choice-row workflow-condition-row">
+    <select aria-label="Client property" value={clause.propertyKey} disabled={props.disabled}
+      onChange={(event) => props.onChange({ propertyKey: event.target.value, op: clause.op === "is_empty" ? "is_empty" : "is_set" })}>
+      {!property ? <option value={clause.propertyKey}>{clause.propertyKey} (archived)</option> : null}
+      {properties.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
+    </select>
+    <select aria-label="Comparison" value={clause.op} disabled={props.disabled} onChange={(event) => {
+      const op = event.target.value as ConditionClause["op"];
+      props.onChange(op === "is" || op === "is_not" ? { propertyKey: clause.propertyKey, op, value: clause.value ?? (options?.[0] ? (property?.type === "checkbox" ? true : options[0][0]) : "") } : { propertyKey: clause.propertyKey, op });
+    }}>
+      <option value="is">is</option><option value="is_not">isn't</option><option value="is_set">is filled in</option><option value="is_empty">is empty</option>
+    </select>
+    {needsValue ? options
+      ? <select aria-label="Value" value={String(clause.value ?? "")} disabled={props.disabled} onChange={(event) => setValue(event.target.value)}>
+          {options.map(([raw, text]) => <option key={raw} value={raw}>{text}</option>)}</select>
+      : <input id={`${props.id}-condition-value`} aria-label="Value" type={property?.type === "number" ? "number" : "text"} value={String(clause.value ?? "")}
+          disabled={props.disabled} onChange={(event) => setValue(event.target.value)} /> : null}
+    {props.onRemove ? <button type="button" className="workflow-condition-remove" aria-label="Remove this condition" disabled={props.disabled}
+      onClick={props.onRemove}>×</button> : null}
+  </div>;
+}
+
+// "Only if": the step runs when the member's client properties match (all or any
+// of up to four), else it's skipped. An Otherwise step runs when they don't.
 function ConditionField(props: { id: string; condition: CommunityMemberWorkflowCondition | undefined;
   properties: WorkflowCatalogProperty[] | null | undefined; disabled: boolean;
   onChange: (condition: CommunityMemberWorkflowCondition | undefined) => void }) {
@@ -55,32 +89,30 @@ function ConditionField(props: { id: string; condition: CommunityMemberWorkflowC
       <small className="workflow-field-hint">{properties.length ? "Run this step only for some members, by a client property." : "Add a client property under Clients to run steps only for some members."}</small>
     </div>;
   }
-  const property = properties.find((item) => item.key === condition.propertyKey);
-  const needsValue = condition.op === "is" || condition.op === "is_not";
-  const options = property?.type === "checkbox" ? [["true", "Yes"], ["false", "No"]]
-    : property && (property.type === "select" || property.type === "multi_select") ? property.options.map((option) => [option, option]) : null;
-  const setValue = (raw: string) => props.onChange({ ...condition, value: property?.type === "checkbox" ? raw === "true" : property?.type === "number" && raw !== "" ? Number(raw) : raw });
+  const clauses = workflowConditionClauses(condition);
+  const match = condition.match ?? "all";
+  const set = (next: ConditionClause[], nextMatch = match) => {
+    const [first, ...also] = next;
+    if (!first) { props.onChange(undefined); return; }
+    props.onChange({ ...first, ...(also.length ? { also, match: nextMatch } : {}), ...(condition.otherwise ? { otherwise: true } : {}) });
+  };
   return <fieldset className="workflow-agent-inputs">
-    <legend className="workflow-agent-inputs-title">Only if</legend>
-    <div className="workflow-action-choice-row">
-      <select aria-label="Client property" value={condition.propertyKey} disabled={props.disabled}
-        onChange={(event) => props.onChange({ propertyKey: event.target.value, op: condition.op === "is_empty" ? "is_empty" : "is_set" })}>
-        {!property ? <option value={condition.propertyKey}>{condition.propertyKey} (archived)</option> : null}
-        {properties.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
-      </select>
-      <select aria-label="Comparison" value={condition.op} disabled={props.disabled} onChange={(event) => {
-        const op = event.target.value as CommunityMemberWorkflowCondition["op"];
-        props.onChange(op === "is" || op === "is_not" ? { propertyKey: condition.propertyKey, op, value: condition.value ?? (options?.[0] ? (property?.type === "checkbox" ? true : options[0][0]) : "") } : { propertyKey: condition.propertyKey, op });
-      }}>
-        <option value="is">is</option><option value="is_not">isn't</option><option value="is_set">is filled in</option><option value="is_empty">is empty</option>
-      </select>
-      {needsValue ? options
-        ? <select aria-label="Value" value={String(condition.value ?? "")} disabled={props.disabled} onChange={(event) => setValue(event.target.value)}>
-            {options.map(([raw, text]) => <option key={raw} value={raw}>{text}</option>)}</select>
-        : <input id={`${props.id}-condition-value`} aria-label="Value" type={property?.type === "number" ? "number" : "text"} value={String(condition.value ?? "")}
-            disabled={props.disabled} onChange={(event) => setValue(event.target.value)} /> : null}
-    </div>
-    <small className="workflow-field-hint">Members who don't match skip this step and every step after it.</small>
+    <legend className="workflow-agent-inputs-title">{condition.otherwise ? "Otherwise" : "Only if"}</legend>
+    {condition.otherwise ? <p className="workflow-field-hint">Runs for members who don't match this:</p> : null}
+    {clauses.map((clause, index) => <div key={index} className="workflow-condition-clause">
+      {index === 0 ? null : index === 1
+        ? <select aria-label="Match all or any" className="workflow-condition-join" value={match} disabled={props.disabled}
+            onChange={(event) => set(clauses, event.target.value as "all" | "any")}>
+            <option value="all">and</option><option value="any">or</option></select>
+        : <span className="workflow-condition-join">{match === "any" ? "or" : "and"}</span>}
+      <ConditionClauseRow id={`${props.id}-${index}`} clause={clause} properties={properties} disabled={props.disabled}
+        onChange={(next) => set(clauses.map((item, i) => i === index ? next : item))}
+        onRemove={clauses.length > 1 ? () => set(clauses.filter((_, i) => i !== index)) : undefined} />
+    </div>)}
+    {clauses.length < WORKFLOW_CONDITION_MAX_CLAUSES ? <button type="button" className="workflow-step-extra-add" disabled={props.disabled || !properties.length}
+      onClick={() => properties[0] && set([...clauses, { propertyKey: properties[0].key, op: "is_set" }])}>+ Add a condition</button> : null}
+    <small className="workflow-field-hint">{condition.otherwise ? "Members who do match skip this step and every step after it."
+      : "Members who don't match skip this step and every step after it."}</small>
     <button type="button" className="workflow-agent-inputs-reset" disabled={props.disabled} onClick={() => props.onChange(undefined)}>Run for everyone</button>
   </fieldset>;
 }

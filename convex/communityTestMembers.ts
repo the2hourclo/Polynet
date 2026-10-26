@@ -20,6 +20,7 @@ import {
   findTestMemberByUserId,
   type TestMemberRow,
 } from "./communityTestMemberCore";
+import { workflowConditionClauses } from "../shared/communityMemberWorkflow";
 
 /** Running test members per community; each one is a full member record. */
 export const COMMUNITY_TEST_MEMBER_LIMIT = 5;
@@ -289,9 +290,10 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : "When its trigger happens";
   void communityId;
   const condition = rule.condition;
-  const only = !condition ? "" : condition.op === "is_set" ? `, only if ${condition.propertyKey} is filled in`
-    : condition.op === "is_empty" ? `, only if ${condition.propertyKey} is empty`
-    : `, only if ${condition.propertyKey} ${condition.op === "is" ? "is" : "is not"} ${String(condition.value)}`;
+  const clause = (c: { propertyKey: string; op: string; value?: unknown }) => c.op === "is_set" ? `${c.propertyKey} is filled in`
+    : c.op === "is_empty" ? `${c.propertyKey} is empty` : `${c.propertyKey} ${c.op === "is" ? "is" : "is not"} ${String(c.value)}`;
+  const only = !condition ? "" : `${condition.otherwise ? ", otherwise (when this isn't true:" : ", only if"} ${workflowConditionClauses(condition)
+    .map(clause).join(condition.match === "any" ? " or " : " and ")}${condition.otherwise ? ")" : ""}`;
   return { when: when + only, does: await actionText(action), timed: trigger.type === "milestone_elapsed" || !!trigger.delayMinutes };
 }
 

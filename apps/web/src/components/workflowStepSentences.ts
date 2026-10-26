@@ -1,6 +1,8 @@
-import type {
-  CommunityMemberWorkflowAutomation,
-  CommunityMemberWorkflowCondition,
+import {
+  workflowConditionClauses,
+  type CommunityMemberWorkflowAutomation,
+  type CommunityMemberWorkflowCondition,
+  type CommunityMemberWorkflowConditionClause,
 } from "../../../../shared/communityMemberWorkflow";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
 import type { WorkflowCatalog } from "./WebCommunityWorkflowAutomationEditor";
@@ -48,12 +50,21 @@ function formatValue(value: unknown): string {
   return value === null || value === undefined || value === "" ? "empty" : String(value);
 }
 
+function clausePhrase(clause: CommunityMemberWorkflowConditionClause, names: WorkflowStepNames, negate: boolean): string {
+  const name = propertyName(clause.propertyKey, names);
+  const op = !negate ? clause.op : clause.op === "is" ? "is_not" : clause.op === "is_not" ? "is" : clause.op === "is_set" ? "is_empty" : "is_set";
+  if (op === "is_set") return `${name} is filled in`;
+  if (op === "is_empty") return `${name} is empty`;
+  return `${name} ${op === "is_not" ? "isn't" : "is"} ${formatValue(clause.value)}`;
+}
+
+/** "if Plan is Pro and Goal is filled in". An Otherwise step reads as the
+ * opposite (each clause flipped, and/or swapped), so it says when it runs. */
 export function workflowConditionPhrase(condition: CommunityMemberWorkflowCondition | undefined, names: WorkflowStepNames): string {
   if (!condition) return "";
-  const name = propertyName(condition.propertyKey, names);
-  if (condition.op === "is_set") return `if ${name} is filled in`;
-  if (condition.op === "is_empty") return `if ${name} is empty`;
-  return `if ${name} ${condition.op === "is_not" ? "isn't" : "is"} ${formatValue(condition.value)}`;
+  const negate = !!condition.otherwise;
+  const any = (condition.match === "any") !== negate;
+  return `if ${workflowConditionClauses(condition).map((clause) => clausePhrase(clause, names, negate)).join(any ? " or " : " and ")}`;
 }
 
 export function workflowTriggerPhrase(automation: CommunityMemberWorkflowAutomation, names: WorkflowStepNames): string {
