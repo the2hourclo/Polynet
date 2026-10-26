@@ -15,7 +15,8 @@ export type CommunityMemberWorkflowMemberContributedTrigger = {
 };
 
 export type CommunityMemberWorkflowTrigger =
-  | { type: "previous_action_completed"; predecessorActionKey: string }
+  /** With `delayMinutes`, it waits that long after the earlier step finishes. */
+  | { type: "previous_action_completed"; predecessorActionKey: string; delayMinutes?: number }
   | { type: "member_joined" }
   | CommunityMemberWorkflowMemberContributedTrigger
   | { type: "form_submitted"; formKey: string }
@@ -56,8 +57,17 @@ export type CommunityMemberWorkflowAction =
   | CommunityMemberWorkflowPromptAgentAction
   | CommunityMemberWorkflowSetClientPropertyAction;
 
+/** "Only if": the step runs when the member's client property matches; otherwise
+ * it is skipped (counted as done) and every step after it on that path is skipped too. */
+export type CommunityMemberWorkflowCondition = {
+  propertyKey: string;
+  op: "is" | "is_not" | "is_set" | "is_empty";
+  value?: string | number | boolean;
+};
+
 export type CommunityMemberWorkflowAutomation = {
   key: string;
+  condition?: CommunityMemberWorkflowCondition;
   /** Server-owned identity: preserved for duration edits, renewed on trigger conversion. */
   timerGeneration?: string;
   /** Server-owned activation time; edits never backfill already completed work. */
@@ -97,7 +107,7 @@ export function composeWorkflowAgentPrompt(prompt: string, context?: { instructi
 export function workflowTriggerIdentity(trigger: CommunityMemberWorkflowTrigger): string {
   return JSON.stringify(trigger.type === "member_contributed" ? [trigger.type, trigger.channelId ?? null]
     : trigger.type === "form_submitted" ? [trigger.type, trigger.formKey]
-    : trigger.type === "previous_action_completed" ? [trigger.type, trigger.predecessorActionKey]
+    : trigger.type === "previous_action_completed" ? (trigger.delayMinutes ? [trigger.type, trigger.predecessorActionKey, trigger.delayMinutes] : [trigger.type, trigger.predecessorActionKey])
     : trigger.type === "lesson_completed" ? [trigger.type, trigger.resourceId ?? null]
     : trigger.type === "course_completed" ? [trigger.type, trigger.moduleId ?? null]
     : trigger.type === "member_joined" ? [trigger.type]
@@ -208,17 +218,61 @@ export function normalizeCommunityMemberWorkflowSourceRef(
   return sourceRef;
 }
 
+// A step can follow any earlier step in the stage, so two steps after the same
+// one make a branch (each with its own "Only if").
 export function workflowSequenceIssue(rules: CommunityMemberWorkflowAutomation[]): string | null {
-  let previous: CommunityMemberWorkflowAutomation | undefined;
+  const earlier: CommunityMemberWorkflowAutomation[] = [];
   for (const rule of rules) {
     if (rule.trigger.type === "previous_action_completed") {
-      if (rule.action.type !== "request_form" && rule.action.type !== "prompt_agent") return "Previous action completed requires Request form or Ask agent";
-      if (!previous || previous.action.key !== rule.trigger.predecessorActionKey)
-        return "Choose the action immediately before this action, or change its trigger";
+      if (rule.action.type !== "request_form" && rule.action.type !== "prompt_agent" && rule.action.type !== "set_client_property")
+        return "A step after another step can ask the agent, request a form or set a client property";
+      const predecessorKey = rule.trigger.predecessorActionKey;
+      const predecessor = earlier.find((item) => item.action.key === predecessorKey);
+      if (!predecessor) return "Choose an earlier step for this one to follow";
+      if (workflowRuleIsNudge(predecessor)) return "A nudge can't start other steps";
     }
-    previous = rule;
+    earlier.push(rule);
   }
   return null;
+}
+
+/** The step needs a durable timer as its source: a wait, or an agent step started
+ * by a lesson, course or webhook (those have no other receipt the agent can cite). */
+export function workflowRuleUsesTimer(rule: { trigger: CommunityMemberWorkflowTrigger; action: { type: string } }): boolean {
+  return rule.trigger.type === "milestone_elapsed"
+    || (rule.trigger.type === "previous_action_completed" && (rule.trigger.delayMinutes ?? 0) > 0)
+    || ((rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed") && rule.action.type === "prompt_agent");
+}
+
+export function normalizeWorkflowCondition(value: unknown): CommunityMemberWorkflowCondition | undefined {
+  if (value === undefined || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const propertyKey = String(raw.propertyKey ?? "").trim();
+  const op = raw.op;
+  if (!propertyKey || propertyKey.length > 64 || (op !== "is" && op !== "is_not" && op !== "is_set" && op !== "is_empty")) {
+    throw new Error("workflow_condition_invalid");
+  }
+  if (op === "is_set" || op === "is_empty") return { propertyKey, op };
+  const v = raw.value;
+  if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") throw new Error("workflow_condition_invalid");
+  return { propertyKey, op, value: typeof v === "string" ? v.slice(0, 200) : v };
+}
+
+/** Pure check of a client property value against a condition. */
+export function workflowConditionHolds(condition: CommunityMemberWorkflowCondition,
+  value: string | number | boolean | string[] | null | undefined): boolean {
+  const empty = value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+  if (condition.op === "is_set") return !empty;
+  if (condition.op === "is_empty") return empty;
+  const equal = Array.isArray(value) ? value.includes(String(condition.value))
+    : !empty && String(value).toLowerCase() === String(condition.value).toLowerCase();
+  return condition.op === "is" ? equal : !equal;
+}
+
+/** Skipped steps still count as done; these result codes mark them. */
+export const WORKFLOW_SKIP_RESULT_CODES = ["condition_skipped", "path_skipped"] as const;
+export function workflowRunWasSkipped(run: { actionResult?: { resultCode?: string } | null } | null | undefined): boolean {
+  return !!run?.actionResult?.resultCode && (WORKFLOW_SKIP_RESULT_CODES as readonly string[]).includes(run.actionResult.resultCode);
 }
 
 export function workflowSequenceReceipt(run: { membershipId: unknown; activationSequence?: number; transitionSeq?: number;

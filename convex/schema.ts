@@ -1305,9 +1305,14 @@ export default defineSchema({
           timerGeneration: v.optional(v.string()),
           sequenceEnabledAt: v.optional(v.number()),
           sequenceEnabledRevision: v.optional(v.number()),
+          condition: v.optional(v.object({
+            propertyKey: v.string(),
+            op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
+            value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+          })),
           trigger: v.union(
             v.object({ type: v.literal("member_joined") }),
-      v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string() }),
+      v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string(), delayMinutes: v.optional(v.number()) }),
             v.object({ type: v.literal("form_submitted"), formKey: v.string() }),
             v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
             v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
@@ -1367,6 +1372,10 @@ export default defineSchema({
     automationKey: v.string(),
     timerGeneration: v.string(),
     dueAt: v.number(),
+    // Waits and event-started agent steps: the moment the wait began, and the
+    // receipt it came from (one timer per receipt and rule).
+    startedAt: v.optional(v.number()),
+    sourceRef: v.optional(v.string()),
     status: v.union(v.literal("pending"), v.literal("consumed"), v.literal("obsolete")),
     createdAt: v.number(),
     finishedAt: v.optional(v.number()),
@@ -1395,7 +1404,7 @@ export default defineSchema({
     // Optional for historical runs. New runs capture the condition that matched.
     triggerSnapshot: v.optional(v.union(
       v.object({ type: v.literal("member_joined") }),
-      v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string() }),
+      v.object({ type: v.literal("previous_action_completed"), predecessorActionKey: v.string(), delayMinutes: v.optional(v.number()) }),
       v.object({ type: v.literal("form_submitted"), formKey: v.string() }),
       v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
       v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
@@ -1404,6 +1413,12 @@ export default defineSchema({
     )),
     triggerReceiptRef: v.string(),
     predecessorRunId: v.optional(v.id("communityMemberWorkflowRuns")),
+    // The rule's "Only if" when it ran; a skip only proves the step under the same condition.
+    conditionSnapshot: v.optional(v.object({
+      propertyKey: v.string(),
+      op: v.union(v.literal("is"), v.literal("is_not"), v.literal("is_set"), v.literal("is_empty")),
+      value: v.optional(v.union(v.string(), v.number(), v.boolean())),
+    })),
     actionSnapshot: v.union(
       v.object({ key: v.string(), type: v.literal("evaluate_goal") }),
       v.object({ key: v.string(), type: v.literal("create_service_channel") }),

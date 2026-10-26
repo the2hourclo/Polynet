@@ -323,7 +323,10 @@ async function readTimeline(ctx: any, args: any) {
       formNames.set(action.formKey, form?.name ?? action.formKey);
     }
     // What the Workflow did, in words: sending a form is not the member answering it.
-    const did = action.type === "request_form" ? `Workflow sent the ${formNames.get(action.formKey)} form`
+    const code = row.actionResult?.resultCode;
+    const did = code === "condition_skipped" ? "Workflow skipped a step (its “only if” didn't match)"
+      : code === "path_skipped" ? "Workflow skipped a step (the step before it was skipped)"
+      : action.type === "request_form" ? `Workflow sent the ${formNames.get(action.formKey)} form`
       : action.type === "set_client_property" ? `Workflow set ${action.propertyKey}`
       : action.type === "create_service_channel" ? "Workflow opened a private channel"
       : action.type === "prompt_agent" ? row.actionResult?.resultCode === "agent_previewed"

@@ -185,7 +185,7 @@ async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
   if (timers.length) {
     const timer: any = timers[0];
     const rule: any = current.milestone.automations.find((r: any) => r.key === timer.automationKey);
-    const wait = rule?.trigger?.type === "milestone_elapsed" ? durationText(rule.trigger.delayMinutes) : "timed";
+    const wait = rule?.trigger?.type === "milestone_elapsed" || rule?.trigger?.delayMinutes ? durationText(rule.trigger.delayMinutes) : "timed";
     return { kind: "wait", text: `Skipped the ${wait} wait`, timerId: String(timer._id) };
   }
   return "idle";
