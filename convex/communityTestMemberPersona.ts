@@ -9,7 +9,7 @@ import { describeCommunityInferenceEngine, runCommunityFundedCompletion } from "
 // text is made before the step is issued (the member's tab types exactly what
 // the plan holds), and anything the model gets wrong falls back to the sample.
 
-export type PersonaQuestion = { key: string; title: string; type: string; options: string[] };
+export type PersonaQuestion = { key: string; title: string; type: string; options: string[]; answerFormat?: string };
 export type PersonaRequest =
   | { kind: "form"; formName: string; questions: PersonaQuestion[] }
   | { kind: "post"; channelName: string };
@@ -32,7 +32,10 @@ export function buildPersonaMessages(input: { persona: string; communityName: st
     const choices = question.options.length
       ? ` Options: ${question.options.map((option, i) => `${i + 1}) ${option}`).join("; ")}. Answer with ${question.type === "multiple_choice" ? "a list of option numbers" : "one option number"}.`
       : "";
-    return `${index + 1}. key "${question.key}": ${question.title}.${choices}`;
+    const format = question.answerFormat === "number" ? " Answer with a number only."
+      : question.answerFormat === "date" ? " Answer with a date as YYYY-MM-DD."
+      : question.answerFormat === "url" ? " Answer with a full https:// link." : "";
+    return `${index + 1}. key "${question.key}": ${question.title}.${choices}${format}`;
   });
   return [
     { role: "system" as const, content: who },
@@ -46,6 +49,14 @@ function jsonIn(text: string): any {
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
   try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+}
+
+/** A short answer the form checks (number, date, link), pulled out of what the persona wrote; null if there isn't one. */
+function inFormat(text: string, format: string | undefined): string | null {
+  if (format === "number") return text.replace(/(\d),(?=\d{3}\b)/g, "$1").match(/-?\d+(?:\.\d+)?/)?.[0] ?? null;
+  if (format === "date") return text.match(/\b\d{4}-\d{2}-\d{2}\b/)?.[0] ?? null;
+  if (format === "url") return text.match(/https?:\/\/[^\s"'<>]+/)?.[0] ?? null;
+  return text || null;
 }
 
 /** The model's reply as answers/message, keeping only what fits each question. */
@@ -72,16 +83,17 @@ export function parsePersonaReply(text: string, request: PersonaRequest): { answ
       const choices = [...new Set((Array.isArray(value) ? value : [value]).map(pick).filter((c): c is string => c !== null))];
       if (choices.length) answers[question.key] = choices;
     } else {
-      const answer = String(value).trim().slice(0, MAX_ANSWER);
-      if (answer) answers[question.key] = answer;
+      const answer = inFormat(String(value).trim(), question.answerFormat);
+      if (answer) answers[question.key] = answer.slice(0, MAX_ANSWER);
     }
   }
   return Object.keys(answers).length ? { answers } : null;
 }
 
 /**
- * The persona's answers over the sample ones. A sample that isn't free text
- * (a number, date or link the form checks) is kept, so the form still saves.
+ * The persona's answers over the sample ones. A number, date or link the form
+ * checks is only taken once it's in that format (parsePersonaReply sees to it);
+ * any other sample that isn't sample text is kept, so the form still saves.
  */
 export function mergePersonaAnswers(sample: Record<string, string | string[]>, persona: Record<string, string | string[]> | undefined,
   questions: PersonaQuestion[]): Record<string, string | string[]> {
@@ -91,7 +103,7 @@ export function mergePersonaAnswers(sample: Record<string, string | string[]>, p
     if (value === undefined) continue;
     const isChoice = question.type === "single_choice" || question.type === "multiple_choice";
     const sampleIsText = typeof sample[question.key] === "string" && String(sample[question.key]).startsWith("Sample answer");
-    if (isChoice || sampleIsText) merged[question.key] = value;
+    if (isChoice || sampleIsText || question.answerFormat) merged[question.key] = value;
   }
   return merged;
 }

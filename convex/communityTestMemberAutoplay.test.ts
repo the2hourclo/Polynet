@@ -196,7 +196,8 @@ const intakeQuestions = [
   { key: "goal", title: "Your goal", type: "long_text", options: [] },
   { key: "size", title: "Team size", type: "single_choice", options: ["Solo", "2-10"] },
   { key: "tools", title: "Tools", type: "multiple_choice", options: ["Notion", "Slack", "Kit"] },
-  { key: "seats", title: "Seats", type: "short_text", options: [] },
+  { key: "seats", title: "Seats", type: "short_text", options: [], answerFormat: "number" },
+  { key: "site", title: "Site", type: "short_text", options: [], answerFormat: "url" },
 ];
 
 test("persona replies keep only answers that fit each question", () => {
@@ -207,10 +208,12 @@ test("persona replies keep only answers that fit each question", () => {
   expect(parsePersonaReply("not json", request)).toBeNull();
   expect(parsePersonaReply('{"message": " Hi, I run two dental clinics. "}', { kind: "post", channelName: "general" }))
     .toEqual({ message: "Hi, I run two dental clinics." });
-  // A checked sample (a number) stays, so the form still saves; free text and choices take the persona's.
-  expect(mergePersonaAnswers({ goal: "Sample answer from Test member 1", size: "0", seats: "3" },
-    { goal: "Fill my two clinics", size: "1", seats: "lots" }, intakeQuestions))
-    .toEqual({ goal: "Fill my two clinics", size: "1", seats: "3" });
+  // A number, date or link the form checks is pulled out of what the persona wrote, or the sample stays.
+  expect(parsePersonaReply('{"answers": {"seats": "About 1,200 hours a week", "site": "no site yet"}}', request))
+    .toEqual({ answers: { seats: "1200" } });
+  expect(mergePersonaAnswers({ goal: "Sample answer from Test member 1", size: "0", seats: "3", site: "https://example.com" },
+    { goal: "Fill my two clinics", size: "1", seats: "12" }, intakeQuestions))
+    .toEqual({ goal: "Fill my two clinics", size: "1", seats: "12", site: "https://example.com" });
 });
 
 async function startPersonaRun(t: ReturnType<typeof convexTest>) {
@@ -282,4 +285,38 @@ test("a persona that takes too long gives way to the sample answers", async () =
   vi.setSystemTime(nowMs + 61_000);
   await expect(owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args))
     .resolves.toMatchObject({ status: "acted", beat: { text: "Filled in the Intake form with sample answers" } });
+});
+
+test("a persona says hello in its guide channel, where the agent leads it", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(nowMs);
+  completion.reply.mockImplementation(async (input: any) => ({ ok: true, type: "assistant",
+    assistantText: String(input.messages[1].content).includes("first post")
+      ? '{"message": "Hi, I run two dental clinics and want fewer no-shows."}' : '{"answers": {"goal": "Fewer no-shows"}}' }));
+  const t = convexTest(schema, modules);
+  const { args, started } = await startPersonaRun(t);
+  const owner = t.withIdentity({ subject: OWNER });
+  // A real guide channel is restricted with grants for the member and the agent;
+  // an open one stands in here, since the step only needs somewhere to post.
+  const guideId = await t.run(async (ctx) => {
+    const channelId = await ctx.db.insert("communityChannels", { communityId: args.communityId, name: "guide-test-member-1", slug: "guide-test-member-1",
+      accessMode: "all_members", postingPolicy: "members", status: "active", position: 9, createdAt: nowMs, updatedAt: nowMs } as any);
+    await ctx.db.patch(started.membership_id as any, { serviceChannelId: channelId });
+    return channelId;
+  });
+
+  const beats: string[] = [];
+  let status = "";
+  // It stops at the agent's welcome, which can't send here (the fixture has no agent set up).
+  for (let i = 0; i < 30 && status !== "finished" && status !== "idle"; i += 1) {
+    const step = await owner.mutation(api.communityTestMemberAutoplay.autoplayTestMemberStep, args);
+    status = step.status;
+    if (step.beat && step.status === "acted") beats.push(step.beat.text);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+  }
+  expect(beats).toContain("Posted Test member 1's intro in #guide-test-member-1");
+  const posts = await t.run(async (ctx) => (await ctx.db.query("communityInteractionRoots").collect())
+    .filter((root) => String(root.channelId) === String(guideId)));
+  expect(posts.map((root: any) => root.status)).toEqual(["live"]);
+  expect(JSON.stringify(posts[0])).toContain("fewer no-shows");
 });

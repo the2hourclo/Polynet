@@ -47,7 +47,7 @@ export type AutoplayBeat = {
 /** The next thing the test member would do, with what it takes to do it either way. */
 type Plan =
   | { kind: "form"; text: string; path: string; target: string; requestId: string; formName: string;
-      questions: Array<{ key: string; title: string; type: CommunityFormQuestion["type"]; options: string[] }>; answers: Record<string, string | string[]> }
+      questions: Array<{ key: string; title: string; type: CommunityFormQuestion["type"]; options: string[]; answerFormat?: string }>; answers: Record<string, string | string[]> }
   | { kind: "lesson_step"; text: string; path: string; target: string; resourceId: string; lessonTitle: string; welcome: boolean;
       elementId: string; elementType: "button" | "checklist" | "quiz"; elementName: string; value: true | string[]; choiceLabels: string[] }
   | { kind: "lesson_done"; text: string; path: string; target: string; resourceId: string; lessonTitle: string; welcome: boolean }
@@ -93,6 +93,24 @@ async function currentVisit(scope: Scope) {
   return { workflow, current: resolveCurrentMilestone({ workflow, membership, state }) };
 }
 
+const GUIDE_POST = { visit: "guide", ruleKey: "intro" };
+
+/**
+ * With a persona and the free engine, the test member posts once in its own
+ * guide channel (when it has one), even if no rule waits for a post: that's
+ * where the agent leads it, and the agent replies for real.
+ */
+async function personaGuidePost(scope: Scope): Promise<Plan | null> {
+  const { ctx, row, membership, base, done } = scope;
+  if (!row.persona || !communityAgentRunsFree() || done.has(`post:${GUIDE_POST.visit}:${GUIDE_POST.ruleKey}`)) return null;
+  const fresh: any = await ctx.db.get(membership._id);
+  const channel: any = fresh?.serviceChannelId ? await ctx.db.get(fresh.serviceChannelId) : null;
+  if (!channel) return null;
+  return { kind: "post", text: `Posted an intro in #${channel.name ?? "their guide channel"}`, target: "Send",
+    path: `${base}/chat${channel.slug && channel.slug !== "general" ? `/${encodeURIComponent(channel.slug)}` : ""}`,
+    ...GUIDE_POST, channelId: String(channel._id), message: POST_TEXT(row.label) };
+}
+
 /** What the test member would do next, or why there's nothing: finished, or waiting on rules still running. */
 async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
   const { ctx, row, membership, communityId, base, done } = scope;
@@ -109,11 +127,12 @@ async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
     const questions = await memberFormQuestions(ctx, communityId, version.questions);
     return { kind: "form", text: `Filled in the ${version.name} form with sample answers`, path: `${base}/chat`, target: version.name,
       requestId: String(request._id), formName: version.name, answers: sampleFormAnswers(questions, row.label, nowMs),
-      questions: questions.map((q: CommunityFormQuestion) => ({ key: q.key, title: q.title, type: q.type, options: q.options })) };
+      questions: questions.map((q: CommunityFormQuestion) => ({ key: q.key, title: q.title, type: q.type, options: q.options,
+        ...(q.answerFormat ? { answerFormat: q.answerFormat } : {}) })) };
   }
 
   const visit = await currentVisit(scope);
-  if (!visit || visit.current.completedAt) return "finished";
+  if (!visit || visit.current.completedAt) return await personaGuidePost(scope) ?? "finished";
   const { workflow, current } = visit;
   const visitKey = `${current.milestone.key}:${current.milestoneEnteredAt}`;
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
@@ -185,6 +204,10 @@ async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
     return { kind: "post", text: `Posted an intro in ${channel?.name ? `#${channel.name}` : "the general channel"}`, path: channelPath, target: "Send",
       ruleKey: rule.key, visit: visitKey, channelId: channelId ? String(channelId) : null, message: POST_TEXT(row.label) };
   }
+
+  // 3b. A persona says hello to its guide, so the agent has someone to talk to.
+  const hello = await personaGuidePost(scope);
+  if (hello) return hello;
 
   // 4. Timed steps: skip the wait on the next one due.
   const timers = (await ctx.db.query("communityMemberWorkflowTimers")
