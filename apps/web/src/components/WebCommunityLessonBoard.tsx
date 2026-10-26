@@ -146,7 +146,8 @@ export function WebCommunityLessonBoard(props: {
         lesson={opened}
         title={props.title ?? "Roadmap"}
         outline={stages.map((stage) => ({ name: stage.name, lessons: inStage(stage.name).map((lesson) => ({
-          ref: lesson.ref, title: lesson.resource.title, done: statusOf(lesson.ref) === "done", locked: isLocked(lesson.ref),
+          ref: lesson.ref, title: lesson.resource.title, done: statusOf(lesson.ref) === "done",
+          started: statusOf(lesson.ref) === "in_progress", locked: isLocked(lesson.ref),
         })) }))}
         doneCount={doneRefs.size}
         total={lessons.length}
@@ -566,7 +567,7 @@ function InlineName(props: {
   );
 }
 
-type StepOutline = Array<{ name: string; lessons: Array<{ ref: string; title: string; done: boolean; locked: boolean }> }>;
+type StepOutline = Array<{ name: string; lessons: Array<{ ref: string; title: string; done: boolean; started: boolean; locked: boolean }> }>;
 
 // A lesson opened from the roadmap reads exactly like one in Resources: the
 // track's outline on the left, the lesson in the middle, Contents on the right.
@@ -625,8 +626,8 @@ function WebCommunityLessonStep(props: {
                       <div key={item.ref} className={`knowledge-resource-item${active ? " is-active" : ""}${item.locked ? " is-locked" : ""}`}>
                         <button className="knowledge-resource-item-main" type="button" aria-current={active ? "page" : undefined}
                           disabled={item.locked} onClick={() => props.onOpen(item.ref)}>
-                          <span className={`knowledge-resource-item-status${item.done ? " is-done" : ""}`} role="img"
-                            aria-label={item.done ? "Done" : item.locked ? "Not open yet" : "Not done"}>
+                          <span className={`knowledge-resource-item-status${item.done ? " is-done" : item.started ? " is-started" : ""}`} role="img"
+                            aria-label={item.done ? "Done" : item.locked ? "Not open yet" : item.started ? "In progress" : "Not started"}>
                             {item.done ? <Check aria-hidden="true" /> : item.locked ? <Lock aria-hidden="true" /> : null}
                           </span>
                           <span className="knowledge-resource-item-copy">
