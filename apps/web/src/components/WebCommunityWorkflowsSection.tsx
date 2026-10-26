@@ -71,6 +71,7 @@ export type WebCommunityWorkflowsSectionProps = {
   /** Adds the agent-led journey's stages (Workflows → board card). */
   onApplyAgentLedJourney?: (plan: AgentLedJourneyPlan) => Promise<boolean>;
   onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
+  onSetWelcomeDisplay?: (display: "page" | "popup") => Promise<boolean>;
   onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
   onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
   onLoadTrackOptions?: () => Promise<Array<{ key: string; title: string }>>;
@@ -157,6 +158,7 @@ export function WebCommunityWorkflowsSection(
       {section === "workflows" ? <WorkflowBoard {...props} onOpenWelcome={() => void select("welcome")} onOpenTest={() => void select("test")} />
         : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
           forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
+          onSetWelcomeDisplay={props.onSetWelcomeDisplay}
           onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
           onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
         : section === "test" ? props.testRun

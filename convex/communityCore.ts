@@ -1239,13 +1239,14 @@ export async function readCommunityWelcomeGate(args: {
   community: CommunityLike;
   membership: CommunityMembershipLike | null;
   userId: any;
-}): Promise<{ required: boolean; requestIds: string[]; lessonIds: string[] }> {
-  const open = { required: false, requestIds: [] as string[], lessonIds: [] as string[] };
+}): Promise<{ required: boolean; requestIds: string[]; lessonIds: string[]; display: WelcomeDisplay }> {
+  const open = { required: false, requestIds: [] as string[], lessonIds: [] as string[], display: "page" as WelcomeDisplay };
   if (String(args.community.ownerId) === String(args.userId) || !args.membership) return open;
   if (normalizeCommunityRoleForOutput(args.membership.role) === "admin") return open;
   const workflow = await args.ctx.db.query("communityMemberWorkflows")
     .withIndex("by_community", (q: any) => q.eq("communityId", args.community._id)).first();
   if (!workflow?.welcomeGate) return open;
+  const display: WelcomeDisplay = workflow.welcomeDisplay === "popup" ? "popup" : "page";
   // A test run started at a later stage tests that stage, not the welcome flow.
   const testMember = await findTestMemberByUserId(args.ctx, args.userId);
   if (testMember?.startMilestoneKey && testMember.startMilestoneKey !== workflow.milestones?.[0]?.key) return open;
@@ -1288,7 +1289,7 @@ export async function readCommunityWelcomeGate(args: {
       if (progress?.status !== "done") lessonIds.push(String(resourceId));
     }
   }
-  if (requestIds.length || lessonIds.length) return { required: true, requestIds, lessonIds };
+  if (requestIds.length || lessonIds.length) return { required: true, requestIds, lessonIds, display };
   // The join rule runs just after the join commits, so a member who joined
   // after the flow was turned on is held from the first moment, before their
   // forms exist. The hold lapses if the rule never runs, so nobody is locked out.
@@ -1297,7 +1298,15 @@ export async function readCommunityWelcomeGate(args: {
     .withIndex("by_workflow_membership_createdAt", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id))
     .take(20);
   const joinRan = runs.some((run: any) => run.triggerType === "member_joined");
-  return joinRan ? open : { required: true, requestIds: [], lessonIds: [] };
+  return joinRan ? open : { required: true, requestIds: [], lessonIds: [], display };
+}
+
+export type WelcomeDisplay = "page" | "popup";
+
+/** Whether the welcome flow keeps the member out of the rest of the community.
+ * A pop-up opens the community behind it, so it asks without holding. */
+export function welcomeHolds(gate: { required: boolean; display: WelcomeDisplay }): boolean {
+  return gate.required && gate.display !== "popup";
 }
 
 /** A welcome lesson counts only while members can see it: a page in a live course. */
@@ -1344,7 +1353,7 @@ export async function requireCommunityChatAccess(args: {
   if (!entitlement.isEntitled) {
     throw new Error("community_entitlement_required");
   }
-  if (!args.allowWelcome && (await readCommunityWelcomeGate({ ctx: args.ctx, community, membership, userId: args.userId })).required) {
+  if (!args.allowWelcome && welcomeHolds(await readCommunityWelcomeGate({ ctx: args.ctx, community, membership, userId: args.userId }))) {
     throw new Error("community_welcome_required");
   }
   return { community };
@@ -1408,12 +1417,13 @@ export async function resolveCommunityAccessBundle(args: {
               : null;
   const welcome = isEntitled
     ? await readCommunityWelcomeGate({ ctx: args.ctx, community: args.community, membership: args.membership, userId: args.userId })
-    : { required: false, requestIds: [] as string[], lessonIds: [] as string[] };
+    : { required: false, requestIds: [] as string[], lessonIds: [] as string[], display: "page" as WelcomeDisplay };
+  const held = welcomeHolds(welcome);
   const canViewLanding = true;
   // A member held by the welcome flow enters the community but sees only the form.
   const canEnterCommunity = isEntitled;
-  const canReadChat = isEntitled && !welcome.required;
-  const canPostChat = isEntitled && !welcome.required;
+  const canReadChat = isEntitled && !held;
+  const canPostChat = isEntitled && !held;
   const canView = !isBlocked && builderAccess.operational;
   const canManageMembers = builderAccess.operational && (isOwner || isAdmin);
   const canManageResources = builderAccess.operational && (isOwner || isAdmin);
@@ -1479,6 +1489,7 @@ export async function resolveCommunityAccessBundle(args: {
     welcome_required: welcome.required,
     welcome_form_request_ids: welcome.requestIds,
     welcome_lesson_ids: welcome.lessonIds,
+    welcome_display: welcome.display,
   };
 }
 

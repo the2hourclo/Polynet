@@ -108,7 +108,7 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     calls: "communityMemberWorkflows:saveBuilderWelcomePage", ref: api.communityMemberWorkflows.saveBuilderWelcomePage, kind: "mutation",
     fields: { expected_revision: "workflow revision from /builder/settings.json", title: "heading", message: "welcome text (Markdown)",
       media_url: "video or image URL, or empty", lesson_ids: "lesson resource ids new members start with",
-      layout: 'optional: the page as blocks, in order: {"type":"text","markdown":"…"} (a link alone on a line plays as a video), {"type":"form","formKey":"…"}, {"type":"lesson","resourceId":"…"}, {"type":"next"} to start a new screen. With it, message, media_url and lesson_ids are ignored, and its forms become the forms new members answer on joining' },
+      layout: 'optional: the page as blocks, in order: {"type":"text","markdown":"…"} (a link alone on a line plays as a video), {"type":"form","formKey":"…"}, {"type":"lesson","resourceId":"…"}, {"type":"choice","prompt":"…","options":[{"label":"…","hint":"…","markdown":"…"}]} (cards to pick from; each shows its own steps; the first is the default), {"type":"next"} to start a new screen. With it, message, media_url and lesson_ids are ignored, and its forms become the forms new members answer on joining' },
     required: ["expected_revision", "title", "message", "media_url", "lesson_ids"], effects: ["update_welcome_page"],
   }),
   op({
@@ -116,6 +116,12 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     calls: "communityMemberWorkflows:setBuilderWelcomeGate", ref: api.communityMemberWorkflows.setBuilderWelcomeGate, kind: "mutation",
     fields: { expected_revision: "workflow revision", enabled: "true: new members see the welcome page before anything else" },
     required: ["expected_revision", "enabled"], effects: ["set_welcome_gate"],
+  }),
+  op({
+    operation: "community.welcome.display.set", area: "welcome", name: "Welcome page as full page or pop-up",
+    calls: "communityMemberWorkflows:setBuilderWelcomeDisplay", ref: api.communityMemberWorkflows.setBuilderWelcomeDisplay, kind: "mutation",
+    fields: { expected_revision: "workflow revision", display: '"page": new members see only the welcome until it is done; "popup": it opens over the community, which they can use behind it and finish later' },
+    required: ["expected_revision", "display"], effects: ["set_welcome_display"],
   }),
   op({
     operation: "community.workflow.stage.create", area: "workflows", name: "Add a workflow stage",

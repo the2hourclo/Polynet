@@ -50,6 +50,8 @@ export type WebShellChromeHostProps = {
   globalOverlays: ReactNode;
   /** Replaces the community nav and page while the member owes welcome forms. */
   welcomeSurface?: ReactNode;
+  /** The welcome as a pop-up: shown over the community page, which stays open behind it. */
+  welcomeOverlay?: ReactNode;
   // A manager's session, for the draft theme preview; null for everyone else.
   themeDraftSession?: unknown;
   memberSession?: unknown;
@@ -165,6 +167,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     showMobileGlobalShell &&
     props.communityShell.destination.kind === "discover";
   const welcome = props.welcomeSurface ?? null;
+  const pageSurface = props.welcomeOverlay ? <>{props.mainSurface}{props.welcomeOverlay}</> : props.mainSurface;
   const isTopCommunityNav =
     !props.showMobileAppShell &&
     props.communityShell.showDesktopCommunityNav &&
@@ -281,7 +284,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       communityShell={props.communityShell}
       presentation="mobile-home"
     />
-  ) : isMobileDedicatedRoot ? null : props.mainSurface);
+  ) : isMobileDedicatedRoot ? null : pageSurface);
   const mobileGlobalShellLabel = isMobileCommunityHome
     ? "Community home"
     : props.communityShell.mobileRootPage === "agent"
@@ -303,7 +306,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     >
       {mobileGlobalShellContent}
     </WebMobileGlobalShell>
-  ) : welcome ?? props.mainSurface;
+  ) : welcome ?? pageSurface;
   // On desktop the community surface below carries the theme. Elsewhere the
   // page is wrapped without a box of its own, so layout is unchanged.
   const themedMainSurface =

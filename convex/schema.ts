@@ -1278,6 +1278,8 @@ export default defineSchema({
     welcomeGate: v.optional(v.boolean()),
     /** When the welcome flow was last turned on; members who join after it are held from the moment they join. */
     welcomeGateEnabledAt: v.optional(v.number()),
+    /** How the welcome page shows: the whole community pane ("page", the default), or a pop-up over the open community. */
+    welcomeDisplay: v.optional(v.union(v.literal("page"), v.literal("popup"))),
     /** Lesson pages a member marks done in the welcome flow, after its join forms, in this order. */
     welcomeLessonIds: v.optional(v.array(v.id("communityResources"))),
     /** The builder's words on the welcome page; Polynet's defaults where absent. */

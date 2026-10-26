@@ -1,4 +1,4 @@
-import { BookOpen, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Monitor, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
+import { BookOpen, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Maximize2, Monitor, PanelTop, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
 import {
   useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
   type DragEvent, type KeyboardEvent, type MutableRefObject, type ReactNode, type TextareaHTMLAttributes,
@@ -27,6 +27,7 @@ type Props = {
   isSaving: boolean;
   actionError: string | null;
   onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
+  onSetWelcomeDisplay?: (display: "page" | "popup") => Promise<boolean>;
   onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
   onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
   onOpenWorkflows: () => void;
@@ -280,6 +281,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
   };
 
   const gateOn = props.board?.welcome_gate === true;
+  const display = props.board?.welcome_display === "popup" ? "popup" : "page";
   const hasSteps = joinFormKeys(props.board).length > 0 || (props.board?.welcome_lesson_ids?.length ?? 0) > 0;
   const headline = draft.title.trim() || `Welcome to ${props.communityName ?? "your community"}`;
   const [previewing, setPreviewing] = useState(false);
@@ -310,6 +312,15 @@ export function WebCommunityWelcomeSettings(props: Props) {
             </small>
           </span>
         </label>
+        <div className="welcome-settings-display" role="radiogroup" aria-label="Show it as" aria-describedby={`${id}-display-help`}>
+          {([["page", "Full page", <Maximize2 key="i" size={14} aria-hidden="true" />], ["popup", "Pop-up", <PanelTop key="i" size={14} aria-hidden="true" />]] as const).map(([value, label, icon]) => (
+            <button key={value} type="button" role="radio" aria-checked={display === value} disabled={props.isSaving || !props.onSetWelcomeDisplay}
+              onClick={() => { if (display !== value) void props.onSetWelcomeDisplay?.(value); }}>{icon} {label}</button>
+          ))}
+          <small id={`${id}-display-help`}>{display === "popup"
+            ? "Opens over the community. Members can use it behind and finish later."
+            : "Members see only this until they finish its steps."}</small>
+        </div>
         <div className="welcome-settings-bar-actions">
           <button type="button" ref={previewButton} className="workflow-secondary-button" disabled={!screenCount} onClick={() => { setMenu(null); setPreviewing(true); }}>
             <Eye size={15} aria-hidden="true" /> Preview
