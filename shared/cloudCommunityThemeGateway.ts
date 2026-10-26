@@ -75,3 +75,70 @@ export async function discardCloudCommunityThemeDraft<SessionT>(params: {
     expectedDraftRevision: params.expectedDraftRevision,
   })) as CommunityThemeDraftState;
 }
+
+// Saved themes: looks the owner saved under a name (convex/communitySavedThemes.ts).
+export type CommunitySavedTheme = {
+  savedThemeId: string;
+  name: string;
+  // null when it no longer passes the theme rules; it can be renamed or deleted, not applied.
+  theme: CommunityThemeV1 | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export async function fetchCloudCommunitySavedThemes<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+}): Promise<CommunitySavedTheme[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return (await client.query(api.communitySavedThemes.listCommunitySavedThemes, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+  })) as CommunitySavedTheme[];
+}
+
+/** Saves `theme` under a new name, or with savedThemeId replaces that saved theme's look. */
+export async function saveCloudCommunitySavedTheme<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+  name?: string;
+  theme: unknown;
+  savedThemeId?: string;
+}): Promise<{ savedThemeId: string; savedThemes: CommunitySavedTheme[] }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return (await client.mutation(api.communitySavedThemes.saveCommunitySavedTheme, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+    ...(params.name !== undefined ? { name: params.name } : {}),
+    theme: params.theme,
+    ...(params.savedThemeId ? { savedThemeId: params.savedThemeId as Id<"communitySavedThemes"> } : {}),
+  })) as { savedThemeId: string; savedThemes: CommunitySavedTheme[] };
+}
+
+export async function renameCloudCommunitySavedTheme<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+  savedThemeId: string;
+  name: string;
+}): Promise<CommunitySavedTheme[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return (await client.mutation(api.communitySavedThemes.renameCommunitySavedTheme, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+    savedThemeId: params.savedThemeId as Id<"communitySavedThemes">,
+    name: params.name,
+  })) as CommunitySavedTheme[];
+}
+
+export async function deleteCloudCommunitySavedTheme<SessionT>(params: {
+  session: SessionT;
+  communityId: string;
+  savedThemeId: string;
+}): Promise<CommunitySavedTheme[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return (await client.mutation(api.communitySavedThemes.deleteCommunitySavedTheme, {
+    authSubject,
+    communityId: params.communityId as Id<"communities">,
+    savedThemeId: params.savedThemeId as Id<"communitySavedThemes">,
+  })) as CommunitySavedTheme[];
+}

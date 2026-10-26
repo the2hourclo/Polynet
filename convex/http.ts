@@ -16,6 +16,7 @@ import { registerRuntimeVoiceRoutes } from "./httpVoice";
 import { registerMemberAgentAttachmentRoutes } from "./httpMemberAgentAttachments";
 import { registerCommunityAttachmentRoutes } from "./httpCommunityAttachments";
 import { registerCommunityAppRoutes } from "./httpCommunityApps";
+import { registerCommunityAccessRoutes } from "./httpCommunityAccess";
 import { sseResponseWithHeaders, type SseSource } from "./httpStreaming";
 import type { RequireAuthenticatedActor } from "./runtimeTurnResolution";
 import { normalizeEmailForVerification } from "./workosEmailVerification";
@@ -294,6 +295,8 @@ registerMemberAgentAttachmentRoutes({
 registerCommunityAttachmentRoutes({ http, httpAction, jsonResponse, optionsResponse, requireAuthenticatedActor });
 
 registerCommunityAppRoutes({ http, httpAction });
+
+registerCommunityAccessRoutes({ http, httpAction });
 
 registerCommunitySiteRoutes({ http, httpAction, requireAuthenticatedActor });
 

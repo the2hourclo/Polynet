@@ -20,7 +20,8 @@ export function WebCommunityNavSurface({
     <CommunityNav
       memberNextStep={communityShell.memberNextStep}
       activeCommunity={communityShell.activeCommunity}
-      hideIdentitySettings={isMobileHome}
+      // The banner gear moved to Settings at the top right (WebAccountSettingsButton).
+      hideIdentitySettings
       communityTab={communityShell.communityTab}
       activeSelectionMode={hasDestinationSelection ? "route" : "none"}
       tabIndicators={communityShell.communityTabIndicators}

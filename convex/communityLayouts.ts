@@ -3,10 +3,12 @@ import { ConvexError, v } from "convex/values";
 import {
   DEFAULT_COMMUNITY_LAYOUT,
   normalizeCommunityLayout,
+  type CommunityLayoutPosition,
   type CommunityLayoutV1,
 } from "../shared/communityLayout";
 import {
   requireActiveCommunity,
+  requireCommunityChatAccess,
   requireCommunityManager,
   resolveUserIdForAuthenticatedRequest,
   type CommunityLike,
@@ -54,6 +56,12 @@ function readStoredLayout(raw: unknown): CommunityLayoutV1 | null {
   if (raw == null) return null;
   const result = normalizeCommunityLayout(raw);
   return result.ok ? result.layout : null;
+}
+
+/** The published layout, or null, for code that already holds a community. */
+export async function readPublishedCommunityLayout(ctx: any, communityId: any): Promise<CommunityLayoutV1 | null> {
+  const row = await getLayoutRow(ctx, communityId);
+  return readStoredLayout(row?.publishedLayout);
 }
 
 function canonicalJson(value: unknown): string {
@@ -285,5 +293,69 @@ export const publishBuilderLayoutDraftInternal = internalMutation({
     } catch (error) {
       return builderLayoutRefusal(error);
     }
+  },
+});
+
+// A member's own layout choice. Only arrangements the owner's published layout
+// offers can be picked; a pick the owner later withdraws is ignored when read
+// rather than deleted, so it comes back if the owner offers it again.
+
+async function getMemberLayoutPreference(ctx: any, communityId: any, userId: any) {
+  return await ctx.db
+    .query("communityMemberLayoutPreferences")
+    .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", userId))
+    .unique();
+}
+
+async function memberChoiceState(ctx: any, communityId: any, userId: any) {
+  const layout = (await readPublishedCommunityLayout(ctx, communityId)) ?? DEFAULT_COMMUNITY_LAYOUT;
+  const allowed = layout.navigation.member_choice;
+  const row = await getMemberLayoutPreference(ctx, communityId, userId);
+  const stored = (row?.position ?? null) as CommunityLayoutPosition | null;
+  return { allowed, position: stored && allowed.includes(stored) ? stored : null };
+}
+
+export const getMyCommunityLayoutChoice = query({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    communityId: v.id("communities"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId });
+    return await memberChoiceState(ctx, args.communityId, userId);
+  },
+});
+
+export const setMyCommunityLayoutChoice = mutation({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    communityId: v.id("communities"),
+    // null goes back to the owner's layout.
+    position: v.union(v.literal("top"), v.literal("side"), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId });
+    const { allowed } = await memberChoiceState(ctx, args.communityId, userId);
+    if (args.position !== null && !allowed.includes(args.position)) {
+      throw new ConvexError({ code: "community_layout_choice_not_offered", allowed });
+    }
+    const row = await getMemberLayoutPreference(ctx, args.communityId, userId);
+    if (args.position === null) {
+      if (row) await ctx.db.delete(row._id);
+    } else if (row) {
+      await ctx.db.patch(row._id, { position: args.position, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("communityMemberLayoutPreferences", {
+        communityId: args.communityId,
+        userId,
+        position: args.position,
+        updatedAt: Date.now(),
+      });
+    }
+    return await memberChoiceState(ctx, args.communityId, userId);
   },
 });

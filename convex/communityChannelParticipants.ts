@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, normalizeIdValue,
+import { communityMembershipIsCoCreator, communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, normalizeIdValue,
   requireCommunityManager, resolvePublicUserId, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 import { requireCommunityChannelLineage, resolveAuthorizedCommunityChannel } from "./communityChannelCore";
 import { resolveCommunityPresenceAuthorization } from "./communityPresenceCore";
@@ -39,20 +39,28 @@ export const listChannelRoster = query({
       phase = "members";
     }
     const size = Math.min(50, Math.max(2, Math.floor(args.paginationOpts.numItems)));
-    const page: Array<{ user_id: string; role: string; membership_id?: string; membership_created_at?: string;
+    const page: Array<{ user_id: string; role: string; co_creator?: boolean; membership_id?: string; membership_created_at?: string;
       profile: Awaited<ReturnType<typeof resolveUserProfileDisplayProjection>>; last_seen_at: number | null; active_until: number | null }> = [];
     const seen = new Set<string>();
     const append = async (candidateId: typeof userId, expectedMembershipId?: string, expectedPresenceId?: string) => {
       if (seen.has(String(candidateId))) return;
       const authorization = await resolveCommunityPresenceAuthorization({ ctx, community, userId: candidateId });
       if (!authorization.authorized || (expectedMembershipId && String(authorization.membership?._id) !== expectedMembershipId)) return;
-      const candidate = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId: candidateId });
+      let candidate;
+      try {
+        candidate = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId: candidateId });
+      } catch (error) {
+        // A member still finishing the welcome flow can't read channels yet, so they aren't listed.
+        if (String((error as Error)?.message ?? "").includes("community_welcome_required")) return;
+        throw error;
+      }
       if (!(await getCommunityChannelCapabilities({ ctx, channel, actor: candidate })).canRead) return;
       const presence = await ctx.db.query("communityPresence")
         .withIndex("by_community_user", q => q.eq("communityId", args.communityId).eq("userId", candidateId)).first();
       if (phase === "members" ? Boolean(presence) : String(presence?._id) !== expectedPresenceId) return;
       seen.add(String(candidateId));
       page.push({ user_id: (await resolvePublicUserId(ctx, candidateId)) ?? String(candidateId), role: candidateId === community.ownerId ? "owner" : authorization.membership!.role,
+        ...(candidateId !== community.ownerId && communityMembershipIsCoCreator(authorization.membership) ? { co_creator: true } : {}),
         ...(actor.isManager && candidateId !== community.ownerId && authorization.membership ? { membership_id: String(authorization.membership._id), membership_created_at: new Date(authorization.membership.createdAt).toISOString() } : {}),
         profile: await resolveUserProfileDisplayProjection(ctx, candidateId), last_seen_at: presence?.lastSeenAt ?? null, active_until: presence?.activeUntil ?? null });
     };

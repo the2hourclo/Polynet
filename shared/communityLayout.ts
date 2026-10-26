@@ -15,6 +15,9 @@ export const COMMUNITY_LAYOUT_VERSION = 1 as const;
 export const COMMUNITY_LAYOUT_TABS = ["chat", "resources", "events", "members", "agent", "about"] as const;
 export type CommunityLayoutTab = (typeof COMMUNITY_LAYOUT_TABS)[number];
 
+export const COMMUNITY_LAYOUT_POSITIONS = ["top", "side"] as const;
+export type CommunityLayoutPosition = (typeof COMMUNITY_LAYOUT_POSITIONS)[number];
+
 export const COMMUNITY_LAYOUT_ASIDE_BLOCKS = ["community_card", "upcoming_events"] as const;
 export type CommunityLayoutAsideBlock = (typeof COMMUNITY_LAYOUT_ASIDE_BLOCKS)[number];
 
@@ -35,6 +38,10 @@ export type CommunityLayoutV1 = {
     tabs: CommunityLayoutTabEntry[];
     // The tab a member lands on.
     home: CommunityLayoutTab;
+    // Arrangements each member may pick for themselves ("top" is Classroom,
+    // "side" is Channels). Empty: everyone sees the owner's. Left out of a
+    // stored layout, a top layout offers both and a side layout none.
+    member_choice: CommunityLayoutPosition[];
   };
   // "wide" fills the space next to the rail; "centered" keeps one readable column.
   width: "wide" | "centered";
@@ -44,6 +51,13 @@ export type CommunityLayoutV1 = {
       // title, preview, replies and reactions.
       presentation: "messages" | "posts";
       aside: CommunityLayoutAsideBlock[];
+    };
+    about: {
+      // "page": the About tab shows the description, and visitors get
+      // Polynet's own public page. "funnel": one sales page for both, with
+      // media, stats, description and a join card with the price, served at
+      // the public link and inside the community.
+      presentation: "page" | "funnel";
     };
   };
 };
@@ -77,10 +91,12 @@ export const DEFAULT_COMMUNITY_LAYOUT: CommunityLayoutV1 = {
       { tab: "about", label: "", hidden: true },
     ],
     home: "chat",
+    member_choice: [],
   },
   width: "wide",
   pages: {
     chat: { presentation: "messages", aside: [] },
+    about: { presentation: "page" },
   },
 };
 
@@ -161,7 +177,10 @@ export function normalizeCommunityLayout(raw: unknown): CommunityLayoutResult {
     version: 1,
     navigation: { ...DEFAULT_COMMUNITY_LAYOUT.navigation, tabs: DEFAULT_COMMUNITY_LAYOUT.navigation.tabs.map((t) => ({ ...t })) },
     width: DEFAULT_COMMUNITY_LAYOUT.width,
-    pages: { chat: { ...DEFAULT_COMMUNITY_LAYOUT.pages.chat, aside: [] } },
+    pages: {
+      chat: { ...DEFAULT_COMMUNITY_LAYOUT.pages.chat, aside: [] },
+      about: { ...DEFAULT_COMMUNITY_LAYOUT.pages.about },
+    },
   };
 
   if (raw.navigation !== undefined) {
@@ -169,7 +188,7 @@ export function normalizeCommunityLayout(raw: unknown): CommunityLayoutResult {
       problems.push({ path: "navigation", message: "navigation is an object." });
     } else {
       const nav = raw.navigation;
-      unknownKeys(nav, ["position", "tabs", "home"], "navigation", problems);
+      unknownKeys(nav, ["position", "tabs", "home", "member_choice"], "navigation", problems);
       if (nav.position !== undefined) {
         layout.navigation.position = oneOf(nav.position, ["side", "top"] as const, "navigation.position", problems) ?? layout.navigation.position;
       }
@@ -180,6 +199,23 @@ export function normalizeCommunityLayout(raw: unknown): CommunityLayoutResult {
         layout.navigation.home = oneOf(nav.home, COMMUNITY_LAYOUT_TABS, "navigation.home", problems) ?? layout.navigation.home;
       }
     }
+  }
+
+  const rawChoice = isRecord(raw.navigation) ? raw.navigation.member_choice : undefined;
+  if (rawChoice === undefined) {
+    layout.navigation.member_choice = layout.navigation.position === "top" ? ["top", "side"] : [];
+  } else if (!Array.isArray(rawChoice)) {
+    problems.push({ path: "navigation.member_choice", message: "member_choice is a list of positions: top, side." });
+  } else {
+    const choice: CommunityLayoutPosition[] = [];
+    rawChoice.forEach((entry, index) => {
+      const value = oneOf(entry, COMMUNITY_LAYOUT_POSITIONS, `navigation.member_choice.${index}`, problems);
+      if (value && !choice.includes(value)) choice.push(value);
+    });
+    if (choice.length > 0 && !choice.includes(layout.navigation.position)) {
+      problems.push({ path: "navigation.member_choice", message: "Members can always keep the owner's layout: include its position." });
+    }
+    layout.navigation.member_choice = choice.length > 1 ? choice : [];
   }
 
   const home = layout.navigation.tabs.find((entry) => entry.tab === layout.navigation.home);
@@ -198,7 +234,19 @@ export function normalizeCommunityLayout(raw: unknown): CommunityLayoutResult {
     if (!isRecord(raw.pages)) {
       problems.push({ path: "pages", message: "pages is an object." });
     } else {
-      unknownKeys(raw.pages, ["chat"], "pages", problems);
+      unknownKeys(raw.pages, ["chat", "about"], "pages", problems);
+      const about = raw.pages.about;
+      if (about !== undefined) {
+        if (!isRecord(about)) {
+          problems.push({ path: "pages.about", message: "pages.about is an object." });
+        } else {
+          unknownKeys(about, ["presentation"], "pages.about", problems);
+          if (about.presentation !== undefined) {
+            layout.pages.about.presentation =
+              oneOf(about.presentation, ["page", "funnel"] as const, "pages.about.presentation", problems) ?? layout.pages.about.presentation;
+          }
+        }
+      }
       const chat = raw.pages.chat;
       if (chat !== undefined) {
         if (!isRecord(chat)) {
@@ -229,6 +277,27 @@ export function normalizeCommunityLayout(raw: unknown): CommunityLayoutResult {
   }
 
   return problems.length ? { ok: false, problems } : { ok: true, layout };
+}
+
+// What a member sees: their own pick when the owner allows it, else the
+// owner's layout. A switch keeps the owner's tabs, labels and About page and
+// changes only the arrangement: "top" is the tab bar with the posts feed and
+// side blocks, "side" is the channel column with the chat timeline.
+export function layoutForMemberChoice(
+  layout: CommunityLayoutV1,
+  choice: CommunityLayoutPosition | null | undefined,
+): CommunityLayoutV1 {
+  if (!choice || choice === layout.navigation.position || !layout.navigation.member_choice.includes(choice)) return layout;
+  const chat: CommunityLayoutV1["pages"]["chat"] =
+    choice === "top"
+      ? { presentation: "posts", aside: ["community_card", "upcoming_events"] }
+      : { presentation: "messages", aside: [] };
+  return {
+    ...layout,
+    navigation: { ...layout.navigation, position: choice },
+    width: choice === "top" ? "centered" : "wide",
+    pages: { ...layout.pages, chat },
+  };
 }
 
 export function communityLayoutTabLabel(layout: CommunityLayoutV1, tab: CommunityLayoutTab): string {

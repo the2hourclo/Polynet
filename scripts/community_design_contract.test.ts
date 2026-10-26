@@ -26,7 +26,7 @@ function hasClass(name: string): boolean {
 const contractClasses = new Set(Object.values(COMMUNITY_DESIGN_SURFACES).flatMap((surface) => surface.classes));
 
 test("every class a theme styles is part of a listed surface", () => {
-  const css = readFileSync(HOOKS_CSS, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = readFileSync(HOOKS_CSS, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/url\([^)]*\)/g, "");
   const styled = new Set([...css.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((match) => match[1]));
   const unlisted = [...styled].filter((name) => !contractClasses.has(name));
   expect(unlisted, `Add these to COMMUNITY_DESIGN_SURFACES in shared/communityDesignContract.ts`).toEqual([]);

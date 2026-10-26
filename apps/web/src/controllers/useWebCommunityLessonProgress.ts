@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CommunityLessonProgressStatus } from "../../../../shared/communityLessonContract";
+import type { CommunityTrackView } from "../../../../shared/communityLessonTracks";
 import {
   fetchCloudOwnResourceProgress,
   setCloudOwnLessonResponse,
@@ -14,8 +15,12 @@ export type WebCommunityLessonProgress = {
   statusByRef: Readonly<Record<string, CommunityLessonProgressStatus>>;
   /** Saved answers to lesson elements, by lesson ref, then element id. */
   responsesByRef: Readonly<Record<string, Readonly<Record<string, CommunityLessonResponse>>>>;
+  /** The member's skill tracks, as the server worked them out (rules, Workflow stage, client properties). */
+  tracks: readonly CommunityTrackView[];
   loaded: boolean;
   error: string | null;
+  /** Reads progress again, e.g. after the owner changed a track. */
+  reload: () => void;
   setStatus: (resourceId: string, ref: string, status: CommunityLessonProgressStatus) => void;
   answer: (resourceId: string, ref: string, element: string, value: true | string[] | null) => Promise<SetCommunityLessonResponseResult>;
 };
@@ -24,6 +29,7 @@ type LoadedProgress = {
   communityId: string;
   statusByRef: Record<string, CommunityLessonProgressStatus>;
   responsesByRef: Record<string, Record<string, CommunityLessonResponse>>;
+  tracks: CommunityTrackView[];
 };
 
 /**
@@ -52,6 +58,7 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
             lesson.ref,
             Object.fromEntries((lesson.responses ?? []).map((response) => [response.element, response])),
           ])),
+          tracks: progress.tracks ?? [],
         });
         setError(null);
       })
@@ -71,11 +78,12 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
       const statusByRef = { ...(own?.statusByRef ?? {}) };
       previous = statusByRef[ref];
       statusByRef[ref] = status;
-      return { communityId, statusByRef, responsesByRef: own?.responsesByRef ?? {} };
+      return { communityId, statusByRef, responsesByRef: own?.responsesByRef ?? {}, tracks: own?.tracks ?? [] };
     });
     setCloudOwnResourceProgress({ session, communityId, resourceId, status })
       .then((result) => {
-        if (result.ok) return;
+        // Finishing a step can open stages and tracks; the server works that out.
+        if (result.ok) { if (status === "done" || previous === "done") load(); return; }
         setError(result.message);
         setState((current) => {
           if (!current || current.communityId !== communityId) return current;
@@ -110,8 +118,10 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
   return {
     statusByRef: current?.statusByRef ?? {},
     responsesByRef: current?.responsesByRef ?? {},
+    tracks: current?.tracks ?? [],
     loaded: Boolean(current),
     error,
+    reload: load,
     setStatus,
     answer,
   };

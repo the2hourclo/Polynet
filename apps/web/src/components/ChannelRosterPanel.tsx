@@ -1,12 +1,15 @@
-import { Fragment, useContext, useEffect, useRef, useState, type ComponentProps, type KeyboardEvent } from "react";
+import { Fragment, useContext, useEffect, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { MessageCircle, MoreHorizontal, Search, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useWebMemberDirectorySearch } from "../controllers/useWebMemberDirectorySearch";
 import { CommunityMemberSettingsDialog } from "./CommunityMemberSettingsDialog";
+import { WebCommunityCreators } from "./WebCommunityCreators";
 import { useMemberScrollPagination } from "./useMemberScrollPagination";
 import { CommunityJoinRequestReview } from "./CommunityJoinRequestReview";
 import { CommunityAutoJoinControl, type CommunityAdmissionControl } from "./CommunityAutoJoinControl";
 import { ActorAvatar } from "./communityInteractionFeed";
+import { useCommunityAgentProfile } from "../../../../shared/CommunityAgentIcon";
+import { AVATAR_INITIALS_INK } from "../../../../shared/chatUi";
 import type { FunctionReturnType } from "convex/server";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
@@ -24,6 +27,22 @@ import { resolveAuthSubject, type AuthSessionLike } from "../../../../shared/aut
 
 type Page = FunctionReturnType<typeof api.communityChannelParticipants.listChannelRoster>;
 
+// The memory card's one-line agent status, in plain words. A run that failed
+// on AI funding says so, because "Error" alone gives the owner nothing to act on.
+// The stored reason can carry a prefix ("Uncaught Error: founder_inference_…").
+// Members never see the failure: it's the owner's to fix, so they see "Resting".
+export function memoryAgentStatus(overview: Pick<CloudCommunityPolynetOverview, "agent">, options: { canManage?: boolean } = {}): string {
+  const state = overview.agent.activity_state || overview.agent.status;
+  if (state === "error" && options.canManage === false) return "Resting";
+  if (state === "error") {
+    return /\bfounder_inference_/.test(overview.agent.recent_runs[0]?.stop_reason ?? "")
+      ? "Couldn't run: AI usage isn't set up or has run out"
+      : "Couldn't run last time";
+  }
+  const labels: Record<string, string> = { running: "Working", resting: "Resting", updated_directory: "Updated memory", not_started: "Not started yet" };
+  return labels[state] ?? state.replace(/_/g, " ").replace(/\b\w/g, value => value.toUpperCase());
+}
+
 function trapTab(event: KeyboardEvent, container: HTMLElement | null) {
   if (event.key !== "Tab") return;
   const controls = Array.from(container?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]') ?? [])
@@ -34,11 +53,16 @@ function trapTab(event: KeyboardEvent, container: HTMLElement | null) {
 }
 
 type RosterProps = {
+  // The community's Members page: the full directory (search, join requests,
+  // auto-join) shown in the page as member cards instead of in a dialog.
+  page?: boolean;
   memberDetailOpen?: boolean;
   narrowOpen?: boolean;
   onCloseNarrow?: () => void;
   joinReview?: ComponentProps<typeof CommunityJoinRequestReview>;
   admission?: CommunityAdmissionControl;
+  /** Shown below the members list in the side panel, never in the directory. */
+  footer?: ReactNode;
   communityName: string;
   presenceSummary?: CommunityPresenceSummary | null;
   isLoadingPresence?: boolean;
@@ -58,6 +82,11 @@ export function ChannelRosterPanel(props: RosterProps) {
 }
 
 function ChannelRosterWorkspace(props: RosterProps) {
+  if (props.page) return <RosterSurface {...props} channelId={undefined} narrowOpen={false} onCloseNarrow={undefined} directory />;
+  return <ChannelRosterSidebar {...props} />;
+}
+
+function ChannelRosterSidebar(props: RosterProps) {
   const [membersOpen, setMembersOpen] = useState(false);
   const [channel, setChannel] = useState(props.channelId);
   if (channel !== props.channelId) {
@@ -79,6 +108,7 @@ function RosterSurface(props: RosterProps & {
   onCloseMembers?: () => void;
 }) {
   const scope = useContext(CommunityChannelSessionContext);
+  const agentName = useCommunityAgentProfile()?.name || "Community agent";
   const dialogRef = useRef<HTMLElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -186,7 +216,7 @@ function RosterSurface(props: RosterProps & {
   }, searching ? searchResult.progress : pages.length);
   const rosterMembers = [...new Map(pages.flatMap(page => page.page).map(member => [member.user_id, member])).values()];
   const members = searching ? searchResult.rows.map(member => ({
-    user_id: member.user_id, role: member.role,
+    user_id: member.user_id, role: member.role, co_creator: member.co_creator,
     membership_id: member.id.startsWith("owner:") ? undefined : member.id,
     membership_created_at: member.created_at,
     profile: member, last_seen_at: null, active_until: null,
@@ -206,9 +236,9 @@ function RosterSurface(props: RosterProps & {
   const ready = pages.length > 0;
   const firstPresenceGroup = (["online", "offline", "unknown"] as const).find(group => members.some(member => status(member) === group));
   const settings = <CommunityMemberSettingsDialog {...props.memberSettings}
-    member={selectedMember ? { ...selectedMember.profile, id: selectedMember.membership_id!, user_id: selectedMember.user_id, role: selectedMember.role, created_at: selectedMember.membership_created_at } : null}
+    member={selectedMember ? { ...selectedMember.profile, id: selectedMember.membership_id!, user_id: selectedMember.user_id, role: selectedMember.role, co_creator: selectedMember.co_creator, created_at: selectedMember.membership_created_at } : null}
     onClose={() => setSelectedMembershipId(null)} />;
-  const content = <><aside className={props.directory ? "members-directory-content" : "community-context-panel channel-roster-panel"} aria-label={props.directory ? "Community members" : "Channel people and agents"}
+  const content = <><aside className={props.page ? "members-directory-content members-page" : props.directory ? "members-directory-content" : "community-context-panel channel-roster-panel"} aria-label={props.directory ? "Community members" : "Channel people and agents"}
     style={!props.directory && props.memberDetailOpen ? { display: "none" } : undefined}
     onKeyDown={event => {
       if (event.key === "Escape" && !event.defaultPrevented && props.narrowOpen) {
@@ -223,6 +253,7 @@ function RosterSurface(props: RosterProps & {
       </div> : null}
       <span className="community-context-rail-name">{props.communityName}</span>
     </div>
+    <WebCommunityCreators communityId={scope?.communityId} onOpenProfile={props.onOpenProfile} variant="rail" getAvatarColor={props.getAvatarColor} getInitials={props.getInitials} />
     <CommunityPresenceFacepile faces={props.presenceSummary?.online_faces} onlineCount={props.presenceSummary?.online_count}
       onlineCountCapped={Boolean(props.presenceSummary?.online_count_capped)} isLoading={props.isLoadingPresence} />
     <div className="community-context-memory">
@@ -230,7 +261,7 @@ function RosterSurface(props: RosterProps & {
       {memoryError ? <div role="status">Could not load memory. <button type="button" onClick={() => setMemoryRetry(value => value + 1)}>Retry</button></div>
         : memory ? <div className="community-context-memory-summary">
           <div className="community-context-memory-preview"><CommunityMemoryGraphPreview overview={memory} /></div>
-          <div className="community-context-memory-status"><span>{(memory.agent.activity_state || memory.agent.status).replace(/_/g, " ").replace(/\b\w/g, value => value.toUpperCase())}</span></div>
+          <div className="community-context-memory-status"><span>{memoryAgentStatus(memory, { canManage: props.memberSettings.canManageMembers })}</span></div>
         </div> : <div className="community-context-memory-summary" aria-label="Loading memory"><div className="community-context-memory-preview web-skeleton-block" /><div className="community-context-memory-loading-status web-skeleton-row" /></div>}
     </div></> : null}
     <div className="community-context-members" ref={membersViewportRef} onScroll={handleMembersScroll}>
@@ -240,9 +271,9 @@ function RosterSurface(props: RosterProps & {
           {!props.directory ? <><h3 className="community-context-section">Agents — {pages[0].agents.length}</h3>
           {pages[0].agents.length ? <div className="community-context-agent-list">
             {pages[0].agents.map(agent => <div className="community-context-member" key={agent.key}>
-              <ActorAvatar seed={agent.key} label="Community agent" className="community-context-member-avatar"
+              <ActorAvatar seed={agent.key} label={agentName} className="community-context-member-avatar"
                 getAvatarColor={props.getAvatarColor} getInitials={props.getInitials} />
-              <span className="community-context-member-copy"><span className="community-context-member-name">Community agent</span></span>
+              <span className="community-context-member-copy"><span className="community-context-member-name">{agentName}</span></span>
             </div>)}
           </div> : <p className="community-context-members-status">No agents in this channel.</p>}</> : null}
         </>}
@@ -275,7 +306,7 @@ function RosterSurface(props: RosterProps & {
                   : `Last active: ${formatRelativeTimeFromIso(new Date(member.last_seen_at).toISOString())}`;
                 return <div key={member.user_id} className={`community-context-member${group === "offline" ? " is-offline" : ""}`}>
                   <button type="button" className="community-context-member-trigger" aria-label={`Open ${name}'s profile`} aria-description={lastActive} onClick={() => props.onOpenProfile?.(member.user_id)}>
-                    <span className="community-context-member-avatar" style={!member.profile.avatar_url ? { color: props.getAvatarColor(member.user_id) } : undefined}>
+                    <span className="community-context-member-avatar" style={!member.profile.avatar_url ? { backgroundColor: props.getAvatarColor(member.user_id), color: AVATAR_INITIALS_INK } : undefined}>
                       <UserAvatar className="community-context-member-avatar-media" readyClassName="has-image"
                         name={name} imageUrl={member.profile.avatar_url}
                         focusX={member.profile.avatar_focus_x} focusY={member.profile.avatar_focus_y} zoom={member.profile.avatar_zoom}
@@ -301,11 +332,12 @@ function RosterSurface(props: RosterProps & {
           </div>}
         </> : null}
     </div>
+    {!props.directory ? props.footer : null}
   </aside>
   </>;
   // The chat shell isolates its stacking context beneath the community rail.
   // Keep overlays outside that shell, as the directory already does below.
-  if (!props.directory) return <>{content}{selectedMember ? createPortal(settings, document.body) : null}</>;
+  if (!props.directory || props.page) return <>{content}{selectedMember ? createPortal(settings, document.body) : null}</>;
   // Keep search and pagination mounted while the existing profile inspector is open.
   return createPortal(<><div className="modal-overlay" style={props.memberDetailOpen ? { display: "none" } : undefined} onMouseDown={props.onCloseMembers}>
     <section ref={dialogRef} className="modal members-directory-modal" role="dialog" aria-modal="true"

@@ -590,8 +590,13 @@ export function validatePolynetSemanticRepositoryOperationInput(args: {
     if (repositoryPath.localPath === "/members/me/forms/" || /^\/members\/me\/forms\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
         repositoryPath.localPath === "/members/me/progress.json" ||
         repositoryPath.localPath === "/builder/progress/" || /^\/builder\/progress\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
+        repositoryPath.localPath === "/builder/clients/" || /^\/builder\/clients\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
+        /^\/builder\/clients\/views\/[a-z0-9_]{1,40}\/$/.test(repositoryPath.localPath) ||
         repositoryPath.localPath === "/builder/theme.json" || repositoryPath.localPath === "/builder/layout.json" ||
-        repositoryPath.localPath === "/builder/design-guide.md" || repositoryPath.localPath === "/builder/design-review.md") {
+        repositoryPath.localPath === "/builder/design-guide.md" || repositoryPath.localPath === "/builder/design-review.md" ||
+        repositoryPath.localPath === "/builder/brand.json" || repositoryPath.localPath === "/builder/settings.json" ||
+        repositoryPath.localPath === "/builder/tracks.json" || repositoryPath.localPath === "/builder/offers.json" || repositoryPath.localPath === "/builder/workflow-runs.json" ||
+        repositoryPath.localPath === "/builder/events.json" || repositoryPath.localPath === "/builder/test-runs.json") {
       const isDirectory = repositoryPath.localPath.endsWith("/");
       const validated = validateCommunitySemanticOperationInput({ ...args,
         path: isDirectory ? POLYNET_JOIN_REQUESTS_DIRECTORY_PATH : "/community.md" });

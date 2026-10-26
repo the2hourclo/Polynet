@@ -13,8 +13,28 @@ import { bootConvexProbe } from "../../../shared/convexRuntime";
 import { buildTelemetryRouteLabel } from "../../../shared/routePrivacy";
 import { CommunityVisualIdentityRegistryProvider } from "../../../shared/CommunityVisualIdentityRegistry";
 import { captureDistributionAttributionFromLocation } from '../../../shared/distributionAttribution';
+import { captureCommunityReferralFromLocation } from '../../../shared/communityReferralCapture';
+import { captureTestMemberRunFromLocation } from '../../../shared/testMemberRun';
+import { WebTestRunBar } from './components/WebTestRunBar';
+import { resolvePhoneShellRedirect } from '../../../shared/webAppRouteState';
 
 captureDistributionAttributionFromLocation();
+captureCommunityReferralFromLocation();
+captureTestMemberRunFromLocation();
+redirectPhoneToPhoneLayout();
+
+function redirectPhoneToPhoneLayout() {
+  try {
+    const next = resolvePhoneShellRedirect({
+      path: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      narrowViewport: window.matchMedia("(max-width: 640px)").matches,
+      embedded: window.self !== window.top,
+    });
+    if (next) window.history.replaceState(window.history.state, "", next);
+  } catch {
+    // Keep the desktop layout if the check fails.
+  }
+}
 
 type ErrorBoundaryState = {
   error: Error | null;
@@ -376,6 +396,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <ErrorBoundary>
       <CommunityVisualIdentityRegistryProvider>
         {rootView}
+        <WebTestRunBar />
       </CommunityVisualIdentityRegistryProvider>
     </ErrorBoundary>
   </React.StrictMode>

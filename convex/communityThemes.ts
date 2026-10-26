@@ -121,7 +121,7 @@ export const getCommunityThemeDraft = query({
   },
 });
 
-async function saveDraft(ctx: any, args: { userId: any; communityId: any; expectedDraftRevision: number; theme: unknown }) {
+export async function saveDraft(ctx: any, args: { userId: any; communityId: any; expectedDraftRevision: number; theme: unknown }) {
   const result = normalizeCommunityTheme(args.theme);
   if (!result.ok) {
     throw new ConvexError({ code: "community_theme_invalid", problems: result.problems });
