@@ -15,6 +15,7 @@ import {
   updateCloudCommunityMemberWorkflowMilestone,
   setCloudCommunityMemberServiceChannel,
   setCloudCommunityWelcomeGate,
+  setCloudCommunityWelcomeDisplay,
   saveCloudCommunityWelcomePage,
   type CloudCommunityWelcomePageDraft,
   forceCloudCommunityMemberMilestone,
@@ -31,6 +32,7 @@ import { withJourneyPropertyKey, type AgentLedJourneyPlan } from "../../../../sh
 import { ensureCloudCommunitySelectProperty } from "../../../../shared/cloudCommunityFormsGateway";
 import { listCloudCommunityResourceModuleRows, listCloudCommunityResourceRows } from "../../../../shared/cloudCommunityAdminGateway";
 import { fetchCloudCommunityLessonTracks } from "../../../../shared/cloudCommunityLessonTracksGateway";
+import { fetchCloudCommunityOffers } from "../../../../shared/cloudCommunityOffersGateway";
 import type { CommunityResource, CommunityResourceModule } from "../components/communityResourcesContracts";
 
 /** A lesson page in a live course, for welcome steps and lesson triggers. */
@@ -71,7 +73,7 @@ function workflowErrorMessage(error: unknown): string {
   if (message.includes("welcome_step_duplicate")) return "Each form or lesson can be on the welcome page once.";
   if (message.includes("welcome_step_invalid")) return "A form or lesson on the welcome page is missing. Remove it and add it again.";
   if (message.includes("welcome_choices_too_many")) return "The welcome page holds up to 3 choices.";
-  if (message.includes("welcome_choice_invalid")) return "Each choice needs a name of up to 40 characters on every card, at most 4 cards, and a short question.";
+  if (message.includes("welcome_choice_invalid")) return "Each choice needs a name of up to 40 characters on every card, at most 4 cards, and a short question. A card icon must be an https image link.";
   if (message.includes("welcome_choice_too_long")) return "Keep each card's steps to 8,000 characters, and all cards together to 30,000.";
   if (message.includes("form_not_published")) return "Publish that form in Forms first.";
   if (message.includes("workflow_previous_action_invalid")) return "A \"then\" rule in Workflows runs after a form that is no longer asked. Change that rule in Workflows first.";
@@ -496,6 +498,14 @@ export function useWebCommunityWorkflowsController(params: {
     return result.tracks.map((track) => ({ key: track.key, title: track.title }));
   }, [params.activeCommunityId, params.ensureSession, params.session]);
 
+  // Offers a "When they start / leave an offer" rule can name (Settings › Offers).
+  const loadOfferOptions = useCallback(async (): Promise<Array<{ key: string; name: string }>> => {
+    const usableSession = params.activeCommunityId ? await params.ensureSession(params.session, "community_workflows_offers") : null;
+    if (!usableSession || !params.activeCommunityId) return [];
+    const result = await fetchCloudCommunityOffers({ session: usableSession, communityId: params.activeCommunityId });
+    return result.offers.filter((offer) => !offer.archived).map((offer) => ({ key: offer.key, name: offer.name }));
+  }, [params.activeCommunityId, params.ensureSession, params.session]);
+
   return {
     forms,
     access,
@@ -696,8 +706,12 @@ export function useWebCommunityWorkflowsController(params: {
     setWelcomeGate: (enabled: boolean) =>
       mutateMilestone("community_workflows_welcome_gate", (session, communityId, revision) =>
         setCloudCommunityWelcomeGate({ session, communityId, expectedRevision: revision, enabled })),
+    setWelcomeDisplay: (display: "page" | "popup") =>
+      mutateMilestone("community_workflows_welcome_display", (session, communityId, revision) =>
+        setCloudCommunityWelcomeDisplay({ session, communityId, expectedRevision: revision, display })),
     loadWelcomeLessonOptions,
     loadTrackOptions,
+    loadOfferOptions,
     saveWelcomePage: (page: CloudCommunityWelcomePageDraft) =>
       mutateMilestone("community_workflows_welcome_page", (session, communityId, revision) =>
         saveCloudCommunityWelcomePage({ session, communityId, expectedRevision: revision, page })),

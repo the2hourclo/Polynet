@@ -28,9 +28,9 @@ A business map is one file plus a set of department folders — a model of how y
 ```
 
 ```quiz workspace-ready required
-2. What must be true before your Cowork workspace is ready for the Business X-Ray?
+2. What must be true before your workspace is ready for the Business X-Ray?
 - [ ] The connector says Connected, even if no Project folder is attached
 - [x] Claude names the attached Project folder and verifies the saved workspace state can be read back there
-- [ ] You opened any new Cowork chat and said hi
+- [ ] You opened a new chat with Claude and said hi
 > The X-Ray saves into your Project folder, so Claude has to see that folder and read its saved state back.
 ```

@@ -4,11 +4,13 @@
 // the member finishes it before going on, so each screen holds at most one.
 // A choice shows cards (say, the app they use); picking one shows only its words.
 
-export type WelcomeChoiceOption = { label: string; hint: string; markdown: string };
+/** icon: an https image link, or a small inline image (data:image/…), shown on the card. */
+export type WelcomeChoiceOption = { label: string; hint: string; markdown: string; icon?: string };
 
 export type WelcomeBlock =
   | { type: "text"; markdown: string }
-  | { type: "choice"; prompt: string; options: WelcomeChoiceOption[] }
+  /** agent: shows the community's agent (its photo and name) above the cards as the plugin that connects to the picked app. */
+  | { type: "choice"; prompt: string; options: WelcomeChoiceOption[]; agent?: boolean }
   | { type: "form"; formKey: string }
   | { type: "lesson"; resourceId: string }
   | { type: "next" };
@@ -29,6 +31,13 @@ export const WELCOME_CHOICE_HINT_MAX = 160;
 /** One option's words: room for a setup prompt someone pastes into their AI. */
 export const WELCOME_CHOICE_TEXT_MAX = 8_000;
 export const WELCOME_CHOICE_TEXT_TOTAL_MAX = 30_000;
+export const WELCOME_CHOICE_ICON_MAX = 8_000;
+
+/** A card icon must be an https image link or a small inline image; anything else is refused. */
+export function isWelcomeChoiceIcon(value: string): boolean {
+  return value.length <= WELCOME_CHOICE_ICON_MAX
+    && (/^https:\/\/\S+$/i.test(value) || /^data:image\/(?:svg\+xml|png|jpeg|webp|gif)(?:;base64)?,[^\s"'<>]+$/i.test(value));
+}
 
 const isStepBlock = (block: WelcomeBlock): block is WelcomeStep => block.type === "form" || block.type === "lesson";
 
@@ -92,8 +101,9 @@ export function normalizeWelcomeLayout(layout: WelcomeBlock[]): WelcomeBlock[] {
         label: option.label.replace(/\s+/g, " ").trim(),
         hint: option.hint.replace(/\s+/g, " ").trim(),
         markdown: option.markdown.replace(/\r\n?/g, "\n").trim(),
+        ...(option.icon?.trim() ? { icon: option.icon.trim() } : {}),
       })).filter((option) => option.label || option.markdown);
-      if (options.length) out.push({ type: "choice", prompt: block.prompt.replace(/\s+/g, " ").trim(), options });
+      if (options.length) out.push({ type: "choice", prompt: block.prompt.replace(/\s+/g, " ").trim(), options, ...(block.agent ? { agent: true } : {}) });
     } else if (block.type === "form") out.push({ type: "form", formKey: block.formKey.trim() });
     else out.push({ type: "lesson", resourceId: block.resourceId.trim() });
   }
@@ -123,6 +133,7 @@ export function welcomeLayoutIssue(layout: WelcomeBlock[]): WelcomeLayoutIssue |
     if (choice.prompt.length > WELCOME_CHOICE_PROMPT_MAX || choice.options.length > WELCOME_CHOICE_OPTIONS_MAX) return "welcome_choice_invalid";
     for (const option of choice.options) {
       if (!option.label || option.label.length > WELCOME_CHOICE_LABEL_MAX || option.hint.length > WELCOME_CHOICE_HINT_MAX) return "welcome_choice_invalid";
+      if (option.icon !== undefined && !isWelcomeChoiceIcon(option.icon)) return "welcome_choice_invalid";
       if (option.markdown.length > WELCOME_CHOICE_TEXT_MAX) return "welcome_choice_too_long";
       choiceTotal += option.markdown.length;
     }

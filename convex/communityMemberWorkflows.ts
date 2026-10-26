@@ -148,6 +148,8 @@ const automationInputValidator = v.object({
     v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
     v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
     v.object({ type: v.literal("client_property_changed"), propertyKey: v.string(), value: v.optional(v.union(v.string(), v.number(), v.boolean())) }),
+    v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
   ),
   action: v.union(
     v.object({ key: v.optional(v.string()), type: v.literal("create_service_channel") }),
@@ -304,7 +306,8 @@ function normalizeAutomations(
     // Lesson and course completion request a Form, write a property, or ask the
     // agent (through a timer that starts the moment the lesson is done).
     if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed"
-      || input.trigger.type === "client_property_changed")
+        || input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
+        || input.trigger.type === "client_property_changed")
       && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent" && action.type !== "send_email") {
       throw new Error("lesson_trigger_action_invalid");
     }
@@ -348,6 +351,8 @@ function normalizeAutomations(
         : input.trigger.type === "track_completed" ? { type: "track_completed", ...(input.trigger.trackKey ? { trackKey: input.trigger.trackKey } : {}) }
         : input.trigger.type === "client_property_changed" ? { type: "client_property_changed", propertyKey: input.trigger.propertyKey.trim(),
           ...(input.trigger.value === undefined || input.trigger.value === "" ? {} : { value: typeof input.trigger.value === "string" ? input.trigger.value.trim().slice(0, 200) : input.trigger.value }) }
+        : input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
+        ? { type: input.trigger.type, ...(input.trigger.offerKey ? { offerKey: input.trigger.offerKey } : {}) }
         : input.trigger.type === "milestone_elapsed"
         ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowDelayMinutes(input.trigger.delayMinutes), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
         : { type: "member_contributed", ...(input.trigger.channelId !== undefined ? { channelId: input.trigger.channelId } : {}) },
@@ -532,6 +537,13 @@ export const updateBuilderWorkflowMilestone = mutation({
           .unique();
         if (!track || track.archivedAt) throw new Error("workflow_track_unavailable");
       }
+      if ((automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended") && automation.trigger.offerKey) {
+        const offerKey = automation.trigger.offerKey;
+        const offer = await ctx.db.query("communityOffers")
+          .withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", offerKey))
+          .unique();
+        if (!offer || offer.archivedAt) throw new Error("workflow_offer_unavailable");
+      }
     }
     for (const formKey of new Set(everyRule.flatMap(a => [
       ...(a.action.type === "request_form" ? [a.action.formKey] : []),
@@ -588,11 +600,26 @@ export const setBuilderWelcomeGate = mutation({
   },
 });
 
+/** Full page (the community shows only the welcome until it's done) or a pop-up over the open community. */
+export const setBuilderWelcomeDisplay = mutation({
+  args: { ...managerIdentityArgs, communityId: v.id("communities"), expectedRevision: v.number(), display: v.union(v.literal("page"), v.literal("popup")) },
+  handler: async (ctx, args) => {
+    const { userId } = await requireWorkflowManager({ ctx, communityId: args.communityId, userId: args.userId, authSubject: args.authSubject });
+    const expectedRevision = normalizeExpectedRevision(args.expectedRevision);
+    const workflow = requireWorkflowRevision(
+      await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId }), expectedRevision);
+    if ((workflow.welcomeDisplay ?? "page") === args.display) return { workflow_id: String(workflow._id), revision: expectedRevision, welcome_display: args.display };
+    const revision = expectedRevision + 1;
+    await ctx.db.patch(workflow._id, { welcomeDisplay: args.display, revision, updatedByUserId: userId, updatedAt: Date.now() });
+    return { workflow_id: String(workflow._id), revision, welcome_display: args.display };
+  },
+});
+
 const WELCOME_TITLE_MAX = 120;
 const WELCOME_MESSAGE_MAX = 4_000;
 const welcomeBlockValidator = v.union(
   v.object({ type: v.literal("text"), markdown: v.string() }),
-  v.object({ type: v.literal("choice"), prompt: v.string(), options: v.array(v.object({ label: v.string(), hint: v.string(), markdown: v.string() })) }),
+  v.object({ type: v.literal("choice"), prompt: v.string(), options: v.array(v.object({ label: v.string(), hint: v.string(), markdown: v.string(), icon: v.optional(v.string()) })), agent: v.optional(v.boolean()) }),
   v.object({ type: v.literal("form"), formKey: v.string() }),
   v.object({ type: v.literal("lesson"), resourceId: v.string() }),
   v.object({ type: v.literal("next") }),
@@ -869,6 +896,7 @@ export const getBuilderWorkflowBoardPage = query({
         milestones: workflow.milestones,
         welcome_gate: workflow.welcomeGate ?? false,
         welcome_lesson_ids: (workflow.welcomeLessonIds ?? []).map(String),
+        welcome_display: workflow.welcomeDisplay ?? "page",
         welcome_page: {
           title: workflow.welcomePage?.title ?? "",
           message: workflow.welcomePage?.message ?? "",
@@ -1760,6 +1788,44 @@ export const handleClientPropertyChangedInternal = internalMutation({
       const timer = await startWorkflowSourceTimer({ ctx, workflow, membership, current, transitionSeq: Number(state?.transitionSeq ?? 0),
         automation, startedAt: Date.now(), sourceRef: receipt });
       results.push({ status: await runWorkflowTimerNow(ctx, timer) ? "agent_started" as const : "already_executed" as const });
+    }
+    return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
+  },
+});
+
+// A member moved onto or off an offer (joined on it, upgraded, downgraded,
+// left). The sync that saw the change is the receipt, so a replay never runs a
+// rule twice; buying the same offer again later is a new change.
+export const handleOfferChangedInternal = internalMutation({
+  args: { communityId: v.id("communities"), userId: v.id("users"), membershipId: v.id("communityMemberships"),
+    activationSequence: v.number(), started: v.array(v.string()), ended: v.array(v.string()), at: v.number() },
+  handler: async (ctx, args) => {
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    if (!workflow || workflow.milestones.length < 1) return { status: "workflow_ineligible" as const };
+    const membership = await ctx.db.get(args.membershipId);
+    // Someone who left the community entirely has no steps left to run; a downgrade keeps them in.
+    if (!membership || membership.communityId !== args.communityId || !communityMembershipRowIsActive(membership)
+      || Number(membership.activationSequence ?? 0) !== args.activationSequence) return { status: "membership_ineligible" as const };
+    const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+    const current = resolveCurrentMilestone({ workflow, membership, state });
+    if (current.completedAt) return { status: "workflow_completed" as const };
+    const automations = (current.milestone as CommunityMemberWorkflowMilestone).automations;
+    const results = [];
+    const runRule = async (automation: CommunityMemberWorkflowAutomation, receipt: string) => {
+      if (automation.action.type !== "prompt_agent") return executeWorkflowAutomation({ ctx, workflow, membership, current, automation, timerReceiptRef: receipt });
+      const timer = await startWorkflowSourceTimer({ ctx, workflow, membership, current, transitionSeq: Number(state?.transitionSeq ?? 0),
+        automation, startedAt: Date.now(), sourceRef: receipt });
+      return { status: await runWorkflowTimerNow(ctx, timer) ? "agent_started" as const : "already_executed" as const };
+    };
+    for (const [type, keys] of [["offer_started", args.started], ["offer_ended", args.ended]] as const) {
+      if (!keys.length) continue;
+      for (const automation of automations.filter(a => a.trigger.type === type)) {
+        const wanted = (automation.trigger as { offerKey?: string }).offerKey;
+        // "Any offer" runs once per change, not once per offer in the ladder.
+        const offerKey = wanted ? keys.find((key) => key === wanted) : keys[keys.length - 1];
+        if (!offerKey) continue;
+        results.push(await runRule(automation, `${type}:${offerKey}:${membership._id}:${args.activationSequence}:${args.at}`));
+      }
     }
     return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
   },

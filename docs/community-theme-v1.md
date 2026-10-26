@@ -64,6 +64,8 @@ look; both follow the member's own Light/Dark choice.
 | `course_card_description` | `show` or `hide` each course's short description |
 | `course_card_progress` | `bar`, `ring` or `fraction` ("3/6 lessons") |
 | `course_card_edge` | `border` (a hairline frame, the default), `shadow` (a soft shadow that lifts on hover) or `none` (open cover and text, like a magazine). Applies to the cover and title-on-cover card styles |
+| `course_card_panel` | `shade` (default: a clear step from the card, darker on light schemes and lighter on dark ones), `tint`, `accent`, `plain`, `custom`. The text panel under a boxed card's cover; its text stays readable |
+| `course_card_panel_color` | `"#RRGGBB"` used when `course_card_panel` is `custom`, else `""` |
 | `course_cover_plate` | `none`, `tint` (light schemes: covers are printed onto a soft wash of the accent, so pale drawings and screenshots match) |
 | `course_cover_fit` | `crop` (covers fill the box, framed by each course's focus and zoom), `whole` (each cover shows in full, centred in the box; for wide banners with words on them) |
 | `banner_name` | `show` (the name sits over the side column's banner), `hide` (the banner artwork already shows it) |
@@ -71,6 +73,7 @@ look; both follow the member's own Light/Dark choice.
 | `chat_view` | `centered` (the look's reading column, with joins and dates centred) or `wide` (messages run full width from the left edge, with avatar and name on the left and notices, dates and the message box lined up on the left). Members can pick their own in the Display menu |
 | `rail_size` | Draft. `standard`, `large` (bigger community icons in the far-left rail while this community is open) |
 | `sibling_communities` | `hide` (default), `show` (lists the owner's other communities, "More from this creator", at the foot of the chat's members panel) |
+| `pods_place` | `aside` (default: a "Your pods" card at the top of Classroom's right column), `header` (a stack of faces in the Classroom header that opens the pods list) |
 | `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
 
 Ready-made course card looks (Classroom, the default, plus Classic, Lifted,

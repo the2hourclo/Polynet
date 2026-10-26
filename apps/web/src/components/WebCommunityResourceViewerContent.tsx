@@ -28,7 +28,7 @@ import { markCommunityLessonElementBlocks } from "../../../../shared/communityLe
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
-import { Check, Eye, FileText, ListOrdered, PenLine, PlayCircle } from "lucide-react";
+import { Check, Eye, FileText, History, ListOrdered, PenLine, PlayCircle } from "lucide-react";
 import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import {
   isLessonFileLink,
@@ -151,6 +151,8 @@ export type WebCommunityResourceInlineEditor = {
   /** Saves and keeps editing (autosave). */
   onSaveInPlace?: (() => Promise<boolean>) | null;
   onUploadImage?: ((file: File) => Promise<string>) | null;
+  /** Opens the lesson's Version history. */
+  onOpenVersions?: (() => void) | null;
   onCancel: () => void;
 };
 
@@ -167,6 +169,14 @@ type LessonFileLink = { href: string; label: string };
 // id to jump to; in the editor the headings are tracked by element, because
 // the editor owns its DOM and must not be written to. Rescans as the body
 // changes, so the editor's contents follow typing.
+function isStandaloneBoldLine(node: HTMLElement): boolean {
+  if (node.closest("blockquote, li, table, .md-callout")) return false;
+  const only = node.children.length === 1 ? node.children[0] : null;
+  if (!only || !/^(STRONG|B)$/.test(only.tagName)) return false;
+  const text = node.textContent?.trim() ?? "";
+  return text.length > 0 && text.length <= 90 && text === only.textContent?.trim();
+}
+
 function useLessonContents(root: { current: HTMLElement | null }, mode: "read" | "edit", renderKey: unknown) {
   const [toc, setToc] = useState<LessonTocEntry[]>([]);
   const [files, setFiles] = useState<LessonFileLink[]>([]);
@@ -187,12 +197,15 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
       const targets = new Map<string, HTMLElement>();
       // The read view renders "##" and "###" one level down (h3, h4); the editor
       // shows them as h2 and h3. Platform section markers are not contents.
+      // A short line that is bold on its own is a section title too: many
+      // lessons title their sections that way instead of with "##".
       const selector = mode === "edit"
-        ? ".ProseMirror h2, .ProseMirror h3:not(.lesson-editor-platform-heading)"
-        : "h3.md-header, h4.md-header, .md-media-embed, .md-video";
+        ? ".ProseMirror h2, .ProseMirror h3:not(.lesson-editor-platform-heading), .ProseMirror > p"
+        : "h3.md-header, h4.md-header, .md-media-embed, .md-video, p";
       element.querySelectorAll<HTMLElement>(selector).forEach((node) => {
         if (node.closest(".lesson-slide-deck")) return;
-        const isVideo = mode === "read" && !node.matches(".md-header");
+        if (node.tagName === "P" && !isStandaloneBoldLine(node)) return;
+        const isVideo = mode === "read" && !node.matches(".md-header, p");
         const label = isVideo
           ? (node.querySelector("iframe")?.getAttribute("title") || node.getAttribute("aria-label") || "Video").replace(/\s+embed$/i, "")
           : node.textContent?.trim() ?? "";
@@ -340,7 +353,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       }
     : null;
   const isEmpty = !embed && !hasBody && !verificationLink;
-  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyFocusAtRef = useRef<{ x: number; y: number } | null>(null);
   const canEdit = Boolean(editor?.canEdit);
   const isEditing = Boolean(editor?.isEditing);
@@ -529,14 +542,25 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const renderTitleContent = () => {
     if (isTitleEditing && editor) {
       return (
-        <input
+        // Edited in place like Substack's: the title's own size and wrapping,
+        // no box, and Enter moves on to the text.
+        <textarea
           ref={titleInputRef}
           className="resource-viewer-title-input"
           value={editor.titleInput}
           placeholder="Lesson title"
-          onChange={(event) => editor.onChangeTitle(event.target.value)}
+          rows={1}
+          aria-label="Lesson title"
+          onChange={(event) => editor.onChangeTitle(event.target.value.replace(/\s*\n\s*/g, " "))}
           onFocus={() => editor.onSetActiveField("title")}
-          onKeyDown={handleEditableKeyDown}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.metaKey && !event.ctrlKey) {
+              event.preventDefault();
+              editor.onSetActiveField("body");
+              return;
+            }
+            handleEditableKeyDown(event);
+          }}
         />
       );
     }
@@ -655,6 +679,9 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       );
     }
 
+    if (resource.paywalled) {
+      return <div className="resource-viewer-empty">This lesson is part of a track you can add to your plan. Open the Roadmap to see what's inside.</div>;
+    }
     return isEmpty ? <div className="resource-viewer-empty">This lesson hasn't been written yet.</div> : null;
   };
 
@@ -695,6 +722,17 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
                   {isPreviewing ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}
                   <span className="lesson-editor-header-label">{isPreviewing ? "Edit" : "Preview"}</span>
                 </button>
+                {editor.onOpenVersions ? (
+                  <button
+                    className="lesson-editor-header-button"
+                    type="button"
+                    onClick={() => editor.onOpenVersions?.()}
+                    title="Earlier versions of this lesson"
+                  >
+                    <History aria-hidden="true" />
+                    <span className="lesson-editor-header-label">History</span>
+                  </button>
+                ) : null}
                 <button
                   className="lesson-editor-header-button is-primary"
                   type="button"

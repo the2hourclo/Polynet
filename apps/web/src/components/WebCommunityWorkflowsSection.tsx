@@ -74,9 +74,11 @@ export type WebCommunityWorkflowsSectionProps = {
   /** Adds the agent-led journey's stages (Workflows → board card). */
   onApplyAgentLedJourney?: (plan: AgentLedJourneyPlan) => Promise<boolean>;
   onSetWelcomeGate?: (enabled: boolean) => Promise<boolean>;
+  onSetWelcomeDisplay?: (display: "page" | "popup") => Promise<boolean>;
   onSaveWelcomePage?: (page: CloudCommunityWelcomePageDraft) => Promise<boolean>;
   onLoadWelcomeLessonOptions?: () => Promise<WelcomeLessonOption[]>;
   onLoadTrackOptions?: () => Promise<Array<{ key: string; title: string }>>;
+  onLoadOfferOptions?: () => Promise<Array<{ key: string; name: string }>>;
   /** Workflows → Test run: going through the community as a test member. */
   testRun?: WebCommunityTestRunContext | null;
   communityName?: string | null;
@@ -175,6 +177,7 @@ export function WebCommunityWorkflowsSection(
       {section === "workflows" ? <WorkflowBoard {...props} onTestStage={props.testRun ? testStage : undefined} />
         : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
           forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
+          onSetWelcomeDisplay={props.onSetWelcomeDisplay}
           onSaveWelcomePage={props.onSaveWelcomePage} onLoadWelcomeLessonOptions={props.onLoadWelcomeLessonOptions}
           onOpenWorkflows={() => void select("workflows")} leaveGuard={beforeLeave} />
         : section === "runs" ? props.testRun
@@ -237,8 +240,9 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
     (props.onLoadWelcomeLessonOptions?.() ?? Promise.resolve([])).then(lessons => { if (alive) setCatalog(c => ({ ...c, lessons })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, lessons: [] })); });
     (props.forms?.clientProperties?.() ?? Promise.resolve([])).then(properties => { if (alive) setCatalog(c => ({ ...c, properties })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, properties: [] })); });
     (props.onLoadTrackOptions?.() ?? Promise.resolve([])).then(tracks => { if (alive) setCatalog(c => ({ ...c, tracks })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, tracks: [] })); });
+    (props.onLoadOfferOptions?.() ?? Promise.resolve([])).then(offers => { if (alive) setCatalog(c => ({ ...c, offers })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, offers: [] })); });
     return () => { alive = false; };
-  }, [props.forms, props.onLoadWelcomeLessonOptions, props.onLoadTrackOptions]);
+  }, [props.forms, props.onLoadWelcomeLessonOptions, props.onLoadTrackOptions, props.onLoadOfferOptions]);
   const [editingMilestoneKey, setEditingMilestoneKey] = useState<string | null>(null);
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
   const milestones = props.board?.milestones ?? [BLANK_MILESTONE];

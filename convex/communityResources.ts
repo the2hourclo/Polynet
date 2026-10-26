@@ -34,6 +34,7 @@ import {
   normalizeOptionalText,
   normalizeOptionalUrl,
   normalizeResourceRole,
+  normalizeResourceModuleLessonStyle,
   normalizeResourceModuleStatus,
   normalizeResourceSourceIngestionKind,
   normalizeResourceSourceIngestionStatus,
@@ -60,8 +61,11 @@ import {
   hydrateCommunityResourceBody,
   normalizeCommunityResourceBodyMd,
   writeCommunityResourceBodyContent,
+  listCommunityResourceRevisionRows,
+  type CommunityResourceRevisionLike,
 } from "./communityResourceContent";
 import { recordCommunityActivityEventBestEffort } from "./communityActivity";
+import { readCommunityPaidLockedLessonIds } from "./communityLessonTracks";
 import {
   requireSafeCommunitySourceFetcherEndpoint,
   requireSafeCommunitySourceUrl,
@@ -331,6 +335,7 @@ type CommunityResourceBuilderChangesetOperation =
       name: string;
       description_md?: string | null;
       module_status?: "draft" | "live";
+      lesson_style?: "article" | "video";
     }
   | {
       op: "edit_module";
@@ -339,6 +344,7 @@ type CommunityResourceBuilderChangesetOperation =
       name?: string;
       description_md?: string | null;
       module_status?: "draft" | "live";
+      lesson_style?: "article" | "video";
     }
   | {
       op: "create_page";
@@ -2280,6 +2286,13 @@ function normalizeChangesetModuleStatus(raw: unknown): "draft" | "live" {
   return requireResourceModuleStatusForWrite(raw);
 }
 
+// How a course's lessons read: "article" (clean page) or "video" (text on a
+// card under the video). Agents must name one exactly.
+function normalizeChangesetLessonStyle(raw: unknown): "article" | "video" {
+  if (raw === "article" || raw === "video") return raw;
+  throw new Error("community_resource_changeset_lesson_style_invalid");
+}
+
 function normalizeCommunityResourceBuilderChangesetOperations(
   rawOperations: unknown,
 ): CommunityResourceBuilderChangesetOperation[] {
@@ -2310,6 +2323,9 @@ function normalizeCommunityResourceBuilderChangesetOperations(
         module_status: hasOwnField(record, "module_status")
           ? normalizeChangesetModuleStatus(record.module_status)
           : "draft",
+        ...(hasOwnField(record, "lesson_style")
+          ? { lesson_style: normalizeChangesetLessonStyle(record.lesson_style) }
+          : null),
       };
     }
     if (op === "edit_module") {
@@ -2325,7 +2341,10 @@ function normalizeCommunityResourceBuilderChangesetOperations(
       if (hasOwnField(record, "module_status")) {
         next.module_status = normalizeChangesetModuleStatus(record.module_status);
       }
-      if (!hasOwnField(record, "name") && !hasOwnField(record, "description_md") && !hasOwnField(record, "module_status")) {
+      if (hasOwnField(record, "lesson_style")) {
+        next.lesson_style = normalizeChangesetLessonStyle(record.lesson_style);
+      }
+      if (!hasOwnField(record, "name") && !hasOwnField(record, "description_md") && !hasOwnField(record, "module_status") && !hasOwnField(record, "lesson_style")) {
         throw new Error("community_resource_changeset_edit_module_empty");
       }
       return next;
@@ -2844,6 +2863,7 @@ async function createModuleFromChangesetOperation(args: {
     status: args.operation.module_status ?? "draft",
     name: args.operation.name,
     descriptionMd: args.operation.description_md ?? undefined,
+    lessonStyle: args.operation.lesson_style ?? "article",
     sortOrder: nextSortOrder,
     createdAt: args.nowMs,
     updatedAt: args.nowMs,
@@ -3084,6 +3104,7 @@ async function applyCommunityResourceBuilderChangesetOperations(args: {
         ...(hasOwnField(operation as any, "name") ? { name: operation.name } : {}),
         ...(hasOwnField(operation as any, "description_md") ? { descriptionMd: operation.description_md ?? undefined } : {}),
         ...(hasOwnField(operation as any, "module_status") ? { status: operation.module_status } : {}),
+        ...(hasOwnField(operation as any, "lesson_style") ? { lessonStyle: operation.lesson_style } : {}),
         updatedAt: args.nowMs,
       });
       if (moduleStatusChanged) {
@@ -3733,6 +3754,7 @@ function buildCommunityResourceMapModuleEntry(args: {
       resources: rows,
     }),
     module_status: normalizeResourceModuleStatus(args.module.status),
+    lesson_style: normalizeResourceModuleLessonStyle(args.module.lessonStyle),
     resources: rows
       .slice(0, resourceLimit)
       .map((row) =>
@@ -4649,6 +4671,7 @@ function buildBuilderModuleRefMatch(args: {
       ? `${entry.directory_uri}/${COMMUNITY_RESOURCE_SOURCE_INBOX_SEGMENT}`
       : entry.directory_uri,
     module_status: args.module ? normalizeResourceModuleStatus(args.module.status) : null,
+    ...(args.module && !args.sourceInbox ? { lesson_style: normalizeResourceModuleLessonStyle(args.module.lessonStyle) } : null),
     ...(args.sourceInbox ? { source_inbox: true } : null),
     resource_count: resourceRows.length,
     page_count: resourceRows.filter((row) => normalizeResourceRole(row.role) !== "source").length,
@@ -5171,17 +5194,33 @@ async function readCommunityResourceBuilderResourceCore(args: {
     moduleNameMap,
   });
   if (!resolved.ok) {
+    // A ref the resource map listed under a page's "revisions" is an earlier
+    // version of that page: read its body, then restore it with edit_page.
+    const revisionId = args.ctx.db.normalizeId("communityResourceRevisions", ref);
+    const revision = revisionId ? (await args.ctx.db.get(revisionId)) as CommunityResourceRevisionLike | null : null;
+    if (revision && normalizeIdValue(revision.communityId) === normalizeIdValue(args.communityId)) {
+      return {
+        ok: true,
+        kind: "community_resource_builder_read",
+        target_type: "revision",
+        revision: mapCommunityResourceRevision(revision, { withBody: true }),
+      };
+    }
     return {
       kind: "community_resource_builder_read",
       ...resolved,
     };
   }
   if (resolved.target_type === "resource") {
+    const revisions = await listCommunityResourceRevisionRows(args.ctx, resolved.resource._id);
     return {
       ok: true,
       kind: "community_resource_builder_read",
       target_type: "resource",
       resource: await mapCommunityResourceRowWithBody(args.ctx, resolved.resource, { canManage: true }),
+      // Earlier versions, newest first. Read builder/resources/<id>.json for a
+      // version's body; edit_page with that body_md (and title) restores it.
+      revisions: revisions.map((revision) => mapCommunityResourceRevision(revision, { withBody: false })),
     };
   }
   return await buildCommunityResourceBuilderModuleReadPayload({
@@ -5217,6 +5256,78 @@ export const readCommunityResourceBuilderResource = query({
       resourceId: args.resourceId,
       moduleId: args.moduleId,
     });
+  },
+});
+
+function mapCommunityResourceRevision(revision: CommunityResourceRevisionLike, options: { withBody: boolean }) {
+  const preview = revision.bodyMd.replace(/\s+/g, " ").trim();
+  return {
+    id: normalizeIdValue(revision._id),
+    resource_id: normalizeIdValue(revision.resourceId),
+    title: revision.title,
+    saved_at: toIsoString(revision.savedAt),
+    replaced_at: toIsoString(revision.createdAt),
+    body_chars: revision.bodyChars,
+    ...(options.withBody
+      ? { body_md: revision.bodyMd }
+      : { preview: preview.length > 160 ? `${preview.slice(0, 157).trimEnd()}...` : preview }),
+  };
+}
+
+async function requireManagedResourceRevision(ctx: any, userId: any, revisionId: any) {
+  const revision = (await ctx.db.get(revisionId)) as CommunityResourceRevisionLike | null;
+  if (!revision) throw new Error("community_resource_revision_not_found");
+  await requireCommunityManager({ ctx, communityId: revision.communityId, userId });
+  return revision;
+}
+
+// A lesson's earlier versions, newest first, for the owner's Version history.
+export const listCommunityResourceRevisions = query({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    resourceId: v.id("communityResources"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    const resource = (await ctx.db.get(args.resourceId)) as CommunityResourceLike | null;
+    if (!resource) return [];
+    await requireCommunityManager({ ctx, communityId: resource.communityId, userId });
+    const rows = await listCommunityResourceRevisionRows(ctx, resource._id);
+    return rows.map((revision) => mapCommunityResourceRevision(revision, { withBody: true }));
+  },
+});
+
+// Puts an earlier version back. The version being replaced is kept too, so a
+// restore can be undone the same way.
+export const restoreCommunityResourceRevision = mutation({
+  args: {
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+    revisionId: v.id("communityResourceRevisions"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    const revision = await requireManagedResourceRevision(ctx, userId, args.revisionId);
+    const resource = (await ctx.db.get(revision.resourceId)) as CommunityResourceLike | null;
+    if (!resource) throw new Error("community_resource_not_found");
+    const nowMs = Date.now();
+    const previousTitle = String(resource.title ?? "");
+    if (revision.title.trim()) await ctx.db.patch(resource._id as any, { title: normalizeName(revision.title), updatedAt: nowMs });
+    await writeCommunityResourceBodyContent(ctx, {
+      communityId: resource.communityId,
+      resourceId: resource._id,
+      bodyMd: revision.bodyMd,
+      nowMs,
+      maxChars: 20_000,
+      previousTitle,
+      forceRevision: true,
+    });
+    const updated = (await ctx.db.get(resource._id)) as CommunityResourceLike | null;
+    if (!updated) throw new Error("community_resource_not_found");
+    const hydrated = await hydrateCommunityResourceBody(ctx, updated) ?? updated;
+    await syncCommunityResourceMemoryProjection(ctx, hydrated, nowMs);
+    return await mapCommunityResourceRow(ctx, hydrated, undefined, undefined, { canManage: true });
   },
 });
 
@@ -6231,6 +6342,9 @@ export const saveCommunityResourceModule = mutation({
         bannerFocusX: normalizeBannerFocus(payload.banner_focus_x ?? existing.bannerFocusX),
         bannerFocusY: normalizeBannerFocus(payload.banner_focus_y ?? existing.bannerFocusY),
         bannerZoom: normalizeBannerZoom(payload.banner_zoom ?? existing.bannerZoom),
+        ...(Object.prototype.hasOwnProperty.call(payload, "lesson_style")
+          ? { lessonStyle: normalizeResourceModuleLessonStyle(payload.lesson_style) }
+          : {}),
         updatedAt: nowMs,
       });
       if (previousBannerStorageId && String(previousBannerStorageId) !== String(nextBannerStorageId ?? "")) {
@@ -6279,6 +6393,7 @@ export const saveCommunityResourceModule = mutation({
       bannerFocusX: normalizeBannerFocus(payload.banner_focus_x),
       bannerFocusY: normalizeBannerFocus(payload.banner_focus_y),
       bannerZoom: normalizeBannerZoom(payload.banner_zoom),
+      lessonStyle: normalizeResourceModuleLessonStyle(payload.lesson_style),
       sortOrder: nextSortOrder,
       createdAt: nowMs,
       updatedAt: nowMs,
@@ -6446,13 +6561,20 @@ export const listCommunityResources = query({
     );
     const userIdCache = new Map<string, string | null>();
     const moduleNameCache = new Map<string, string | null>();
+    // Lessons in a track sold through an offer the member doesn't have: listed
+    // (so the Roadmap can show what's inside) without their text.
+    const paid = canManageResources ? new Set<string>() : await readCommunityPaidLockedLessonIds(ctx, args.communityId, userId);
     return await Promise.all(
       rows
         .slice()
         .filter((row) => canManageResources || communityResourceIsLiveModulePage(row, liveModuleIds))
         .sort(compareCommunityResources)
         .slice(0, limit)
-        .map((row) => mapCommunityResourceRowWithBody(ctx, row, { canManage: canManageResources }, userIdCache, moduleNameCache)),
+        .map(async (row) => {
+          if (!paid.has(normalizeIdValue(row._id))) return await mapCommunityResourceRowWithBody(ctx, row, { canManage: canManageResources }, userIdCache, moduleNameCache);
+          const mapped = await mapCommunityResourceRow(ctx, { ...row, bodyMd: undefined }, userIdCache, moduleNameCache, { canManage: false });
+          return { ...mapped, body_md: null, url: null, file_key: null, lesson_elements: [], lesson: row.lesson ? { ...row.lesson, video_url: undefined } : null, paywalled: true };
+        }),
     );
   },
 });
@@ -10060,6 +10182,7 @@ export const saveCommunityResource = mutation({
           bodyMd: nextBodyMd,
           nowMs,
           maxChars: 20_000,
+          previousTitle: String(existing.title ?? ""),
         });
       }
       const hydrated = await hydrateCommunityResourceBody(ctx, updated) ?? updated;

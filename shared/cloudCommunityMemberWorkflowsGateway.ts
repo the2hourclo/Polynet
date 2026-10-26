@@ -39,6 +39,7 @@ export type CloudCommunityMemberWorkflowBoard = {
   welcome_gate?: boolean;
   /** Lesson pages members mark done after the forms, in order. */
   welcome_lesson_ids?: string[];
+  welcome_display?: "page" | "popup";
   /** The builder's words on the welcome page; empty means Polynet's default. */
   welcome_page?: { title: string; message: string; media_url: string; layout?: WelcomeBlock[] | null };
   updated_at: string;
@@ -277,6 +278,16 @@ export async function setCloudCommunityWelcomeGate<SessionT>(params: WorkflowGat
   return await client.mutation(api.communityMemberWorkflows.setBuilderWelcomeGate, {
     authSubject, communityId: params.communityId as Id<"communities">,
     expectedRevision: params.expectedRevision, enabled: params.enabled,
+  });
+}
+
+export async function setCloudCommunityWelcomeDisplay<SessionT>(params: WorkflowGatewayParams<SessionT> & {
+  communityId: string; expectedRevision: number; display: "page" | "popup";
+}): Promise<{ revision: number; welcome_display: "page" | "popup" }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.mutation(api.communityMemberWorkflows.setBuilderWelcomeDisplay, {
+    authSubject, communityId: params.communityId as Id<"communities">,
+    expectedRevision: params.expectedRevision, display: params.display,
   });
 }
 

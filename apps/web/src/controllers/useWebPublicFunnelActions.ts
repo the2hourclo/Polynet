@@ -18,6 +18,7 @@ import {
   resolveCloudPublicFunnel,
   startCloudPublicFunnelCheckout,
 } from "../../../../shared/cloudPublicFunnelGateway";
+import { communityOfferUpgradeErrorMessage } from "../../../../shared/cloudCommunityOffersGateway";
 import { preloadImageUrls } from "../../../../shared/preloadImageUrls";
 import { applyShellVariantToPublicPath, readShellVariantFromPathname } from "../../../../shared/webAppRouteState";
 import type { AuthSession } from "../auth";
@@ -566,7 +567,7 @@ export function useWebPublicFunnelActions<
   );
 
   const startCheckoutForPlan = useCallback(
-    async (communitySlug: string, billingPeriod: CommunityBillingPeriod, cancelPath: string): Promise<void> => {
+    async (communitySlug: string, billingPeriod: CommunityBillingPeriod, cancelPath: string, offerKey?: string | null): Promise<void> => {
       const current = argsRef.current;
       current.setCheckoutStatus("loading");
       current.setCheckoutError(null);
@@ -598,6 +599,7 @@ export function useWebPublicFunnelActions<
           billingPeriod,
           successUrl,
           cancelUrl,
+          offerKey,
         });
         const checkoutUrl = typeof data?.checkout_url === "string" ? data.checkout_url : "";
         if (!checkoutUrl) throw new Error("Missing checkout_url.");
@@ -610,8 +612,9 @@ export function useWebPublicFunnelActions<
               ? error.message
               : "Failed to start checkout.";
         const message =
-          rawMessage === "community_checkout_unavailable"
+          rawMessage.includes("community_checkout_unavailable")
             ? "Checkout is temporarily unavailable for this community."
+            : rawMessage.includes("offer_") ? communityOfferUpgradeErrorMessage(rawMessage)
             : rawMessage;
         current.setCheckoutError(message);
         current.setCheckoutStatus("error");

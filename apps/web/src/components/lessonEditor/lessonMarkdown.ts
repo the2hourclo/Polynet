@@ -5,7 +5,7 @@ import { Fragment, type Node as PMNode, type Schema } from "@tiptap/pm/model";
 
 import { COMMUNITY_LESSON_ELEMENT_TYPES } from "../../../../../shared/communityLessonContract";
 import { COMMUNITY_EMBED_LANGUAGE } from "../../../../../shared/communityEmbed";
-import { lessonCalloutMarker, lessonCalloutType, LESSON_CALLOUT_MARKER } from "../../../../../shared/lessonCallouts";
+import { extractLessonCalloutTitles, lessonCalloutMarker, lessonCalloutType, LESSON_CALLOUT_MARKER } from "../../../../../shared/lessonCallouts";
 
 // body_md <-> editor document, one top-level block at a time.
 //
@@ -140,7 +140,8 @@ const serializer = new MarkdownSerializer(
       const callout = lessonCalloutType(node.attrs.callout);
       state.wrapBlock("> ", null, node, () => {
         if (callout) {
-          state.write(lessonCalloutMarker(callout));
+          const title = typeof node.attrs.calloutTitle === "string" ? node.attrs.calloutTitle.replace(/\s+/g, " ").trim() : "";
+          state.write(title ? `${lessonCalloutMarker(callout)} ${title}` : lessonCalloutMarker(callout));
           state.ensureNewLine();
         }
         state.renderContent(node);
@@ -224,7 +225,7 @@ const serializer = new MarkdownSerializer(
 /** Blocks with nothing to save yet: empty paragraphs and callouts, images still uploading, a video with no link. */
 function isUnsaved(node: PMNode): boolean {
   if (node.type.name === "paragraph" && node.childCount === 0) return true;
-  if (node.type.name === "blockquote" && node.attrs.callout && !node.textContent.trim()) return true;
+  if (node.type.name === "blockquote" && node.attrs.callout && !node.textContent.trim() && !node.attrs.calloutTitle) return true;
   if (node.type.name === "video") return !String(node.attrs.url ?? "").trim();
   if (node.type.name === "slideDeck") return !((node.attrs.slides ?? []) as LessonSlide[]).some((slide) => slide.src.trim());
   return node.type.name === "image" && (Boolean(node.attrs.uploadId) || !node.attrs.src);
@@ -296,7 +297,7 @@ function singleInline(chunk: Chunk): Token | null {
 }
 
 /** A quote that starts with "[!TIP]" becomes a callout, without the marker in its text. */
-function readCallout(schema: Schema, node: PMNode): PMNode {
+function readCallout(schema: Schema, node: PMNode, titles: string[]): PMNode {
   if (node.type.name !== "blockquote") return node;
   const paragraph = node.firstChild;
   const first = paragraph?.type.name === "paragraph" ? paragraph.firstChild : null;
@@ -304,6 +305,7 @@ function readCallout(schema: Schema, node: PMNode): PMNode {
   const match = LESSON_CALLOUT_MARKER.exec(first.text ?? "");
   const callout = match ? lessonCalloutType(match[1]) : null;
   if (!match || !callout) return node;
+  const calloutTitle = titles.shift() || null;
   // The marker's line break reads as a space; it isn't part of the text.
   const lead = /^\s*/.exec((first.text ?? "").slice(match[0].length))![0].length;
   const rest = paragraph.content.cut(match[0].length + lead);
@@ -312,13 +314,15 @@ function readCallout(schema: Schema, node: PMNode): PMNode {
   node.forEach((child, _offset, index) => {
     if (index > 0) children.push(child);
   });
-  return node.type.create({ ...node.attrs, callout }, children.length ? children : [schema.nodes.paragraph.create()]);
+  return node.type.create({ ...node.attrs, callout, calloutTitle }, children.length ? children : [schema.nodes.paragraph.create()]);
 }
 
 function parseBlocks(schema: Schema, parser: MarkdownParser, source: string): PMNode {
-  const parsed = parser.parse(source);
+  // Titles come off their marker lines first: the parser would join them to the text.
+  const extracted = extractLessonCalloutTitles(source);
+  const parsed = parser.parse(extracted.source);
   const blocks: PMNode[] = [];
-  parsed.forEach((node) => blocks.push(readCallout(schema, node)));
+  parsed.forEach((node) => blocks.push(readCallout(schema, node, extracted.titles)));
   return parsed.copy(Fragment.from(blocks));
 }
 

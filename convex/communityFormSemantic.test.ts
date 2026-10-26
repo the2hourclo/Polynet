@@ -240,10 +240,15 @@ test("the welcome flow holds a new member to the join form until it is submitted
     const owner = await requireCommunityChatAccess({ ctx, communityId: f.communityId, userId: f.ownerId }).then(() => "open");
     return { ...(await readCommunityWelcomeGate({ ctx, community, membership, userId: f.memberId })), held, owner };
   });
-  expect(await gate()).toEqual({ required: true, requestIds: [String(row._id)], lessonIds: [], held: "community_welcome_required", owner: "open" });
+  expect(await gate()).toEqual({ required: true, requestIds: [String(row._id)], lessonIds: [], display: "page", held: "community_welcome_required", owner: "open" });
+  // As a pop-up it still asks, but the community opens behind it.
+  await owner.mutation(api.communityMemberWorkflows.setBuilderWelcomeDisplay, { communityId: f.communityId, expectedRevision: 2, display: "popup" });
+  expect(await gate()).toEqual({ required: true, requestIds: [String(row._id)], lessonIds: [], display: "popup", held: null, owner: "open" });
+  await owner.mutation(api.communityMemberWorkflows.setBuilderWelcomeDisplay, { communityId: f.communityId, expectedRevision: 3, display: "page" });
+  expect((await gate()).held).toBe("community_welcome_required");
   // The form itself stays reachable, so the member can finish it.
   await member.mutation(api.communityFormRequests.saveMyAnswers, { communityId: f.communityId, requestId: row._id, expectedRevision: row.revision, answers: {}, submit: true });
-  expect(await gate()).toEqual({ required: false, requestIds: [], lessonIds: [], held: null, owner: "open" });
+  expect(await gate()).toEqual({ required: false, requestIds: [], lessonIds: [], display: "page", held: null, owner: "open" });
 });
 
 test.each([false, true])("with the welcome flow on, a join rule still sets up the member's private channel (form first=%s)", async reverse => {
@@ -270,19 +275,19 @@ test("a member who joins after the welcome flow is on is held before the join ru
   const setActivatedAt = (activatedAt: number) => f.t.run(ctx => ctx.db.patch(f.membershipId, { activatedAt }));
   await f.t.run(ctx => ctx.db.patch(f.workflowId, { welcomeGate: true, welcomeGateEnabledAt: f.now - 1 }));
   // Joined, join rule not run yet: held, with no form to show yet.
-  expect(await gate()).toEqual({ required: true, requestIds: [], lessonIds: [] });
+  expect(await gate()).toEqual({ required: true, requestIds: [], lessonIds: [], display: "page" });
   // Joined before the flow was turned on: never held for a form that isn't coming.
   await setActivatedAt(f.now - 2);
-  expect(await gate()).toEqual({ required: false, requestIds: [], lessonIds: [] });
+  expect(await gate()).toEqual({ required: false, requestIds: [], lessonIds: [], display: "page" });
   // The join rule never ran: the hold lapses instead of locking the member out.
   await setActivatedAt(Date.now() - 3 * 60_000);
   await f.t.run(ctx => ctx.db.patch(f.workflowId, { welcomeGateEnabledAt: Date.now() - 4 * 60_000 }));
-  expect(await gate()).toEqual({ required: false, requestIds: [], lessonIds: [] });
+  expect(await gate()).toEqual({ required: false, requestIds: [], lessonIds: [], display: "page" });
   await setActivatedAt(f.now);
   await f.t.run(ctx => ctx.db.patch(f.workflowId, { welcomeGateEnabledAt: f.now - 1 }));
   await f.t.mutation(joinHandler, f.job);
   const row = (await f.t.run(ctx => ctx.db.query("communityFormRequests").first()))!;
-  expect(await gate()).toEqual({ required: true, requestIds: [String(row._id)], lessonIds: [] });
+  expect(await gate()).toEqual({ required: true, requestIds: [String(row._id)], lessonIds: [], display: "page" });
 });
 
 test("welcome lessons hold the member after the forms, and only they open while held", async () => {

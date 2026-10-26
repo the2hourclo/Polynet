@@ -622,10 +622,18 @@ function remarkLessonCallouts() {
     const match = LESSON_CALLOUT_MARKER.exec(first.value ?? "");
     const type = match ? lessonCalloutType(match[1]) : null;
     if (!match || !type) return;
-    first.value = (first.value ?? "").slice(match[0].length).replace(/^\n/, "");
+    let rest = (first.value ?? "").slice(match[0].length);
+    // "> [!TIP] Title": the rest of the marker's line is the title.
+    let title = "";
+    const lineEnd = rest.indexOf("\n");
+    if (lineEnd > 0 || (lineEnd < 0 && rest && paragraph.children?.length === 1)) {
+      title = (lineEnd < 0 ? rest : rest.slice(0, lineEnd)).trim();
+      rest = lineEnd < 0 ? "" : rest.slice(lineEnd);
+    }
+    first.value = rest.replace(/^\n/, "");
     if (!first.value) paragraph.children?.shift();
     if (!paragraph.children?.length) node.children?.shift();
-    node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataCallout: type } };
+    node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataCallout: type, dataCalloutTitle: title || undefined } };
   };
   return (tree: MdNode) => visit(tree);
 }
@@ -654,14 +662,16 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
     },
     blockquote({ node, children }) {
       const type = lessonCalloutType(node?.properties?.dataCallout);
+      const rawTitle = node?.properties?.dataCalloutTitle;
+      const title = typeof rawTitle === "string" ? rawTitle : "";
       if (type) {
         return (
-          <aside className={`md-callout is-${type}`} role="note">
-            <p className="md-callout-label">
-              <LessonCalloutIcon type={type} />
-              <span>{lessonCallout(type).label}</span>
-            </p>
-            <div className="md-callout-body">{children}</div>
+          <aside className={`md-callout is-${type}`} role="note" aria-label={title || lessonCallout(type).label}>
+            <span className="md-callout-icon" aria-hidden="true"><LessonCalloutIcon type={type} /></span>
+            <div className="md-callout-main">
+              {title ? <p className="md-callout-title">{title}</p> : null}
+              <div className="md-callout-body">{children}</div>
+            </div>
           </aside>
         );
       }

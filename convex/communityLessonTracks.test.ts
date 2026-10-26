@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   checkCommunityTrackDefinition,
+  communityPaidLockedLessonIds,
   computeCommunityTracks,
   resolveCommunityTrackDefinitions,
   type CommunityTrackDefinition,
@@ -100,5 +101,58 @@ describe("skill tracks", () => {
       "Lesson a1 is in this track twice.",
       '"After track" must name another track (Bad Key).',
     ]);
+  });
+
+  test("a track sold through an offer: closed without it, first lesson free, open on that offer or a higher one", () => {
+    const pro: CommunityTrackDefinition = {
+      key: "pro", title: "Pro track", order: 3, show: "always", outcomes: ["Ship it"], cover_style: "diagram",
+      opens_when: [{ type: "offer", offer: "pro" }],
+      stages: [{ name: "One", steps: [{ resource_id: "x1" }, { resource_id: "x2" }] }],
+    };
+    const tracks = [...resolveCommunityTrackDefinitions({ stored: [], lessons }), pro];
+    const offerName = (key: string) => (key === "pro" ? "Pro" : null);
+    const without = computeCommunityTracks({ tracks, lessons, doneRefs: done(), context: { heldOffers: ["member"] }, offerName });
+    const view = without.tracks.find((track) => track.key === "pro")!;
+    expect(view).toMatchObject({ open: false, status: "locked", cover_style: "diagram", outcomes: ["Ship it"], opens_reason: "Opens when you add Pro to your plan" });
+    expect(view.paid).toEqual({ offer: "pro", offer_name: "Pro", preview: { resource_id: "x1", ref: "resource:x1", title: "Content basics" } });
+    expect(view.stages[0].steps.map((step) => step.locked)).toEqual([false, true]);
+    expect(without.lockedRefs.has("resource:x1")).toBe(false);
+    expect(without.lockedRefs.has("resource:x2")).toBe(true);
+    expect([...communityPaidLockedLessonIds(tracks, ["member"])]).toEqual(["x2"]);
+
+    const withIt = computeCommunityTracks({ tracks, lessons, doneRefs: done(), context: { heldOffers: ["member", "pro"] }, offerName });
+    expect(withIt.tracks.find((track) => track.key === "pro")).toMatchObject({ open: true, paid: null });
+    expect(communityPaidLockedLessonIds(tracks, ["member", "pro"]).size).toBe(0);
+  });
+
+  test("a lesson that is also in a track the member has stays readable", () => {
+    const pro: CommunityTrackDefinition = {
+      key: "pro", title: "Pro", order: 3, show: "always", opens_when: [{ type: "offer", offer: "pro" }],
+      stages: [{ name: "One", steps: [{ resource_id: "x1" }, { resource_id: "a1" }, { resource_id: "x2" }] }],
+    };
+    const tracks = [...resolveCommunityTrackDefinitions({ stored: [], lessons }), pro];
+    expect([...communityPaidLockedLessonIds(tracks, [])]).toEqual(["x2"]);
+  });
+
+  test("a track that progress opens says how far the member is and what to do next", () => {
+    const tracks = [...resolveCommunityTrackDefinitions({ stored: [], lessons }), { ...content, opens_when: [{ type: "after_checkpoint" as const, resource_id: "b2" }] }];
+    const { tracks: views } = computeCommunityTracks({ tracks, lessons, doneRefs: done("a1", "a2") });
+    expect(views.find((track) => track.key === "content")!.opens_progress).toEqual({
+      done: 2, total: 4, next: { resource_id: "b1", ref: "resource:b1", title: "Run your X-Ray" },
+    });
+    const afterTrack = computeCommunityTracks({ tracks: [...tracks.slice(0, 1), { ...content, opens_when: [{ type: "after_track" as const, track: "main" }] }], lessons, doneRefs: done("a1") });
+    expect(afterTrack.tracks[1].opens_progress).toMatchObject({ done: 1, total: 5 });
+  });
+
+  test("selling checks the offer, the outcomes and the cover", () => {
+    const problems = checkCommunityTrackDefinition(
+      { ...content, opens_when: [{ type: "offer", offer: "vip" }], outcomes: Array(7).fill("x"), cover_style: "neon" as never },
+      { lessonIds: new Set(lessons.map((lesson) => lesson.id)), trackKeys: new Set(["main", "content"]), offerKeys: new Set(["member", "pro"]) },
+    );
+    expect(problems).toEqual(expect.arrayContaining([
+      "The cover is route, diagram or terminal.",
+      "List up to 6 things members will be able to do.",
+      "Offer vip isn't one of this community's offers (Settings › Offers).",
+    ]));
   });
 });

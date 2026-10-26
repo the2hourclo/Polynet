@@ -935,8 +935,8 @@ export function LessonFencedBlockView({ node, updateAttributes, deleteNode, sele
 
 /* Quotes and callouts -------------------------------------------------------- */
 
-/** A quote, or a callout with its type on a label that switches it. */
-export function LessonBlockquoteView({ node, updateAttributes, editor }: NodeViewProps) {
+/** A quote, or a callout: a type switch (colour and icon) and its own typed title. */
+export function LessonBlockquoteView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
   const [menu, setMenu] = useState<ToolbarMenu>(null);
   const callout = lessonCalloutType(node.attrs.callout);
   const items = [
@@ -970,6 +970,22 @@ export function LessonBlockquoteView({ node, updateAttributes, editor }: NodeVie
           <span>{lessonCallout(callout).label}</span>
           <ChevronDown className="lesson-editor-callout-caret" aria-hidden="true" />
         </button>
+        {/* The type only sets colour and icon; members see the title, if any. */}
+        <input
+          className="lesson-editor-callout-title"
+          type="text"
+          value={typeof node.attrs.calloutTitle === "string" ? node.attrs.calloutTitle : ""}
+          placeholder="Title (optional)"
+          aria-label="Callout title"
+          maxLength={120}
+          onChange={(event) => updateAttributes({ calloutTitle: event.currentTarget.value || null })}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== "ArrowDown") return;
+            event.preventDefault();
+            const pos = getPos();
+            if (typeof pos === "number") editor.commands.focus(pos + 2);
+          }}
+        />
       </p> : null}
       <NodeViewContent className={callout ? "md-callout-body" : undefined} />
       {menu && callout ? (

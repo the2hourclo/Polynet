@@ -386,6 +386,8 @@ export type CommunityAccess = {
   welcome_form_request_ids?: string[];
   /** Welcome lesson pages still to mark done, after the forms. */
   welcome_lesson_ids?: string[];
+  /** "popup": the welcome shows over the open community instead of in place of it. */
+  welcome_display?: "page" | "popup";
 };
 
 export type CommunityAgentConfig<TLanding = unknown> = {

@@ -79,6 +79,10 @@ export async function runOpenRouterNativeToolCompletion(params: {
   parallelToolCalls?: boolean;
   toolChoice?: NativeToolChoice;
   signal?: AbortSignal;
+  // Any OpenAI-compatible chat completions endpoint (the local Claude Code bridge uses this).
+  endpointUrl?: string;
+  // Called with the provider's response id so callers can keep request receipts.
+  onResponseId?: (id: string) => void;
 }): Promise<
   | NativeToolAwareCompletionSuccess<string>
   | {
@@ -116,7 +120,7 @@ export async function runOpenRouterNativeToolCompletion(params: {
 
   let response: Response;
   try {
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    response = await fetch(params.endpointUrl || "https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -177,6 +181,7 @@ export async function runOpenRouterNativeToolCompletion(params: {
 
   try {
     const parsed = JSON.parse(raw) as {
+      id?: unknown;
       choices?: Array<{
         message?: {
           content?: unknown;
@@ -191,6 +196,7 @@ export async function runOpenRouterNativeToolCompletion(params: {
       }>;
       usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
     };
+    if (typeof parsed?.id === "string" && parsed.id) params.onResponseId?.(parsed.id);
     const message = parsed?.choices?.[0]?.message;
     const promptTokens = Number(parsed?.usage?.prompt_tokens);
     const completionTokens = Number(parsed?.usage?.completion_tokens);

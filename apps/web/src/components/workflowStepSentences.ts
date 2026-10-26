@@ -80,6 +80,12 @@ export function workflowTriggerPhrase(automation: CommunityMemberWorkflowAutomat
       const course = trigger.moduleId ? names.catalog?.lessons?.find((item) => item.courseId === trigger.moduleId)?.course : null;
       return trigger.moduleId ? `When they finish ${course ? `the ${quote(course, 50)} course` : "a course"}` : "When they finish any course";
     }
+    case "offer_started":
+    case "offer_ended": {
+      const offer = trigger.offerKey ? names.catalog?.offers?.find((item) => item.key === trigger.offerKey)?.name : null;
+      const verb = trigger.type === "offer_started" ? "start" : "leave";
+      return trigger.offerKey ? `When they ${verb} ${offer ? `the ${quote(offer, 50)} offer` : "an offer"}` : `When they ${verb} any offer`;
+    }
     case "track_completed": {
       const track = trigger.trackKey ? names.catalog?.tracks?.find((item) => item.key === trigger.trackKey)?.title : null;
       return trigger.trackKey ? `When they finish ${track ? `the ${quote(track, 50)} track` : "a track"}` : "When they finish any track";

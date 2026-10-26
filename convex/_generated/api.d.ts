@@ -88,6 +88,7 @@ import type * as communityFormRequestCore from "../communityFormRequestCore.js";
 import type * as communityFormRequests from "../communityFormRequests.js";
 import type * as communityFormValidators from "../communityFormValidators.js";
 import type * as communityForms from "../communityForms.js";
+import type * as communityInferenceProvider from "../communityInferenceProvider.js";
 import type * as communityFunnel from "../communityFunnel.js";
 import type * as communityFunnelValidators from "../communityFunnelValidators.js";
 import type * as communityIntegrationActions from "../communityIntegrationActions.js";
@@ -108,6 +109,9 @@ import type * as communityLegacyAttachmentUploads from "../communityLegacyAttach
 import type * as communityBrands from "../communityBrands.js";
 import type * as communityLayouts from "../communityLayouts.js";
 import type * as communityLessonTracks from "../communityLessonTracks.js";
+import type * as communityOfferAccessCore from "../communityOfferAccessCore.js";
+import type * as communityOffers from "../communityOffers.js";
+import type * as communityOfferCheckout from "../communityOfferCheckout.js";
 import type * as communityLessonValidators from "../communityLessonValidators.js";
 import type * as communityLifecycle from "../communityLifecycle.js";
 import type * as communityLive from "../communityLive.js";
@@ -129,6 +133,7 @@ import type * as communityMentionLifecycle from "../communityMentionLifecycle.js
 import type * as communityNotificationAccess from "../communityNotificationAccess.js";
 import type * as communityOnboarding from "../communityOnboarding.js";
 import type * as communityPostCardRead from "../communityPostCardRead.js";
+import type * as communityPods from "../communityPods.js";
 import type * as communityPostCards from "../communityPostCards.js";
 import type * as communityPresenceCore from "../communityPresenceCore.js";
 import type * as communityPublic from "../communityPublic.js";
@@ -362,6 +367,7 @@ declare const fullApi: ApiFromModules<{
   communityFormRequests: typeof communityFormRequests;
   communityFormValidators: typeof communityFormValidators;
   communityForms: typeof communityForms;
+  communityInferenceProvider: typeof communityInferenceProvider;
   communityFunnel: typeof communityFunnel;
   communityFunnelValidators: typeof communityFunnelValidators;
   communityIntegrationActions: typeof communityIntegrationActions;
@@ -382,6 +388,9 @@ declare const fullApi: ApiFromModules<{
   communityBrands: typeof communityBrands;
   communityLayouts: typeof communityLayouts;
   communityLessonTracks: typeof communityLessonTracks;
+  communityOfferAccessCore: typeof communityOfferAccessCore;
+  communityOfferCheckout: typeof communityOfferCheckout;
+  communityOffers: typeof communityOffers;
   communityLessonValidators: typeof communityLessonValidators;
   communityLifecycle: typeof communityLifecycle;
   communityLive: typeof communityLive;
@@ -403,6 +412,7 @@ declare const fullApi: ApiFromModules<{
   communityNotificationAccess: typeof communityNotificationAccess;
   communityOnboarding: typeof communityOnboarding;
   communityPostCardRead: typeof communityPostCardRead;
+  communityPods: typeof communityPods;
   communityPostCards: typeof communityPostCards;
   communityPresenceCore: typeof communityPresenceCore;
   communityPublic: typeof communityPublic;

@@ -31,8 +31,8 @@ type Option = { icon: LucideIcon; label: string; hint?: string; type?: string };
 const TRIGGERS: Array<{ name: string; options: Option[] }> = [
   { name: "Members", options: [
     { icon: DoorOpen, label: "Someone joins", hint: "Only the first stage starts here", type: "member_joined" },
-    { icon: ShoppingBag, label: "Buys a package" },
-    { icon: CreditCard, label: "Payment fails or they cancel" },
+    { icon: ShoppingBag, label: "Starts an offer", hint: "Joins on it or upgrades to it", type: "offer_started" },
+    { icon: CreditCard, label: "Leaves an offer", hint: "Downgrades or their paid time ends", type: "offer_ended" },
     { icon: UserCog, label: "Member record changes", hint: "e.g. Plan becomes Pro", type: "client_property_changed" },
   ] },
   { name: "Learning", options: [

@@ -17,6 +17,8 @@ import { WebBlockingSetupModal } from "./WebBlockingSetupModal";
 import { WebCommunityBridgeCard } from "./WebCommunityBridgeCard";
 import { communityJoinUrl } from "../controllers/useWebCommunityFrame";
 import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
+import type { AuthSession } from "../auth";
+import { useCommunityOfferChoice, WebCommunityOfferChooser } from "./WebCommunityOfferChooser";
 import "./WebPublicCommunityFunnel.css";
 
 type CheckoutStatus = "idle" | "loading" | "pending" | "succeeded" | "error";
@@ -71,6 +73,10 @@ type WebPublicCommunityFunnelProps = {
   isCancellingPendingRequest: boolean;
   onCancelPendingRequest: () => void;
   onPrimaryJoinAction: () => void;
+  /** A higher offer picked on the sales page's offer cards. */
+  onStartOfferCheckout?: (offerKey: string, billingPeriod: "monthly" | "annual") => void;
+  /** Who is looking, so a member sees their offer and can upgrade. Null in previews. */
+  offerSession?: AuthSession | null;
   publicCommunityError: string | null;
   publicJoinError: string | null;
   checkoutError: string | null;
@@ -164,14 +170,24 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
     (!canEnterCommunity && canJoinWithCheckout && (!hasSelectedPublicCommunityPlan || !primaryAction.hasValidPaidPlan)) ||
     (!canEnterCommunity && !canJoinWithCheckout && !canJoinForFree && !canJoinWithApproval) ||
     (canJoinWithApproval && (approvalPending || (approvalDenied && !canRequestAgain)));
+  const offerChoice = useCommunityOfferChoice({
+    // The owner's preview shows what a visitor sees (no session), with buttons off.
+    communityId: publicCommunity?.id ?? null,
+    session: props.offerSession ?? null,
+    preferredPeriod: paidPlan?.billing_period ?? null,
+    onStartOfferCheckout: props.onStartOfferCheckout,
+    navigateToUrl: (url) => window.location.assign(url),
+  });
   const funnelErrors = [publicCommunityError, publicJoinError, checkoutError].filter(
     Boolean,
   ) as string[];
+  // A higher offer picked on the offer cards takes over the join button.
+  const offerButton = offerChoice.button;
   const action = {
     communityName,
-    primaryActionLabel,
-    isPrimaryActionDisabled,
-    onPrimaryAction: onPrimaryJoinAction,
+    primaryActionLabel: offerButton ? (checkoutStatus === "loading" ? "Opening checkout…" : offerButton.label) : primaryActionLabel,
+    isPrimaryActionDisabled: offerButton ? isPreviewMode || checkoutStatus === "loading" || offerButton.disabled : isPrimaryActionDisabled,
+    onPrimaryAction: offerButton ? offerButton.onClick : onPrimaryJoinAction,
     canJoinWithApproval,
     showSignIn,
     approvalPending,
@@ -235,14 +251,16 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
           : []}
         action={
           <div className="community-sales-join">
+            <WebCommunityOfferChooser choice={offerChoice} preferredPeriod={paidPlan?.billing_period ?? null} />
             <button
               type="button"
               className="community-sales-join-button"
-              disabled={isPrimaryActionDisabled}
-              onClick={onPrimaryJoinAction}
+              disabled={action.isPrimaryActionDisabled}
+              onClick={action.onPrimaryAction}
             >
-              {primaryActionLabel}
+              {action.primaryActionLabel}
             </button>
+            {offerChoice.note ? <p className="community-sales-join-note">{offerChoice.note}</p> : null}
             <ActionStatusCards action={action} />
           </div>
         }
@@ -275,6 +293,12 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
         ? [...funnelErrors, ...(previewDocumentError ? [previewDocumentError] : [])]
         : []}
       bridge={props.bridge ?? null}
+      offers={offerChoice.offers.length ? (
+        <>
+          <WebCommunityOfferChooser choice={offerChoice} preferredPeriod={paidPlan?.billing_period ?? null} />
+          {offerChoice.note ? <p className="community-funnel-offers-note">{offerChoice.note}</p> : null}
+        </>
+      ) : null}
     />
     </div>
   );

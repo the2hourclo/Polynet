@@ -23,7 +23,7 @@ import "./WebCommunityLessonBoard.css";
 
 const STATUS_LABEL: Record<CommunityLessonProgressStatus, string> = { not_started: "To do", in_progress: "In progress", done: "Done" };
 const KIND_LABEL: Record<string, string> = { build: "Build", lesson: "Watch", checkpoint: "Checkpoint" };
-const NEW_STAGE_NAME = "New stage";
+const NEW_STAGE_NAME = "New section";
 const DRAG_MIME = "application/x-polynet-roadmap-lesson";
 
 type BoardLesson = { ref: string; resource: CommunityResource };
@@ -76,6 +76,10 @@ export function WebCommunityLessonBoard(props: {
   title?: string;
   // True while a lesson is open, so the page can lay out for reading.
   onReadingChange?: (reading: boolean) => void;
+  // Lessons the track keeps closed besides its checkpoints (a sold track's lessons past the free one).
+  extraLocked?: ReadonlySet<string>;
+  // Opens this lesson (a new key opens it again), for buttons outside the board.
+  openRequest?: { ref: string; key: number } | null;
 }) {
   const { progress, editing } = props;
   const [pending, setPending] = useState<Map<string, RoadmapLessonUpdate>>(() => new Map());
@@ -93,13 +97,21 @@ export function WebCommunityLessonBoard(props: {
   const [saveError, setSaveError] = useState<string | null>(null);
   // A lesson the owner just added opens with its title ready to type.
   const [renameId, setRenameId] = useState<string | null>(null);
+  const requestKey = props.openRequest?.key;
+  useEffect(() => {
+    if (props.openRequest) setOpenRef(props.openRequest.ref);
+    // Only a new request opens the lesson; the ref alone changing is the same request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey]);
 
   const statusOf = (ref: string): CommunityLessonProgressStatus => progress.statusByRef[ref] ?? "not_started";
   const doneRefs = new Set(lessons.filter((lesson) => statusOf(lesson.ref) === "done").map((lesson) => lesson.ref));
-  const { stages, lockedRefs } = computeCommunityLessonStages({
+  const computed = computeCommunityLessonStages({
     lessons: lessons.map((lesson) => ({ ref: lesson.ref, lesson: lesson.resource.lesson ?? null })),
     doneRefs,
   });
+  const { stages } = computed;
+  const lockedRefs = props.extraLocked?.size ? new Set([...computed.lockedRefs, ...props.extraLocked]) : computed.lockedRefs;
   const inStage = (name: string) => lessons.filter((lesson) => lesson.resource.lesson?.stage === name).sort(byOrder);
   const titleOf = (ref: string | null) => lessons.find((lesson) => lesson.ref === ref)?.resource.title ?? "an earlier step";
   // Owners can open any lesson to check it; the lock is the member's.
@@ -193,8 +205,8 @@ export function WebCommunityLessonBoard(props: {
         {saveError ? <p className="lesson-journey-note is-error" role="alert">{saveError}</p> : null}
         <div className="lesson-journey-empty">
           <h3>No roadmap yet</h3>
-          <p>{editing ? "Lay out the journey in stages. Each stage holds lessons your members work through in order." : "The roadmap will show here once it's ready."}</p>
-          {editing ? <AddButton label="Add the first stage" onAdd={() => addLesson(null)} /> : null}
+          <p>{editing ? "Lay out the journey in sections. Each section holds lessons your members work through in order." : "The roadmap will show here once it's ready."}</p>
+          {editing ? <AddButton label="Add the first section" onAdd={() => addLesson(null)} /> : null}
         </div>
       </div>
     );
@@ -219,7 +231,7 @@ export function WebCommunityLessonBoard(props: {
         </div>
         <div className="lesson-journey-progress-label">
           <span>{doneRefs.size} of {lessons.length} lessons{minutes ? ` · about ${formatMinutes(minutes)}` : ""}</span>
-          <span>{currentIndex >= 0 ? `Stage ${currentIndex + 1} of ${stages.length}` : `${stages.length} ${stages.length === 1 ? "stage" : "stages"}`}</span>
+          <span>{currentIndex >= 0 ? `Section ${currentIndex + 1} of ${stages.length}` : `${stages.length} ${stages.length === 1 ? "section" : "sections"}`}</span>
         </div>
       </div>
       {nextUp ? (
@@ -243,7 +255,7 @@ export function WebCommunityLessonBoard(props: {
           const subline = complete
             ? "Done"
             : stage.locked
-              ? stage.name === firstLocked ? `Opens after “${titleOf(stage.blocked_by)}”` : `Opens after stage ${index}`
+              ? stage.name === firstLocked ? `Opens after “${titleOf(stage.blocked_by)}”` : `Opens after section ${index}`
               : null;
           const panelId = `lesson-journey-stage-${index}`;
           return (
@@ -254,7 +266,7 @@ export function WebCommunityLessonBoard(props: {
                 </span>
                 <div className="lesson-journey-stage-title">
                   {ops ? (
-                    <InlineName value={stage.name} label="Stage name" className="lesson-journey-stage-name" onSave={(name) => ops.renameStage(stage, name)} />
+                    <InlineName value={stage.name} label="Section name" className="lesson-journey-stage-name" onSave={(name) => ops.renameStage(stage, name)} />
                   ) : (
                     <h3 className="lesson-journey-stage-name">
                       <button type="button" className="lesson-journey-toggle" aria-expanded={isOpen} aria-controls={panelId} onClick={() => setExpanded((current) => ({ ...current, [stage.name]: !isOpen }))}>
@@ -552,7 +564,7 @@ function InlineName(props: {
         className={`${props.className} lesson-journey-name-input`}
         aria-label={props.label}
         value={draft}
-        maxLength={props.label === "Stage name" ? 80 : 200}
+        maxLength={props.label === "Section name" ? 80 : 200}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={() => finish(true)}
         onKeyDown={onKeyDown}

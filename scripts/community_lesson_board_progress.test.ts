@@ -43,7 +43,7 @@ describe("roadmap progress", () => {
     const markup = renderBoard({ [buildCommunityResourceEvidenceRef("l1")]: "done" });
 
     expect(markup).toContain('aria-valuetext="1 of 3 lessons done"');
-    expect(markup).toContain("Stage 1 of 2");
+    expect(markup).toContain("Section 1 of 2");
     expect(markup).toMatch(/class="lesson-journey-next"[^>]*>.*?<small>Next up<\/small><strong>Map your week<\/strong>/);
     expect(markup).toMatch(/data-state="current" data-open=""/);
     expect(markup).toMatch(/lesson-journey-lesson is-next"[^>]*>.*?Map your week/);

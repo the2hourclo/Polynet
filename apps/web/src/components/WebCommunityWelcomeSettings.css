@@ -3,12 +3,12 @@
    with Polynet's defaults outside a themed community. */
 .welcome-settings { overflow: auto; display: flex; flex-direction: column; padding: 0 24px; box-sizing: border-box; }
 
-/* The bar: what this is, whether it's on, and the page's actions, kept in reach while the page scrolls. */
-.welcome-settings-bar {
-  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 16px 24px; flex-wrap: wrap;
-  padding: 12px 0; background: var(--surface-workspace, var(--bg-workspace)); border-bottom: 1px solid var(--border-default);
-}
-.welcome-settings-bar-title { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* One column, lined up with the page's text below: the bar (title and the
+   page's actions, kept in reach while it scrolls), then who sees it and how. */
+.welcome-settings-column { width: min(832px, 100%); margin: 0 auto; padding: 0 40px 0 80px; box-sizing: border-box; }
+.welcome-settings-bar { position: sticky; top: 0; z-index: 3; background: var(--surface-workspace, var(--bg-workspace)); border-bottom: 1px solid var(--border-default); }
+.welcome-settings-bar-inner { display: flex; align-items: center; gap: 12px 24px; flex-wrap: wrap; padding-top: 14px; padding-bottom: 14px; }
+.welcome-settings-bar-title { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .welcome-settings-bar-title h1 { margin: 0; font-size: var(--pn-type-title, 22px); line-height: 1.2; }
 .welcome-settings-bar-title p, .welcome-settings-help { margin: 0; color: var(--text-secondary); font-size: var(--pn-type-ui, 14px); line-height: 1.5; }
 .welcome-settings-bar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -18,11 +18,18 @@
 }
 .welcome-settings .welcome-settings-bar-actions .platform-save-button:hover:not(:disabled) { background: var(--bg-button-hover, var(--bg-button)); }
 .welcome-settings .welcome-settings-bar-actions .platform-save-button:disabled { opacity: 0.45; transform: none; cursor: not-allowed; }
-.welcome-settings-saved { min-width: 7em; color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
+.welcome-settings-options { margin-top: 20px; }
+.welcome-settings-options > .welcome-settings-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--border-default); background: var(--bg-card, transparent); }
+.welcome-settings-options > .welcome-settings-option:first-child { border-radius: 12px 12px 0 0; }
+.welcome-settings-options > .welcome-settings-option + .welcome-settings-option { border-top: 0; border-radius: 0 0 12px 12px; }
+.welcome-settings-option > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: var(--pn-type-body, 15px); }
+.welcome-settings-option > span strong { font-weight: 600; }
+.welcome-settings-option > span small { color: var(--text-secondary); font-size: var(--pn-type-small, 13px); line-height: 1.45; }
+.welcome-settings-saved { color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
 .welcome-settings-error { margin: 12px auto 0; width: min(720px, 100%); }
 
 /* The on/off control is a switch, with its words beside it. */
-.welcome-settings-switch { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; cursor: pointer; }
+.welcome-settings-switch { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
 .welcome-settings-switch span { order: -1; display: flex; flex-direction: column; gap: 4px; font-size: var(--pn-type-body, 15px); }
 .welcome-settings-switch strong { font-weight: 600; }
 .welcome-settings-switch input {
@@ -108,8 +115,7 @@
 .welcome-settings-break { display: flex; align-items: center; gap: 12px; padding: 18px 0 18px 8px; outline: 0; color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
 .welcome-settings-break::before, .welcome-settings-break::after { content: ""; flex: 1; border-top: 1px dashed var(--border-strong, var(--border-default)); }
 .welcome-settings-break span { order: 0; padding: 4px 12px; border: 1px solid var(--border-default); border-radius: 999px; background: var(--surface-workspace, var(--bg-workspace)); font-weight: 600; color: var(--text-primary); }
-.welcome-settings-break small { order: 2; font-size: inherit; }
-.welcome-settings-break::after { order: 1; }
+.welcome-settings-break-first { width: min(832px, 100%); padding: 0 40px 0 80px; box-sizing: border-box; }
 .welcome-settings-break:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 8px; }
 
 .welcome-settings-add { position: relative; width: min(832px, 100%); padding: 8px 40px 0 80px; box-sizing: border-box; }
@@ -197,7 +203,8 @@
   .welcome-settings-block { grid-template-columns: minmax(0, 1fr) 36px; }
   .welcome-settings-gutter { position: absolute; right: 0; top: 34px; flex-direction: column; padding: 0; }
   .welcome-settings-bar-title p { display: none; }
-  .welcome-settings-bar { gap: 8px 16px; }
+  .welcome-settings-column, .welcome-settings-break-first { padding: 0 8px; }
+  .welcome-settings-options > .welcome-settings-option:not(.welcome-settings-switch) { flex-wrap: wrap; }
   .welcome-settings-block-body { grid-column: 1; }
   .welcome-settings-add .welcome-settings-menu { left: 8px; }
   .welcome-settings-preview-overlay { padding: 8px; }
@@ -216,6 +223,9 @@
 .welcome-settings-choice-field input, .welcome-settings-choice-text { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-workspace); color: var(--text-primary); font: inherit; font-size: 14px; }
 .welcome-settings-choice-text { resize: none; font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 13px; line-height: 1.55; min-height: 96px; }
 .welcome-settings-choice-field input:focus, .welcome-settings-choice-text:focus { outline: none; border-color: var(--accent-brand, var(--accent-primary)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 18%, transparent); }
+.welcome-settings-choice-icon-row { display: flex; align-items: center; gap: 10px; }
+.welcome-settings-choice-icon { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; background: color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 12%, var(--surface-workspace)); color: var(--accent-brand, var(--accent-primary)); }
+.welcome-settings-choice-icon-note { flex: 1; color: var(--text-secondary); font-size: 13px; }
 .welcome-settings-choice-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .welcome-settings-choice-tabs button { padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 999px; background: transparent; color: var(--text-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .welcome-settings-choice-tabs button.is-active { border-color: var(--accent-brand, var(--accent-primary)); background: color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 10%, transparent); }
@@ -223,3 +233,20 @@
 .welcome-settings-choice-card { display: flex; flex-direction: column; gap: 10px; }
 .welcome-settings-choice-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .welcome-settings-choice-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--text-secondary); font-size: 12px; }
+
+/* Full page or pop-up: a two-way segmented control beside the on/off switch. */
+.welcome-settings-display { display: inline-flex; flex: none; align-items: center; }
+.welcome-settings-display button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--pn-type-ui, 14px); font-weight: 600; cursor: pointer; }
+.welcome-settings-display button:first-of-type { border-radius: 8px 0 0 8px; }
+.welcome-settings-display button:last-of-type { border-left: 0; border-radius: 0 8px 8px 0; }
+.welcome-settings-display button[aria-checked="true"] { border-color: var(--accent-brand, var(--text-primary)); background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 10%, transparent); color: var(--text-primary); }
+.welcome-settings-display button[aria-checked="true"] + button { border-left: 1px solid var(--accent-brand, var(--text-primary)); }
+.welcome-settings-display button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; position: relative; }
+.welcome-settings-display button:disabled { cursor: not-allowed; opacity: .6; }
+/* On/off and how it shows stay together, the choice under the switch. */
+/* A disabled Discard or Preview fades like Save, so it doesn't read as ready to press. */
+.welcome-settings .welcome-settings-bar-actions .workflow-secondary-button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.welcome-settings-choice-agent { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.welcome-settings-choice-agent input { margin-top: 3px; accent-color: var(--accent-brand, var(--accent-primary)); }
+.welcome-settings-choice-agent span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.welcome-settings-choice-agent small { color: var(--text-secondary); font-size: 12px; }

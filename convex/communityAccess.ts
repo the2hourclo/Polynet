@@ -137,6 +137,8 @@ const grantArgs = {
   // ISO date or instant, epoch ms, or null for no end date.
   endsAt: v.optional(v.union(v.string(), v.number(), v.null())),
   reason: v.string(),
+  // Which offer this access is for (Settings › Offers); the base offer when left out.
+  offerKey: v.optional(v.string()),
 };
 
 // Give someone access by hand, or change the end date or reason of the access
@@ -148,6 +150,12 @@ async function grantAccess(ctx: any, args: any) {
   const reason = normalizeCommunityAccessGrantReason(args.reason);
   const endsAt = normalizeCommunityAccessGrantEnd(args.endsAt, nowMs);
   const targetUserId = await resolveGrantTarget(ctx, args);
+  const offerKey = args.offerKey ? String(args.offerKey).trim() : null;
+  if (offerKey) {
+    const offer = await ctx.db.query("communityOffers")
+      .withIndex("by_community_key", (q: any) => q.eq("communityId", args.communityId).eq("key", offerKey)).unique();
+    if (!offer || offer.archivedAt) throw new CommunityAccessError("access_grant_offer_unavailable");
+  }
   if (normalizeIdValue(community.ownerId) === normalizeIdValue(targetUserId)) throw new CommunityAccessError("access_grant_owner");
   if (await communityUserIsBlocked({ ctx, communityId: args.communityId, userId: targetUserId })) {
     throw new CommunityAccessError("access_grant_user_blocked");
@@ -178,6 +186,7 @@ async function grantAccess(ctx: any, args: any) {
   const grantId = await ctx.db.insert("communityAccessGrants", {
     communityId: args.communityId, userId: targetUserId, membershipId: held._id, status: "active",
     ...(endsAt === null ? {} : { endsAt }), reason, grantedByUserId: args.userId, grantedVia: args.via ?? "web",
+    ...(offerKey ? { offerKey } : {}),
     createdAt: nowMs, updatedAt: nowMs,
   });
   if (endsAt !== null) {

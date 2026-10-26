@@ -57,7 +57,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "chat_view" | "rail_size" | "rail_color" | "sibling_communities";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_card_panel" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "chat_view" | "rail_size" | "rail_color" | "sibling_communities" | "pods_place";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -75,6 +75,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   course_card_description: ["Description", [["show", "Show"], ["hide", "Hide"]]],
   course_card_progress: ["Progress", [["bar", "Bar"], ["ring", "Ring"], ["fraction", "3/6 lessons"]]],
   course_card_edge: ["Card edge", [["border", "Border"], ["shadow", "Soft shadow"], ["none", "None (open)"]]],
+  course_card_panel: ["Text panel colour", [["shade", "Shaded (a step from the card)"], ["tint", "Soft tint"], ["accent", "Accent wash"], ["plain", "Same as the card"], ["custom", "Custom colour"]]],
   course_cover_plate: ["Cover background (light scheme)", [["none", "Plain"], ["tint", "Soft accent tint"]]],
   course_cover_fit: ["Cover pictures", [["crop", "Fill the box"], ["whole", "Show whole picture"]]],
   media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
@@ -82,6 +83,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   channels_look: ["Page style", [["current", "Polynet (today)"], ["quiet", "Quiet: plain menu, one column"], ["reader", "Reader: reading column, post lists"], ["publication", "Publication: masthead, editorial cards"]]],
   chat_view: ["Chat view", [["centered", "Centred: a reading column"], ["wide", "Wide: full width, lined up on the left"]]],
   sibling_communities: ["Your other communities", [["hide", "Hidden"], ["show", "Show them under members"]]],
+  pods_place: ["Where pods show", [["aside", "Top of the right column"], ["header", "In the header"]]],
   rail_size: ["Icon size", [["standard", "Standard"], ["large", "Bigger"]]],
   rail_color: ["Colour", [["polynet", "Polynet (today)"], ["blend", "Blend with the page"], ["tint", "Soft brand tint"], ["brand", "Solid brand colour"]]],
 };
@@ -373,6 +375,16 @@ function Group(props: { title: string; children: ReactNode }) {
   </section>;
 }
 
+// One band of the inspector: the selected page's own settings, or the
+// site-wide look every page shares.
+function InspectorScope(props: { title: string; hint: string; children: ReactNode }) {
+  const id = useId();
+  return <section className="appearance-scope" aria-labelledby={id}>
+    <header className="appearance-scope-head"><h3 id={id}>{props.title}</h3><p>{props.hint}</p></header>
+    {props.children}
+  </section>;
+}
+
 function Row(props: { label: ReactNode; htmlFor?: string; children: ReactNode; wide?: boolean }) {
   return <div className={`appearance-row${props.wide ? " is-wide" : ""}`}>
     {props.htmlFor ? <label htmlFor={props.htmlFor}>{props.label}</label> : <span>{props.label}</span>}
@@ -600,6 +612,9 @@ function SavedThemes(props: {
 function AppearanceEditor(props: EditorProps) {
   const { theme, scheme, set, busy } = props;
   const [page, setPage] = useState("resources");
+  const inspector = useRef<HTMLElement>(null);
+  // Another page brings its own settings: start the inspector at the top.
+  useEffect(() => { inspector.current?.scrollTo?.({ top: 0 }); }, [page]);
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const frame = useRef<HTMLIFrameElement>(null);
   const canvas = useRef<HTMLElement>(null);
@@ -713,6 +728,55 @@ function AppearanceEditor(props: EditorProps) {
     ? `${device === "phone" ? "/m" : ""}/c/${encodeURIComponent(props.communitySlug)}/${page}?${APPEARANCE_PREVIEW_PARAM}=1`
     : null;
 
+  // Settings that only show on one page sit with that page in the Pages list.
+  const pageLabel = PREVIEW_PAGES.find(([key]) => key === page)?.[1] ?? "This";
+  const pageGroups = page === "chat" ? <>
+    <Group title="Chat">
+      {choice("chat_view")}
+      <p className="appearance-hint">Wide runs messages across the whole chat, with avatars, names, joins and dates lined up on the left. Members can switch views in the Display menu; this sets what they see first.</p>
+    </Group>
+    <Group title="Pods">
+      {choice("pods_place")}
+      <p className="appearance-hint">Classroom shows each invite-only channel as a pod, with the faces of everyone who can see it. Pick where members find them.</p>
+    </Group>
+    <Group title="Members panel">
+      {choice("sibling_communities")}
+      <p className="appearance-hint">"More from this creator" at the foot of the chat's member list. Your profile lists your communities either way.</p>
+    </Group>
+  </> : page === "resources" ? <>
+    <Group title="Course grid">
+      {/* Picking a size goes back to fitting the screen, even if an agent set fixed columns. */}
+      {choice("course_card_size", { course_columns: "auto" })}
+      {theme.course_columns === "auto" ? null : choice("course_columns")}
+      {choice("course_columns_phone")}
+      {choice("course_gap")}
+      {choice("course_cover_ratio")}
+      <p className="appearance-hint">{theme.course_columns === "auto" ? "Cards keep the size you pick, and each row fits as many as the screen has room for." : "Rows wrap sooner on narrow screens, so cards stay readable."}</p>
+    </Group>
+    <Group title="Course cards">
+      <CardLookGallery theme={theme} disabled={busy} onPick={(look) => set({ ...look.tokens })} />
+      {choice("course_card_style")}
+      {theme.course_card_style === "list" || theme.course_card_style === "text" ? null : choice("course_card_edge")}
+      {/* The panel under the cover: boxed cards with a cover on top only. */}
+      {theme.course_card_style === "list" || theme.course_card_style === "text" || theme.course_card_style === "overlay" || theme.course_card_edge === "none" ? null : <>
+        {/* Custom starts from a shade that suits the scheme being previewed. */}
+        {choice("course_card_panel", theme.course_card_panel_color ? {} : { course_card_panel_color: scheme === "dark" ? "#333333" : "#EFEFEC" })}
+        {(theme.course_card_panel ?? DEFAULT_COMMUNITY_THEME.course_card_panel) === "custom" ? <Row label="Panel colour" htmlFor={fieldId("course_card_panel_color")}>
+          <ColorField id={fieldId("course_card_panel_color")} label="Panel colour" value={theme.course_card_panel_color || (scheme === "dark" ? "#333333" : "#EFEFEC")} disabled={busy}
+            invalid={Boolean(problemFor("course_card_panel_color")["aria-invalid"])} onChange={(value) => set({ course_card_panel_color: value })} /></Row> : null}
+      </>}
+      {choice("course_card_pills")}
+      {choice("course_card_description")}
+      {choice("course_card_progress")}
+      <p className="appearance-hint">Corners follow Shape → Corner radius.</p>
+    </Group>
+    <Group title="Course covers">
+      {choice("course_cover_fit")}
+      {choice("course_cover_plate")}
+      {choice("media_plate")}
+    </Group>
+  </> : <p className="appearance-hint appearance-scope-empty">This page has no settings of its own. It follows the site-wide look below.</p>;
+
   const editor = <div className="appearance-editor" role="dialog" aria-modal="true" aria-labelledby={`${props.uid}-editor-title`}>
     <header className="appearance-editor-bar">
       <div className="appearance-editor-bar-start">
@@ -744,94 +808,69 @@ function AppearanceEditor(props: EditorProps) {
         : src ? <iframe ref={frame} key={src} src={src} title="Your community with the draft look" className="appearance-frame" />
           : <div className="community-look-preview" data-community-theme={PREVIEW_SCOPE}><SampleContent /></div>}
       </section>
-      <aside className="appearance-inspector community-look" aria-label="Design settings">
-        <Group title="Theme">
-          <Row label="Starting point" wide><PresetPicker theme={theme} disabled={busy} onPick={applyPreset} /></Row>
-          <p className="appearance-hint">Picking one replaces your draft. Undo until you save.</p>
-        </Group>
-        <SavedThemes theme={theme} canSave={props.canSave} saved={props.savedThemes} busy={props.savedBusy || busy} error={props.savedError}
-          actions={props.savedActions} onApply={applyTheme} />
-        {props.hasBanner ? <Group title="Banner">
-          {choice("banner_name")}
-          <p className="appearance-hint">Hide the name when your banner artwork already spells it out.</p>
-        </Group> : null}
-        <Group title="Colors">
-          <PaletteGallery theme={theme} scheme={scheme} disabled={busy} onPick={applyPalette} />
-          <Row label="Light or dark" htmlFor={fieldId("mode")}>
-            <select id={fieldId("mode")} value={mode} disabled={busy} onChange={(e) => setMode(e.target.value as SchemeMode)}>
-              {SCHEME_MODES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Row>
-          {mode === "both" ? <Row label="Editing" htmlFor={fieldId("scheme")}>
-            <select id={fieldId("scheme")} value={scheme} onChange={(e) => props.setScheme(e.target.value as CommunityThemeScheme)}>
-              <option value="light">Light version</option><option value="dark">Dark version</option></select></Row> : null}
-          {colors ? <>
-            <Row label={<>Brand colour<small>Accent and buttons</small></>} htmlFor={fieldId("brand")}>
-              <ColorField id={fieldId("brand")} label="Brand" value={colors.accent} disabled={busy} onChange={setBrand} /></Row>
-            {COLOR_FIELDS.map(([key, label]) => {
-              const problem = problemFor(`schemes.${scheme}.${key}`);
-              const describedBy = [problem["aria-describedby"], key === "muted" && mutedHint ? `${props.uid}-muted-hint` : ""].filter(Boolean).join(" ") || undefined;
-              return <Row key={key} label={label} htmlFor={fieldId(key)}>
-                <ColorField id={fieldId(key)} label={label} value={colors[key]} disabled={busy} invalid={Boolean(problem["aria-invalid"])} describedBy={describedBy}
-                  onChange={(value) => setColors({ [key]: value })} /></Row>;
-            })}
-            {mutedHint ? <small id={`${props.uid}-muted-hint`} className="community-look-color-hint">Secondary text shows as {mutedHint.toUpperCase()} so it stays easy to read on {scheme === "dark" ? "dark" : "light"} backgrounds.</small> : null}
-          </> : null}
-        </Group>
-        <Group title="Typography">
-          {fontSelect("font_heading", "Headings", HEADING_FONTS)}
-          {fontSelect("font_body", "Body text", TEXT_FONTS)}
-          {slider("heading_weight", "Heading weight", 300, 900, 50, String)}
-          {choice("heading_case")}
-          {slider("type_scale", "Text size", 0.9, 1.2, 0.05, (value) => `${Math.round(value * 100)}%`)}
-          {choice("numerals")}
-        </Group>
-        <Group title="Shape">
-          {slider("radius", "Corner radius", 0, 24, 1, (value) => `${value}px`)}
-          {choice("corner_style")}
-          {choice("button_shape")}
-          {slider("border_width", "Border width", 0, 3, 1, (value) => `${value}px`)}
-          {choice("shadow")}
-          {choice("density")}
-        </Group>
-        <Group title="Course grid">
-          {/* Picking a size goes back to fitting the screen, even if an agent set fixed columns. */}
-          {choice("course_card_size", { course_columns: "auto" })}
-          {theme.course_columns === "auto" ? null : choice("course_columns")}
-          {choice("course_columns_phone")}
-          {choice("course_gap")}
-          {choice("course_cover_ratio")}
-          <p className="appearance-hint">{theme.course_columns === "auto" ? "Cards keep the size you pick, and each row fits as many as the screen has room for." : "Rows wrap sooner on narrow screens, so cards stay readable."}</p>
-        </Group>
-        <Group title="Course cards">
-          <CardLookGallery theme={theme} disabled={busy} onPick={(look) => set({ ...look.tokens })} />
-          {choice("course_card_style")}
-          {theme.course_card_style === "list" || theme.course_card_style === "text" ? null : choice("course_card_edge")}
-          {choice("course_card_pills")}
-          {choice("course_card_description")}
-          {choice("course_card_progress")}
-          <p className="appearance-hint">Corners follow Shape → Corner radius.</p>
-        </Group>
-        <Group title="Course covers">
-          {choice("course_cover_fit")}
-          {choice("course_cover_plate")}
-          {choice("media_plate")}
-        </Group>
-        <Group title="Channels look · draft">
-          {choice("channels_look")}
-          <p className="appearance-hint">Substack-style pages for the Channels layout. Classroom keeps its own look.</p>
-        </Group>
-        <Group title="Chat">
-          {choice("chat_view")}
-          <p className="appearance-hint">Wide runs messages across the whole chat, with avatars, names, joins and dates lined up on the left. Members can switch views in the Display menu; this sets what they see first.</p>
-        </Group>
-        <Group title="Left rail · draft">
-          {choice("rail_size")}
-          {choice("rail_color")}
-          <p className="appearance-hint">The column of community icons on the far left, while members are in your community.</p>
-        </Group>
-        <Group title="Members panel">
-          {choice("sibling_communities")}
-          <p className="appearance-hint">"More from this creator" at the foot of the chat's member list. Your profile lists your communities either way.</p>
-        </Group>
+      <aside ref={inspector} className="appearance-inspector community-look" aria-label="Design settings">
+        {/* The page being previewed comes first; the site-wide look stays below it. */}
+        <InspectorScope title={`${pageLabel} page`} hint="Only on this page.">
+          {pageGroups}
+        </InspectorScope>
+        <InspectorScope title="Site-wide" hint="Every page of your community.">
+          <Group title="Theme">
+            <Row label="Starting point" wide><PresetPicker theme={theme} disabled={busy} onPick={applyPreset} /></Row>
+            <p className="appearance-hint">Picking one replaces your draft. Undo until you save.</p>
+          </Group>
+          <SavedThemes theme={theme} canSave={props.canSave} saved={props.savedThemes} busy={props.savedBusy || busy} error={props.savedError}
+            actions={props.savedActions} onApply={applyTheme} />
+          {props.hasBanner ? <Group title="Banner">
+            {choice("banner_name")}
+            <p className="appearance-hint">Hide the name when your banner artwork already spells it out.</p>
+          </Group> : null}
+          <Group title="Colors">
+            <PaletteGallery theme={theme} scheme={scheme} disabled={busy} onPick={applyPalette} />
+            <Row label="Light or dark" htmlFor={fieldId("mode")}>
+              <select id={fieldId("mode")} value={mode} disabled={busy} onChange={(e) => setMode(e.target.value as SchemeMode)}>
+                {SCHEME_MODES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Row>
+            {mode === "both" ? <Row label="Editing" htmlFor={fieldId("scheme")}>
+              <select id={fieldId("scheme")} value={scheme} onChange={(e) => props.setScheme(e.target.value as CommunityThemeScheme)}>
+                <option value="light">Light version</option><option value="dark">Dark version</option></select></Row> : null}
+            {colors ? <>
+              <Row label={<>Brand colour<small>Accent and buttons</small></>} htmlFor={fieldId("brand")}>
+                <ColorField id={fieldId("brand")} label="Brand" value={colors.accent} disabled={busy} onChange={setBrand} /></Row>
+              {COLOR_FIELDS.map(([key, label]) => {
+                const problem = problemFor(`schemes.${scheme}.${key}`);
+                const describedBy = [problem["aria-describedby"], key === "muted" && mutedHint ? `${props.uid}-muted-hint` : ""].filter(Boolean).join(" ") || undefined;
+                return <Row key={key} label={label} htmlFor={fieldId(key)}>
+                  <ColorField id={fieldId(key)} label={label} value={colors[key]} disabled={busy} invalid={Boolean(problem["aria-invalid"])} describedBy={describedBy}
+                    onChange={(value) => setColors({ [key]: value })} /></Row>;
+              })}
+              {mutedHint ? <small id={`${props.uid}-muted-hint`} className="community-look-color-hint">Secondary text shows as {mutedHint.toUpperCase()} so it stays easy to read on {scheme === "dark" ? "dark" : "light"} backgrounds.</small> : null}
+            </> : null}
+          </Group>
+          <Group title="Typography">
+            {fontSelect("font_heading", "Headings", HEADING_FONTS)}
+            {fontSelect("font_body", "Body text", TEXT_FONTS)}
+            {slider("heading_weight", "Heading weight", 300, 900, 50, String)}
+            {choice("heading_case")}
+            {slider("type_scale", "Text size", 0.9, 1.2, 0.05, (value) => `${Math.round(value * 100)}%`)}
+            {choice("numerals")}
+          </Group>
+          <Group title="Shape">
+            {slider("radius", "Corner radius", 0, 24, 1, (value) => `${value}px`)}
+            {choice("corner_style")}
+            {choice("button_shape")}
+            {slider("border_width", "Border width", 0, 3, 1, (value) => `${value}px`)}
+            {choice("shadow")}
+            {choice("density")}
+          </Group>
+          <Group title="Channels look · draft">
+            {choice("channels_look")}
+            <p className="appearance-hint">Substack-style pages for the Channels layout. Classroom keeps its own look.</p>
+          </Group>
+          <Group title="Left rail · draft">
+            {choice("rail_size")}
+            {choice("rail_color")}
+            <p className="appearance-hint">The column of community icons on the far left, while members are in your community.</p>
+          </Group>
+        </InspectorScope>
         {props.footer}
       </aside>
     </div>

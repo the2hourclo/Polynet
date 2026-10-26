@@ -340,3 +340,54 @@
 
 /* A cover-less course in Overlay: the letter sits above the words' dark wash. */
 :root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-cover-initial { transform: translateY(-30%); }
+
+/* Split card (Rashid, 2026-10-26): the picture on top, then the words on
+   their own panel, so the cover and the text read as two parts of one card.
+   The panel colour is the theme's Card panel choice (a clear shade by
+   default, like a classic course card). Boxed cover cards only: the list,
+   text, overlay and open (no box) styles and the Reader look keep theirs. */
+:root:not([data-course-cards~="list"], [data-course-cards~="text"], [data-course-cards~="overlay"], [data-course-cards~="edge-none"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {
+  /* Every themed community area sets these (shared/communityTheme.ts). */
+  --text-primary: var(--pn-course-panel-text);
+  --text-secondary: var(--pn-course-panel-muted);
+  --text-muted: var(--pn-course-panel-muted);
+  background: var(--pn-course-panel);
+  color: var(--text-primary);
+}
+
+/* The default Classroom card, after Rashid's reference (2026-10-26): a bold
+   title, two lines of description and a rounded progress bar with the % in
+   it. */
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {
+  gap: 0.625rem;
+  padding: 1rem 1rem 1.125rem;
+}
+:root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-heading > strong {
+  font-weight: max(700, var(--pn-heading-weight, 700));
+}
+:root[data-course-cards~="classroom"]:not([data-course-cards~="ring"], [data-course-cards~="fraction"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress {
+  display: grid;
+  align-items: center;
+  padding-top: 0.75rem;
+}
+:root[data-course-cards~="classroom"]:not([data-course-cards~="ring"], [data-course-cards~="fraction"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) :is(.resource-course-card-progress-track, .resource-course-card-progress-label) {
+  grid-area: 1 / 1;
+}
+:root[data-course-cards~="classroom"]:not([data-course-cards~="ring"], [data-course-cards~="fraction"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress-track {
+  height: 1.125rem;
+  background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+:root[data-course-cards~="classroom"]:not([data-course-cards~="ring"], [data-course-cards~="fraction"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress-label {
+  position: relative;
+  justify-self: start;
+  min-width: 0;
+  padding-inline: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: left;
+}
+:root[data-course-cards~="classroom"]:not([data-course-cards~="ring"], [data-course-cards~="fraction"]) [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-progress.is-label-on-fill .resource-course-card-progress-label {
+  color: var(--text-on-accent, #fff);
+}

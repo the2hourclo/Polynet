@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
@@ -16,7 +16,15 @@ import {
   WebCommunityTrackOpens,
   communityTrackResources,
   communityTrackStagesAfterBoardSave,
+  type CommunityTrackOfferAccess,
 } from "./WebCommunityTracks";
+import {
+  communityOfferUpgradeErrorMessage,
+  fetchCloudCommunityVisitorOffers,
+  formatCommunityOfferPrice,
+  startCloudCommunityOfferUpgrade,
+  type CommunityVisitorOffers,
+} from "../../../../shared/cloudCommunityOffersGateway";
 import { COMMUNITY_MAIN_TRACK_KEY } from "../../../../shared/communityLessonTracks";
 import { fetchCloudCommunityLessonTracks, saveCloudCommunityLessonTrack } from "../../../../shared/cloudCommunityLessonTracksGateway";
 import { computeCommunityCourseProgress } from "../../../../shared/communityCourseProgress";
@@ -63,6 +71,18 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   // A lesson open on the Roadmap lays the page out for reading, like Resources.
   const [roadmapReading, setRoadmapReading] = useState(false);
   const activeTrack = tracks.length === 1 ? tracks[0] : tracks.find((track) => track.key === trackKey) ?? null;
+  // A lesson to open on the board from outside it (the free preview, "Go to the next lesson").
+  const [openRequest, setOpenRequest] = useState<{ ref: string; key: number } | null>(null);
+  const openLesson = (key: string, resourceId: string) => {
+    setTrackKey(key);
+    setOpenRequest({ ref: `resource:${resourceId}`, key: Date.now() });
+  };
+  const trackLocks = useMemo(
+    () => new Set(activeTrack?.stages.flatMap((stage) => stage.steps.filter((step) => step.locked).map((step) => step.ref)) ?? []),
+    [activeTrack],
+  );
+  // Sold tracks: the offers' prices, and moving a member up to the one that includes the track.
+  const offerAccess = useTrackOfferAccess(context.communityId, (context.session ?? null) as AuthSession | null, tracks.some((track) => track.paid), progress.reload);
   const boardResources = useMemo(
     () => (activeTrack ? communityTrackResources(resources.state.resources, activeTrack) : resources.state.resources),
     [activeTrack, resources.state.resources],
@@ -185,11 +205,16 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     requireSignIn: context.requireSignIn,
     canViewPolynet: context.canViewGraph,
   });
+  // Each course reads as an Article or a Video course; the owner picks in Edit course.
+  const readingLessonStyle = activeView === "resources" && resources.state.selectedModuleId
+    ? (resources.state.modules.find((module) => module.id === resources.state.selectedModuleId)?.lesson_style === "video" ? "video" : "article")
+    : undefined;
   return (
     <section
       className="community-knowledge-page"
       aria-label="Knowledge"
       data-reading={(activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapReading) ? "" : undefined}
+      data-lesson-style={readingLessonStyle}
     >
       <div className="community-knowledge-header">
         <h1>Knowledge</h1>
@@ -203,19 +228,21 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
         />
       </div>
       <div hidden={activeView !== "resources"} role="tabpanel" id={platformTabPanelId("community-knowledge", "resources")} aria-labelledby={platformTabId("community-knowledge", "resources")}>
-        <CommunityResourcesPanel {...resources} courseProgress={courseProgress} lessonActivity={lessonActivity} editRequest={editRequest} />
+        <CommunityResourcesPanel {...resources} courseProgress={courseProgress} lessonActivity={lessonActivity} editRequest={editRequest}
+          memberViewOffered={activeView === "resources"} />
       </div>
       {boardOpen ? (
         <div className="lesson-board-panel" role="tabpanel" id={platformTabPanelId("community-knowledge", "board")} aria-labelledby={platformTabId("community-knowledge", "board")}>
           {tracks.length > 1 && !activeTrack ? (
             <WebCommunityTrackHome
               tracks={tracks}
+              offer={offerAccess}
               onOpenTrack={setTrackKey}
               canManage={canManage}
               onNewTrack={() => setTrackEditor({ key: null })}
               onEditTrack={(key) => setTrackEditor({ key })}
             />
-          ) : activeTrack && !activeTrack.open ? (
+          ) : activeTrack && !activeTrack.open && !activeTrack.paid ? (
             <>
               <WebCommunityTrackHeader
                 tracks={tracks}
@@ -224,7 +251,13 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                 onHome={() => setTrackKey(null)}
                 onEdit={canManage ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
               />
-              <WebCommunityTrackLocked track={activeTrack} />
+              <WebCommunityTrackLocked
+                track={activeTrack}
+                onGoTo={(resourceId) => {
+                  const home = tracks.find((track) => track.open && track.stages.some((stage) => stage.steps.some((step) => step.resource_id === resourceId)));
+                  if (home) openLesson(home.key, resourceId);
+                }}
+              />
             </>
           ) : (
             <>
@@ -237,7 +270,9 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                 editing={roadmapEditing}
                 title={activeTrack?.title}
                 onReadingChange={setRoadmapReading}
-                header={activeTrack && (tracks.length > 1 || canManage) ? (
+                extraLocked={trackLocks}
+                openRequest={openRequest}
+                header={activeTrack && (tracks.length > 1 || canManage || activeTrack.paid) ? (
                   <WebCommunityTrackHeader
                     tracks={tracks}
                     track={activeTrack}
@@ -245,6 +280,8 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                     onHome={() => setTrackKey(null)}
                     onEdit={canManage ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
                     onNewTrack={canManage && tracks.length === 1 ? () => setTrackEditor({ key: null }) : undefined}
+                    offer={offerAccess}
+                    onPreview={activeTrack.paid?.preview ? () => openLesson(activeTrack.key, activeTrack.paid!.preview!.resource_id) : undefined}
                   />
                 ) : undefined}
               />
@@ -265,4 +302,56 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
       {graphOpen ? <div className="community-knowledge-graph" role="tabpanel" id={platformTabPanelId("community-knowledge", "graph")} aria-labelledby={platformTabId("community-knowledge", "graph")}><CommunityMemoryGraph activeCommunityName={context.communityName} state={graph.state} onRefresh={graph.actions.refresh} /></div> : null}
     </section>
   );
+}
+
+function useTrackOfferAccess(
+  communityId: string | null,
+  session: AuthSession | null,
+  needed: boolean,
+  onUpgraded: () => void,
+): CommunityTrackOfferAccess | null {
+  const [offers, setOffers] = useState<CommunityVisitorOffers | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!needed || !communityId) return;
+    let live = true;
+    void fetchCloudCommunityVisitorOffers({ session, communityId })
+      .then((next) => { if (live) setOffers(next); })
+      .catch(() => { if (live) setOffers(null); });
+    return () => { live = false; };
+  }, [needed, communityId, session]);
+  const upgrade = useCallback(async (offerKey: string) => {
+    if (!session || !communityId) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const result = await startCloudCommunityOfferUpgrade({ session, communityId, offerKey });
+      if (result.status === "upgraded") {
+        setNote("It's on your plan now. Everything in this track is open.");
+        onUpgraded();
+      } else if (result.status === "payment_needed") {
+        if (result.invoice_url) window.location.assign(result.invoice_url);
+        else setNote("Your card needs a quick check. Pay the invoice we just emailed you, and the track opens.");
+      } else {
+        // Not paying through Polynet yet: the sales page's offer picker checks them out.
+        const slug = window.location.pathname.match(/^\/c\/([^/]+)/)?.[1];
+        if (slug) window.location.assign(`/c/${slug}/preview#offers`);
+      }
+    } catch (error) {
+      setNote(communityOfferUpgradeErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [session, communityId, onUpgraded]);
+  if (!needed) return null;
+  return {
+    priceFor: (offerKey) => {
+      const offer = offers?.offers.find((candidate) => candidate.key === offerKey);
+      return offer?.prices[0] ? formatCommunityOfferPrice(offer.prices[0]) : null;
+    },
+    upgrade: (offerKey) => { void upgrade(offerKey); },
+    busy,
+    note,
+  };
 }

@@ -9,7 +9,7 @@ import {
 } from "react";
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
-import { WebCommunityWelcome } from "./components/WebCommunityWelcome";
+import { WebCommunityWelcome, WelcomeSkippedReminder } from "./components/WebCommunityWelcome";
 import { useTestMemberAutoplayFollow, useTestMemberRunCheck } from "./components/WebTestRunBar";
 import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
@@ -727,6 +727,7 @@ export default function App() {
     openNewModuleModal,
     handleEditModule,
     handleSetModuleStatus,
+    handleSetModuleLessonStyle,
     handleDeleteModule,
     handleReorderModules,
     handleReorderResources,
@@ -1904,6 +1905,7 @@ export default function App() {
     pendingToken,
     handlePrimaryAction: handlePublicLandingPrimaryAction,
     handleCheckoutContinue: handlePublicCheckoutContinue,
+    handleOfferCheckout: handlePublicOfferCheckout,
     handleClaimContinue: handlePublicClaimContinue,
     handleCancelPendingJoinRequest,
   } = useWebPublicFunnelEntryController({
@@ -2256,9 +2258,11 @@ export default function App() {
         onDeleteMilestone: communityWorkflows.deleteMilestone,
         onApplyAgentLedJourney: communityWorkflows.applyAgentLedJourney,
         onSetWelcomeGate: communityWorkflows.setWelcomeGate,
+        onSetWelcomeDisplay: communityWorkflows.setWelcomeDisplay,
         onSaveWelcomePage: communityWorkflows.saveWelcomePage,
         onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
         onLoadTrackOptions: communityWorkflows.loadTrackOptions,
+        onLoadOfferOptions: communityWorkflows.loadOfferOptions,
         testRun: session && activeCommunityId && activeCommunity?.slug && canManageMembersActiveCommunity
           ? { communityId: activeCommunityId, communitySlug: activeCommunity.slug, session, ensureSession: ensureUsableAuthSession } : null,
         communityName: activeCommunity?.name ?? null,
@@ -2308,6 +2312,7 @@ export default function App() {
         openNewModuleModal,
         handleEditModule,
         handleSetModuleStatus,
+        handleSetModuleLessonStyle,
         handleDeleteModule,
         handleReorderModules,
         handleReorderResources,
@@ -2784,6 +2789,8 @@ export default function App() {
         publicCommunityUi.isCancellingPublicCommunityJoinRequest,
       onCancelPendingRequest: handleCancelPendingJoinRequest,
       onPrimaryJoinAction: handlePublicLandingPrimaryAction,
+      onStartOfferCheckout: handlePublicOfferCheckout,
+      offerSession: isPublicFunnelPreviewRoute ? null : session,
       publicCommunityError: publicCommunityUi.publicCommunityError,
       publicJoinError: publicCommunityUi.publicJoinError,
       checkoutError,
@@ -3046,12 +3053,19 @@ export default function App() {
     setAppTheme,
   });
   if (session && activeCommunityId && welcomeStepsKey && activePage === "community" && !isPublicCommunityFunnel) {
-    shellChromeHostProps.welcomeSurface = (
+    const popup = activeCommunityAccess?.welcome_display === "popup";
+    const welcome = (
       <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
         communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeSteps.requestIds} lessonIds={welcomeSteps.lessonIds}
-        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess}
+        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess} display={popup ? "popup" : "page"}
         onReleased={() => { void communityContent.retryResourceRead("modules"); void communityContent.retryResourceRead("resources"); }} />
     );
+    if (popup) shellChromeHostProps.welcomeOverlay = welcome;
+    else shellChromeHostProps.welcomeSurface = welcome;
+  } else if (session && activeCommunityId && activePage === "community" && !isPublicCommunityFunnel) {
+    // A setup screen the member skipped on the welcome page waits here as a reminder.
+    shellChromeHostProps.welcomeOverlay = <WelcomeSkippedReminder key={`${activeCommunityId}:${session.user.id}`}
+      communityId={activeCommunityId} session={session} ensureSession={ensureUsableAuthSession} />;
   }
 
   if (shouldHoldRouteForAccess) {

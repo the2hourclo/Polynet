@@ -50,6 +50,8 @@ export type WebShellChromeHostProps = {
   globalOverlays: ReactNode;
   /** Replaces the community nav and page while the member owes welcome forms. */
   welcomeSurface?: ReactNode;
+  /** The welcome as a pop-up: shown over the community page, which stays open behind it. */
+  welcomeOverlay?: ReactNode;
   // A manager's session, for the draft theme preview; null for everyone else.
   themeDraftSession?: unknown;
   memberSession?: unknown;
@@ -80,6 +82,16 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   // a community for your own settings doesn't change colours (Rashid).
   "global_settings",
 ]);
+
+// ?pods=aside|header previews the other pods placement (screenshots).
+const PODS_PLACE_OVERRIDE: "aside" | "header" | null = (() => {
+  try {
+    const value = new URLSearchParams(window.location.search).get("pods");
+    return value === "aside" || value === "header" ? value : null;
+  } catch {
+    return null;
+  }
+})();
 
 export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const pickEverywhere = useMemberPickEverywhere();
@@ -147,6 +159,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
           },
         }
       : null,
+    pods: null,
   };
   const isMobileDedicatedRoot =
     props.showMobileAppShell &&
@@ -165,6 +178,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     showMobileGlobalShell &&
     props.communityShell.destination.kind === "discover";
   const welcome = props.welcomeSurface ?? null;
+  const pageSurface = props.welcomeOverlay ? <>{props.mainSurface}{props.welcomeOverlay}</> : props.mainSurface;
   const isTopCommunityNav =
     !props.showMobileAppShell &&
     props.communityShell.showDesktopCommunityNav &&
@@ -274,14 +288,35 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     if (courseCardsAttribute) root.dataset.courseCards = courseCardsAttribute;
     else delete root.dataset.courseCards;
   }, [courseCardsAttribute]);
+  // Classroom shows invite-only channels as pods instead of topic chips.
+  const podChannels = isTopCommunityNav
+    ? props.communityShell.communityChannels.filter((channel) => channel.access_mode === "restricted").sort((a, b) => a.position - b.position)
+    : [];
+  communityFrame.pods = isTopCommunityNav ? {
+    place: PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside",
+    pods: podChannels,
+    unread: Object.fromEntries(podChannels.map((channel) => [channel.slug, Boolean(props.communityShell.communityChannelIndicators[channel.slug]?.chat)])),
+    selectedSlug: props.communityShell.communityTab === "chat" ? props.communityShell.selectedCommunityChannelSlug || null : null,
+    onOpen: (channel) => {
+      props.communityShell.onSelectCommunityTab("chat");
+      props.communityShell.onSelectCommunityChannel(channel);
+    },
+    onLeave: () => {
+      const home = props.communityShell.communityChannels.find((channel) => channel.is_general)
+        ?? props.communityShell.communityChannels.find((channel) => channel.access_mode !== "restricted");
+      if (home) props.communityShell.onSelectCommunityChannel(home);
+    },
+  } : null;
+  const showPodsCard = Boolean(communityFrame.pods && communityFrame.pods.place === "aside" && podChannels.length > 0);
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
+  const hasCommunityAside = communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat");
   const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
       presentation="mobile-home"
     />
-  ) : isMobileDedicatedRoot ? null : props.mainSurface);
+  ) : isMobileDedicatedRoot ? null : pageSurface);
   const mobileGlobalShellLabel = isMobileCommunityHome
     ? "Community home"
     : props.communityShell.mobileRootPage === "agent"
@@ -303,7 +338,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     >
       {mobileGlobalShellContent}
     </WebMobileGlobalShell>
-  ) : welcome ?? props.mainSurface;
+  ) : welcome ?? pageSurface;
   // On desktop the community surface below carries the theme. Elsewhere the
   // page is wrapped without a box of its own, so layout is unchanged.
   const themedMainSurface =
@@ -314,9 +349,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     ) : unthemedMainSurface;
   // With the top tab bar the page sits under it, beside the layout's aside.
   const mainSurface = isTopCommunityNav ? (
-    <div className={`community-top-body${communityAsideBlocks.length > 0 ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
+    <div className={`community-top-body${hasCommunityAside ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
       <div className="community-top-main">{themedMainSurface}</div>
-      <WebCommunityAside blocks={communityAsideBlocks} />
+      {hasCommunityAside ? <WebCommunityAside blocks={communityAsideBlocks} pods={communityFrame.pods} /> : null}
     </div>
   ) : channelsFeelAttribute === "publication" ? (
     <div className="channels-feel-body">

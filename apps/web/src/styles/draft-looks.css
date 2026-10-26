@@ -1102,12 +1102,21 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   min-width: min(100%, 12rem);
 }
 /* The Resources · Roadmap · Graph switcher keeps clear of the shell's top-right
-   icons (messages, display, settings, your picture) in every look. */
+   icons (messages, display, view as member, settings, your picture) in every
+   look: it sits beside the Knowledge title, on the left, and the header keeps
+   the icons' width free on the right whatever is in the bar (Rashid,
+   2026-10-26: the chat icon sat on Graph). Reading a lesson, the switcher
+   stays on the back link's row at the right, inside that same clearance. */
 @media (min-width: 641px) {
   .product-shell-surface .community-knowledge-page .community-knowledge-header,
   .product-shell-surface[data-channels-feel] .community-knowledge-page .community-knowledge-header,
   .product-shell-surface .community-knowledge-page[data-reading]:has(.resources-header-actions.has-preview-mode) .community-knowledge-header {
-    padding-right: 11.5rem;
+    padding-right: calc(var(--web-topbar-right-action-safe-inset, 11.5rem) + 1rem);
+  }
+  .product-shell-surface .community-knowledge-page:not([data-reading]) .community-knowledge-header {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    column-gap: 1.75rem;
   }
 }
 
@@ -1126,9 +1135,9 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 }
 /* The page decides the layout here, not the reader's own width. */
 .community-knowledge-page[data-reading] .knowledge-resource-reader { container-name: none; }
-/* From 68rem the three columns fit: the text column gives up width (down to
-   36rem) before the contents column folds away. */
-@container lesson-page (min-width: 68rem) {
+/* From 70rem the three columns fit: the text column gives up width (down to
+   about 34rem) before the contents column folds away. */
+@container lesson-page (min-width: 70rem) {
   .community-knowledge-page[data-reading] .knowledge-resource-reader {
     --lesson-reading-measure: min(var(--knowledge-reading-measure), calc(100cqi - 2 * var(--lesson-outline-span)));
     container-type: normal;
@@ -1170,4 +1179,52 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section { display: block; }
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
+}
+
+/* The course outline reads more easily (Rashid, 2026-10-26): a wider column
+   and slightly smaller titles that wrap to three lines before they're cut. */
+.community-knowledge-page[data-reading] { --lesson-outline-width: 16rem; }
+@container lesson-page (min-width: 58.0625rem) and (max-width: 69.9375rem) {
+  .community-knowledge-page[data-reading] .resource-course-workspace { grid-template-columns: var(--lesson-outline-width) minmax(0, 1fr); }
+}
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-main { gap: 0.625rem; padding: 0.4375rem 0.625rem; min-height: 2.25rem; }
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-title {
+  font-size: 0.84375rem;
+  line-height: 1.4;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-status { width: 1rem; height: 1rem; }
+
+/* Lesson style, chosen per course in Edit course (Rashid, 2026-10-26).
+   Article (the default) keeps the clean newsletter page above. Video course
+   reads like a classic course: the lesson area takes a faint tint and the
+   text sits on its own card under the title and video. */
+.community-knowledge-page[data-reading][data-lesson-style="video"] {
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+.community-knowledge-page[data-reading][data-lesson-style="video"] .knowledge-resource-reader .resource-viewer-column {
+  box-sizing: border-box;
+  padding: 1.75rem 2.25rem 2.25rem;
+  border: 1px solid var(--border-default);
+  border-radius: min(var(--pn-radius, 1rem), 1rem);
+  background: var(--bg-card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+.community-knowledge-page[data-reading][data-lesson-style="video"] .knowledge-resource-reader .resource-viewer-column > :first-child {
+  margin-top: 0;
+}
+@media (max-width: 640px) {
+  .community-knowledge-page[data-reading][data-lesson-style="video"] .knowledge-resource-reader .resource-viewer-column {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+}
+
+/* A lesson uses the whole page in every look (Rashid, 2026-10-26: "I don't
+   see … the Table of Contents on the right side and the wider view"). The
+   community's centred pane capped it (1080px under the publication look),
+   below the 70rem the three columns need, so Contents never showed. */
+.web-community-centered-pane:has(> .community-knowledge-page[data-reading]) {
+  width: 100%;
+  max-width: none;
 }

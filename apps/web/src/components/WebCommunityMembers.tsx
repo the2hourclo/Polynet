@@ -101,6 +101,11 @@ function PropertyEditor(props: { property: CloudCommunityClientProperty; value: 
   const { property } = props;
   const [text, setText] = useState(props.value === null || props.value === undefined ? "" : String(props.value));
   useEffect(() => { setText(props.value === null || props.value === undefined ? "" : String(props.value)); }, [props.value]);
+  // Polynet keeps this one (each member's offers), so it only shows.
+  if (property.system) {
+    const shown = Array.isArray(props.value) ? props.value.at(-1) : props.value;
+    return <span className="pn-members-system-value" title="Set by the member's offer">{shown === null || shown === undefined || shown === "" ? "—" : String(shown)}</span>;
+  }
   const label = property.name;
   if (property.type === "checkbox") {
     return <input type="checkbox" aria-label={label} checked={props.value === true} disabled={props.disabled}
@@ -224,7 +229,11 @@ function ManageProperties(props: { gateway: CommunityAccessGateway; properties: 
     <div className="pn-members-panel-head"><h3>Your properties</h3><button type="button" className="pn-members-icon" aria-label="Close" onClick={props.onClose}><X size={16} /></button></div>
     {!props.properties.length ? <p className="pn-members-hint">No properties yet. Add one to track anything Polynet doesn't.</p> : null}
     <ul className="pn-members-props">
-      {props.properties.map((property) => <li key={property.key}>
+      {props.properties.map((property) => property.system ? <li key={property.key}>
+        <input aria-label="Property name" value={property.name} disabled readOnly />
+        <span className="pn-members-type">{TYPE_LABELS[property.type]}</span>
+        <span className="is-wide pn-members-hint">Kept by Polynet from each member's offer. Change offers in Settings › Offers.</span>
+      </li> : <li key={property.key}>
         <input aria-label="Property name" defaultValue={property.name} maxLength={60} disabled={busy === property.key}
           onBlur={(event) => { const name = event.target.value.trim(); if (name && name !== property.name) void act(property.key, () => props.gateway.updateProperty(property.key, { name })); }} />
         <span className="pn-members-type">{TYPE_LABELS[property.type]}</span>
@@ -249,18 +258,19 @@ type BulkKind = "message" | "set_property" | "flag" | "note";
 function BulkPanel(props: { kind: BulkKind; count: number; properties: CloudCommunityClientProperty[]; busy: boolean;
   onRun: (action: CloudCommunityClientBulkInput) => void; onCancel: () => void }) {
   const [body, setBody] = useState("");
-  const [key, setKey] = useState(props.properties[0]?.key ?? "");
+  const properties = props.properties.filter((item) => !item.system);
+  const [key, setKey] = useState(properties[0]?.key ?? "");
   const [value, setValue] = useState<CommunityClientPropertyValue | null>(null);
-  const property = props.properties.find((item) => item.key === key) ?? null;
+  const property = properties.find((item) => item.key === key) ?? null;
   const who = `${props.count} member${props.count === 1 ? "" : "s"}`;
   if (props.kind === "set_property") {
-    if (!props.properties.length) return <div className="pn-members-panel"><p className="pn-members-hint">Add a property first, then you can fill it for many members at once.</p>
+    if (!properties.length) return <div className="pn-members-panel"><p className="pn-members-hint">Add a property first, then you can fill it for many members at once.</p>
       <div className="pn-members-actions"><button type="button" className="pn-members-button is-ghost" onClick={props.onCancel}>Close</button></div></div>;
     return <form className="pn-members-panel pn-members-form" onSubmit={(event) => { event.preventDefault(); props.onRun({ type: "set_property", propertyKey: key, value }); }}>
       <h3>Set a property for {who}</h3>
       <div className="pn-members-form-row">
         <label><span>Property</span><select value={key} onChange={(event) => { setKey(event.target.value); setValue(null); }}>
-          {props.properties.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
+          {properties.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
         </select></label>
         {property ? <label className="is-wide"><span>Value (leave empty to clear it)</span>
           <span className="pn-members-bulk-value"><PropertyEditor key={property.key} property={property} value={value} onSave={async (next) => setValue(next)} /></span></label> : null}

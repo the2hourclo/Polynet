@@ -1,4 +1,5 @@
 import { BUILDER_SETTING_OPERATIONS, builderSettingArgs, builderSettingInput, builderSettingOperation, readBuilderSettings, readBuilderWorkflowTemplates } from "./polynetBuilderSettings";
+import { MEMBER_SELF_OPERATIONS, memberSelfInput, memberSelfOperation } from "./polynetMemberSelfSettings";
 import { applyCommunityClientView } from "../shared/communityClientViews";
 import { api, internal } from "./_generated/api";
 import { hashSiteFile, publishSite, readSitesConfig, startSiteUpload, uploadSiteFiles } from "./communitySiteDeploy";
@@ -44,6 +45,7 @@ import { executePlatformOperation } from "./platformOperationExecutor.ts";
 import { checkSite, formatProblems, isCheckedFile } from "../packages/polynet-cli/checks.mjs";
 import type { CommunityCustomFunnelSlot } from "../shared/communityTypes.ts";
 import { describeCommunityDesignContract } from "../shared/communityDesignContract.ts";
+import { COMMUNITY_DESIGN_GUIDE_MARKDOWN, COMMUNITY_DESIGN_REVIEW_MARKDOWN } from "../shared/communityDesignGuide.ts";
 
 export type PolynetCanonicalExecutionResult =
   | { ok: true; value: Record<string, unknown> }
@@ -135,8 +137,31 @@ const BUILDER_SETTINGS_PATH = "/builder/settings.json";
 const BUILDER_WORKFLOW_TEMPLATES_PATH = "/builder/workflow-templates.json";
 const BUILDER_WORKFLOW_RUNS_PATH = "/builder/workflow-runs.json";
 const BUILDER_TRACKS_PATH = "/builder/tracks.json";
+const BUILDER_OFFERS_PATH = "/builder/offers.json";
+const BUILDER_PODS_PATH = "/builder/pods.json";
+const BUILDER_EVENTS_PATH = "/builder/events.json";
+const BUILDER_TEST_RUNS_PATH = "/builder/test-runs.json";
 const SETTING_OPERATIONS = BUILDER_SETTING_OPERATIONS.map(spec => spec.operation);
+// A member's own profile, notifications and Display pick, changed only by
+// that member or an agent acting for them (convex/polynetMemberSelfSettings.ts).
+const SELF_OPERATIONS = MEMBER_SELF_OPERATIONS.map(spec => spec.operation);
+// Design taste guidance (the polynet-ui-design skill the CLI ships), for agents
+// that design a community over the MCP without the CLI: the skill, and the
+// mistake ledger with the fresh reviewer's brief. Read-only.
+const DESIGN_GUIDES: Record<string, { name: string; body: string }> = {
+  "/builder/design-guide.md": { name: "Design guide: taste and craft for this community's look", body: COMMUNITY_DESIGN_GUIDE_MARKDOWN },
+  "/builder/design-review.md": { name: "Design review: the mistake ledger and the fresh reviewer's brief", body: COMMUNITY_DESIGN_REVIEW_MARKDOWN },
+};
 const MEMBER_CAPABILITIES = ["community.memory.record_outcome"] as const;
+
+// Every operation polynet_call can run (each still checks who may), and every
+// builder document an agent reads; the parity test holds the app to these.
+export const POLYNET_CALL_OPERATIONS: string[] = [...MEMBER_CAPABILITIES, REACT_OPERATION, ...POST_CARD_MEMBER_OPERATIONS,
+  POST_FORM_SHARE_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION,
+  ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...CLIENT_OPERATIONS, ...DESIGN_OPERATIONS, ...SETTING_OPERATIONS, ...SELF_OPERATIONS];
+export const POLYNET_BUILDER_DOCUMENT_PATHS: string[] = [...DESIGN_KINDS.map(kind => DESIGN_RECORDS[kind].path), BUILDER_SETTINGS_PATH,
+  BUILDER_WORKFLOW_TEMPLATES_PATH, BUILDER_WORKFLOW_RUNS_PATH, BUILDER_TRACKS_PATH, BUILDER_OFFERS_PATH, BUILDER_PODS_PATH, BUILDER_EVENTS_PATH,
+  BUILDER_TEST_RUNS_PATH, BUILDER_PROGRESS_DIRECTORY, BUILDER_CLIENTS_DIRECTORY, POLYNET_BUILDER_RESOURCES_DIRECTORY_PATH];
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
   "community.funnel.update_draft" as const;
@@ -758,7 +783,10 @@ function capabilityDocument(args: {
   const isSettingCapability = SETTING_OPERATIONS.includes(args.operation) &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
-  if (!isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isPostCardCapability && !isFormShareCapability && !isProgressCapability && !isSiteDeployCapability && !isClientCapability && !isDesignCapability && !isSettingCapability) {
+  // Any agent working for the signed-in person, the online Builder included.
+  const isSelfCapability = SELF_OPERATIONS.includes(args.operation) &&
+    args.evidenceSurface !== "community_funnel_builder" && args.principalKind !== "community_app";
+  if (!isSelfCapability && !isMemberCapability && !isFunnelCapability && !isAdmissionCapability && !isFormCapability && !isWorkflowApprovalCapability && !isReactCapability && !isPostCardCapability && !isFormShareCapability && !isProgressCapability && !isSiteDeployCapability && !isClientCapability && !isDesignCapability && !isSettingCapability) {
     return null;
   }
   const operationDefinition: Record<string, unknown> = {
@@ -877,6 +905,8 @@ function capabilityDocument(args: {
     };
   } else if (isSettingCapability) {
     operationDefinition.input = builderSettingInput(builderSettingOperation(args.operation)!);
+  } else if (isSelfCapability) {
+    operationDefinition.input = memberSelfInput(memberSelfOperation(args.operation)!);
   } else if (isDesignCapability) {
     const kind = designKindOf(args.operation)!;
     const record = DESIGN_RECORDS[kind];
@@ -1329,7 +1359,7 @@ async function executeCanonicalList(args: {
       ...(args.evidenceSurface === "community_funnel_builder"
         ? []
         : MEMBER_CAPABILITIES),
-      ...[REACT_OPERATION, ...POST_CARD_MEMBER_OPERATIONS, POST_FORM_SHARE_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION, ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...CLIENT_OPERATIONS, ...DESIGN_OPERATIONS, ...SETTING_OPERATIONS].filter(operation => capabilityDocument({ target, operation,
+      ...POLYNET_CALL_OPERATIONS.filter(operation => !(MEMBER_CAPABILITIES as readonly string[]).includes(operation)).filter(operation => capabilityDocument({ target, operation,
         evidenceSurface: args.evidenceSurface, principalKind: args.principalKind })),
     ];
     return {
@@ -1391,6 +1421,11 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_TEMPLATES_PATH), kind: "document", type: "builder", name: "Workflow templates: ready-made stage plans (agent-led journey)" },
           { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_RUNS_PATH), kind: "document", type: "builder", name: "Run history: the latest automation runs, each with its steps, status and errors (Workflows → Run history)" },
           { path: mountedPath(target.communitySlug, BUILDER_TRACKS_PATH), kind: "document", type: "builder", name: "Skill tracks: the community's roadmaps, their stages, steps and opening rules" },
+          { path: mountedPath(target.communitySlug, BUILDER_OFFERS_PATH), kind: "document", type: "builder", name: "Offers: the ladder from the base membership up, prices, members on each, and which private channels each opens" },
+          { path: mountedPath(target.communitySlug, BUILDER_PODS_PATH), kind: "document", type: "builder", name: "Pods: each invite-only channel with who's in it, and how to start one, add people and set where Classroom shows pods" },
+          { path: mountedPath(target.communitySlug, BUILDER_EVENTS_PATH), kind: "document", type: "builder", name: "Events: the calendar, cancelled ones included, with each event's id" },
+          { path: mountedPath(target.communitySlug, BUILDER_TEST_RUNS_PATH), kind: "document", type: "builder", name: "Test runs: the test members running now (Workflows → Test a member)" },
+          ...Object.entries(DESIGN_GUIDES).map(([path, guide]) => ({ path: mountedPath(target.communitySlug, path), kind: "document", type: "builder", name: guide.name })),
           {
             path: mountedPath(
               target.communitySlug,
@@ -1652,6 +1687,44 @@ async function executeCanonicalRead(args: {
       writable: false, searchable: false } };
   }
 
+  if (target.localPath === BUILDER_OFFERS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityOffers.listCommunityOffers,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_PODS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityPods.listBuilderPods,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_EVENTS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityEvents.listCommunityEvents,
+      { authSubject: args.authSubject, communityId: target.communityId, includeCancelled: true, limit: 100,
+        startIso: new Date(Date.now() - 30 * 86400000).toISOString() });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath,
+      payload: { contract: "polynet.builder_events.v1", guidance: "From 30 days ago on. Change one with community.event.save and its id.", events: payload } }),
+      writable: false, searchable: false } };
+  }
+
+  if (target.localPath === BUILDER_TEST_RUNS_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery(api.communityTestMembers.listTestMembers,
+      { authSubject: args.authSubject, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
   if (target.localPath === BUILDER_TRACKS_PATH) {
     if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
@@ -1684,6 +1757,14 @@ async function executeCanonicalRead(args: {
       return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
         writable: false, searchable: false } };
     } catch { return canonicalError("semantic_not_found", "Repository path not found or not accessible."); }
+  }
+
+  const designGuide = Object.prototype.hasOwnProperty.call(DESIGN_GUIDES, target.localPath) ? DESIGN_GUIDES[target.localPath] : undefined;
+  if (designGuide) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    return { ok: true, value: { path: mountedPath(target.communitySlug, target.localPath), body: designGuide.body,
+      truncated: false, total_chars: designGuide.body.length, next_offset: null, writable: false, searchable: false } };
   }
 
   if (target.localPath === SELF_PROGRESS_PATH) {
@@ -2811,6 +2892,21 @@ async function executeCanonicalCall(args: {
         : canonicalError("form_request_unavailable", "Form request not available or submission not authorized.");
     }
   }
+  const self = memberSelfOperation(operation);
+  if (self) {
+    if (args.principalKind === "community_app" || target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json`)
+      return canonicalError("operation_not_found", "Operation is not discoverable or authorized for this community.");
+    // Signed in as the caller, so it only ever changes the caller's own choices.
+    const call = builderSettingArgs(self, rawInput, { authSubject: args.authSubject, userId: args.userId, communityId: target.communityId });
+    if (!call.ok) return canonicalError("invalid_tool_args", call.message);
+    try {
+      const result = await (self.kind === "action" ? args.ctx.runAction(self.ref, call.args) : args.ctx.runMutation(self.ref, call.args));
+      return { ok: true, value: { ok: true, operation, result: result ?? null } };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return canonicalError("setting_refused", message.replace(/^.*Uncaught Error: /s, "").split("\n")[0].slice(0, 300));
+    }
+  }
   const setting = builderSettingOperation(operation);
   if (setting) {
     if (args.principalKind !== "external_mcp" || target.localPath !== `${POLYNET_CAPABILITIES_DIRECTORY_PATH}${operation}.json`)
@@ -2838,7 +2934,7 @@ async function executeCanonicalCall(args: {
       }
     }
     try {
-      const result = await args.ctx.runMutation(setting.ref, call.args);
+      const result = await (setting.kind === "action" ? args.ctx.runAction(setting.ref, call.args) : args.ctx.runMutation(setting.ref, call.args));
       return { ok: true, value: { ok: true, operation, result: result ?? null } };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

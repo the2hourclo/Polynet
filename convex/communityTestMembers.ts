@@ -258,6 +258,11 @@ async function nameOf(ctx: any, table: string, id: string | undefined, field: "t
   return row?.[field] ?? null;
 }
 
+async function offerName(ctx: any, communityId: any, key: string): Promise<string | null> {
+  const row = await ctx.db.query("communityOffers").withIndex("by_community_key", (q: any) => q.eq("communityId", communityId).eq("key", key)).unique();
+  return row?.name ?? null;
+}
+
 async function trackTitle(ctx: any, communityId: any, key: string): Promise<string | null> {
   const row = await ctx.db.query("communityLessonTracks")
     .withIndex("by_community_key", (q: any) => q.eq("communityId", communityId).eq("key", key)).unique();
@@ -294,6 +299,8 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : trigger.type === "course_completed" ? `When they finish ${trigger.moduleId ? `the ${(await nameOf(ctx, "communityResourceModules", trigger.moduleId, "name")) ?? ""} course` : "any course"}`
     : trigger.type === "track_completed" ? `When they finish ${trigger.trackKey ? `the “${(await trackTitle(ctx, communityId, trigger.trackKey)) ?? trigger.trackKey}” track` : "any Roadmap track"}`
     : trigger.type === "client_property_changed" ? `When ${(await propertyName(ctx, communityId, trigger.propertyKey)) ?? trigger.propertyKey} changes${trigger.value === undefined ? "" : ` to ${String(trigger.value)}`} on their record`
+    : trigger.type === "offer_started" || trigger.type === "offer_ended"
+      ? `When they ${trigger.type === "offer_started" ? "start" : "leave"} ${trigger.offerKey ? `the “${(await offerName(ctx, communityId, trigger.offerKey)) ?? trigger.offerKey}” offer` : "any offer"}`
     : "When its trigger happens";
   const condition = rule.condition;
   const clause = (c: { propertyKey: string; op: string; value?: unknown }) => c.op === "is_set" ? `${c.propertyKey} is filled in`

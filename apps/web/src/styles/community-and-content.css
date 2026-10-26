@@ -9900,6 +9900,24 @@ button.chat-reply-quote:hover {
   color: var(--bg-button-text, #fff);
 }
 
+/* Member view is on from the top bar: the page says so, with a way out. */
+.resources-member-view-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 10%, var(--bg-card, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-brand, var(--text-primary)) 30%, transparent);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+.resources-member-view-banner > svg { flex: none; width: 1rem; height: 1rem; }
+.resources-member-view-banner > span { flex: 1; min-width: 0; }
+.resources-member-view-banner > span > strong { font-weight: 600; }
+.resources-member-view-banner > button { flex: none; }
+
 .resources-preview-mode-control {
   display: inline-flex;
   align-items: center;
@@ -10969,15 +10987,28 @@ button.chat-reply-quote:hover {
   color: var(--text-muted);
 }
 
+/* The title edits in place: same size, weight and wrapping as when read,
+   no box around it, a faint placeholder when empty (Rashid, 2026-10-26). */
 .resource-viewer-title-input {
-  border: 1px solid color-mix(in srgb, var(--border-default) 72%, transparent);
-  padding: 2px 4px 4px;
-  margin: -2px -4px -4px;
+  display: block;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  min-height: 1lh;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.resource-viewer-title-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 .resource-viewer-title-input:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--border-default) 88%, transparent);
 }
 
 .resource-viewer-edit-actions {
@@ -11229,6 +11260,29 @@ button.chat-reply-quote:hover {
 .md-callout.is-action {
   border-left: 4px solid var(--md-callout-tone);
   background: color-mix(in srgb, var(--md-callout-tone) 10%, transparent);
+}
+
+/* Readers see an icon and the author's own title, never the type's name
+   (Rashid, 2026-10-26). */
+.md-callout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: start;
+}
+.md-callout-icon {
+  display: grid;
+  place-items: center;
+  height: 1.7em;
+  color: color-mix(in srgb, var(--md-callout-tone) 80%, var(--text-primary));
+}
+.md-callout-icon svg { width: 18px; height: 18px; }
+.md-callout-main { min-width: 0; }
+.md-callout-title {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.7;
 }
 
 .md-callout-label {
@@ -13519,4 +13573,252 @@ button.chat-reply-quote:hover {
   .knowledge-resource-reader:has(.has-lesson-rail) .resource-viewer-hero {
     max-width: calc(var(--lesson-reading-measure, 680px) + 16.5rem);
   }
+}
+
+/* ═════════ Lesson reading type (Rashid, 2026-10-26) ═════════
+   Medium and Substack set body text near 18–20px on a ~1.6–1.7 line, with a
+   line's worth of space between paragraphs, headings that sit closer to the
+   text they introduce than to the text before, and list items with air
+   between them. Lessons and the lesson editor share these, so what the owner
+   writes is what members read. "##" is h3 in the read view and h2 in the
+   editor; "###" is h4 and h3. Sizes in rem so the theme's type scale doesn't
+   rescale the reading size twice. */
+.knowledge-resource-reader .resource-viewer-prose {
+  font-size: 1.125rem;
+  line-height: 1.7;
+  letter-spacing: -0.003em;
+}
+.knowledge-resource-reader .resource-viewer-prose :is(.md-paragraph, .lesson-editor-content > p) {
+  margin: 0 0 1.25em;
+}
+/* Headings step down like Notion's (Rashid, 2026-10-26): the editor's
+   Heading 1, 2 and 3 are "##", "###" and "####" in the Markdown, which the
+   read view renders as h3, h4 and h5 and the editor as h2, h3 and h4. */
+.knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2) {
+  margin: 1.6em 0 0.4em;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.knowledge-resource-reader .resource-viewer-prose :is(h4.md-header, .lesson-editor-content > h3:not(.lesson-editor-platform-heading)) {
+  margin: 1.5em 0 0.35em;
+  font-size: 1.625rem;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.knowledge-resource-reader .resource-viewer-prose :is(h5.md-header, h6.md-header, .lesson-editor-content > h4, .lesson-editor-content > h5) {
+  margin: 1.3em 0 0.3em;
+  font-size: 1.3125rem;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.008em;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, h4.md-header, h5.md-header, .lesson-editor-content > h2, .lesson-editor-content > h3, .lesson-editor-content > h4):first-child { margin-top: 0; }
+.knowledge-resource-reader .resource-viewer-prose :is(.md-list, .lesson-editor-content > ul, .lesson-editor-content > ol) {
+  margin: 0 0 1.25em;
+  padding-left: 1.5em;
+}
+.knowledge-resource-reader .resource-viewer-prose :is(.md-list, .lesson-editor-content ul, .lesson-editor-content ol) li { margin: 0.45em 0; padding-left: 0.2em; }
+.knowledge-resource-reader .resource-viewer-prose :is(.md-list, .lesson-editor-content ul, .lesson-editor-content ol) li > :is(p, .md-paragraph) { margin: 0; }
+.knowledge-resource-reader .resource-viewer-prose li::marker { color: var(--text-muted); }
+.knowledge-resource-reader .resource-viewer-prose :is(.md-blockquote, blockquote) { margin: 1.75em 0; }
+.knowledge-resource-reader .resource-viewer-prose :is(strong, b) { font-weight: 650; }
+.knowledge-resource-reader .resource-viewer-prose a:not([class]) { text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+@media (max-width: 640px) {
+  .knowledge-resource-reader .resource-viewer-prose { font-size: 1.0625rem; line-height: 1.65; }
+  .knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2) { font-size: 1.625rem; }
+  .knowledge-resource-reader .resource-viewer-prose :is(h4.md-header, .lesson-editor-content > h3:not(.lesson-editor-platform-heading)) { font-size: 1.375rem; }
+  .knowledge-resource-reader .resource-viewer-prose :is(h5.md-header, .lesson-editor-content > h4) { font-size: 1.1875rem; }
+}
+
+/* Edit course › Lesson style: two cards with a small sketch of each page. */
+.resource-lesson-styles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+.resource-lesson-style {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.resource-lesson-style:hover:not(:disabled) { border-color: var(--border-strong); }
+.resource-lesson-style.is-selected {
+  border-color: var(--accent-selection, var(--border-active));
+  box-shadow: inset 0 0 0 1px var(--accent-selection, var(--border-active));
+}
+.resource-lesson-style:focus-visible { outline: 2px solid var(--border-active); outline-offset: 2px; }
+.resource-lesson-style-text { display: flex; flex-direction: column; gap: 0.125rem; padding-right: 1.25rem; }
+.resource-lesson-style-text strong { font-size: 0.875rem; font-weight: 600; }
+.resource-lesson-style-text small { font-size: 0.78125rem; line-height: 1.4; color: var(--text-secondary); }
+.resource-lesson-style-check { position: absolute; right: 0.75rem; bottom: 0.875rem; color: var(--accent-selection, var(--border-active)); }
+.resource-lesson-style-sketch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  height: 4.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: var(--bg-card-alt);
+}
+.resource-lesson-style-sketch .sketch-title { width: 55%; height: 0.375rem; border-radius: 99px; background: var(--text-secondary); opacity: 0.55; }
+.resource-lesson-style-sketch .sketch-video { width: 62%; height: 1.5rem; border-radius: 4px; background: var(--text-secondary); opacity: 0.4; }
+.resource-lesson-style-sketch .sketch-text { display: flex; flex-direction: column; gap: 0.25rem; width: 62%; }
+.resource-lesson-style-sketch .sketch-text span { height: 0.25rem; border-radius: 99px; background: var(--text-faint, var(--text-secondary)); opacity: 0.5; }
+.resource-lesson-style-sketch .sketch-text span:last-child { width: 70%; }
+.resource-lesson-style-sketch.is-video .sketch-text {
+  padding: 0.3125rem;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-card);
+}
+
+/* Lesson style switch at the foot of a course's outline (owners only). */
+.resource-course-style-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.625rem 0.25rem;
+  border-top: 1px solid var(--border-default);
+}
+.resource-course-style-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.resource-course-style-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+.resource-course-style-options button {
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.78125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.resource-course-style-options button:hover { color: var(--text-primary); }
+.resource-course-style-options button.is-selected {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+.resource-course-style-options button:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
+
+/* Undo after Done: a quiet toast at the bottom of the page for a few seconds
+   after a lesson's edits are saved (Rashid, 2026-10-26). */
+.lesson-undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  transform: translateX(-50%);
+  border-radius: 12px;
+  background: var(--text-primary);
+  color: var(--bg-workspace);
+  font-size: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.lesson-undo-toast button {
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--bg-workspace) 16%, transparent);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lesson-undo-toast button:hover { background: color-mix(in srgb, var(--bg-workspace) 26%, transparent); }
+.lesson-undo-toast .lesson-undo-toast-close { padding: 4px 8px; background: transparent; font-weight: 400; opacity: 0.7; }
+
+/* Version history: versions on the left, the picked one on the right. */
+.modal.lesson-history-modal {
+  width: min(960px, calc(100vw - 32px));
+  max-width: none;
+  height: min(720px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+}
+.lesson-history-title { margin: 4px 0 0; font-size: 20px; line-height: 1.3; }
+.lesson-history-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  border-top: 1px solid var(--border-muted, var(--border-default));
+  border-bottom: 1px solid var(--border-muted, var(--border-default));
+}
+.lesson-history-empty { grid-column: 1 / -1; margin: 0; padding: 32px 24px; color: var(--text-secondary); }
+.lesson-history-list {
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  list-style: none;
+  border-right: 1px solid var(--border-muted, var(--border-default));
+}
+.lesson-history-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lesson-history-item strong { font-size: 14px; font-weight: 600; }
+.lesson-history-item span { overflow: hidden; color: var(--text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-history-item:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+.lesson-history-item.is-selected { background: color-mix(in srgb, var(--text-primary) 9%, transparent); }
+.lesson-history-preview { min-width: 0; overflow-y: auto; padding: 20px 28px; }
+.lesson-history-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+@media (max-width: 640px) {
+  .lesson-history-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .lesson-history-list { display: flex; gap: 6px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border-muted, var(--border-default)); }
+  .lesson-history-list li { flex: 0 0 auto; }
+  .lesson-history-preview { padding: 16px; }
 }

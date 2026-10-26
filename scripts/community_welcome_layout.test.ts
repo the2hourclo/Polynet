@@ -58,4 +58,21 @@ describe("welcome page layout", () => {
     // Long setup prompts don't use up the page's 12,000 characters of text.
     expect(welcomeLayoutIssue([text("x".repeat(4_000)), choice([card("a", "y".repeat(8_000)), card("b", "y".repeat(8_000))])])).toBeNull();
   });
+
+  it("takes a card icon only as an https link or a small inline image", () => {
+    const withIcon = (icon: string): WelcomeBlock => ({ type: "choice", prompt: "Which app?", options: [{ label: "Claude", hint: "", markdown: "steps", icon }] });
+    expect(welcomeLayoutIssue([withIcon("https://example.com/claude.svg")])).toBeNull();
+    expect(welcomeLayoutIssue([withIcon("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")])).toBeNull();
+    expect(welcomeLayoutIssue([withIcon("javascript:alert(1)")])).toBe("welcome_choice_invalid");
+    expect(welcomeLayoutIssue([withIcon("data:text/html;base64,PGI+")])).toBe("welcome_choice_invalid");
+    expect(welcomeLayoutIssue([withIcon(`data:image/png;base64,${"A".repeat(8_001)}`)])).toBe("welcome_choice_invalid");
+    expect(normalizeWelcomeLayout([withIcon("  https://example.com/a.png ")])[0]).toMatchObject({ options: [{ icon: "https://example.com/a.png" }] });
+    expect(normalizeWelcomeLayout([withIcon("  ")])[0]).toEqual({ type: "choice", prompt: "Which app?", options: [{ label: "Claude", hint: "", markdown: "steps" }] });
+  });
+
+  it("keeps a choice's agent flag only when it is on", () => {
+    const choice = (agent?: boolean): WelcomeBlock => ({ type: "choice", prompt: "Which app?", options: [{ label: "Claude", hint: "", markdown: "steps" }], agent });
+    expect(normalizeWelcomeLayout([choice(true)])[0]).toMatchObject({ agent: true });
+    expect(normalizeWelcomeLayout([choice(false)])[0]).not.toHaveProperty("agent");
+  });
 });

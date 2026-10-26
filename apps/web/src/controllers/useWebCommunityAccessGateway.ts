@@ -32,6 +32,7 @@ import {
   updateCloudAccessIntegration,
   type CloudCommunityIntegrationInput,
 } from "../../../../shared/cloudCommunityMemberAccessGateway";
+import { fetchCloudCommunityOffers } from "../../../../shared/cloudCommunityOffersGateway";
 
 type Run = <T>(operation: (session: unknown) => Promise<T>) => Promise<T>;
 
@@ -58,8 +59,9 @@ export function buildCommunityAccessGateway(communityId: string, scopeKey: strin
     bulkStatus: (bulkActionId: string) => run((s) => fetchCloudClientBulkAction(s, communityId, bulkActionId)),
     clientAccess: (membershipId: string) => run((s) => fetchCloudClientAccess(s, communityId, membershipId)),
     timeline: (membershipId: string) => run((s) => fetchCloudClientTimeline(s, communityId, membershipId)),
-    grant: (input: { membershipId?: string; email?: string; endsAt: string | null; reason: string }) =>
+    grant: (input: { membershipId?: string; email?: string; endsAt: string | null; reason: string; offerKey?: string | null }) =>
       run((s) => grantCloudCommunityAccess(s, communityId, input)),
+    offers: () => run((s) => fetchCloudCommunityOffers({ session: s, communityId })),
     end: (membershipId: string) => run((s) => endCloudCommunityAccess(s, communityId, membershipId)),
     revokeKey: (membershipId: string) => run((s) => revokeCloudClientLicenseKey(s, communityId, membershipId)),
     integrations: () => run((s) => listCloudAccessIntegrations(s, communityId)),

@@ -300,7 +300,9 @@ describe("callouts", () => {
     expect(tip.firstChild!.textContent).toBe("Connect one tool first.");
     expect(tip.childCount).toBe(2);
     expect(caution.attrs.callout).toBe("warning");
-    expect(caution.textContent).toBe("Keys stay out of the chat.");
+    // Text after the marker on its own line is the callout's title.
+    expect(caution.attrs.calloutTitle).toBe("Keys stay out of the chat.");
+    expect(caution.textContent).toBe("");
     expect(quote.attrs.callout).toBeNull();
     expect(parsed.serialize(parsed.doc)).toBe(BODY);
   });
@@ -317,6 +319,16 @@ describe("callouts", () => {
     expect(JSON.stringify(readerTree(out))).toContain("[!ACTION]");
   });
 
+  it("keeps a typed title on the marker line and reads it back", () => {
+    const parsed = parseLessonMarkdown(schema, "Intro.");
+    const titled = schema.nodes.blockquote.create({ callout: "tip", calloutTitle: "One tool first" }, [schema.nodes.paragraph.create(null, schema.text("Connect one tool."))]);
+    const out = serializeLessonDocument(schema, parsed.doc.type.create(null, [titled]));
+    expect(out).toBe("> [!TIP] One tool first\n> Connect one tool.");
+    const again = parseLessonMarkdown(schema, out).doc.child(0);
+    expect(again.attrs.calloutTitle).toBe("One tool first");
+    expect(again.textContent).toBe("Connect one tool.");
+  });
+
   it("drops an empty new callout and turns a plain quote into one", () => {
     const parsed = parseLessonMarkdown(schema, "Intro.");
     const empty = schema.nodes.blockquote.create({ callout: "tip" }, [schema.nodes.paragraph.create()]);
@@ -324,5 +336,21 @@ describe("callouts", () => {
     expect(parsed.serialize(withEmpty)).toBe("Intro.");
     const note = schema.nodes.blockquote.create({ callout: "note" }, [schema.nodes.paragraph.create(null, schema.text("Drive needs Workspace."))]);
     expect(serializeLessonDocument(schema, parsed.doc.type.create(null, [note]))).toBe("> [!NOTE]\n> Drive needs Workspace.");
+  });
+});
+
+describe("blocks Markdown can't nest", () => {
+  it("can't be wrapped into a callout or a list item", () => {
+    const deck = schema.nodes.slideDeck.create({ lead: "", slides: [{ src: "https://x.test/1.png", alt: "", note: "" }] });
+    const quiz = schema.nodes.lessonBlock.create({ language: "quiz", info: "pick", body: "Which?\n- [ ] A\n- [x] B" });
+    const raw = schema.nodes.rawMarkdown.create({ source: "| a |\n|---|" });
+    for (const node of [deck, quiz, raw]) {
+      expect(schema.nodes.blockquote.validContent(schema.nodes.blockquote.create().content.append(
+        schema.nodes.blockquote.create(null, node).content,
+      ))).toBe(false);
+      expect(() => schema.nodes.blockquote.createChecked(null, node)).toThrow();
+      expect(() => schema.nodes.listItem.createChecked(null, [schema.nodes.paragraph.create(), node])).toThrow();
+    }
+    expect(() => schema.nodes.blockquote.createChecked(null, schema.nodes.paragraph.create(null, schema.text("ok")))).not.toThrow();
   });
 });
