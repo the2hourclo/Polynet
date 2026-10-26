@@ -1051,3 +1051,52 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   text-underline-offset: 0.2em;
   text-decoration-thickness: 1px;
 }
+
+/* ═════════ Lessons: one reading layout in every look (Rashid, 2026-10-26) ═════════
+   Each look capped Knowledge at its catalog width (46–60rem). With the course
+   outline beside it, a lesson then had about 200px left, and while editing the
+   title squeezed to one letter per line. A lesson now gets the same room in
+   every look and in Classroom: the outline, then a centred ~680px reading
+   column (about 70 characters) with even margins. */
+.community-knowledge-page[data-reading] {
+  --pn-reading-measure: 42.5rem;
+  --pn-reading-gutter: clamp(1rem, 3vw, 2.5rem);
+}
+.product-shell-surface[data-channels-feel] .community-knowledge-page[data-reading],
+.product-shell-surface .community-knowledge-page[data-reading] {
+  max-width: 80rem;
+  margin-inline: auto;
+  width: 100%;
+}
+.community-knowledge-page[data-reading] .resources-panel {
+  container-type: inline-size;
+  padding-inline: var(--pn-reading-gutter);
+}
+.community-knowledge-page[data-reading] .knowledge-resource-reader {
+  --lesson-reading-measure: var(--pn-reading-measure);
+}
+.community-knowledge-page[data-reading] .knowledge-resource-reader .resource-viewer-content {
+  padding-inline: 0;
+}
+/* Too narrow for the outline beside a full column: it moves above the lesson
+   as a collapsible bar, whatever the window or look. */
+@container (max-width: 58rem) {
+  .community-knowledge-page[data-reading] .resource-course-workspace { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .community-knowledge-page[data-reading] .resource-course-outline { position: static; max-height: none; }
+}
+/* Editing: Saved · Preview · Done get their own row above the title, so the
+   title always has the full column. */
+.resource-viewer-title-row:has(.resource-viewer-edit-actions) {
+  flex-wrap: wrap;
+}
+.resource-viewer-title-row:has(.resource-viewer-edit-actions) .resource-viewer-header-aside {
+  order: -1;
+  width: 100%;
+  justify-content: flex-end;
+}
+.resource-viewer-title-row:has(.resource-viewer-edit-actions) .resource-viewer-title {
+  flex: 1 1 100%;
+}
+.resource-viewer-title {
+  min-width: min(100%, 12rem);
+}
