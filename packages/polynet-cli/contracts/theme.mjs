@@ -443,7 +443,8 @@ function courseCardPanel(theme, c, scheme) {
         }
         default: break;
     }
-    return { background: mix(c.text, scheme === "dark" ? 9 : 6, c.surface), ...own };
+    // A clear step down from the card (Rashid, 2026-10-26: "a darker shade").
+    return { background: mix(c.text, scheme === "dark" ? 14 : 10, c.surface), ...own };
 }
 // The variables a community area gets for one scheme: the public --pn-* set
 // (also what custom sites and <polynet-account> read) and Polynet's internal
