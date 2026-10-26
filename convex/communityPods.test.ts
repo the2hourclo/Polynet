@@ -58,3 +58,16 @@ test("pods leave out rooms the caller can't open, shared channels and revoked or
   const afterRevoke: any = await owner.query(people, { communityId: f.communityId, channelIds: [f.podId] });
   expect(afterRevoke.pods[0]).toMatchObject({ people_count: 2, agent: false });
 });
+
+test("the owner's agent reads every pod with the user ids participant.set takes; members can't", async () => {
+  const { f, owner, member } = await fixture();
+  await owner.mutation(set, { communityId: f.communityId, channelId: f.podId, target: { kind: "member", userId: f.memberId }, active: true });
+  const result: any = await owner.query("communityPods:listBuilderPods" as any, { communityId: f.communityId });
+  expect(result.contract).toBe("polynet.builder_pods.v1");
+  expect(result.pods).toEqual([{ channel_id: String(f.podId), slug: "agency-owners", name: "Agency owners", agent_in_pod: false, people: [
+    { user_id: String(f.memberId), name: "member", role: "member" },
+    { user_id: String(f.adminId), name: "admin", role: "admin" },
+    { user_id: String(f.ownerId), name: "owner", role: "owner" },
+  ] }]);
+  await expect(member.query("communityPods:listBuilderPods" as any, { communityId: f.communityId })).rejects.toThrow();
+});
