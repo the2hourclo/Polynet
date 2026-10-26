@@ -13688,3 +13688,46 @@ button.chat-reply-quote:hover {
   border-radius: 4px;
   background: var(--bg-card);
 }
+
+/* Lesson style switch at the foot of a course's outline (owners only). */
+.resource-course-style-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.625rem 0.25rem;
+  border-top: 1px solid var(--border-default);
+}
+.resource-course-style-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.resource-course-style-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+.resource-course-style-options button {
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.78125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.resource-course-style-options button:hover { color: var(--text-primary); }
+.resource-course-style-options button.is-selected {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+.resource-course-style-options button:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }

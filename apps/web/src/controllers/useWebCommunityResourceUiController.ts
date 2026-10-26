@@ -77,6 +77,7 @@ export type UseWebCommunityResourceUiControllerResult<
   openNewModuleModal: () => void;
   handleEditModule: (module: ResourceModuleT) => void;
   handleSetModuleStatus: (module: ResourceModuleT, status: "draft" | "live") => Promise<boolean>;
+  handleSetModuleLessonStyle: (module: ResourceModuleT, lessonStyle: "article" | "video") => Promise<boolean>;
   handleDeleteModule: (moduleId: string) => Promise<boolean>;
   handleReorderModules: (moduleIds: string[]) => Promise<boolean>;
   handleReorderResources: (moduleId: string | null, resourceIds: string[]) => Promise<boolean>;
@@ -166,6 +167,7 @@ export function useWebCommunityResourceUiController<
     loadCommunityResources,
     handleSaveCommunityResourceModule,
     handleSetCommunityResourceModuleStatus,
+    handleSetCommunityResourceModuleLessonStyle,
     handleDeleteCommunityResourceModule,
     handleReorderCommunityResourceModules,
     handleReorderCommunityResources,
@@ -384,6 +386,7 @@ export function useWebCommunityResourceUiController<
     openNewModuleModal,
     handleEditModule,
     handleSetModuleStatus: handleSetCommunityResourceModuleStatus,
+    handleSetModuleLessonStyle: handleSetCommunityResourceModuleLessonStyle,
     handleDeleteModule,
     handleReorderModules: handleReorderCommunityResourceModules,
     handleReorderResources: handleReorderCommunityResources,

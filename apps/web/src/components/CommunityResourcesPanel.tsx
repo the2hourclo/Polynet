@@ -1042,6 +1042,33 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   ) : null}
                 </nav>
               </div>
+              {/* Owners switch how this course reads, right where they see it
+                  (Rashid, 2026-10-26); Edit course has the same choice. */}
+              {canManageResources && actions.handleSetModuleLessonStyle && !selectedModule.is_virtual ? (
+                <div className="resource-course-style-switch">
+                  <span className="resource-course-style-label" id="resource-course-style-label">Lesson style</span>
+                  <div className="resource-course-style-options" role="radiogroup" aria-labelledby="resource-course-style-label">
+                    {([["article", "Article"], ["video", "Video course"]] as const).map(([style, label]) => {
+                      const selected = (selectedModule.lesson_style === "video" ? "video" : "article") === style;
+                      return (
+                        <button
+                          key={style}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          className={selected ? "is-selected" : undefined}
+                          title={style === "video" ? "Video on top, the lesson text on a card" : "A clean reading page, like a newsletter post"}
+                          onClick={() => {
+                            if (!selected) void actions.handleSetModuleLessonStyle?.(selectedModule, style);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </aside>
             <div className="knowledge-resource-reader">
               {selectedResource ? (

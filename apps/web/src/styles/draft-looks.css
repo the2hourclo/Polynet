@@ -1210,3 +1210,12 @@ html:root[data-rail-color="blend"] .product-shell-surface {
     padding: 1.25rem 1rem 1.5rem;
   }
 }
+
+/* A lesson uses the whole page in every look (Rashid, 2026-10-26: "I don't
+   see … the Table of Contents on the right side and the wider view"). The
+   community's centred pane capped it (1080px under the publication look),
+   below the 70rem the three columns need, so Contents never showed. */
+.web-community-centered-pane:has(> .community-knowledge-page[data-reading]) {
+  width: 100%;
+  max-width: none;
+}
