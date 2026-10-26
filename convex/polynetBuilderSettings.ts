@@ -446,6 +446,12 @@ BUILDER_SETTING_OPERATIONS.push(
     required: ["name"], effects: ["save_offer"],
   }),
   proposal({
+    operation: "community.offer.base_price", area: "pricing", name: "Make Membership free or paid",
+    calls: "communityOffers:setCommunityBaseOfferPrice", ref: api.communityOffers.setCommunityBaseOfferPrice, kind: "mutation",
+    fields: { price: '{"billingPeriod":"monthly"|"annual","amountBaseUnits":<cents>} to charge new members, or null for free; current members keep their access' },
+    required: ["price"], effects: ["change_price"],
+  }),
+  proposal({
     operation: "community.offer.reorder", area: "pricing", name: "Reorder the offer ladder",
     calls: "communityOffers:reorderCommunityOffers", ref: api.communityOffers.reorderCommunityOffers, kind: "mutation",
     fields: { keys: "offer keys, lowest first; the base offer always stays at the bottom" }, required: ["keys"], effects: ["reorder_offers"],

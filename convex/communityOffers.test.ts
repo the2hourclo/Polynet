@@ -17,6 +17,9 @@ import { workflowConditionHolds } from "../shared/communityMemberWorkflow";
 const modules = import.meta.glob([
   "./communityOffers.ts",
   "./communityOfferCheckout.ts",
+  "./communityLifecycle.ts",
+  "./auth.ts",
+  "./creatorCommerce.ts",
   "./communityAccess.ts",
   "./communityAccessSync.ts",
   "./communityClients.ts",
@@ -270,5 +273,24 @@ describe("offers in a community", () => {
     expect(await f.t.run(async (ctx) => (await ctx.db.query("communitySubscriptions").collect()).map((row) => String(row.pricePointId))))
       .toEqual([String(consulting._id)]);
     await expect(plan(f.thomasId)).rejects.toThrow("offer_upgrade_not_higher");
+  });
+
+  test("Membership's price can be set from Offers: free or paid, and nobody already in loses access", async () => {
+    const f = await fixture();
+    await f.asOwner.mutation(api.communityOffers.saveCommunityOffer, {
+      communityId: f.communityId, name: "Consulting", price: { billingPeriod: "monthly", amountBaseUnits: 50000 },
+    });
+    // Paid needs payouts first, as in General › Access & pricing.
+    await expect(f.asOwner.mutation(api.communityOffers.setCommunityBaseOfferPrice, {
+      communityId: f.communityId, price: { billingPeriod: "annual", amountBaseUnits: 100000 },
+    })).rejects.toThrow(/community_(payout_access|stripe_connect)/);
+    await f.asOwner.mutation(api.communityOffers.setCommunityBaseOfferPrice, { communityId: f.communityId, price: null });
+    const view = await f.asOwner.query(api.communityOffers.listCommunityOffers, { communityId: f.communityId });
+    expect(view.offers.map((offer: any) => [offer.key, offer.price?.amount_base_units ?? null])).toEqual([["membership", null], ["consulting", 50000]]);
+    const community = await f.t.run((ctx) => ctx.db.get(f.communityId));
+    expect(community).toMatchObject({ name: "AI Employee Builders", slug: "aieb", visibility: "unlisted" });
+    const memberships = await f.t.run((ctx) => ctx.db.query("communityMemberships").collect());
+    expect(memberships.filter((row) => row.active).length).toBe(2);
+    await expect(f.asThomas.mutation(api.communityOffers.setCommunityBaseOfferPrice, { communityId: f.communityId, price: null })).rejects.toThrow();
   });
 });

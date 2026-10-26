@@ -6,6 +6,7 @@ import {
   formatCommunityOfferPrice,
   saveCloudCommunityOffer,
   setCloudCommunityChannelOfferAudience,
+  setCloudCommunityBaseOfferPrice,
   setCloudCommunityOfferArchived,
   type CommunityBuilderOffer,
   type CommunityBuilderOffers,
@@ -17,13 +18,19 @@ import "./WebCommunityOffersSettings.css";
 // Consulting" gets all of Membership. Below it, which private channels each
 // offer opens. Members are added and removed by their offer.
 
-type Draft = { key: string | null; name: string; blurb: string; amount: string; period: "monthly" | "annual"; showOnSalesPage: boolean };
+type Draft = { key: string | null; name: string; blurb: string; amount: string; period: "monthly" | "annual"; showOnSalesPage: boolean;
+  /** Membership only: free, or paid for new members. */
+  paid?: boolean };
 
 function errorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? "");
   if (message.includes("offer_name_taken")) return "Another offer already has that name.";
   if (message.includes("offer_name_required")) return "Give the offer a name.";
   if (message.includes("offer_price_invalid")) return "Enter a price of at least $1.";
+  if (/community_(payout_access_required|stripe_connect_required|stripe_connect_not_ready)/.test(message)) {
+    return "Connect Stripe in General › Payments first, then Membership can be paid.";
+  }
+  if (message.includes("community_settings_revision")) return "Someone changed the settings just now. Reload and try again.";
   if (message.includes("offer_limit_reached")) return "A community can sell up to 6 offers. Archive one first.";
   if (message.includes("community_owner_required")) return "Only the owner can change offers.";
   if (message.includes("offer_channel_not_private")) return "Make the channel invite-only first.";
@@ -38,7 +45,26 @@ function draftOf(offer: CommunityBuilderOffer | null): Draft {
     amount: offer?.price ? String(offer.price.amount_base_units / 10 ** offer.price.currency_decimals) : "",
     period: offer?.price?.billing_period ?? "monthly",
     showOnSalesPage: offer?.show_on_sales_page ?? true,
+    paid: Boolean(offer?.is_base && offer.price),
   };
+}
+
+function PriceInputs(props: { id: string; draft: Draft; onChange: (draft: Draft) => void }) {
+  const { id, draft } = props;
+  return (
+    <div className="pn-offer-price">
+      <label className="pn-settings-affix is-compact" htmlFor={`offer-${id}-amount`}>
+        <span>$</span>
+        <input id={`offer-${id}-amount`} className="pn-settings-input" inputMode="decimal" value={draft.amount} placeholder="130"
+          onChange={(event) => props.onChange({ ...draft, amount: event.target.value.replace(/[^0-9.]/g, "") })} />
+      </label>
+      <select id={`offer-${id}-period`} className="pn-settings-select" aria-label="How often" value={draft.period}
+        onChange={(event) => props.onChange({ ...draft, period: event.target.value as Draft["period"] })}>
+        <option value="monthly">per month</option>
+        <option value="annual">per year</option>
+      </select>
+    </div>
+  );
 }
 
 function OfferEditor(props: {
@@ -69,25 +95,28 @@ function OfferEditor(props: {
           onChange={(event) => props.onChange({ ...draft, blurb: event.target.value })} />
       </label>
       {props.isBase ? (
-        <p className="pn-settings-help">
-          This offer's price is the community's own price.{" "}
-          {props.onOpenPricing ? <button type="button" className="pn-settings-link" onClick={props.onOpenPricing}>Change it in General</button> : null}
-        </p>
+        <div className="pn-offer-field">
+          <span className="pn-settings-label">Price</span>
+          <div className="pn-offer-ticks" role="radiogroup" aria-label="Price">
+            <label className={`pn-offer-check${draft.paid ? "" : " is-on"}`}>
+              <input type="radio" name={`offer-${id}-paid`} checked={!draft.paid} onChange={() => props.onChange({ ...draft, paid: false })} />Free
+            </label>
+            <label className={`pn-offer-check${draft.paid ? " is-on" : ""}`}>
+              <input type="radio" name={`offer-${id}-paid`} checked={Boolean(draft.paid)} onChange={() => props.onChange({ ...draft, paid: true })} />Paid
+            </label>
+          </div>
+          {draft.paid ? <PriceInputs id={id} draft={draft} onChange={props.onChange} /> : null}
+          <span className="pn-settings-help">
+            {draft.paid
+              ? "New people pay to join. Everyone already in keeps their access and isn't charged."
+              : "Anyone can join for free."}
+            {props.onOpenPricing ? <> Paid needs Stripe, which you connect in <button type="button" className="pn-settings-link" onClick={props.onOpenPricing}>General › Payments</button>.</> : null}
+          </span>
+        </div>
       ) : (
         <div className="pn-offer-field">
           <span className="pn-settings-label">Price</span>
-          <div className="pn-offer-price">
-            <label className="pn-settings-affix is-compact" htmlFor={`offer-${id}-amount`}>
-              <span>$</span>
-              <input id={`offer-${id}-amount`} className="pn-settings-input" inputMode="decimal" value={draft.amount} placeholder="500"
-                onChange={(event) => props.onChange({ ...draft, amount: event.target.value.replace(/[^0-9.]/g, "") })} />
-            </label>
-            <select id={`offer-${id}-period`} className="pn-settings-select" aria-label="How often" value={draft.period}
-              onChange={(event) => props.onChange({ ...draft, period: event.target.value as Draft["period"] })}>
-              <option value="monthly">per month</option>
-              <option value="annual">per year</option>
-            </select>
-          </div>
+          <PriceInputs id={id} draft={draft} onChange={props.onChange} />
         </div>
       )}
       <label className="pn-offer-check" htmlFor={`offer-${id}-show`}>
@@ -97,7 +126,7 @@ function OfferEditor(props: {
       </label>
       <div className="pn-offer-actions">
         <button type="button" className="pn-settings-button" disabled={props.busy} onClick={props.onCancel}>Cancel</button>
-        <button type="submit" className="pn-settings-button is-primary" disabled={props.busy || !draft.name.trim() || (!props.isBase && !draft.amount)}>
+        <button type="submit" className="pn-settings-button is-primary" disabled={props.busy || !draft.name.trim() || ((!props.isBase || draft.paid) && !draft.amount)}>
           {props.busy ? "Saving…" : draft.key ? "Save" : "Add offer"}
         </button>
       </div>
@@ -147,11 +176,19 @@ export function WebCommunityOffersSettings<SessionT>(props: {
     if (!draft || !props.session) return;
     const offer = data?.offers.find((item) => item.key === draft.key) ?? null;
     const amount = Math.round(Number(draft.amount) * 100);
-    const ok = await run("save", () => saveCloudCommunityOffer({
-      session: props.session!, communityId: props.communityId, ...(draft.key ? { key: draft.key } : {}),
-      name: draft.name.trim(), blurb: draft.blurb.trim() || null, showOnSalesPage: draft.showOnSalesPage,
-      ...(offer?.is_base ? {} : { price: { billingPeriod: draft.period, amountBaseUnits: amount } }),
-    }));
+    const ok = await run("save", async () => {
+      await saveCloudCommunityOffer({
+        session: props.session!, communityId: props.communityId, ...(draft.key ? { key: draft.key } : {}),
+        name: draft.name.trim(), blurb: draft.blurb.trim() || null, showOnSalesPage: draft.showOnSalesPage,
+        ...(offer?.is_base ? {} : { price: { billingPeriod: draft.period, amountBaseUnits: amount } }),
+      });
+      if (!offer?.is_base) return;
+      const before = offer.price;
+      const next = draft.paid ? { billingPeriod: draft.period, amountBaseUnits: amount } : null;
+      const unchanged = next === null ? before === null
+        : before !== null && before.billing_period === next.billingPeriod && before.amount_base_units === next.amountBaseUnits;
+      if (!unchanged) await setCloudCommunityBaseOfferPrice({ session: props.session!, communityId: props.communityId, price: next });
+    });
     if (ok) setDraft(null);
   };
 
@@ -202,7 +239,7 @@ export function WebCommunityOffersSettings<SessionT>(props: {
                     </span>
                     {index > 0 ? <span className="pn-offer-includes">Everything in {live[index - 1]!.name}, plus more</span> : null}
                     <span className="pn-settings-help">
-                      {formatCommunityOfferPrice(offer.price)}
+                      {offer.is_base && !offer.price ? "Free" : formatCommunityOfferPrice(offer.price)}
                       {" · "}{offer.members === 1 ? "1 member" : `${offer.members} members`}
                       {offer.blurb ? <> · {offer.blurb}</> : null}
                     </span>
