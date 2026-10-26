@@ -167,6 +167,14 @@ type LessonFileLink = { href: string; label: string };
 // id to jump to; in the editor the headings are tracked by element, because
 // the editor owns its DOM and must not be written to. Rescans as the body
 // changes, so the editor's contents follow typing.
+function isStandaloneBoldLine(node: HTMLElement): boolean {
+  if (node.closest("blockquote, li, table, .md-callout")) return false;
+  const only = node.children.length === 1 ? node.children[0] : null;
+  if (!only || !/^(STRONG|B)$/.test(only.tagName)) return false;
+  const text = node.textContent?.trim() ?? "";
+  return text.length > 0 && text.length <= 90 && text === only.textContent?.trim();
+}
+
 function useLessonContents(root: { current: HTMLElement | null }, mode: "read" | "edit", renderKey: unknown) {
   const [toc, setToc] = useState<LessonTocEntry[]>([]);
   const [files, setFiles] = useState<LessonFileLink[]>([]);
@@ -187,12 +195,15 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
       const targets = new Map<string, HTMLElement>();
       // The read view renders "##" and "###" one level down (h3, h4); the editor
       // shows them as h2 and h3. Platform section markers are not contents.
+      // A short line that is bold on its own is a section title too: many
+      // lessons title their sections that way instead of with "##".
       const selector = mode === "edit"
-        ? ".ProseMirror h2, .ProseMirror h3:not(.lesson-editor-platform-heading)"
-        : "h3.md-header, h4.md-header, .md-media-embed, .md-video";
+        ? ".ProseMirror h2, .ProseMirror h3:not(.lesson-editor-platform-heading), .ProseMirror > p"
+        : "h3.md-header, h4.md-header, .md-media-embed, .md-video, p";
       element.querySelectorAll<HTMLElement>(selector).forEach((node) => {
         if (node.closest(".lesson-slide-deck")) return;
-        const isVideo = mode === "read" && !node.matches(".md-header");
+        if (node.tagName === "P" && !isStandaloneBoldLine(node)) return;
+        const isVideo = mode === "read" && !node.matches(".md-header, p");
         const label = isVideo
           ? (node.querySelector("iframe")?.getAttribute("title") || node.getAttribute("aria-label") || "Video").replace(/\s+embed$/i, "")
           : node.textContent?.trim() ?? "";
