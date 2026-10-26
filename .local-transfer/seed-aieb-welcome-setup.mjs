@@ -6,8 +6,8 @@
 import { execFileSync } from "node:child_process";
 
 const slug = process.argv[2] ?? "ai-employee-builders";
-const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-const run = (fn, args) => JSON.parse(execFileSync(npx, ["convex", "run", fn, JSON.stringify(args)], { encoding: "utf8", shell: process.platform === "win32" }).trim());
+// No shell: on Windows cmd strips the JSON's quotes before convex sees them.
+const run = (fn, args) => JSON.parse(execFileSync(process.execPath, ["node_modules/convex/bin/main.js", "run", fn, JSON.stringify(args)], { encoding: "utf8" }).trim());
 
 const PROMPT = "Which app will your AI Employees run in?";
 const INTRO = `**First, set up your AI Employee Builder.** It takes 10 to 20 minutes, and every step is guided.
