@@ -65,7 +65,7 @@ test("every write the web app makes has an agent operation or a stated reason", 
   const missing = writes.filter(([reference]) => !operationCalls.has(reference) && !exempt(reference))
     .map(([reference, file]) => `${reference} (called from ${basename(file)})`);
   expect(missing, "Give these an operation in convex/polynetBuilderSettings.ts, or a reason in SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH").toEqual([]);
-});
+}, 30_000); // imports every Convex module the app calls
 
 test("the reasons list has no stale entries and uses the agreed reasons", () => {
   const called = new Set(appFunctionReferences().keys());
@@ -110,7 +110,7 @@ test("each operation runs a real public function and covers every field it takes
     for (const field of ["user_id", "auth_subject", "community_id", "now_ms", "via"])
       expect(field in spec.fields, `${spec.operation} must not take ${field} from input`).toBe(false);
   }
-});
+}, 30_000);
 
 test("a member's own choices have no owner path and never name another member", () => {
   for (const spec of MEMBER_SELF_OPERATIONS) {
