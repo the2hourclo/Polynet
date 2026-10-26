@@ -269,6 +269,12 @@ async function trackTitle(ctx: any, communityId: any, key: string): Promise<stri
   return row?.title ?? (key === "main" ? "main Roadmap" : null);
 }
 
+async function propertyName(ctx: any, communityId: any, key: string): Promise<string | null> {
+  const row = await ctx.db.query("communityClientProperties")
+    .withIndex("by_community_key", (q: any) => q.eq("communityId", communityId).eq("key", key)).unique();
+  return row?.name ?? null;
+}
+
 /** One rule of a stage, in plain words, as the Workflows editor sets it up. */
 async function describeRule(ctx: any, communityId: any, rules: any[], rule: any, formName: (key: string) => Promise<string>) {
   const trigger = rule.trigger;
@@ -292,10 +298,10 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : trigger.type === "lesson_completed" ? `When they finish ${trigger.resourceId ? `“${(await nameOf(ctx, "communityResources", trigger.resourceId, "title")) ?? "a lesson"}”` : "any lesson"}`
     : trigger.type === "course_completed" ? `When they finish ${trigger.moduleId ? `the ${(await nameOf(ctx, "communityResourceModules", trigger.moduleId, "name")) ?? ""} course` : "any course"}`
     : trigger.type === "track_completed" ? `When they finish ${trigger.trackKey ? `the “${(await trackTitle(ctx, communityId, trigger.trackKey)) ?? trigger.trackKey}” track` : "any Roadmap track"}`
+    : trigger.type === "client_property_changed" ? `When ${(await propertyName(ctx, communityId, trigger.propertyKey)) ?? trigger.propertyKey} changes${trigger.value === undefined ? "" : ` to ${String(trigger.value)}`} on their record`
     : trigger.type === "offer_started" || trigger.type === "offer_ended"
       ? `When they ${trigger.type === "offer_started" ? "start" : "leave"} ${trigger.offerKey ? `the “${(await offerName(ctx, communityId, trigger.offerKey)) ?? trigger.offerKey}” offer` : "any offer"}`
     : "When its trigger happens";
-  void communityId;
   const condition = rule.condition;
   const clause = (c: { propertyKey: string; op: string; value?: unknown }) => c.op === "is_set" ? `${c.propertyKey} is filled in`
     : c.op === "is_empty" ? `${c.propertyKey} is empty` : `${c.propertyKey} ${c.op === "is" ? "is" : "is not"} ${String(c.value)}`;

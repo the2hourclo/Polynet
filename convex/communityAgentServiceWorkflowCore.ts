@@ -97,7 +97,7 @@ export async function requireServiceWorkflowDestination(ctx: any, request: any) 
       || (milestone.goal ?? "") !== (run.milestoneContextSnapshot?.goal ?? "")) throw new Error("workflow_sequence_authority_stale");
     const progress = await readWorkflowActionProgress(ctx, { workflow, membership, milestone,
       milestoneEnteredAt: run.milestoneEnteredAt, transitionSeq: run.transitionSeq });
-    const source = progress.actions.find(a => a.evidence?.run_id === String(predecessor._id));
+    const source = [...progress.actions, ...(progress.reactive_actions ?? [])].find(a => a.evidence?.run_id === String(predecessor._id));
     if (progress.scan_truncated || !source || !workflowSequenceCompletionIsNew(automation, source.evidence!.completed_at, predecessor.workflowRevision))
       throw new Error("workflow_sequence_source_stale");
     await requireCommunityChatAccess({ ctx, communityId: request.communityId, userId: membership.userId, allowWelcome: true });

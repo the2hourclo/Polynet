@@ -33,7 +33,7 @@ const TRIGGERS: Array<{ name: string; options: Option[] }> = [
     { icon: DoorOpen, label: "Someone joins", hint: "Only the first stage starts here", type: "member_joined" },
     { icon: ShoppingBag, label: "Starts an offer", hint: "Joins on it or upgrades to it", type: "offer_started" },
     { icon: CreditCard, label: "Leaves an offer", hint: "Downgrades or their paid time ends", type: "offer_ended" },
-    { icon: UserCog, label: "Member record matches conditions" },
+    { icon: UserCog, label: "Member record changes", hint: "e.g. Plan becomes Pro", type: "client_property_changed" },
   ] },
   { name: "Learning", options: [
     { icon: BookOpen, label: "Finishes a lesson", type: "lesson_completed" },
@@ -375,7 +375,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
             return <button key={option.label} type="button" className="pn-au-option" disabled={!allowed}
               aria-pressed={option.type === selected.trigger.type}
               title={option.type === "member_joined" && stageIndex !== 0 ? "Only the first stage can start when someone joins" : undefined}
-              onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected)) : null; if (next) { updateRule(next); setPicking(false); } }}>
+              onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected), props.catalog?.properties?.[0]?.key) : null; if (next) { updateRule(next); setPicking(false); } }}>
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span><strong>{option.label}</strong>{option.hint ? <small>{option.hint}</small> : null}</span>{!option.type ? <em>Soon</em> : null}
             </button>;

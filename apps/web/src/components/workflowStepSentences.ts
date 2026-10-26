@@ -90,6 +90,8 @@ export function workflowTriggerPhrase(automation: CommunityMemberWorkflowAutomat
       const track = trigger.trackKey ? names.catalog?.tracks?.find((item) => item.key === trigger.trackKey)?.title : null;
       return trigger.trackKey ? `When they finish ${track ? `the ${quote(track, 50)} track` : "a track"}` : "When they finish any track";
     }
+    case "client_property_changed":
+      return `When ${propertyName(trigger.propertyKey, names)} changes${trigger.value === undefined ? "" : ` to ${formatValue(trigger.value)}`}`;
     case "member_contributed": {
       const channel = trigger.channelId ? names.channels?.find((item) => item.id === trigger.channelId)?.name : null;
       return trigger.channelId ? `When they post in #${channel ?? "a channel"}` : "When they post anywhere";

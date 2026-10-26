@@ -1371,6 +1371,60 @@ test("only-if groups refuse more than four conditions and an unknown join", asyn
   vi.useRealTimers();
 });
 
+test("a member record change starts its automation (to a value, when set), never from a Workflow step's own write, and never holds the stage", async () => {
+  const { t, f, owner, configured, values, runs } = await branchFixture();
+  const set = (key: string, propertyKey: string, value: string) => ({ key, type: "set_client_property" as const, propertyKey, value });
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [
+      { trigger: { type: "member_contributed" as const }, action: set("draft-plan", "plan", "pro") },
+      { trigger: { type: "client_property_changed" as const, propertyKey: "plan", value: "Pro" }, action: set("draft-vip", "tag", "vip") },
+      { trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-vip" }, action: set("draft-after", "other", "x") },
+    ],
+  });
+  const settle = () => t.finishAllScheduledFunctions(vi.runAllTimers);
+  // A Workflow step sets Plan: no record-change run.
+  await t.mutation(internalApi.communityMemberWorkflows.handleChannelContributionRootInternal, { rootId: await addRoot(t, f, "record") });
+  await settle();
+  expect(await values()).toEqual({ plan: "pro" });
+  // The owner sets another value: the rule waits for Pro.
+  const setPlan = (value: string) => owner.mutation(api.communityClients.setClientPropertyValue, { communityId: f.communityId, membershipId: String(f.membershipId), key: "plan", value });
+  await setPlan("Basic");
+  await settle();
+  expect(await values()).toEqual({ plan: "Basic" });
+  await setPlan("Pro");
+  await settle();
+  expect(await values()).toEqual({ plan: "Pro", tag: "vip", other: "x" });
+  // Setting the same value again is no change.
+  await setPlan("Pro");
+  await settle();
+  expect((await runs()).filter(run => run.triggerType === "client_property_changed")).toHaveLength(1);
+  await expect(owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 4, name: "New",
+    automations: [{ trigger: { type: "client_property_changed" as const, propertyKey: "nope" }, action: set("draft-x", "tag", "x") }],
+  })).rejects.toThrow(/client_property_not_found/);
+  vi.useRealTimers();
+});
+
+test("a record-change automation that never fires doesn't keep the member in the stage", async () => {
+  const { t, f, owner, configured } = await branchFixture();
+  const set = (key: string, propertyKey: string, value: string) => ({ key, type: "set_client_property" as const, propertyKey, value });
+  await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {
+    communityId: f.communityId, milestoneKey: configured.firstKey, expectedRevision: 3, name: "New",
+    automations: [
+      { trigger: { type: "member_contributed" as const }, action: set("draft-plan", "plan", "pro") },
+      { trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-plan" }, action: set("draft-next", "other", "x") },
+      { trigger: { type: "client_property_changed" as const, propertyKey: "tag" }, action: set("draft-tag", "other", "tagged") },
+      { trigger: { type: "previous_action_completed" as const, predecessorActionKey: "draft-tag" }, action: set("draft-tag-next", "plan", "done") },
+    ],
+  });
+  await t.mutation(internalApi.communityMemberWorkflows.handleChannelContributionRootInternal, { rootId: await addRoot(t, f, "reactive") });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const state = await t.run(ctx => ctx.db.query("communityMemberWorkflowMemberMilestones").first());
+  expect(state?.currentMilestoneKey).toBe(configured.secondKey);
+  vi.useRealTimers();
+});
+
 test("a wait after a step starts a timer from when that step finished, and runs once it is due", async () => {
   const { t, f, owner, configured, values } = await branchFixture();
   await owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, {

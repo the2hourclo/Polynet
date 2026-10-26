@@ -42,6 +42,7 @@ const workflowAutomationValidator = v.object({
     v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
     v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
     v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("client_property_changed"), propertyKey: v.string(), value: v.optional(v.union(v.string(), v.number(), v.boolean())) }),
     v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
     v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
     v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
@@ -1432,7 +1433,7 @@ export default defineSchema({
     milestoneEnteredAt: v.number(),
     workflowRevision: v.number(),
     automationKey: v.string(),
-    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed"), v.literal("lesson_completed"), v.literal("course_completed"), v.literal("track_completed"), v.literal("offer_started"), v.literal("offer_ended")),
+    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed"), v.literal("lesson_completed"), v.literal("course_completed"), v.literal("track_completed"), v.literal("client_property_changed"), v.literal("offer_started"), v.literal("offer_ended")),
     // Optional for historical runs. New runs capture the condition that matched.
     triggerSnapshot: v.optional(v.union(
       v.object({ type: v.literal("member_joined") }),
@@ -1442,6 +1443,7 @@ export default defineSchema({
       v.object({ type: v.literal("lesson_completed"), resourceId: v.optional(v.string()) }),
       v.object({ type: v.literal("course_completed"), moduleId: v.optional(v.string()) }),
       v.object({ type: v.literal("track_completed"), trackKey: v.optional(v.string()) }),
+      v.object({ type: v.literal("client_property_changed"), propertyKey: v.string(), value: v.optional(v.union(v.string(), v.number(), v.boolean())) }),
             v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
             v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
       v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),

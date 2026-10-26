@@ -215,10 +215,16 @@ async function writeValue(ctx: any, args: { communityId: any; membership: any; p
     .withIndex("by_membership_property", (q: any) => q.eq("membershipId", membership._id).eq("propertyKey", property.key))
     .unique();
   const via = args.via;
-  await ctx.db.insert("communityClientEvents", {
+  const eventId = await ctx.db.insert("communityClientEvents", {
     communityId: args.communityId, membershipId: membership._id, type: "property_set", actorUserId: args.actorUserId, via,
     propertyKey: property.key, value, createdAt: Date.now(),
   });
+  // Workflows → "When a member record changes". A Workflow step's own write
+  // never fires it, so two automations can't keep setting each other off.
+  if (via !== "workflow" && JSON.stringify(existing?.value ?? null) !== JSON.stringify(value ?? null)) {
+    await ctx.scheduler.runAfter(0, (internal as any).communityMemberWorkflows.handleClientPropertyChangedInternal,
+      { communityId: args.communityId, membershipId: membership._id, eventId });
+  }
   if (value === null) {
     if (existing) await ctx.db.delete(existing._id);
   } else {
