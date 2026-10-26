@@ -649,8 +649,7 @@ function WebCommunityLessonStep(props: {
           ) : null}
         </aside>
         <div className="knowledge-resource-reader">
-          <WebCommunityResourceViewerContent resource={resource} lessonActivity={props.lessonActivity ?? null} />
-          <div className="lesson-step-footer-wrap">
+          <WebCommunityResourceViewerContent resource={resource} lessonActivity={props.lessonActivity ?? null} actions={
             <nav className="lesson-step-footer" aria-label="Lesson steps">
               <div className="lesson-step-footer-row">
                 <button type="button" className={`lesson-step-done${props.done ? " is-done" : ""}`} aria-pressed={props.done} onClick={props.onToggleDone}>
@@ -665,7 +664,7 @@ function WebCommunityLessonStep(props: {
               </div>
               {props.onPrev ? <button type="button" className="lesson-step-link" onClick={props.onPrev}><ArrowLeft aria-hidden="true" /> Previous lesson</button> : null}
             </nav>
-          </div>
+          } />
         </div>
       </div>
     </div>
