@@ -83,7 +83,7 @@
 .community-welcome-choice-card:focus-visible { outline:2px solid var(--accent-brand, var(--accent-primary)); outline-offset:2px; }
 .community-welcome-choice-text { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .community-welcome-choice-icon { flex:none; display:grid; place-items:center; width:36px; height:36px; border-radius:calc(9px * var(--pn-radius-scale, 1)); background:color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 12%, var(--bg-card, var(--surface-workspace))); color:var(--accent-brand, var(--accent-primary)); }
-.community-welcome-choice-icon-mark { display:block; width:20px; height:20px; background:currentColor; mask-size:contain; mask-repeat:no-repeat; mask-position:center; -webkit-mask-size:contain; -webkit-mask-repeat:no-repeat; -webkit-mask-position:center; }
+.community-welcome-choice-icon-mark { display:block; width:22px; height:22px; object-fit:contain; }
 .community-welcome-choice-card strong { font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
 .community-welcome-choice-card small { color:var(--text-secondary); font-size:13px; line-height:1.45; }
 .community-welcome-choice-card.is-picked { border-color:var(--accent-brand, var(--accent-primary)); background:color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 7%, var(--bg-card, var(--surface-workspace))); box-shadow:0 0 0 1px var(--accent-brand, var(--accent-primary)); }

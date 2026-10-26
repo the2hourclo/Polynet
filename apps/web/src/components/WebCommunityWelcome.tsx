@@ -126,10 +126,9 @@ export function welcomeMediaMarkdown(url: string): string {
   return /\.(?:png|jpe?g|gif|webp|avif|svg)(?:[?#].*)?$/i.test(url) ? `![](${url})` : `<${url}>`;
 }
 
-/** A card's logo, drawn in the community's accent colour (its shape is the image's outline). */
+/** A card's logo, in its own colours. */
 export function ChoiceIconMark(props: { icon: string }) {
-  const url = `url("${props.icon.replace(/"/g, "%22")}")`;
-  return <span className="community-welcome-choice-icon-mark" style={{ maskImage: url, WebkitMaskImage: url }} />;
+  return <img className="community-welcome-choice-icon-mark" src={props.icon} alt="" />;
 }
 
 /** A screen the member can skip and come back to: one with no step and a choice on it (a setup screen). */
