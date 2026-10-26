@@ -530,6 +530,21 @@ export const setBuilderWelcomeGate = mutation({
   },
 });
 
+/** Full page (the community shows only the welcome until it's done) or a pop-up over the open community. */
+export const setBuilderWelcomeDisplay = mutation({
+  args: { ...managerIdentityArgs, communityId: v.id("communities"), expectedRevision: v.number(), display: v.union(v.literal("page"), v.literal("popup")) },
+  handler: async (ctx, args) => {
+    const { userId } = await requireWorkflowManager({ ctx, communityId: args.communityId, userId: args.userId, authSubject: args.authSubject });
+    const expectedRevision = normalizeExpectedRevision(args.expectedRevision);
+    const workflow = requireWorkflowRevision(
+      await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId }), expectedRevision);
+    if ((workflow.welcomeDisplay ?? "page") === args.display) return { workflow_id: String(workflow._id), revision: expectedRevision, welcome_display: args.display };
+    const revision = expectedRevision + 1;
+    await ctx.db.patch(workflow._id, { welcomeDisplay: args.display, revision, updatedByUserId: userId, updatedAt: Date.now() });
+    return { workflow_id: String(workflow._id), revision, welcome_display: args.display };
+  },
+});
+
 const WELCOME_TITLE_MAX = 120;
 const WELCOME_MESSAGE_MAX = 4_000;
 const welcomeBlockValidator = v.union(
@@ -811,6 +826,7 @@ export const getBuilderWorkflowBoardPage = query({
         milestones: workflow.milestones,
         welcome_gate: workflow.welcomeGate ?? false,
         welcome_lesson_ids: (workflow.welcomeLessonIds ?? []).map(String),
+        welcome_display: workflow.welcomeDisplay ?? "page",
         welcome_page: {
           title: workflow.welcomePage?.title ?? "",
           message: workflow.welcomePage?.message ?? "",

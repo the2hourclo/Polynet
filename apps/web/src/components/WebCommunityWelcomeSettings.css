@@ -223,3 +223,14 @@
 .welcome-settings-choice-card { display: flex; flex-direction: column; gap: 10px; }
 .welcome-settings-choice-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .welcome-settings-choice-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--text-secondary); font-size: 12px; }
+
+/* Full page or pop-up: a two-way segmented control beside the on/off switch. */
+.welcome-settings-display { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+.welcome-settings-display button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--pn-type-ui, 14px); font-weight: 600; cursor: pointer; }
+.welcome-settings-display button:first-of-type { border-radius: 8px 0 0 8px; }
+.welcome-settings-display button:last-of-type { border-left: 0; border-radius: 0 8px 8px 0; }
+.welcome-settings-display button[aria-checked="true"] { border-color: var(--accent-brand, var(--text-primary)); background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 10%, transparent); color: var(--text-primary); }
+.welcome-settings-display button[aria-checked="true"] + button { border-left: 1px solid var(--accent-brand, var(--text-primary)); }
+.welcome-settings-display button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; position: relative; }
+.welcome-settings-display button:disabled { cursor: not-allowed; opacity: .6; }
+.welcome-settings-display small { flex-basis: 100%; margin-top: 2px; color: var(--text-secondary); font-size: 12px; }

@@ -2256,6 +2256,7 @@ export default function App() {
         onDeleteMilestone: communityWorkflows.deleteMilestone,
         onApplyAgentLedJourney: communityWorkflows.applyAgentLedJourney,
         onSetWelcomeGate: communityWorkflows.setWelcomeGate,
+        onSetWelcomeDisplay: communityWorkflows.setWelcomeDisplay,
         onSaveWelcomePage: communityWorkflows.saveWelcomePage,
         onLoadWelcomeLessonOptions: communityWorkflows.loadWelcomeLessonOptions,
         onLoadTrackOptions: communityWorkflows.loadTrackOptions,
@@ -3046,12 +3047,15 @@ export default function App() {
     setAppTheme,
   });
   if (session && activeCommunityId && welcomeStepsKey && activePage === "community" && !isPublicCommunityFunnel) {
-    shellChromeHostProps.welcomeSurface = (
+    const popup = activeCommunityAccess?.welcome_display === "popup";
+    const welcome = (
       <WebCommunityWelcome key={`${activeCommunityId}:${session.user.id}`} communityId={activeCommunityId}
         communityName={activeCommunity?.name ?? "the community"} requestIds={welcomeSteps.requestIds} lessonIds={welcomeSteps.lessonIds}
-        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess}
+        session={session} ensureSession={ensureUsableAuthSession} onFinished={retryActiveCommunityAccess} display={popup ? "popup" : "page"}
         onReleased={() => { void communityContent.retryResourceRead("modules"); void communityContent.retryResourceRead("resources"); }} />
     );
+    if (popup) shellChromeHostProps.welcomeOverlay = welcome;
+    else shellChromeHostProps.welcomeSurface = welcome;
   }
 
   if (shouldHoldRouteForAccess) {

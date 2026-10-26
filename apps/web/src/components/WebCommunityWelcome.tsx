@@ -24,6 +24,8 @@ type Props = {
   onFinished: () => void;
   /** Called when the page closes after the member finished, so lists read while held load again. */
   onReleased: () => void;
+  /** "popup": shown over the open community, and the member can put it away and finish later. */
+  display?: "page" | "popup";
 };
 
 /** One screen of the welcome page: where the member is, the headline on the
@@ -274,7 +276,8 @@ export function WebCommunityWelcome(props: Props) {
   const status = preparing ? "Getting your first steps ready…"
     : pageError ? null : page && (!formsOwed || rows) ? "Opening the community…" : "Loading…";
   const failed = (error && !formsOwed) || lessonMissing || (pageError && !preparing);
-  return <section className="community-welcome" aria-label={`Welcome to ${props.communityName}`}>
+  const popup = props.display === "popup";
+  const section = <section className="community-welcome" aria-label={`Welcome to ${props.communityName}`}>
     {current >= 0 && !preparing ? <WelcomeScreenView title={title} screens={screens} index={current} renderStep={renderStep} onNext={moveOn}
       titleRef={titleRef} stepRef={stepRef} choiceStorageKey={`polynet:welcome-choice:${props.communityId}`} />
       : <>
@@ -283,4 +286,42 @@ export function WebCommunityWelcome(props: Props) {
           : <p role="status">{status}</p>}
       </>}
   </section>;
+  if (!popup) return section;
+  const left = screens.filter((screen, at) => at >= Math.max(current, 0) && at <= lastOwed).length;
+  return <WelcomePopup communityId={props.communityId} title={title} left={left}>{section}</WelcomePopup>;
+}
+
+const minimizedKey = (communityId: string) => `polynet:welcome-later:${communityId}`;
+
+// The welcome as a pop-up over the open community. "Finish later" puts it away
+// for this visit and leaves a pill at the bottom to bring it back.
+export function WelcomePopup(props: { communityId: string; title: string; left: number; children: ReactNode }) {
+  const [later, setLater] = useState(() => { try { return sessionStorage.getItem(minimizedKey(props.communityId)) === "1"; } catch { return false; } });
+  const dialog = useRef<HTMLDivElement>(null);
+  const pill = useRef<HTMLButtonElement>(null);
+  const setAway = (away: boolean) => {
+    setLater(away);
+    try { if (away) sessionStorage.setItem(minimizedKey(props.communityId), "1"); else sessionStorage.removeItem(minimizedKey(props.communityId)); } catch { /* still works this visit */ }
+    requestAnimationFrame(() => (away ? pill.current : dialog.current)?.focus());
+  };
+  useEffect(() => { if (!later) dialog.current?.focus(); }, []);
+  if (later) return <button ref={pill} type="button" className="community-welcome-pill" onClick={() => setAway(false)}>
+    <span className="community-welcome-pill-dot" aria-hidden="true" />
+    <span><strong>Finish getting started</strong><small>{props.left > 1 ? `${props.left} steps left` : "1 step left"}</small></span>
+  </button>;
+  return <div className="community-welcome-popup-backdrop">
+    <div ref={dialog} className="community-welcome-popup" role="dialog" aria-modal="true" aria-label={props.title} tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") { event.preventDefault(); setAway(true); return; }
+        if (event.key !== "Tab") return;
+        // Tab stays inside the pop-up while it's open.
+        const items = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], iframe, [tabindex=\"0\"]")];
+        const first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }}>
+      <button type="button" className="community-welcome-popup-later" onClick={() => setAway(true)}>Finish later</button>
+      {props.children}
+    </div>
+  </div>;
 }

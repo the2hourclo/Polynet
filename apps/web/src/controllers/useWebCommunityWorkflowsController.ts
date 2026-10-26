@@ -15,6 +15,7 @@ import {
   updateCloudCommunityMemberWorkflowMilestone,
   setCloudCommunityMemberServiceChannel,
   setCloudCommunityWelcomeGate,
+  setCloudCommunityWelcomeDisplay,
   saveCloudCommunityWelcomePage,
   type CloudCommunityWelcomePageDraft,
   forceCloudCommunityMemberMilestone,
@@ -694,6 +695,9 @@ export function useWebCommunityWorkflowsController(params: {
     setWelcomeGate: (enabled: boolean) =>
       mutateMilestone("community_workflows_welcome_gate", (session, communityId, revision) =>
         setCloudCommunityWelcomeGate({ session, communityId, expectedRevision: revision, enabled })),
+    setWelcomeDisplay: (display: "page" | "popup") =>
+      mutateMilestone("community_workflows_welcome_display", (session, communityId, revision) =>
+        setCloudCommunityWelcomeDisplay({ session, communityId, expectedRevision: revision, display })),
     loadWelcomeLessonOptions,
     loadTrackOptions,
     saveWelcomePage: (page: CloudCommunityWelcomePageDraft) =>

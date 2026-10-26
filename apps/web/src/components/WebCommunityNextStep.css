@@ -91,3 +91,16 @@
 @media(prefers-reduced-motion:reduce) { .community-welcome-choice-card { transition:none; } }
 /* A long prompt to paste wraps, and scrolls past a few lines, so the steps after it stay in view. */
 .community-welcome-choice-body .md-artifact-content { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+/* The welcome as a pop-up over the open community. */
+.community-welcome-popup-backdrop { position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:24px; background:color-mix(in srgb, #000 42%, transparent); }
+.community-welcome-popup { position:relative; width:min(760px,100%); max-height:min(88vh, 900px); display:flex; overflow:hidden; border:1px solid var(--border-default); border-radius:calc(16px * var(--pn-radius-scale, 1)); background:var(--surface-workspace, var(--bg-workspace)); box-shadow:0 24px 80px rgba(0,0,0,.28); outline:0; }
+.community-welcome-popup .community-welcome { min-height:0; justify-content:flex-start; padding:40px 32px 32px; }
+.community-welcome-popup-later { position:absolute; top:12px; right:14px; z-index:1; padding:6px 10px; border:0; border-radius:8px; background:transparent; color:var(--text-secondary); font:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+.community-welcome-popup-later:hover { background:color-mix(in srgb, var(--text-primary) 7%, transparent); color:var(--text-primary); }
+.community-welcome-popup-later:focus-visible, .community-welcome-pill:focus-visible { outline:2px solid var(--focus-ring, var(--accent-brand)); outline-offset:2px; }
+.community-welcome-pill { position:fixed; left:50%; bottom:20px; z-index:60; transform:translateX(-50%); display:flex; align-items:center; gap:10px; padding:10px 16px 10px 14px; border:1px solid var(--border-default); border-radius:999px; background:var(--surface-workspace, var(--bg-workspace)); color:var(--text-primary); font:inherit; text-align:left; cursor:pointer; box-shadow:0 10px 30px rgba(0,0,0,.18); }
+.community-welcome-pill span:last-child { display:flex; flex-direction:column; }
+.community-welcome-pill strong { font-size:14px; }
+.community-welcome-pill small { color:var(--text-secondary); font-size:12px; }
+.community-welcome-pill-dot { width:10px; height:10px; border-radius:50%; background:var(--accent-brand, var(--accent-primary)); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 22%, transparent); }
+@media(max-width:600px) { .community-welcome-popup-backdrop { padding:0; align-items:end; } .community-welcome-popup { max-height:92vh; border-radius:16px 16px 0 0; } .community-welcome-popup .community-welcome { padding:44px 16px 24px; } }

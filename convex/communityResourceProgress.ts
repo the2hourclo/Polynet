@@ -6,6 +6,7 @@ import {
   communityWelcomeLessonIds,
   getCommunityAndMembership,
   readCommunityWelcomeGate,
+  welcomeHolds,
   communityResourceIsLiveModulePage,
   communityResourceModuleIsLive,
   normalizeIdValue,
@@ -220,7 +221,7 @@ async function readOwnResourceProgress(ctx: any, args: any) {
   await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId, allowWelcome: true });
   const welcomeIds = await communityWelcomeLessonIds(ctx, args.communityId);
   const { community, membership } = await getCommunityAndMembership({ ctx, communityId: args.communityId, userId: args.userId });
-  const held = (await readCommunityWelcomeGate({ ctx, community, membership, userId: args.userId })).required;
+  const held = welcomeHolds(await readCommunityWelcomeGate({ ctx, community, membership, userId: args.userId }));
   const visible = await listMemberVisibleLessonPages(ctx, args.communityId);
   // A member still on the welcome page sees only its lessons: no other titles,
   // courses, stages or journey until the community opens.
