@@ -1,7 +1,7 @@
 /* Sales page › Choose your offer: stacked plan cards, the picked one outlined. */
-.pn-offer-chooser { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pn-offer-chooser { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .pn-offer-chooser legend { padding: 0; margin-bottom: 4px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.pn-offer-choice { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 10px; cursor: pointer; background: var(--bg-surface, transparent); }
+.pn-offer-choice { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border: 1px solid var(--border-default); border-radius: 10px; cursor: pointer; background: var(--bg-surface, transparent); }
 .pn-offer-choice.is-selected { border-color: var(--pn-button, var(--accent-brand)); box-shadow: 0 0 0 1px var(--pn-button, var(--accent-brand)); }
 .pn-offer-choice input { margin: 3px 0 0; accent-color: var(--pn-button, var(--accent-brand)); }
 .pn-offer-choice-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
