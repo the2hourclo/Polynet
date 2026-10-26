@@ -50,6 +50,7 @@ type ResourceModuleLike = {
   banner_focus_x?: number | null;
   banner_focus_y?: number | null;
   banner_zoom?: number | null;
+  lesson_style?: "article" | "video" | null;
   sort_order?: number;
 };
 
@@ -160,6 +161,7 @@ type UseCommunityResourceControllerArgs<
   moduleBannerFocusX: number;
   moduleBannerFocusY: number;
   moduleBannerZoom: number;
+  moduleLessonStyleInput?: "article" | "video";
   editingResourceId: string | null;
   editingResourceModuleId: string | null;
   editingResourceModuleBannerStorageId: string | null;
@@ -190,6 +192,7 @@ type UseCommunityResourceControllerArgs<
   setModuleBannerFocusX: Dispatch<SetStateAction<number>>;
   setModuleBannerFocusY: Dispatch<SetStateAction<number>>;
   setModuleBannerZoom: Dispatch<SetStateAction<number>>;
+  setModuleLessonStyleInput?: Dispatch<SetStateAction<"article" | "video">>;
 };
 
 export function useCommunityResourceController<
@@ -243,6 +246,7 @@ export function useCommunityResourceController<
     current.setModuleBannerFocusX(0.5);
     current.setModuleBannerFocusY(0.5);
     current.setModuleBannerZoom(1);
+    current.setModuleLessonStyleInput?.("article");
     if (clearError) {
       current.setResourceModuleError(null);
     }
@@ -436,6 +440,7 @@ export function useCommunityResourceController<
           banner_focus_x: current.moduleBannerFocusX,
           banner_focus_y: current.moduleBannerFocusY,
           banner_zoom: current.moduleBannerZoom,
+          ...(current.moduleLessonStyleInput ? { lesson_style: current.moduleLessonStyleInput } : {}),
         },
       });
       current.setShowResourceModuleModal(false);

@@ -729,6 +729,12 @@
 [data-community-theme] .welcome-settings-choice-text {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .welcome-settings-choice-icon {
+  border-radius: calc(9px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-choice-icon-note {
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .welcome-settings-choice-tabs button {
   font-size: var(--pn-type-small);
 }
@@ -2730,6 +2736,24 @@
 }
 [data-community-theme] .community-theme-draft-banner {
   font-size: var(--pn-type-small);
+}
+[data-community-theme] .resource-lesson-style {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .resource-lesson-style-sketch {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .resource-lesson-style-sketch .sketch-title {
+  border-radius: calc(99px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .resource-lesson-style-sketch .sketch-video {
+  border-radius: calc(4px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .resource-lesson-style-sketch .sketch-text span {
+  border-radius: calc(99px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .resource-lesson-style-sketch.is-video .sketch-text {
+  border-radius: calc(4px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-top-nav-avatar {
   border-radius: calc(8px * var(--pn-radius-scale, 1));

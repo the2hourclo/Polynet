@@ -1,5 +1,5 @@
 import {
-  BookOpen, Bot, CalendarDays, ChevronDown, Clock, CreditCard, DoorOpen, FileText, GitBranch, Hourglass, Lock,
+  BookOpen, Bot, CalendarDays, ChevronDown, Clock, CreditCard, DoorOpen, FileText, GitBranch, Hourglass, Lock, Mail,
   MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Webhook, X, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -56,6 +56,7 @@ const TRIGGERS: Array<{ name: string; options: Option[] }> = [
 
 const ACTIONS: Record<WorkflowActionType, Option & { group: string }> = {
   prompt_agent: { group: "Talk to them", icon: Bot, label: "Agent sends a message", hint: "In their private room" },
+  send_email: { group: "Talk to them", icon: Mail, label: "Send an email", hint: "From Polynet, to their inbox" },
   request_form: { group: "Talk to them", icon: FileText, label: "Send a form" },
   set_client_property: { group: "Change things", icon: PenLine, label: "Update member record", hint: "Writes to the Members database" },
   create_service_channel: { group: "Change things", icon: Lock, label: "Open a private room", hint: "Just them, you and the agent" },

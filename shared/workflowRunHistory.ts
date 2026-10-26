@@ -14,6 +14,8 @@ export type WorkflowRunStepRow = {
   action_type: string;
   status: "running" | "finished" | "failed";
   skipped: boolean;
+  /** How a finished step ended, e.g. email_opted_out. */
+  result_code?: string | null;
   error_code: string | null;
   created_at: number;
   finished_at: number | null;

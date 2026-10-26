@@ -43,6 +43,7 @@ export const listBuilderWorkflowRunHistory = query({
       action_type: row.actionSnapshot.type,
       status: row.status,
       skipped: workflowRunWasSkipped(row),
+      result_code: row.actionResult?.resultCode ?? null,
       error_code: row.errorCode ?? row.actionResult?.errorCode ?? null,
       created_at: row.createdAt,
       finished_at: row.finishedAt ?? null,

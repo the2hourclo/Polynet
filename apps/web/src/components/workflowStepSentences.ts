@@ -97,6 +97,7 @@ export function workflowActionPhrase(automation: CommunityMemberWorkflowAutomati
     case "request_form": return `send the ${formName(action.formKey, names)} form`;
     case "prompt_agent": return action.prompt.trim() ? `ask the agent: ${quote(action.prompt)}` : "ask the agent (no instructions yet)";
     case "set_client_property": return `set ${propertyName(action.propertyKey, names)} to ${formatValue(action.value)}`;
+    case "send_email": return action.subject.trim() ? `email them: ${quote(action.subject)}` : "email them (no subject yet)";
   }
 }
 

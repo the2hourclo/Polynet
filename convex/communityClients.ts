@@ -351,6 +351,9 @@ async function readTimeline(ctx: any, args: any) {
       : code === "path_skipped" ? "Workflow skipped a step (the step before it was skipped)"
       : action.type === "request_form" ? `Workflow sent the ${formNames.get(action.formKey)} form`
       : action.type === "set_client_property" ? `Workflow set ${action.propertyKey}`
+      : action.type === "send_email" ? code === "email_opted_out" ? `Workflow skipped an email (they unsubscribed): ${action.subject}`
+        : code === "email_previewed" ? `Workflow previewed an email (Autoplay, not sent): ${action.subject}`
+        : code === "email_not_sent" ? `Workflow couldn't email them (no verified address): ${action.subject}` : `Workflow sent an email: ${action.subject}`
       : action.type === "create_service_channel" ? "Workflow opened a private channel"
       : action.type === "prompt_agent" ? row.actionResult?.resultCode === "agent_previewed"
         ? "Workflow previewed an agent message (Autoplay, not sent)" : "Workflow asked the agent to act"

@@ -108,7 +108,7 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     calls: "communityMemberWorkflows:saveBuilderWelcomePage", ref: api.communityMemberWorkflows.saveBuilderWelcomePage, kind: "mutation",
     fields: { expected_revision: "workflow revision from /builder/settings.json", title: "heading", message: "welcome text (Markdown)",
       media_url: "video or image URL, or empty", lesson_ids: "lesson resource ids new members start with",
-      layout: 'optional: the page as blocks, in order: {"type":"text","markdown":"…"} (a link alone on a line plays as a video), {"type":"form","formKey":"…"}, {"type":"lesson","resourceId":"…"}, {"type":"choice","prompt":"…","options":[{"label":"…","hint":"…","markdown":"…"}]} (cards to pick from; each shows its own steps; the first is the default), {"type":"next"} to start a new screen. With it, message, media_url and lesson_ids are ignored, and its forms become the forms new members answer on joining' },
+      layout: 'optional: the page as blocks, in order: {"type":"text","markdown":"…"} (a link alone on a line plays as a video), {"type":"form","formKey":"…"}, {"type":"lesson","resourceId":"…"}, {"type":"choice","prompt":"…","options":[{"label":"…","hint":"…","markdown":"…","icon":"optional https image link"}]} (cards to pick from; each shows its own steps; the first is the default), {"type":"next"} to start a new screen. With it, message, media_url and lesson_ids are ignored, and its forms become the forms new members answer on joining' },
     required: ["expected_revision", "title", "message", "media_url", "lesson_ids"], effects: ["update_welcome_page"],
   }),
   op({
@@ -136,7 +136,7 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     fields: { expected_revision: "workflow revision", milestone_key: "the stage's key", name: "stage name", goal: "what finishing it means",
       instructions: "notes for the agent", require_human_approval: "true or false",
       color: "stage colour: grey, green, teal, blue, purple, pink, red, orange, yellow, or none to clear (left out keeps it)",
-      automations: "the stage's full list of automations, as /builder/settings.json shows them; a milestone_elapsed trigger with nudge: true is an agent check-in that runs only if they're still in the stage and never holds it; a prompt_agent action's sees lists what the agent reads: facts, progress, guide_channel, form:<key>, property:<key>, lesson:<id> (absent = facts + the triggering form)" },
+      automations: "the stage's full list of automations, as /builder/settings.json shows them; a milestone_elapsed trigger with nudge: true is an agent check-in that runs only if they're still in the stage and never holds it; a prompt_agent action's sees lists what the agent reads: facts, progress, guide_channel, form:<key>, property:<key>, lesson:<id> (absent = facts + the triggering form); a send_email action has subject and body (plain text, blank line = new paragraph; {first_name}, {name}, {community} fill in), goes from Polynet with an unsubscribe link, skips members who unsubscribed, and sends a test member's copy to the admin running the test" },
     required: ["expected_revision", "milestone_key", "name", "automations"], effects: ["update_workflow_stage"],
   }),
   op({
