@@ -114,6 +114,7 @@ async function lessonLocks(ctx: any, communityId: any, userId: any, pages: Commu
     doneRefs,
     context: member.context,
     milestoneName: member.milestoneName,
+    offerName: member.offerName,
   });
   for (const id of welcomeIds) lockedRefs.delete(buildCommunityResourceEvidenceRef(normalizeIdValue(id)));
   // stages: the main track in the shape readers had before tracks.

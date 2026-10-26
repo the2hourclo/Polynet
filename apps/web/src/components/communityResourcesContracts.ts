@@ -39,6 +39,8 @@ export type CommunityResource = {
   lesson?: CommunityLessonFields | null;
   // A lesson's follow-along elements without their answers, when the server sends them.
   lesson_elements?: CommunityLessonElement[] | null;
+  // In a track sold through an offer the member doesn't have: listed without its text.
+  paywalled?: boolean;
   created_at: string;
 };
 

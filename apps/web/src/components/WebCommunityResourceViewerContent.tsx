@@ -679,6 +679,9 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       );
     }
 
+    if (resource.paywalled) {
+      return <div className="resource-viewer-empty">This lesson is part of a track you can add to your plan. Open the Roadmap to see what's inside.</div>;
+    }
     return isEmpty ? <div className="resource-viewer-empty">This lesson hasn't been written yet.</div> : null;
   };
 

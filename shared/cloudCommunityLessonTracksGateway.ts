@@ -1,7 +1,7 @@
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { bootstrapConvexAuthenticatedClient } from "./convexAuthenticatedClient";
-import type { CommunityTrackDefinition, CommunityTrackRule, CommunityTrackStageDefinition } from "./communityLessonTracks";
+import type { CommunityTrackCoverStyle, CommunityTrackDefinition, CommunityTrackRule, CommunityTrackStageDefinition } from "./communityLessonTracks";
 
 // The owner's skill track editor (Knowledge → Roadmap). The agent saves through
 // the same mutations (community.track.*).
@@ -14,6 +14,8 @@ export type CommunityBuilderTracks = {
   lessons: Array<{ id: string; title: string; kind: string | null }>;
   workflow_stages: Array<{ key: string; name: string }>;
   client_properties: Array<{ key: string; name: string; type: string; options: string[] }>;
+  // The offer ladder, for selling a track ({"type":"offer"} rule).
+  offers?: Array<{ key: string; name: string; rank: number; is_base: boolean }>;
 };
 
 export async function fetchCloudCommunityLessonTracks<SessionT>(params: { session: SessionT; communityId: string }) {
@@ -31,6 +33,10 @@ export async function saveCloudCommunityLessonTrack<SessionT>(params: {
   expectedRevision: number;
   title: string;
   summary?: string | null;
+  coverUrl?: string | null;
+  coverStyle?: CommunityTrackCoverStyle | null;
+  outcomes?: string[];
+  audience?: string | null;
   order?: number;
   show?: "always" | "when_open";
   opensWhen: CommunityTrackRule[];
@@ -44,6 +50,10 @@ export async function saveCloudCommunityLessonTrack<SessionT>(params: {
     expectedRevision: params.expectedRevision,
     title: params.title,
     ...(params.summary !== undefined ? { summary: params.summary } : {}),
+    ...(params.coverUrl !== undefined ? { coverUrl: params.coverUrl } : {}),
+    ...(params.coverStyle !== undefined ? { coverStyle: params.coverStyle } : {}),
+    ...(params.outcomes !== undefined ? { outcomes: params.outcomes } : {}),
+    ...(params.audience !== undefined ? { audience: params.audience } : {}),
     ...(params.order !== undefined ? { order: params.order } : {}),
     ...(params.show ? { show: params.show } : {}),
     opensWhen: params.opensWhen,

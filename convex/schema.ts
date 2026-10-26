@@ -1635,6 +1635,9 @@ export default defineSchema({
     title: v.string(),
     summary: v.optional(v.string()),
     coverUrl: v.optional(v.string()),
+    coverStyle: v.optional(v.union(v.literal("route"), v.literal("diagram"), v.literal("terminal"))),
+    outcomes: v.optional(v.array(v.string())),
+    audience: v.optional(v.string()),
     order: v.number(),
     show: v.union(v.literal("always"), v.literal("when_open")),
     opensWhen: v.array(v.union(
@@ -1642,6 +1645,7 @@ export default defineSchema({
       v.object({ type: v.literal("after_checkpoint"), resource_id: v.string() }),
       v.object({ type: v.literal("workflow_stage"), milestone_key: v.string() }),
       v.object({ type: v.literal("client_property"), property: v.string(), equals: v.union(v.string(), v.number(), v.boolean()) }),
+      v.object({ type: v.literal("offer"), offer: v.string() }),
     )),
     stages: v.array(v.object({
       name: v.string(),

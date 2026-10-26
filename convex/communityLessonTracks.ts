@@ -6,8 +6,11 @@ import {
   requireCommunityManager,
   resolveUserIdForAuthenticatedRequest,
 } from "./communityCore";
+import { communityOfferDefinitionOf, readCommunityOfferRows, resolveMemberOfferKey } from "./communityOfferAccessCore";
+import { communityOffersHeld, resolveCommunityOfferLadder } from "../shared/communityOffers";
 import {
   checkCommunityTrackDefinition,
+  communityPaidLockedLessonIds,
   COMMUNITY_MAIN_TRACK_KEY,
   COMMUNITY_TRACK_LIMITS,
   resolveCommunityTrackDefinitions,
@@ -26,7 +29,10 @@ export const communityTrackRuleValidator = v.union(
   v.object({ type: v.literal("after_checkpoint"), resource_id: v.string() }),
   v.object({ type: v.literal("workflow_stage"), milestone_key: v.string() }),
   v.object({ type: v.literal("client_property"), property: v.string(), equals: v.union(v.string(), v.number(), v.boolean()) }),
+  v.object({ type: v.literal("offer"), offer: v.string() }),
 );
+
+export const communityTrackCoverStyleValidator = v.union(v.literal("route"), v.literal("diagram"), v.literal("terminal"));
 
 const trackStagesValidator = v.array(v.object({
   name: v.string(),
@@ -49,6 +55,9 @@ function definitionOf(row: any): CommunityTrackDefinition {
     title: row.title,
     summary: row.summary ?? null,
     cover_url: row.coverUrl ?? null,
+    cover_style: row.coverStyle ?? null,
+    outcomes: row.outcomes ?? [],
+    audience: row.audience ?? null,
     order: row.order,
     show: row.show,
     opens_when: row.opensWhen,
@@ -61,18 +70,28 @@ export async function readStoredCommunityTracks(ctx: any, communityId: any): Pro
   return (await listRows(ctx, communityId)).filter((row) => !row.archivedAt).map(definitionOf);
 }
 
-/** What one member's track rules are checked against: their Workflow stage and client properties. */
+/** What one member's track rules are checked against: their Workflow stage, client properties and offer. */
 export async function readCommunityTrackMemberContext(ctx: any, communityId: any, userId: any): Promise<{
   context: CommunityTrackMemberContext;
   milestoneName: (key: string) => string | null;
+  offerName: (key: string) => string | null;
 }> {
   const workflow = await ctx.db.query("communityMemberWorkflows").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).first();
   const milestones: Array<{ key: string; name: string }> = workflow?.milestones ?? [];
   const milestoneName = (key: string) => milestones.find((milestone) => milestone.key === key)?.name ?? null;
+  const offerRows = await readCommunityOfferRows(ctx, communityId);
+  const ladder = resolveCommunityOfferLadder(offerRows.map(communityOfferDefinitionOf));
+  const offerName = (key: string) => ladder.find((offer) => offer.key === key)?.name ?? null;
   const memberships = await ctx.db.query("communityMemberships")
     .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", userId)).collect();
   const membership = memberships.find(communityMembershipRowIsActive) ?? memberships[0] ?? null;
-  if (!membership) return { context: { workflowMilestoneOrder: milestones.map((m) => m.key) }, milestoneName };
+  const community: any = await ctx.db.get(communityId);
+  // The owner and admins see every track they sell.
+  const manager = String(community?.ownerId) === String(userId) || membership?.role === "admin";
+  const heldOffers = manager
+    ? ladder.map((offer) => offer.key)
+    : communityOffersHeld(ladder, await resolveMemberOfferKey(ctx, { communityId, membership, offerRows })).map((offer) => offer.key);
+  if (!membership) return { context: { workflowMilestoneOrder: milestones.map((m) => m.key), heldOffers }, milestoneName, offerName };
   const [position, values] = await Promise.all([
     workflow
       ? ctx.db.query("communityMemberWorkflowMemberMilestones")
@@ -85,8 +104,10 @@ export async function readCommunityTrackMemberContext(ctx: any, communityId: any
       workflowMilestoneKey: position?.currentMilestoneKey ?? null,
       workflowMilestoneOrder: milestones.map((milestone) => milestone.key),
       clientValues: Object.fromEntries(values.map((row: any) => [row.propertyKey, row.value])),
+      heldOffers,
     },
     milestoneName,
+    offerName,
   };
 }
 
@@ -125,7 +146,11 @@ export async function readCommunityTracksForBuilder(ctx: any, communityId: any) 
       after_checkpoint: '{"type":"after_checkpoint","resource_id":"<lesson id>"}: opens once that lesson is done',
       workflow_stage: '{"type":"workflow_stage","milestone_key":"<key>"}: opens once the member reaches that Workflow stage',
       client_property: '{"type":"client_property","property":"<key>","equals":<value>}: opens while that client property has the value',
+      offer: '{"type":"offer","offer":"<offer key>"}: sells the track through an offer; members on it or a higher one get in, everyone else can read its first lesson free',
     },
+    cover_styles: ["route", "diagram", "terminal"],
+    offers: resolveCommunityOfferLadder((await readCommunityOfferRows(ctx, communityId)).filter((row: any) => !row.archivedAt).map(communityOfferDefinitionOf))
+      .map((offer) => ({ key: offer.key, name: offer.name, rank: offer.rank, is_base: Boolean(offer.isBase) })),
     lessons: lessons.map(({ id, title, lesson }: any) => ({ id, title, kind: lesson?.kind ?? null })),
     workflow_stages: (workflow?.milestones ?? []).map((milestone: any) => ({ key: milestone.key, name: milestone.name })),
     client_properties: properties
@@ -153,6 +178,9 @@ const saveTrackArgs = {
   title: v.string(),
   summary: v.optional(v.union(v.string(), v.null())),
   coverUrl: v.optional(v.union(v.string(), v.null())),
+  coverStyle: v.optional(v.union(communityTrackCoverStyleValidator, v.null())),
+  outcomes: v.optional(v.array(v.string())),
+  audience: v.optional(v.union(v.string(), v.null())),
   order: v.optional(v.number()),
   show: v.optional(v.union(v.literal("always"), v.literal("when_open"))),
   opensWhen: v.array(communityTrackRuleValidator),
@@ -174,14 +202,19 @@ async function saveTrack(ctx: any, userId: any, args: any) {
     key: args.key,
     title: args.title.trim(),
     summary: args.summary?.trim() || null,
-    cover_url: args.coverUrl?.trim() || null,
+    cover_url: args.coverUrl === undefined ? existing?.coverUrl ?? null : args.coverUrl?.trim() || null,
+    cover_style: args.coverStyle === undefined ? existing?.coverStyle ?? null : args.coverStyle,
+    outcomes: (args.outcomes ?? existing?.outcomes ?? []).map((line: string) => line.trim()).filter(Boolean),
+    audience: args.audience === undefined ? existing?.audience ?? null : args.audience?.trim() || null,
     order: args.order ?? existing?.order ?? (args.key === COMMUNITY_MAIN_TRACK_KEY ? 0 : rows.length + 1),
     show: args.show ?? existing?.show ?? "always",
     opens_when: args.opensWhen,
     stages,
   };
   const trackKeys = new Set([COMMUNITY_MAIN_TRACK_KEY, ...rows.filter((row) => !row.archivedAt).map((row) => row.key), args.key]);
-  const problems = checkCommunityTrackDefinition(definition, { lessonIds: new Set(lessons.map((lesson: any) => lesson.id)), trackKeys });
+  const offerKeys = new Set(resolveCommunityOfferLadder((await readCommunityOfferRows(ctx, args.communityId)).filter((row: any) => !row.archivedAt)
+    .map(communityOfferDefinitionOf)).map((offer) => offer.key));
+  const problems = checkCommunityTrackDefinition(definition, { lessonIds: new Set(lessons.map((lesson: any) => lesson.id)), trackKeys, offerKeys });
   if (args.key !== COMMUNITY_MAIN_TRACK_KEY && stages.length === 0) problems.push("Add at least one stage with a lesson.");
   if (problems.length) throw new ConvexError({ code: "track_invalid", problems });
   const now = Date.now();
@@ -189,6 +222,9 @@ async function saveTrack(ctx: any, userId: any, args: any) {
     title: definition.title,
     summary: definition.summary ?? undefined,
     coverUrl: definition.cover_url ?? undefined,
+    coverStyle: definition.cover_style ?? undefined,
+    outcomes: definition.outcomes?.length ? definition.outcomes : undefined,
+    audience: definition.audience ?? undefined,
     order: definition.order,
     show: definition.show,
     opensWhen: definition.opens_when,
@@ -312,4 +348,17 @@ export async function communityTrackLessonIds(ctx: any, communityId: any, key: s
   const track = resolveCommunityTrackDefinitions({ stored: await readStoredCommunityTracks(ctx, communityId), lessons })
     .find((item) => item.key === key);
   return track ? track.stages.flatMap((stage) => stage.steps.map((step) => step.resource_id)) : [];
+}
+
+/**
+ * The lesson ids a member can't read because they belong to a track sold
+ * through an offer they don't have (communityPaidLockedLessonIds). Empty
+ * without a sold track, so communities that sell nothing pay one read.
+ */
+export async function readCommunityPaidLockedLessonIds(ctx: any, communityId: any, userId: any): Promise<Set<string>> {
+  const stored = await readStoredCommunityTracks(ctx, communityId);
+  if (!stored.some((track) => track.opens_when.some((rule) => rule.type === "offer"))) return new Set();
+  const member = await readCommunityTrackMemberContext(ctx, communityId, userId);
+  const tracks = resolveCommunityTrackDefinitions({ stored, lessons: await libraryLessons(ctx, communityId) });
+  return communityPaidLockedLessonIds(tracks, member.context.heldOffers ?? []);
 }

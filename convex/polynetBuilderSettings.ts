@@ -412,9 +412,13 @@ BUILDER_SETTING_OPERATIONS.push(
     fields: {
       key: 'track key (lowercase letters, digits, dashes); "main" is the community\'s first roadmap',
       expected_revision: "revision from /builder/tracks.json; 0 creates a new track",
-      title: "what members see", summary: "one or two lines under the title, or null", cover_url: "https image URL, or null",
+      title: "what members see", summary: "the promise: one line on what members walk away with, or null", cover_url: "https image URL, or null",
+      cover_style: "built-in cover in the community's colours when there is no cover_url: route (one dot per section), diagram or terminal",
+      outcomes: "\"What you'll be able to do\": up to 6 one-line strings",
+      audience: "\"Who it's for\": one or two lines, or null",
       order: "position in the list (0 first)", show: "always (closed tracks show as Coming up) or when_open (hidden until open)",
-      opens_when: "rules that must all hold for the track to open, from rule_types in /builder/tracks.json; [] for always open",
+      opens_when: "rules that must all hold for the track to open, from rule_types in /builder/tracks.json; [] for always open. "
+        + "{\"type\":\"offer\",\"offer\":\"<key from offers>\"} sells it through that offer (first lesson stays a free preview)",
       stages: '[{"name":"…","steps":[{"resource_id":"<lesson id>","checkpoint":true}]}] in order; a checkpoint keeps the rest of the track closed until done. [] on "main" keeps reading its stages from the lessons',
     },
     required: ["key", "expected_revision", "title", "opens_when", "stages"], effects: ["save_skill_track"],

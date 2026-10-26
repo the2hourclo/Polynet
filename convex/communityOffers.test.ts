@@ -27,6 +27,7 @@ const modules = import.meta.glob([
   "./communityMemberWorkflows.ts",
   "./communityResourceProgress.ts",
   "./communityLessonTracks.ts",
+  "./communityResources.ts",
   "./communityChannelParticipants.ts",
   "./_generated/**/*.*s",
 ]);
@@ -292,5 +293,53 @@ describe("offers in a community", () => {
     const memberships = await f.t.run((ctx) => ctx.db.query("communityMemberships").collect());
     expect(memberships.filter((row) => row.active).length).toBe(2);
     await expect(f.asThomas.mutation(api.communityOffers.setCommunityBaseOfferPrice, { communityId: f.communityId, price: null })).rejects.toThrow();
+  });
+
+  test("a track sold through Consulting: a Membership member reads the first lesson free and sees the rest locked, without their text", async () => {
+    const f = await fixture();
+    const { key } = await f.asOwner.mutation(api.communityOffers.saveCommunityOffer, {
+      communityId: f.communityId, name: "Membership + Consulting", price: { billingPeriod: "monthly", amountBaseUnits: 50000 },
+    });
+    const ids = await f.t.run(async (ctx) => {
+      const now = Date.now();
+      const moduleId = await ctx.db.insert("communityResourceModules", {
+        communityId: f.communityId, createdByUserId: f.ownerId, status: "live", name: "Sales calls", sortOrder: 1, createdAt: now, updatedAt: now,
+      });
+      const page = (title: string, sortOrder: number) => ctx.db.insert("communityResources", {
+        communityId: f.communityId, moduleId, createdByUserId: f.ownerId, type: "post", role: "page", status: "published",
+        title, bodyMd: `Inside ${title}.`, bodyChars: 9, pinned: false, sortOrder, lesson: { minutes: 6 }, createdAt: now, updatedAt: now,
+      } as any);
+      return { first: String(await page("Open the call", 1)), second: String(await page("Close the call", 2)) };
+    });
+    await expect(f.asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+      communityId: f.communityId, key: "sales", expectedRevision: 0, title: "Sales calls", opensWhen: [{ type: "offer", offer: "vip" }],
+      stages: [{ name: "Calls", steps: [{ resource_id: ids.first }, { resource_id: ids.second }] }],
+    })).rejects.toThrow("track_invalid");
+    await f.asOwner.mutation(api.communityLessonTracks.saveCommunityLessonTrack, {
+      communityId: f.communityId, key: "sales", expectedRevision: 0, title: "Sales calls", summary: "Book and close calls on your own.",
+      outcomes: ["Open a call", "Close a call"], audience: "Owners who sell on calls", coverStyle: "diagram",
+      opensWhen: [{ type: "offer", offer: key }], stages: [{ name: "Calls", steps: [{ resource_id: ids.first }, { resource_id: ids.second }] }],
+    });
+
+    const progress: any = await f.asThomas.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: f.communityId });
+    const sales = progress.tracks.find((track: any) => track.key === "sales");
+    expect(sales).toMatchObject({
+      open: false, minutes: 12, cover_style: "diagram", outcomes: ["Open a call", "Close a call"], audience: "Owners who sell on calls",
+      paid: { offer: key, offer_name: "Membership + Consulting", preview: { resource_id: ids.first } },
+    });
+    const listed: any[] = await f.asThomas.query(api.communityResources.listCommunityResources, { communityId: f.communityId });
+    const byId = new Map(listed.map((row) => [row.id, row]));
+    expect(byId.get(ids.first)).toMatchObject({ body_md: "Inside Open the call." });
+    expect(byId.get(ids.second)).toMatchObject({ title: "Close the call", body_md: null, paywalled: true });
+    expect(await f.asThomas.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, {
+      communityId: f.communityId, resourceId: ids.second, status: "done",
+    })).toMatchObject({ ok: false, code: "lesson_locked" });
+
+    // The owner reads everything they sell.
+    const owned: any[] = await f.asOwner.query(api.communityResources.listCommunityResources, { communityId: f.communityId });
+    expect(owned.find((row) => row.id === ids.second)).toMatchObject({ body_md: "Inside Close the call." });
+    const builder: any = await f.asOwner.query(api.communityLessonTracks.listCommunityLessonTracks, { communityId: f.communityId });
+    expect(builder.offers.map((offer: any) => offer.key)).toEqual(["membership", key]);
+    expect(builder.tracks.find((track: any) => track.key === "sales")).toMatchObject({ cover_style: "diagram", audience: "Owners who sell on calls" });
   });
 });
