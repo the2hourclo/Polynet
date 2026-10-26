@@ -13520,3 +13520,51 @@ button.chat-reply-quote:hover {
     max-width: calc(var(--lesson-reading-measure, 680px) + 16.5rem);
   }
 }
+
+/* ═════════ Lesson reading type (Rashid, 2026-10-26) ═════════
+   Medium and Substack set body text near 18–20px on a ~1.6–1.7 line, with a
+   line's worth of space between paragraphs, headings that sit closer to the
+   text they introduce than to the text before, and list items with air
+   between them. Lessons and the lesson editor share these, so what the owner
+   writes is what members read. "##" is h3 in the read view and h2 in the
+   editor; "###" is h4 and h3. Sizes in rem so the theme's type scale doesn't
+   rescale the reading size twice. */
+.knowledge-resource-reader .resource-viewer-prose {
+  font-size: 1.125rem;
+  line-height: 1.7;
+  letter-spacing: -0.003em;
+}
+.knowledge-resource-reader .resource-viewer-prose :is(.md-paragraph, .lesson-editor-content > p) {
+  margin: 0 0 1.25em;
+}
+.knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2) {
+  margin: 2.1em 0 0.55em;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+}
+.knowledge-resource-reader .resource-viewer-prose :is(h4.md-header, .lesson-editor-content > h3:not(.lesson-editor-platform-heading)) {
+  margin: 1.8em 0 0.45em;
+  font-size: 1.1875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.006em;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, h4.md-header, .lesson-editor-content > h2, .lesson-editor-content > h3):first-child { margin-top: 0; }
+.knowledge-resource-reader .resource-viewer-prose :is(.md-list, .lesson-editor-content > ul, .lesson-editor-content > ol) {
+  margin: 0 0 1.25em;
+  padding-left: 1.5em;
+}
+.knowledge-resource-reader .resource-viewer-prose :is(.md-list, .lesson-editor-content ul, .lesson-editor-content ol) li { margin: 0.45em 0; padding-left: 0.2em; }
+.knowledge-resource-reader .resource-viewer-prose :is(.md-list, .lesson-editor-content ul, .lesson-editor-content ol) li > :is(p, .md-paragraph) { margin: 0; }
+.knowledge-resource-reader .resource-viewer-prose li::marker { color: var(--text-muted); }
+.knowledge-resource-reader .resource-viewer-prose :is(.md-blockquote, blockquote) { margin: 1.75em 0; }
+.knowledge-resource-reader .resource-viewer-prose :is(strong, b) { font-weight: 650; }
+.knowledge-resource-reader .resource-viewer-prose a:not([class]) { text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+@media (max-width: 640px) {
+  .knowledge-resource-reader .resource-viewer-prose { font-size: 1.0625rem; line-height: 1.65; }
+  .knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2) { font-size: 1.3125rem; }
+}
