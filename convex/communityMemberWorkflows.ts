@@ -577,6 +577,8 @@ export const getBuilderWelcomePageBySlugInternal = internalQuery({
       community_id: String(community._id), owner_id: String(community.ownerId),
       revision: workflow?.revision ?? 0, welcome_gate: workflow?.welcomeGate === true,
       title: workflow?.welcomePage?.title ?? "", layout: workflow?.welcomePage?.layout ?? null,
+      // A page saved before blocks: its words and video, which the layout replaces once saved.
+      message: workflow?.welcomePage?.message ?? "", media_url: workflow?.welcomePage?.mediaUrl ?? "",
       join_form_keys: (workflow?.milestones[0]?.automations ?? [])
         .flatMap((a: CommunityMemberWorkflowAutomation) => (a.trigger.type === "member_joined" && a.action.type === "request_form" ? [a.action.formKey] : [])),
       lesson_ids: (workflow?.welcomeLessonIds ?? []).map(String),

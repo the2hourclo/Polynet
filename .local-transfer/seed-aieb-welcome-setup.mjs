@@ -89,9 +89,13 @@ const setupScreen = [
 ];
 
 const page = run("communityMemberWorkflows:getBuilderWelcomePageBySlugInternal", { slug });
-// The page as blocks; a page saved before blocks has its forms and lessons, each on a screen.
-let layout = page.layout ?? [...page.join_form_keys.map((formKey) => ({ type: "form", formKey })), ...page.lesson_ids.map((resourceId) => ({ type: "lesson", resourceId }))]
-  .flatMap((step, index) => (index ? [{ type: "next" }, step] : [step]));
+// The page as blocks. A page saved before blocks carries over as the app shows
+// it (legacyWelcomeLayout): its words and video first, then each step on a screen.
+const mediaLine = (url) => (/\.(?:png|jpe?g|gif|webp|avif|svg)(?:[?#].*)?$/i.test(url) ? `![](${url})` : url);
+const intro = [page.message?.trim(), page.media_url?.trim() ? mediaLine(page.media_url.trim()) : ""].filter(Boolean).join("\n\n");
+const steps = [...page.join_form_keys.map((formKey) => ({ type: "form", formKey })), ...page.lesson_ids.map((resourceId) => ({ type: "lesson", resourceId }))];
+let layout = page.layout ?? [...(intro ? [{ type: "text", markdown: intro }] : []), ...steps.flatMap((step, index) => (index ? [{ type: "next" }, step] : [step]))];
+if (!page.layout) console.log(`Carried over the page saved before blocks${intro ? " (with its welcome words/video)" : ""}.`);
 // Drop this script's earlier screen: everything up to the break after its choice.
 const at = layout.findIndex((block) => block.type === "choice" && block.prompt === PROMPT);
 if (at >= 0) {
