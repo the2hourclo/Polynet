@@ -26,7 +26,17 @@ import { markCommunityLessonElementBlocks } from "../../../../shared/communityLe
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
-import { Eye, PenLine } from "lucide-react";
+import { Eye, FileText, ListOrdered, PenLine, PlayCircle } from "lucide-react";
+import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
+import {
+  isLessonFileLink,
+  LESSON_TOC_MIN_ENTRIES,
+  lessonBodyForPlatform,
+  lessonPlatforms,
+  lessonTocSlug,
+  type LessonTocEntry,
+} from "../../../../shared/lessonReadingView";
+import { WebPlatformTabList } from "./WebPlatformChoiceControls";
 import { WebLessonSlideDeck } from "./WebLessonSlideDeck";
 import type { CommunityResource } from "./communityResourcesContracts";
 
@@ -140,6 +150,87 @@ export type WebCommunityResourceInlineEditor = {
   onCancel: () => void;
 };
 
+// The member's platform (Cowork, Claude Code, Codex…), shared with the Roadmap.
+const LESSON_PLATFORM_KEY = "polynet-lesson-platform";
+function readLessonPlatform(): string {
+  try { return localStorage.getItem(LESSON_PLATFORM_KEY) || ""; } catch { return ""; }
+}
+
+type LessonFileLink = { href: string; label: string };
+
+// Reads the rendered lesson for its contents (sections, then videos under the
+// section they sit in) and the files it links to, and gives each stop an id
+// to jump to. Runs after the body renders.
+function useLessonContents(root: { current: HTMLElement | null }, enabled: boolean, renderKey: unknown) {
+  const [toc, setToc] = useState<LessonTocEntry[]>([]);
+  const [files, setFiles] = useState<LessonFileLink[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  useEffect(() => {
+    const element = root.current;
+    if (!enabled || !element) {
+      setToc([]);
+      setFiles([]);
+      return;
+    }
+    const taken = new Set<string>();
+    const entries: LessonTocEntry[] = [];
+    // The body's "##" and "###" render one level down (h3, h4).
+    element.querySelectorAll<HTMLElement>("h3.md-header, h4.md-header, .md-media-embed, .md-video").forEach((node) => {
+      if (node.closest(".lesson-slide-deck")) return;
+      const isVideo = !node.matches(".md-header");
+      const label = isVideo
+        ? (node.querySelector("iframe")?.getAttribute("title") || node.getAttribute("aria-label") || "Video").replace(/\s+embed$/i, "")
+        : node.textContent?.trim() ?? "";
+      if (!label) return;
+      node.id = node.id || lessonTocSlug(label, taken);
+      node.style.scrollMarginTop = "1.5rem";
+      entries.push({ id: node.id, label, level: isVideo || node.tagName === "H4" ? 3 : 2, kind: isVideo ? "video" : "section" });
+    });
+    setToc(entries.length >= LESSON_TOC_MIN_ENTRIES ? entries : []);
+    const seen = new Set<string>();
+    setFiles(Array.from(element.querySelectorAll<HTMLAnchorElement>("a[href]"))
+      .filter((link) => isLessonFileLink(link.href) && !seen.has(link.href) && Boolean(seen.add(link.href)))
+      .map((link) => ({ href: link.href, label: link.textContent?.trim() || decodeURIComponent(link.pathname.split("/").pop() ?? "File") })));
+  }, [root, enabled, renderKey]);
+  // The section being read is the last heading that has scrolled past the top third.
+  useEffect(() => {
+    if (!toc.length) return;
+    const targets = toc.map((entry) => document.getElementById(entry.id)).filter((node): node is HTMLElement => Boolean(node));
+    const observer = new IntersectionObserver(() => {
+      const line = window.innerHeight / 3;
+      let current: string | null = targets[0]?.id ?? null;
+      for (const target of targets) if (target.getBoundingClientRect().top <= line) current = target.id;
+      setActiveId(current);
+    }, { rootMargin: "0px 0px -66% 0px", threshold: [0, 1] });
+    targets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
+  }, [toc]);
+  return { toc, files, activeId };
+}
+
+function LessonContents(props: { toc: LessonTocEntry[]; activeId: string | null; onJump?: () => void }) {
+  return (
+    <ol className="lesson-toc-list">
+      {props.toc.map((entry) => (
+        <li key={entry.id} className={`lesson-toc-item is-level-${entry.level}${entry.kind === "video" ? " is-video" : ""}${props.activeId === entry.id ? " is-active" : ""}`}>
+          <a
+            href={`#${entry.id}`}
+            aria-current={props.activeId === entry.id ? "location" : undefined}
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById(entry.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              props.onJump?.();
+            }}
+          >
+            {entry.kind === "video" ? <PlayCircle aria-hidden="true" /> : null}
+            <span>{entry.label}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function getHostLabel(rawUrl: string | null): string {
   const url = normalizeExternalUrl(rawUrl);
   if (!url) return "External";
@@ -149,6 +240,7 @@ function getHostLabel(rawUrl: string | null): string {
 function getEmbedProviderLabel(provider: string | null | undefined): string {
   if (provider === "youtube") return "YouTube";
   if (provider === "wistia") return "Wistia";
+  if (provider === "descript") return "Descript";
   return "Video";
 }
 
@@ -226,7 +318,16 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   useEffect(() => {
     if (!isEditing) setPreviewing(false);
   }, [isEditing, resource.id]);
-  const shownBody = isPreviewing && editor ? editor.bodyInput.trim() : persistedBody;
+  const fullShownBody = isPreviewing && editor ? editor.bodyInput.trim() : persistedBody;
+  // Members pick their platform once; the lesson shows that platform's steps.
+  const [platform, setPlatform] = useState(readLessonPlatform);
+  const choosePlatform = (key: string) => {
+    setPlatform(key);
+    try { localStorage.setItem(LESSON_PLATFORM_KEY, key); } catch { /* storage can be blocked */ }
+  };
+  const platforms = useMemo(() => (isEditing && !isPreviewing ? [] : lessonPlatforms(fullShownBody)), [isEditing, isPreviewing, fullShownBody]);
+  const activePlatform = platforms.find((entry) => entry.key === platform)?.key ?? platforms[0]?.key ?? null;
+  const shownBody = activePlatform ? lessonBodyForPlatform(fullShownBody, activePlatform) : fullShownBody;
   // Follow-along elements work only in lessons (pages with lesson fields),
   // the same rule the server uses when it saves an answer.
   const lessonActivity = props.lessonActivity && resource.lesson ? props.lessonActivity : null;
@@ -276,6 +377,11 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       </>
     );
   }, [shownBody, props.communityEmbeds, hasLessonActivity, lessonElementIds, resource.id]);
+
+  const readingRef = useRef<HTMLDivElement | null>(null);
+  const contents = useLessonContents(readingRef, !isEditing || isPreviewing, renderedBodyMarkdown);
+  const [compactTocOpen, setCompactTocOpen] = useState(false);
+  const hasRail = contents.toc.length > 0 || contents.files.length > 0;
 
   useEffect(() => {
     if (!isTitleEditing) return;
@@ -513,7 +619,26 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   };
 
   return (
-    <div className="resource-viewer-content">
+    <div className={`resource-viewer-content${embed ? " is-video-lesson" : ""}`}>
+      {/* A video lesson leads with its video, wide, above the title. */}
+      {embed ? (
+        <div className="resource-viewer-hero">
+          <div className="resource-viewer-embed" data-resource-media="true">
+            {embed.provider === "youtube" ? (
+              <DeferredYouTubeEmbed
+                key={embed.id}
+                embed={embed}
+                title={`${resource.title} video`}
+              />
+            ) : (
+              <StableMediaEmbedFrame
+                src={embed.src}
+                title={`${resource.title} video`}
+              />
+            )}
+          </div>
+        </div>
+      ) : null}
       <div className="resource-viewer-header">
         <div className="resource-viewer-title-row">
           <h1 className="resource-viewer-title">
@@ -566,27 +691,33 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         {isEditing && editor?.error ? <div className="auth-error resource-viewer-edit-error">{editor.error}</div> : null}
       </div>
 
-      <div className="resource-viewer-body">
+      <div className={`resource-viewer-body${hasRail ? " has-lesson-rail" : ""}`}>
         <div className="resource-viewer-column">
-          {embed ? (
-            <div className="resource-viewer-embed" data-resource-media="true">
-              {embed.provider === "youtube" ? (
-                <DeferredYouTubeEmbed
-                  key={embed.id}
-                  embed={embed}
-                  title={`${resource.title} video`}
-                />
-              ) : (
-                <StableMediaEmbedFrame
-                  src={embed.src}
-                  title={`${resource.title} embed`}
-                />
-              )}
+          {platforms.length > 1 && activePlatform ? (
+            <div className="lesson-platform-row">
+              <span>I build in</span>
+              <WebPlatformTabList
+                tabs={platforms.map((entry) => ({ id: entry.key, label: entry.label }))}
+                activeTab={activePlatform}
+                onSelectTab={choosePlatform}
+                ariaLabel="I build in"
+                idPrefix="lesson-platform"
+                style={buildPlatformSwitcherStyle(platforms.length, platforms.findIndex((entry) => entry.key === activePlatform))}
+              />
             </div>
           ) : null}
 
+          {contents.toc.length ? (
+            <details className="lesson-toc-compact" open={compactTocOpen} onToggle={(event) => setCompactTocOpen(event.currentTarget.open)}>
+              <summary><ListOrdered aria-hidden="true" /><span>Contents</span></summary>
+              <LessonContents toc={contents.toc} activeId={contents.activeId} onJump={() => setCompactTocOpen(false)} />
+            </details>
+          ) : null}
+
           {/* Around every place the body shows, read view or editor fallback alike. */}
-          <LessonElementScopeContext.Provider value={lessonScope}>{renderBodyContent()}</LessonElementScopeContext.Provider>
+          <div className="lesson-reading" ref={readingRef}>
+            <LessonElementScopeContext.Provider value={lessonScope}>{renderBodyContent()}</LessonElementScopeContext.Provider>
+          </div>
 
           {verificationLink ? (
             <a
@@ -600,6 +731,28 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
             </a>
           ) : null}
         </div>
+        {hasRail ? (
+          <aside className="lesson-rail" aria-label="In this lesson">
+            {contents.toc.length ? (
+              <nav className="lesson-rail-section" aria-label="Contents">
+                <p className="lesson-rail-label">Contents</p>
+                <LessonContents toc={contents.toc} activeId={contents.activeId} />
+              </nav>
+            ) : null}
+            {contents.files.length ? (
+              <div className="lesson-rail-section">
+                <p className="lesson-rail-label">Files</p>
+                <ul className="lesson-rail-files">
+                  {contents.files.map((file) => (
+                    <li key={file.href}>
+                      <a href={file.href} target="_blank" rel="noreferrer"><FileText aria-hidden="true" /><span>{file.label}</span></a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </aside>
+        ) : null}
       </div>
     </div>
   );

@@ -9673,6 +9673,140 @@ button.chat-reply-quote:hover {
   border-bottom: 0;
 }
 
+/* ── The lesson page (Rashid, 2026-10-26): Substack's reading rhythm ──
+   A video lesson leads with its video, wider than the text. The title and
+   text share one centred column; Contents and Files sit in a side column
+   where there is room, and Contents folds into a menu above the text where
+   there isn't. */
+.knowledge-resource-reader { container-type: inline-size; container-name: lesson; }
+.knowledge-resource-reader .resource-viewer-header,
+.knowledge-resource-reader .resource-viewer-hero {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--lesson-reading-measure, 680px);
+  margin-inline: auto;
+}
+.knowledge-resource-reader .resource-viewer-hero {
+  max-width: calc(var(--lesson-reading-measure, 680px) + 10rem);
+  margin-bottom: 1.75rem;
+}
+.knowledge-resource-reader .resource-viewer-content.is-video-lesson .resource-viewer-header { padding-top: 0; }
+.knowledge-resource-reader .resource-viewer-prose { line-height: 1.7; }
+.knowledge-resource-reader .resource-viewer-prose h4.md-header {
+  margin-block: 1.75em 0.5em;
+  font-size: 1.125em;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.knowledge-resource-reader .lesson-reading { display: contents; }
+.knowledge-resource-reader .resource-viewer-prose .md-code-block,
+.knowledge-resource-reader .resource-viewer-prose .md-code-block code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.875rem;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* "I build in": the member's platform, picked once. */
+.lesson-platform-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Contents and Files */
+.lesson-rail-label {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lesson-toc-list,
+.lesson-rail-files {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lesson-toc-item a,
+.lesson-rail-files a {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.5rem;
+  border-radius: 0.375rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-decoration: none;
+}
+.lesson-toc-item.is-level-3 a { padding-left: 1.25rem; }
+.lesson-toc-item a:hover,
+.lesson-rail-files a:hover { background: var(--hover-overlay); color: var(--text-primary); }
+.lesson-toc-item.is-active a {
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--accent-brand, var(--text-primary));
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+.lesson-toc-item svg,
+.lesson-rail-files svg { flex: none; width: 0.875rem; height: 0.875rem; margin-top: 0.125rem; color: var(--accent-brand, var(--text-muted)); }
+.lesson-rail { display: none; }
+.lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
+
+.lesson-toc-compact {
+  border: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+  border-radius: 0.625rem;
+  background: var(--bg-card);
+}
+.lesson-toc-compact summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.lesson-toc-compact summary::-webkit-details-marker { display: none; }
+.lesson-toc-compact summary svg { width: 1rem; height: 1rem; color: var(--text-muted); }
+.lesson-toc-compact .lesson-toc-list { padding: 0 0.375rem 0.5rem; }
+
+@container lesson (min-width: 56rem) {
+  .resource-viewer-body.has-lesson-rail {
+    display: grid;
+    grid-template-columns: minmax(0, var(--lesson-reading-measure, 680px)) 13.5rem;
+    justify-content: center;
+    gap: 3rem;
+  }
+  .resource-viewer-body.has-lesson-rail .resource-viewer-column { margin: 0; max-width: none; }
+  .resource-viewer-body.has-lesson-rail .lesson-rail {
+    display: block;
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100dvh - 3rem);
+    overflow-y: auto;
+    padding-top: 0.25rem;
+  }
+  .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
+  /* With the side column, the title lines up with the text column. */
+  .knowledge-resource-reader:has(.has-lesson-rail) .resource-viewer-header {
+    max-width: calc(var(--lesson-reading-measure, 680px) + 16.5rem);
+    padding-right: 16.5rem;
+  }
+}
+
 .knowledge-resource-reader .resource-viewer-body {
   padding: 16px 0 8px;
   overflow: visible;
@@ -13351,4 +13485,9 @@ button.chat-reply-quote:hover {
   font-size: 13px;
   font-weight: 600;
   pointer-events: none;
+}
+@container lesson (min-width: 56rem) {
+  .knowledge-resource-reader:has(.has-lesson-rail) .resource-viewer-hero {
+    max-width: calc(var(--lesson-reading-measure, 680px) + 16.5rem);
+  }
 }
