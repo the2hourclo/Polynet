@@ -72,7 +72,7 @@ function workflowErrorMessage(error: unknown): string {
   if (message.includes("welcome_step_duplicate")) return "Each form or lesson can be on the welcome page once.";
   if (message.includes("welcome_step_invalid")) return "A form or lesson on the welcome page is missing. Remove it and add it again.";
   if (message.includes("welcome_choices_too_many")) return "The welcome page holds up to 3 choices.";
-  if (message.includes("welcome_choice_invalid")) return "Each choice needs a name of up to 40 characters on every card, at most 4 cards, and a short question.";
+  if (message.includes("welcome_choice_invalid")) return "Each choice needs a name of up to 40 characters on every card, at most 4 cards, and a short question. A card icon must be an https image link.";
   if (message.includes("welcome_choice_too_long")) return "Keep each card's steps to 8,000 characters, and all cards together to 30,000.";
   if (message.includes("form_not_published")) return "Publish that form in Forms first.";
   if (message.includes("workflow_previous_action_invalid")) return "A \"then\" rule in Workflows runs after a form that is no longer asked. Change that rule in Workflows first.";

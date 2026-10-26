@@ -525,6 +525,17 @@ function ChoiceEditor(props: { id: string; prompt: string; options: WelcomeChoic
           <input value={option.hint} maxLength={WELCOME_CHOICE_HINT_MAX} placeholder="Runs in VS Code or your terminal" onChange={(event) => setOption({ hint: event.target.value })} />
         </label>
       </div>
+      <div className="welcome-settings-choice-field">
+        <span>Icon</span>
+        <div className="welcome-settings-choice-icon-row">
+          <span className="welcome-settings-choice-icon" aria-hidden="true">{option.icon ? <img src={option.icon} alt="" /> : <ImageIcon size={16} />}</span>
+          {option.icon?.startsWith("data:")
+            ? <span className="welcome-settings-choice-icon-note">Built-in logo</span>
+            : <input value={option.icon ?? ""} aria-label="Icon image link" placeholder="https://… image link (optional)"
+              onChange={(event) => setOption({ icon: event.target.value || undefined })} />}
+          {option.icon ? <button type="button" className="welcome-settings-link" onClick={() => setOption({ icon: undefined })}>Remove icon</button> : null}
+        </div>
+      </div>
       <label className="welcome-settings-choice-field">
         <span>Steps for this card</span>
         <AutoSizeTextarea value={option.markdown} maxLength={WELCOME_CHOICE_TEXT_MAX} rows={4} className="welcome-settings-choice-text"
