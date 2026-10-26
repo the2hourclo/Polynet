@@ -344,3 +344,13 @@
 .community-pod-room .community-composer textarea::placeholder {
   color: var(--text-muted);
 }
+
+/* The band already shows who's in the pod, so the channel's people column
+   (creator, online faces, memory, agents) stays out of the room. */
+.community-pod-room .community-interaction-projection.has-channel-context {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.community-pod-room .community-interaction-projection.has-channel-context > .channel-roster-panel {
+  display: none;
+}
