@@ -721,6 +721,12 @@
 [data-community-theme] .track-add {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .welcome-settings-options > .welcome-settings-option:first-child {
+  border-radius: calc(12px * var(--pn-radius-scale, 1)) calc(12px * var(--pn-radius-scale, 1)) 0 0;
+}
+[data-community-theme] .welcome-settings-options > .welcome-settings-option + .welcome-settings-option {
+  border-radius: 0 0 calc(12px * var(--pn-radius-scale, 1)) calc(12px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .welcome-settings-block.drop-before::before,
 [data-community-theme] .welcome-settings-block.drop-after::after {
   border-radius: calc(2px * var(--pn-radius-scale, 1));
@@ -795,9 +801,6 @@
 }
 [data-community-theme] .welcome-settings-display button:last-of-type {
   border-radius: 0 calc(8px * var(--pn-radius-scale, 1)) calc(8px * var(--pn-radius-scale, 1)) 0;
-}
-[data-community-theme] .welcome-settings-display small {
-  font-size: var(--pn-type-label);
 }
 [data-community-theme] .welcome-settings-choice-agent span {
   font-size: var(--pn-type-ui);

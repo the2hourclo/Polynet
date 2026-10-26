@@ -297,47 +297,57 @@ export function WebCommunityWelcomeSettings(props: Props) {
   return (
     <div className="workflow-page welcome-settings">
       <header className="welcome-settings-bar">
-        <div className="welcome-settings-bar-title">
-          <h1>Welcome page</h1>
-          <p>New members see this first, one screen at a time, and finish its steps before the community opens.</p>
+        <div className="welcome-settings-column welcome-settings-bar-inner">
+          <div className="welcome-settings-bar-title">
+            <h1>Welcome page</h1>
+            <p>What new members see first, one screen at a time.</p>
+          </div>
+          <div className="welcome-settings-bar-actions">
+            <small role="status" className="welcome-settings-saved">{moveNote || (dirty ? "Unsaved changes" : saved ? "Saved" : "")}</small>
+            <button type="button" ref={previewButton} className="workflow-secondary-button" disabled={!screenCount} onClick={() => { setMenu(null); setPreviewing(true); }}>
+              <Eye size={15} aria-hidden="true" /> Preview
+            </button>
+            <button type="button" className="workflow-secondary-button" disabled={!dirty || props.isSaving}
+              onClick={() => { setSaved(false); setMenu(null); setEditing(null); setDraft(baseline); setDraftBase(baselineKey); }}>Discard</button>
+            <button type="button" className={`platform-save-button${dirty ? " is-dirty" : ""}`} disabled={!dirty || props.isSaving || !props.onSaveWelcomePage}
+              onClick={() => void save()}>{props.isSaving ? "Saving…" : "Save"}</button>
+          </div>
         </div>
-        <div className="welcome-settings-visibility">
-          <label className="welcome-settings-switch">
-            <input type="checkbox" role="switch" checked={gateOn} aria-describedby={`${id}-status-help`}
-              disabled={props.isSaving || !props.onSetWelcomeGate || (!gateOn && !hasSteps)}
-              onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)} />
-            <span>
-              <strong>Show to new members</strong>
-              <small id={`${id}-status-help`}>
-                {gateOn ? "On. New members start here." : hasSteps ? "Off. New members skip it." : "Add a form or a lesson, and save, to turn it on."}
-              </small>
-            </span>
-          </label>
-          <div className="welcome-settings-display" role="radiogroup" aria-label="Show it as" aria-describedby={`${id}-display-help`}>
+      </header>
+
+      <section className="welcome-settings-column welcome-settings-options" aria-label="Who sees it, and how">
+        <label className="welcome-settings-switch welcome-settings-option">
+          <input type="checkbox" role="switch" checked={gateOn} aria-describedby={`${id}-status-help`}
+            disabled={props.isSaving || !props.onSetWelcomeGate || (!gateOn && !hasSteps)}
+            onChange={(event) => void props.onSetWelcomeGate?.(event.target.checked)} />
+          <span>
+            <strong>Show to new members</strong>
+            <small id={`${id}-status-help`}>
+              {gateOn ? "On. New members start here." : hasSteps ? "Off. New members skip it." : "Add a form or a lesson, and save, to turn it on."}
+            </small>
+          </span>
+        </label>
+        <div className="welcome-settings-option">
+          <span>
+            <strong id={`${id}-display-label`}>Show it as</strong>
+            <small id={`${id}-display-help`}>{display === "popup"
+              ? "A pop-up over the community. Members can finish later."
+              : "A full page. Members see only this until its steps are done."}</small>
+          </span>
+          <div className="welcome-settings-display" role="radiogroup" aria-labelledby={`${id}-display-label`} aria-describedby={`${id}-display-help`}>
             {([["page", "Full page", <Maximize2 key="i" size={14} aria-hidden="true" />], ["popup", "Pop-up", <PanelTop key="i" size={14} aria-hidden="true" />]] as const).map(([value, label, icon]) => (
               <button key={value} type="button" role="radio" aria-checked={display === value} disabled={props.isSaving || !props.onSetWelcomeDisplay}
                 onClick={() => { if (display !== value) void props.onSetWelcomeDisplay?.(value); }}>{icon} {label}</button>
             ))}
-            <small id={`${id}-display-help`}>{display === "popup"
-              ? "Opens over the community. Members can use it behind and finish later."
-              : "Members see only this until they finish its steps."}</small>
           </div>
         </div>
-        <div className="welcome-settings-bar-actions">
-          <button type="button" ref={previewButton} className="workflow-secondary-button" disabled={!screenCount} onClick={() => { setMenu(null); setPreviewing(true); }}>
-            <Eye size={15} aria-hidden="true" /> Preview
-          </button>
-          <button type="button" className="workflow-secondary-button" disabled={!dirty || props.isSaving}
-            onClick={() => { setSaved(false); setMenu(null); setEditing(null); setDraft(baseline); setDraftBase(baselineKey); }}>Discard</button>
-          <button type="button" className={`platform-save-button${dirty ? " is-dirty" : ""}`} disabled={!dirty || props.isSaving || !props.onSaveWelcomePage}
-            onClick={() => void save()}>{props.isSaving ? "Saving…" : "Save"}</button>
-          <small role="status" className="welcome-settings-saved">{moveNote || (dirty ? "Unsaved changes" : saved ? "Saved" : "")}</small>
-        </div>
-      </header>
+      </section>
       {props.actionError ? <p className="workflow-error welcome-settings-error" role="alert">{props.actionError}</p> : null}
 
       <div className="welcome-settings-canvas">
         <article className="community-welcome welcome-settings-page" aria-label="Welcome page editor">
+          {draft.layout.some((block) => block.type === "next")
+            ? <div className="welcome-settings-break welcome-settings-break-first" aria-hidden="true"><span>Screen 1</span></div> : null}
           <div className="community-welcome-intro">
             <small>Welcome</small>
             <AutoSizeTextarea id={`${id}-title`} className="welcome-settings-headline" value={draft.title} maxLength={TITLE_MAX} rows={1} aria-label="Headline"
@@ -408,8 +418,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
                         onAgent={(agent) => updateChoice(block.uid, (current) => ({ ...current, agent: agent || undefined }))}
                         onChange={(prompt, choiceOptions) => updateChoice(block.uid, (current) => ({ ...current, prompt, options: choiceOptions }))} />
                     ) : block.type === "next" ? (
-                      <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break">
-                        <span>Next page</span><small>Screen {screenNumber}</small>
+                      <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break" aria-label={`New page: screen ${screenNumber} starts here`}>
+                        <span>Screen {screenNumber}</span>
                       </div>
                     ) : block.type === "form" ? (
                       <StepCard id={`${id}-block-${block.uid}`} kind="Form" icon={<ClipboardList size={18} aria-hidden="true" />}
