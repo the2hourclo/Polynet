@@ -234,7 +234,9 @@ function ResourceCourseCard(props: {
           ) : null}
           {percent !== null && !lockedReason ? (
             <span
-              className="resource-course-card-progress"
+              // The Classroom bar prints the % inside it: on the fill once
+              // there is room, on the empty track before that.
+              className={`resource-course-card-progress${percent >= 14 ? " is-label-on-fill" : ""}`}
               role="progressbar"
               aria-label={`${module.name} progress`}
               aria-valuemin={0}

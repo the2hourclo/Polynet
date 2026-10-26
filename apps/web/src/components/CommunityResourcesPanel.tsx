@@ -22,6 +22,7 @@ import {
 } from "./WebCommunityResourceViewerContent";
 import { WebDeleteResourceModal } from "./WebDeleteResourceModal";
 import { ResourceCourseCatalog, type ResourceCourseProgress } from "./ResourceCourseCatalog";
+import { setMemberViewOn, useMemberView, useOfferMemberView } from "./memberViewStore";
 import { createBrowserCommunityEmbedStorage, type CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
 
 type CommunityResourcesPanelProps = {
@@ -366,7 +367,11 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   const draggingResourceModuleIdRef = useRef<string | null>(null);
   const [activeResourceEditField, setActiveResourceEditField] =
     useState<WebCommunityResourceInlineEditorField | null>(null);
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  // View as member lives in the top bar; this page offers it to owners.
+  const memberView = useMemberView();
+  useOfferMemberView(capabilities.canOperateResources);
+  const isPreviewMode = capabilities.canOperateResources && memberView.on;
+  const setIsPreviewMode = setMemberViewOn;
   const [isCourseOutlineOpen, setIsCourseOutlineOpen] = useState(() => !isNarrowViewport());
   const [isCreatingPageDraft, setIsCreatingPageDraft] = useState(false);
   const pageDraftCreationInFlightRef = useRef(false);
@@ -881,7 +886,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     <>
       <div className="community-panel community-utility-panel resources-panel">
         {/* Members on the catalog have nothing here, so the row isn't drawn. */}
-        {selectedModule || capabilities.canOperateResources ? <div className="feed-header-row">
+        {selectedModule || (capabilities.canOperateResources && !memberView.inTopBar) ? <div className="feed-header-row">
           <div className="feed-header-copy">
             {selectedModule ? (
               <button className="resources-back-btn" type="button" onClick={handleBackToCatalog}>
@@ -897,7 +902,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
               capabilities.canOperateResources ? " has-preview-mode" : ""
             }`}
           >
-            {capabilities.canOperateResources ? (
+            {capabilities.canOperateResources && !memberView.inTopBar ? (
               <div className="resources-header-view-actions">
                 {/* The owner's look at the page as members see it: one small pill. */}
                 <button
