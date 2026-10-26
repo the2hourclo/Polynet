@@ -45,7 +45,7 @@ test("milestone views share the draft and progressive creation does not preselec
   expect(editor).toContain('setSelection({ triggerSelected: false, actionSelected: false })');
   expect(editor).toContain('>Done</button>');
   expect(editor).toContain('dependent actions wait for the preceding action to complete');
-  expect(automation).toContain('Previous action completed');
+  expect(automation).toContain('After an earlier step');
   expect(automation).toContain('value={triggerSelected ? automation.trigger.type : ""}');
   expect(automation).toContain('value={actionSelected ? automation.action.type : ""}');
   expect(automation).toContain('triggerReady ? <label>Then');
@@ -71,6 +71,6 @@ test("board actions remain discoverable without hover", () => {
   expect(css).toContain("padding-inline: 8px");
   expect(css).toContain("background: var(--community-rail-control-bg)");
   expect(css).toContain("border: var(--community-rail-button-border)");
-  expect(component).toContain('aria-label="Add milestone"');
+  expect(component).toContain('aria-label="Add stage"');
   expect(component).toContain("aria-label={`Edit ${milestone.name}`}");
 });

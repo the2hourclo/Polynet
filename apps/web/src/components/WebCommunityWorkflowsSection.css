@@ -997,6 +997,20 @@
 .workflow-nudge-toggle span { display: flex; flex-direction: column; gap: 2px; }
 .workflow-nudge-toggle small { font-weight: 400; color: var(--text-secondary); line-height: 1.4; }
 
+/* "Only if…" on any step */
+.workflow-step-extra { display: grid; gap: 2px; }
+.workflow-step-extra-add {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.workflow-step-extra-add:disabled { color: var(--text-muted); cursor: not-allowed; }
+
 /* "What the agent sees" on an Ask-the-agent step */
 .workflow-agent-inputs {
   display: grid;

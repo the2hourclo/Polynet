@@ -37,6 +37,8 @@ type Props = {
   onClose: () => void;
   onSave: (milestone: CommunityMemberWorkflowMilestone) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
+  /** Where the editor opens: a step's sentence opens that step, "Add a step" opens a new one. */
+  openTo?: { automationKey?: string; addStep?: boolean } | null;
 };
 
 function draftKey(prefix: string): string {
@@ -78,9 +80,11 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
     if (editingSnapshot.current?.key === props.milestone.key) return;
     editingSnapshot.current = props.milestone;
     setConfirmDiscard(false);
-    setExpandedAutomationKey(null);
-    setView("overview");
-    setPendingAutomation(null);
+    const openTo = props.openTo ?? null;
+    const opensStep = !!openTo?.automationKey && props.milestone.automations.some((automation) => automation.key === openTo.automationKey);
+    setExpandedAutomationKey(opensStep ? openTo!.automationKey! : null);
+    setView(opensStep || openTo?.addStep ? "automations" : "overview");
+    setPendingAutomation(openTo?.addStep && props.milestone.key ? newAutomation() : null);
     setSelection({ triggerSelected: false, actionSelected: false });
     setName(props.milestone.name);
     setInstructions(props.milestone.instructions ?? "");
@@ -119,7 +123,6 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
   const formActions = automations.filter(a => a.trigger.type === "form_submitted");
   const duplicateFormAction = new Set(formActions.map(a => a.trigger.type === "form_submitted" ? `${a.action.type}:${a.trigger.formKey}` : "")).size !== formActions.length;
   const sequenceIssue = workflowSequenceIssue(automations);
-  const previousAction = (before: number) => automations.slice(0, before).at(-1);
   const canSave = name.trim().length > 0
     && !sequenceIssue
     && !pendingAutomation
@@ -263,7 +266,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
             {sequenceIssue ? <p role="alert">{sequenceIssue}</p> : null}
             {pendingAutomation ? <>
               <WebCommunityWorkflowAutomationEditor automation={pendingAutomation} index={automations.length}
-                previousAction={previousAction(automations.length)} canAddJoin={props.milestoneNumber === 1} catalog={props.catalog} forms={props.forms} expanded hideHeading
+                earlierSteps={automations} canAddJoin={props.milestoneNumber === 1} catalog={props.catalog} forms={props.forms} expanded hideHeading
                 channels={props.channels} channelsUnavailable={props.channelsUnavailable} disabled={props.isSaving}
                 onToggle={() => {}} onRemove={() => setPendingAutomation(null)} onChange={setPendingAutomation}
                 creation={{ ...selection,
@@ -290,7 +293,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
                   <div className="workflow-milestone-automation-list">
                     {automations.filter(a => !expandedAutomationKey || a.key === expandedAutomationKey).map((automation, index) => (
                       <WebCommunityWorkflowAutomationEditor key={automation.key} automation={automation} index={index}
-                        previousAction={previousAction(automations.indexOf(automation))}
+                        earlierSteps={automations.slice(0, automations.indexOf(automation))}
                         canAddJoin={props.milestoneNumber === 1} catalog={props.catalog}
                         forms={props.forms}
                         hideHeading={editingAutomation}
