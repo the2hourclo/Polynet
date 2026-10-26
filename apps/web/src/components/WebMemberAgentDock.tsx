@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { CommunityAgentIcon, useCommunityAgentProfile } from "../../../../shared/CommunityAgentIcon";
+import { readTestMemberRun } from "../../../../shared/testMemberRun";
 import { getAuthUrl, type AuthSession } from "../auth";
 import { CommunityComposerControls } from "./CommunityComposerControls";
 import { renderMarkdown } from "../../../../shared/markdownUi";
@@ -627,7 +628,12 @@ function WebMemberAgentDock(props, ref) {
     !localError && inferenceIssue?.code === MEMBER_AGENT_LIMIT_CODE
       ? formatInferenceIssue(inferenceIssue)
       : null;
-  const dockError = memberLimitNotice ? null : localError ?? formatInferenceIssue(inferenceIssue);
+  // A test member can't open this chat (it runs as an action, which test runs
+  // never do); their guide channel reaches the same agent.
+  const testRunNotice = readTestMemberRun()
+    ? `In a test run, talk to ${agentCustomName || "the agent"} in your guide channel. This chat opens for real members.`
+    : null;
+  const dockError = testRunNotice ?? (memberLimitNotice ? null : localError ?? formatInferenceIssue(inferenceIssue));
   useEffect(() => {
     const request = pendingResourceBuildRef.current;
     if (

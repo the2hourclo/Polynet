@@ -6,6 +6,7 @@ import { resolveNotificationRecipientSource } from "./communityNotificationAcces
 import { fingerprintCommunityComposerPayload } from "./communityComposerReplay";
 import { v } from "convex/values";
 import { requireCommunityChannelCapability, resolveCommunityChannelActor } from "./communityChannelAccess";
+import { readCommunityAgentProfile } from "./communityAgentContext";
 import {
   type CommunityChatMessageLike,
   type CommunityChatThreadLike,
@@ -1494,8 +1495,13 @@ async function interactionTextContainsCommunityAgentMention(args: {
   communityId: any;
   text: string;
 }): Promise<boolean> {
+  // The agent answers to its profile name (Settings > Agent) and, so older
+  // posts and habits keep working, to the community's name.
+  const profile = await readCommunityAgentProfile(args.ctx, args.communityId);
+  if (!profile) return false;
   const community = (await args.ctx.db.get(args.communityId as any)) as { name?: string } | null;
-  return interactionTextContainsAtToken(args.text, community?.name);
+  return interactionTextContainsAtToken(args.text, profile.name)
+    || interactionTextContainsAtToken(args.text, community?.name);
 }
 
 async function validateEverybodyMentionForWrite(args: {

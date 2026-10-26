@@ -1547,14 +1547,14 @@ async function executeCanonicalList(args: {
   const identity = (await args.ctx.runQuery(
     (internal as any).communityCapabilityContext.getCommunityRepositoryIdentityInternal,
     { communityId: target.communityId, ...(memberViewer ? { viewerUserId: args.userId } : {}) },
-  )) as { slug: string; name: string; viewer?: Record<string, unknown> } | null;
-  const { viewer, ...community } = identity ?? ({} as { slug: string; name: string; viewer?: Record<string, unknown> });
+  )) as { slug: string; name: string; agent_name?: string; viewer?: Record<string, unknown> } | null;
+  const { viewer, ...community } = identity ?? ({} as { slug: string; name: string; agent_name?: string; viewer?: Record<string, unknown> });
   return {
     ok: true,
     value: {
       ...value,
       entries: [...rawEntries, ...builderEntry],
-      // Who this is: a front end's title, and the community agent's @mention token.
+      // Who this is: a front end's title, and agent_name, the community agent's @mention token.
       ...(identity ? { community } : {}),
       // Who is asking: a front end's "signed in as".
       ...(viewer ? { viewer: { ...viewer, role: target.authority.relation } } : {}),
