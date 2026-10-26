@@ -49,8 +49,18 @@ button.community-creators-name {
 button.community-creators-name:hover { text-decoration: underline; }
 button.community-creators-name:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; border-radius: 0.125rem; }
 
-/* Channels: under the community's name at the top of the right panel. */
-.community-context-rail-creators { padding: 0 1rem 0.75rem; }
+/* Channels: the first section of the Members panel, above Memory. Rows are
+   the panel's member rows, so only the section's own spacing lives here. */
+.community-context-creators {
+  flex-shrink: 0;
+  padding: 0.625rem 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--stroke-divider-accent);
+}
+.community-context-creators > .community-context-section { margin: 0.25rem 0 0.375rem; padding: 0 0.5rem; }
+.product-shell-surface[data-channels-feel] .community-context-creators {
+  padding: 0.75rem 0.75rem 0.625rem;
+  border-bottom-color: var(--feel-hairline);
+}
 /* Classroom card and About: between the description and the member count. */
 .community-card-block .community-creators { margin: 0.25rem 0; }
 

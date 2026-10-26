@@ -253,7 +253,7 @@ function RosterSurface(props: RosterProps & {
       </div> : null}
       <span className="community-context-rail-name">{props.communityName}</span>
     </div>
-    <WebCommunityCreators communityId={scope?.communityId} onOpenProfile={props.onOpenProfile} className="community-context-rail-creators" />
+    <WebCommunityCreators communityId={scope?.communityId} onOpenProfile={props.onOpenProfile} variant="rail" getAvatarColor={props.getAvatarColor} getInitials={props.getInitials} />
     <CommunityPresenceFacepile faces={props.presenceSummary?.online_faces} onlineCount={props.presenceSummary?.online_count}
       onlineCountCapped={Boolean(props.presenceSummary?.online_count_capped)} isLoading={props.isLoadingPresence} />
     <div className="community-context-memory">

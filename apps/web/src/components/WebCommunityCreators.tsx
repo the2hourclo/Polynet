@@ -3,6 +3,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { createConvexClient } from "../../../../shared/convexAuthenticatedClient";
 import { UserAvatar } from "../../../../shared/UserAvatar";
+import { AVATAR_INITIALS_INK } from "../../../../shared/chatUi";
 import "./WebCommunityCreators.css";
 
 type Creator = {
@@ -49,7 +50,9 @@ function initials(name: string): string {
 // "Created by": the owner first, then the co-creators the owner added. Shown
 // under the community's name in Channels, on its card in Classroom and on
 // About (Rashid, 2026-10-25).
-export function WebCommunityCreators(props: { communityId: string | null | undefined; onOpenProfile?: (userId: string) => void; onShowChat?: () => void; readOnly?: boolean; className?: string }) {
+// The "rail" variant is the Members panel in Channels: a section heading and
+// the same rows as the people below it, so faces and names line up.
+export function WebCommunityCreators(props: { communityId: string | null | undefined; onOpenProfile?: (userId: string) => void; onShowChat?: () => void; readOnly?: boolean; className?: string; variant?: "rail"; getAvatarColor?: (id: string) => string; getInitials?: (name: string) => string }) {
   const communityId = props.communityId ?? null;
   const [creators, setCreators] = useState<Creator[]>(() => (communityId ? cache.get(communityId) ?? [] : []));
   const [reload, setReload] = useState(0);
@@ -74,6 +77,27 @@ export function WebCommunityCreators(props: { communityId: string | null | undef
   if (!creators.length) return null;
   const names = creators.map(creatorName);
   const label = creators.length === 1 ? "Creator" : "Creators";
+  const openProfile = (userId: string) => (props.onOpenProfile ? props.onOpenProfile(userId) : requestCommunityProfile(userId, props.onShowChat));
+  if (props.variant === "rail") {
+    return (
+      <section className="community-context-creators" aria-label={label}>
+        <h3 className="community-context-section">{creators.length === 1 ? label : `${label} — ${creators.length}`}</h3>
+        {creators.map((creator, index) => (
+          <div key={creator.user_id} className="community-context-member">
+            <button type="button" className="community-context-member-trigger" aria-label={`Open ${names[index]}'s profile`} onClick={() => openProfile(creator.user_id)}>
+              <span className="community-context-member-avatar" style={!creator.avatar_url && props.getAvatarColor ? { backgroundColor: props.getAvatarColor(creator.user_id), color: AVATAR_INITIALS_INK } : undefined}>
+                <UserAvatar className="community-context-member-avatar-media" readyClassName="has-image"
+                  name={names[index]!} imageUrl={creator.avatar_url}
+                  focusX={creator.avatar_focus_x} focusY={creator.avatar_focus_y} zoom={creator.avatar_zoom}
+                  alt="" aria-hidden={true} fallback={<span>{(props.getInitials ?? initials)(names[index]!)}</span>} />
+              </span>
+              <span className="community-context-member-copy"><span className="community-context-member-name is-admin">{names[index]}</span></span>
+            </button>
+          </div>
+        ))}
+      </section>
+    );
+  }
   return (
     <div className={`community-creators${props.className ? ` ${props.className}` : ""}`} aria-label={`${label}: ${names.join(", ")}`} role="group">
       <span className="community-creators-faces" aria-hidden="true">
@@ -104,7 +128,7 @@ export function WebCommunityCreators(props: { communityId: string | null | undef
               {props.readOnly ? <span className="community-creators-name">{names[index]}</span> : <button
                 type="button"
                 className="community-creators-name"
-                onClick={() => (props.onOpenProfile ? props.onOpenProfile(creator.user_id) : requestCommunityProfile(creator.user_id, props.onShowChat))}
+                onClick={() => openProfile(creator.user_id)}
               >
                 {names[index]}
               </button>}
