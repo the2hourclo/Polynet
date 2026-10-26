@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useId, useState } from "react";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH } from "../../../../shared/communityMemberWorkflow";
+import { COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH, WORKFLOW_AGENT_SEES_MAX } from "../../../../shared/communityMemberWorkflow";
 import { WorkflowChannelPicker } from "./WorkflowChannelPicker";
 import { replaceWorkflowDraftAction, workflowAutomationIssue, workflowTriggerIssue, workflowChannelLabel, type WorkflowAutomationDraft } from "./workflowMilestoneDraft";
 
@@ -37,6 +37,56 @@ function PropertyValueField(props: { id: string; property: WorkflowCatalogProper
   return <label>Set {property.name} to<input id={props.id} type={inputType} aria-label={label} disabled={props.disabled}
     value={value === null ? "" : String(value)} placeholder="Leave empty to clear it"
     onChange={(event) => props.onChange(event.target.value === "" ? null : property.type === "number" ? event.target.valueAsNumber : event.target.value)} /></label>;
+}
+
+// "What the agent sees" on an Ask-the-agent step. Unset keeps today's bundle;
+// once the owner picks, only the ticked inputs reach the agent.
+function AgentInputsField(props: { id: string; sees: string[] | undefined; catalog?: WorkflowCatalog;
+  forms?: Array<{ key: string; name: string }>; disabled: boolean; onChange: (sees: string[] | undefined) => void }) {
+  const { sees } = props;
+  if (!sees) {
+    return <div className="workflow-agent-inputs">
+      <span className="workflow-agent-inputs-title">What the agent sees</span>
+      <p className="workflow-field-hint">Facts about the member and the form that started this step.</p>
+      <button type="button" className="secondary" disabled={props.disabled} onClick={() => props.onChange(["facts"])}>Choose what it sees</button>
+    </div>;
+  }
+  const full = sees.length >= WORKFLOW_AGENT_SEES_MAX;
+  const toggle = (entry: string, on: boolean) => props.onChange(on ? [...sees, entry] : sees.filter((item) => item !== entry));
+  const box = (entry: string, label: string, hint?: string) => {
+    const checked = sees.includes(entry);
+    return <label key={entry} className="workflow-agent-input">
+      <input type="checkbox" checked={checked} disabled={props.disabled || (full && !checked)} onChange={(event) => toggle(entry, event.target.checked)} />
+      <span>{label}{hint ? <small>{hint}</small> : null}</span>
+    </label>;
+  };
+  const lessons = props.catalog?.lessons ?? [];
+  const pickedLessons = sees.filter((entry) => entry.startsWith("lesson:")).map((entry) => entry.slice(7));
+  return <fieldset className="workflow-agent-inputs" aria-describedby={`${props.id}-inputs-help`}>
+    <legend className="workflow-agent-inputs-title">What the agent sees</legend>
+    <div className="workflow-agent-input-group">
+      <span>About the member</span>
+      {box("facts", "Facts about them", "What they shared that the community keeps")}
+      {box("progress", "Course progress", "Lessons done and what comes next")}
+      {box("guide_channel", "Guide channel", "The last 20 messages")}
+    </div>
+    {props.forms?.length ? <div className="workflow-agent-input-group"><span>Form answers</span>
+      {props.forms.map((form) => box(`form:${form.key}`, form.name))}</div> : null}
+    {props.catalog?.properties?.length ? <div className="workflow-agent-input-group"><span>Client properties</span>
+      {props.catalog.properties.map((property) => box(`property:${property.key}`, property.name))}</div> : null}
+    <div className="workflow-agent-input-group"><span>Your content</span>
+      {pickedLessons.map((lessonId) => box(`lesson:${lessonId}`, lessons.find((lesson) => lesson.id === lessonId)?.title ?? "Unavailable lesson"))}
+      <select aria-label="Add a lesson the agent reads" value="" disabled={props.disabled || full || !lessons.length}
+        onChange={(event) => event.target.value && toggle(`lesson:${event.target.value}`, true)}>
+        <option value="">{lessons.length ? "Add a lesson it reads…" : "No published lessons yet"}</option>
+        {lessons.filter((lesson) => !pickedLessons.includes(lesson.id)).map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.course} · {lesson.title}</option>)}
+      </select>
+    </div>
+    <p className="workflow-field-hint" id={`${props.id}-inputs-help`}>
+      The form that started this step is always included. The member can see anything the agent repeats, so only tick what you're happy for them to read.{full ? ` Up to ${WORKFLOW_AGENT_SEES_MAX} inputs.` : ""}
+    </p>
+    <button type="button" className="workflow-agent-inputs-reset" disabled={props.disabled} onClick={() => props.onChange(undefined)}>Use the default</button>
+  </fieldset>;
 }
 
 type Props = {
@@ -221,7 +271,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                 <textarea rows={4} maxLength={COMMUNITY_MEMBER_WORKFLOW_PROMPT_MAX_LENGTH} value={automation.action.prompt}
                   disabled={props.disabled} aria-labelledby={`${id}-prompt-label`} aria-describedby={`${id}-prompt-help`}
                   placeholder="What should the community agent do for this member?"
-                  onChange={(event) => props.onChange({ ...automation, action: { key: automation.action.key, type: "prompt_agent", prompt: event.target.value } })} />
+                  onChange={(event) => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "prompt_agent" }>), prompt: event.target.value } })} />
               </label>
               <p className="workflow-field-hint" id={`${id}-prompt-help`}>
                 {automation.action.prompt.trim() ? "" : "Add instructions to save. "}
@@ -231,6 +281,11 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                   : "The community agent uses this member’s community context and replies in the triggering thread."}
                 {!isSequence && !isTimed && !isForm && (isPrivate || channelId === undefined) ? " In private channels, the agent must be invited." : ""}
               </p>
+              <AgentInputsField id={id} sees={automation.action.sees} catalog={props.catalog} forms={props.forms} disabled={props.disabled}
+                onChange={(sees) => {
+                  const { sees: _previous, ...rest } = automation.action as Extract<typeof automation.action, { type: "prompt_agent" }>;
+                  props.onChange({ ...automation, action: sees ? { ...rest, sees } : rest });
+                }} />
             </>
           ) : null}
           </> : null}

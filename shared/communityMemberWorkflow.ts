@@ -38,6 +38,8 @@ export type CommunityMemberWorkflowPromptAgentAction = {
   key: string;
   type: "prompt_agent";
   prompt: string;
+  /** What the agent sees; absent means approved facts and the triggering form. */
+  sees?: string[];
 };
 
 /** Writes one owner property on the member's client row; `null` clears it. */
@@ -236,4 +238,42 @@ export function workflowSequenceCompletionIsNew(rule: CommunityMemberWorkflowAut
 /** A nudge: an agent check-in that never holds the stage open. */
 export function workflowRuleIsNudge(rule: { trigger: CommunityMemberWorkflowTrigger }): boolean {
   return rule.trigger.type === "milestone_elapsed" && rule.trigger.nudge === true;
+}
+
+// What an "Ask the agent" step sees, chosen by the owner. Absent means today's
+// bundle (approved facts plus the form that started the step). Every entry is
+// read fresh when the step runs and handed to the agent as untrusted data.
+export const WORKFLOW_AGENT_SEES_MAX = 12;
+export const WORKFLOW_AGENT_SEES_DEFAULT = ["facts"] as const;
+export type WorkflowAgentSee =
+  | "facts"            // approved community facts about the member
+  | "progress"         // lessons done and courses finished
+  | "guide_channel"    // the last messages in the member's guide channel
+  | `form:${string}`   // the member's latest answers to this form
+  | `property:${string}` // one client property's value
+  | `lesson:${string}`;  // a lesson page's text
+
+const SEE_REF = /^(form|property|lesson):[A-Za-z0-9_-]{1,64}$/;
+
+export function normalizeWorkflowAgentSees(value: unknown): WorkflowAgentSee[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length > WORKFLOW_AGENT_SEES_MAX) throw new Error("workflow_agent_sees_invalid");
+  const out: WorkflowAgentSee[] = [];
+  for (const raw of value) {
+    const entry = String(raw ?? "").trim();
+    if (entry !== "facts" && entry !== "progress" && entry !== "guide_channel" && !SEE_REF.test(entry)) {
+      throw new Error("workflow_agent_sees_invalid");
+    }
+    if (!out.includes(entry as WorkflowAgentSee)) out.push(entry as WorkflowAgentSee);
+  }
+  return out;
+}
+
+export function workflowAgentSeesFacts(sees: readonly string[] | undefined): boolean {
+  return !sees || sees.includes("facts");
+}
+
+/** Form keys picked on the step; null means any recent form (today's bundle). */
+export function workflowAgentSeesFormKeys(sees: readonly string[] | undefined): string[] | null {
+  return sees ? sees.filter((entry) => entry.startsWith("form:")).map((entry) => entry.slice(5)) : null;
 }

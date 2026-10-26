@@ -1,6 +1,6 @@
 import { internal } from "./_generated/api";
 import { readWorkflowActionProgress } from "./communityWorkflowCompletionCore";
-import { workflowSequenceCompletionIsNew, workflowSequenceReceipt, workflowSequenceIssue } from "../shared/communityMemberWorkflow";
+import { workflowAgentSeesFacts, workflowAgentSeesFormKeys, workflowSequenceCompletionIsNew, workflowSequenceReceipt, workflowSequenceIssue } from "../shared/communityMemberWorkflow";
 import { resolveWorkflowTimer } from "./communityMemberWorkflowTimerCore";
 import { resolveMemberServiceChannel, requireMemberFormServiceAudience } from "./communityMemberServiceChannelCore";
 import { getUniqueCommunityMembershipByPair, communityMembershipRowIsActive, requireCommunityChatAccess } from "./communityCore";
@@ -25,12 +25,20 @@ export async function readServiceMemberContext(ctx: QueryCtx, request: any) {
   if (!membership) throw new Error("workflow_member_context_unavailable");
   const predecessor = request.workflowPreviousRunId ? await ctx.db.get(request.workflowPreviousRunId as Id<"communityMemberWorkflowRuns">) : null;
   const formSourceId = request.workflowFormRequestId ?? predecessor?.actionResult?.formRequestId;
-  const evidence = projectSubmittedFormEvidence(await readSubmittedFormRecords(ctx, membership, formSourceId));
+  // The step's picked inputs narrow today's bundle: facts only when ticked, and
+  // forms limited to the ones it names (the form that started the step always stays).
+  const run = request.workflowRunId ? await ctx.db.get(request.workflowRunId as Id<"communityMemberWorkflowRuns">) : null;
+  const sees = run?.actionSnapshot?.type === "prompt_agent" ? run.actionSnapshot.sees : undefined;
+  const formKeys = workflowAgentSeesFormKeys(sees);
+  const page = await readSubmittedFormRecords(ctx, membership, formSourceId);
+  if (formKeys) page.records = page.records.filter((record, index) =>
+    (index === 0 && formSourceId && record.request._id === formSourceId) || formKeys.includes(record.request.formKey));
+  const evidence = projectSubmittedFormEvidence(page);
   const audience = evidence.submissions.length
     ? await requireMemberFormServiceAudience({ ctx, membership }) : null;
-  const { facts, truncated } = await readBoundedMemberOrientationFacts(ctx, {
-    subjectUserId: request.requesterUserId, communityId: request.communityId,
-  });
+  const { facts, truncated } = workflowAgentSeesFacts(sees)
+    ? await readBoundedMemberOrientationFacts(ctx, { subjectUserId: request.requesterUserId, communityId: request.communityId })
+    : { facts: [], truncated: false };
   const identity = await readCanonicalUserIdentityProjection(ctx, request.requesterUserId);
   return JSON.stringify({
     display_name: String(identity?.displayName || "the member").slice(0, 120),

@@ -22,6 +22,7 @@ import {
   normalizeCommunityMemberWorkflowMilestoneKey,
   normalizeCommunityMemberWorkflowMilestoneName,
   normalizeCommunityMemberWorkflowPrompt,
+  normalizeWorkflowAgentSees,
   normalizeWorkflowMilestoneContext,
   normalizeCommunityMemberWorkflowSourceRef,
   normalizeWorkflowDelayMinutes,
@@ -122,6 +123,7 @@ const automationInputValidator = v.object({
       key: v.optional(v.string()),
       type: v.literal("prompt_agent"),
       prompt: v.string(),
+      sees: v.optional(v.array(v.string())),
     }),
     v.object({
       key: v.optional(v.string()),
@@ -244,6 +246,7 @@ function normalizeAutomations(
             key: actionKey,
             type: "prompt_agent",
             prompt: normalizeCommunityMemberWorkflowPrompt(input.action.prompt),
+            ...(() => { const sees = normalizeWorkflowAgentSees(input.action.sees); return sees ? { sees } : {}; })(),
           }
         : input.action.type === "request_form" ? { key: actionKey, type: "request_form", formKey: input.action.formKey }
         : input.action.type === "set_client_property"

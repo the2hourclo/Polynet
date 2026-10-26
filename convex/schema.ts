@@ -1321,6 +1321,7 @@ export default defineSchema({
               key: v.string(),
               type: v.literal("prompt_agent"),
               prompt: v.string(),
+              sees: v.optional(v.array(v.string())),
             }),
             v.object({
               key: v.string(),
@@ -1407,7 +1408,7 @@ export default defineSchema({
       v.object({ key: v.string(), type: v.literal("evaluate_goal") }),
       v.object({ key: v.string(), type: v.literal("create_service_channel") }),
       v.object({ key: v.string(), type: v.literal("request_form"), formKey: v.string() }),
-      v.object({ key: v.string(), type: v.literal("prompt_agent"), prompt: v.string() }),
+      v.object({ key: v.string(), type: v.literal("prompt_agent"), prompt: v.string(), sees: v.optional(v.array(v.string())) }),
       v.object({
         key: v.string(),
         type: v.literal("set_client_property"),
