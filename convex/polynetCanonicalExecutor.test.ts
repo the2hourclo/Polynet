@@ -662,6 +662,9 @@ const modules = import.meta.glob([
   "./communitySettingProposals.ts",
   "./communityColdArchive.ts",
   "./polynetCanonicalReceipts.ts",
+  "./communityTestMembers.ts",
+  "./profiles.ts",
+  "./emailPreferences.ts",
   "./_generated/**/*.*s",
 ]);
 
@@ -4585,4 +4588,64 @@ test("an owner's agent reads Run history at /builder/workflow-runs.json and memb
   expect(JSON.parse((read as any).value.body)).toEqual({ runs: [], truncated: false });
   const member = caller(fixture.memberSubject, fixture.memberId);
   expect((await member("polynet_read", { path: `/communities/${community}/builder/workflow-runs.json` })).ok).toBe(false);
+});
+
+test("an owner's agent runs events, test runs and posts; a member's agent changes only that member's own choices", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const caller = (subject: string, userId: any, principalKind: any = "external_mcp", evidenceSurface: any = "external_mcp") =>
+    async (toolName: string, input: Record<string, unknown>) => {
+      const result = await executePolynetCanonicalTool({
+        ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId,
+        principalKind, evidenceSurface, toolName: toolName as any, input,
+        ...(principalKind === "community_agent" ? { mountedCommunityId: fixture.communityId } : {}),
+      });
+      if (!result.ok) throw Object.assign(new Error(`${result.code}: ${result.message}`), { value: (result as any).value });
+      return result.value as any;
+    };
+  const owner = caller(fixture.ownerSubject, fixture.ownerId);
+  const member = caller(fixture.memberSubject, fixture.memberId);
+  const change = (operation: string, input: Record<string, unknown>, call = owner) => call("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}` });
+  const readJson = async (path: string, call = owner) => JSON.parse((await call("polynet_read", { path: `/communities/${community}${path}` })).body);
+
+  // Events: created in the mounted community, changed, cancelled.
+  const created = await change("community.event.save", { payload: { title: "Office hours", starts_at: "2030-01-07T15:00:00Z", timezone: "Europe/London" } });
+  const eventId = created.result.id ?? created.result.event_id;
+  expect(String(created.result.community_id)).toBe(String(fixture.communityId));
+  await change("community.event.save", { event_id: eventId, payload: { title: "Office hours (live)" } });
+  await change("community.event.cancel", { event_id: eventId });
+  const events = await readJson("/builder/events.json");
+  expect(JSON.stringify(events)).toContain("Office hours (live)");
+  expect(JSON.stringify(events)).toContain("cancelled");
+  await expect(change("community.event.save", { payload: { title: "Mine", starts_at: "2030-01-07T15:00:00Z", timezone: "Europe/London" } }, member))
+    .rejects.toThrow("operation_not_found");
+  await expect(readJson("/builder/events.json", member)).rejects.toThrow("semantic_not_found");
+
+  // A test run, started and ended by the agent.
+  const run = await change("community.test_member.start", {});
+  expect((await readJson("/builder/test-runs.json")).test_members).toHaveLength(1);
+  await change("community.test_member.end", { test_member_id: run.result.id });
+  expect((await readJson("/builder/test-runs.json")).test_members).toHaveLength(0);
+
+  // Removing someone's post is only proposed; the owner applies it in the app.
+  const proposed = await change("community.post.remove", { target_type: "root", target_id: "nothing-yet" });
+  expect(proposed).toMatchObject({ kind: "community_setting_change_proposed", review: "owner_apply" });
+
+  // A member's own Display pick: their agent (online or their own MCP) sets it for them, nobody else's.
+  const top = { version: 1, navigation: { position: "top" } };
+  await saveDesignDraft({ community, kind: "layout", record: top, expectedRevision: 0, call: owner });
+  await publishDesignDraft({ community, kind: "layout", expectedRevision: 1, call: owner });
+  const memberArgs = { authSubject: fixture.memberSubject, communityId: fixture.communityId };
+  const choice = async () => (await t.withIdentity({ subject: fixture.memberSubject }).query(api.communityLayouts.getMyCommunityLayoutChoice, memberArgs)).position;
+  await change("member.display.layout.set", { position: "side" }, member);
+  expect(await choice()).toBe("side");
+  const onlineBuilder = caller(fixture.memberSubject, fixture.memberId, "community_agent", "community_concierge");
+  await change("member.display.layout.set", { position: null }, onlineBuilder);
+  expect(await choice()).toBeNull();
+  // The owner's agent changes the owner's own pick, never the member's, and can't name a member.
+  await change("member.display.layout.set", { position: "side" });
+  expect(await choice()).toBeNull();
+  await expect(change("member.display.layout.set", { position: "side", user_id: fixture.memberId })).rejects.toThrow("invalid_tool_args");
 });

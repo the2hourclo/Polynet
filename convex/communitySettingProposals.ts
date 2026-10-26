@@ -64,6 +64,12 @@ const FIELD_LABELS: Record<string, { label: string; value?: (value: unknown) => 
   } },
   keys: { label: "New order", value: value => Array.isArray(value) ? value.join(", ") : show(value) },
   archived: { label: "Change", value: value => value ? "Stop showing it (members keep what they have)" : "Bring it back" },
+  // Removing a post, and adding a website to the agent's knowledge.
+  targetType: { label: "Remove", value: value => value === "reply" ? "A reply" : "A post" },
+  targetId: { label: "Post id" },
+  rootUrl: { label: "Website" },
+  maxPages: { label: "Up to pages" },
+  maxDepth: { label: "Links deep" },
 };
 
 // What the owner reads on the card: names, not ids, where Polynet knows them.
