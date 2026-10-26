@@ -39,6 +39,7 @@ type ResourceModuleLike = {
   banner_focus_x?: number | null;
   banner_focus_y?: number | null;
   banner_zoom?: number | null;
+  lesson_style?: "article" | "video" | null;
   sort_order?: number;
 };
 
@@ -142,6 +143,7 @@ export function useWebCommunityResourceUiController<
   const [moduleBannerFocusX, setModuleBannerFocusX] = useState(0.5);
   const [moduleBannerFocusY, setModuleBannerFocusY] = useState(0.5);
   const [moduleBannerZoom, setModuleBannerZoom] = useState(1);
+  const [moduleLessonStyleInput, setModuleLessonStyleInput] = useState<"article" | "video">("article");
   const [isModuleBannerDragOver, setIsModuleBannerDragOver] = useState(false);
   const [isProcessingModuleBanner, setIsProcessingModuleBanner] = useState(false);
   const [moduleBannerUploadError, setModuleBannerUploadError] = useState<string | null>(null);
@@ -196,6 +198,7 @@ export function useWebCommunityResourceUiController<
     moduleBannerFocusX,
     moduleBannerFocusY,
     moduleBannerZoom,
+    moduleLessonStyleInput,
     editingResourceId,
     editingResourceModuleId,
     editingResourceModuleBannerStorageId,
@@ -225,6 +228,7 @@ export function useWebCommunityResourceUiController<
     setModuleBannerFocusX,
     setModuleBannerFocusY,
     setModuleBannerZoom,
+    setModuleLessonStyleInput,
   });
 
   const {
@@ -266,6 +270,7 @@ export function useWebCommunityResourceUiController<
     setModuleBannerFocusX(0.5);
     setModuleBannerFocusY(0.5);
     setModuleBannerZoom(1);
+    setModuleLessonStyleInput("article");
     setModuleBannerUploadError(null);
     setIsModuleBannerFocusModalOpen(false);
     setResourceModuleError(null);
@@ -282,6 +287,7 @@ export function useWebCommunityResourceUiController<
     setModuleBannerFocusX(module.banner_focus_x ?? 0.5);
     setModuleBannerFocusY(module.banner_focus_y ?? 0.5);
     setModuleBannerZoom(module.banner_zoom ?? 1);
+    setModuleLessonStyleInput(module.lesson_style === "video" ? "video" : "article");
     setModuleBannerUploadError(null);
     setIsModuleBannerFocusModalOpen(false);
     setResourceModuleError(null);
@@ -413,6 +419,7 @@ export function useWebCommunityResourceUiController<
       moduleBannerFocusX,
       moduleBannerFocusY,
       moduleBannerZoom,
+      moduleLessonStyleInput,
       isModuleBannerDragOver,
       isProcessingModuleBanner,
       moduleBannerUploadError,
@@ -433,6 +440,7 @@ export function useWebCommunityResourceUiController<
         setModuleBannerFocusX(0.5);
         setModuleBannerFocusY(0.5);
         setModuleBannerZoom(1);
+        setModuleLessonStyleInput("article");
         setModuleBannerUploadError(null);
         setIsModuleBannerFocusModalOpen(false);
         setResourceModuleError(null);
@@ -445,6 +453,7 @@ export function useWebCommunityResourceUiController<
       onChangeBannerFocusX: setModuleBannerFocusX,
       onChangeBannerFocusY: setModuleBannerFocusY,
       onChangeBannerZoom: setModuleBannerZoom,
+      onChangeLessonStyle: setModuleLessonStyleInput,
       onSetBannerDragOver: setIsModuleBannerDragOver,
       onBannerDrop: handleModuleBannerDrop,
       onBannerUpload: handleModuleBannerUpload,

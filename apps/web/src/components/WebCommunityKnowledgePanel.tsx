@@ -85,11 +85,16 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     requireSignIn: context.requireSignIn,
     canViewPolynet: context.canViewGraph,
   });
+  // Each course reads as an Article or a Video course; the owner picks in Edit course.
+  const readingLessonStyle = activeView === "resources" && resources.state.selectedModuleId
+    ? (resources.state.modules.find((module) => module.id === resources.state.selectedModuleId)?.lesson_style === "video" ? "video" : "article")
+    : undefined;
   return (
     <section
       className="community-knowledge-page"
       aria-label="Knowledge"
       data-reading={activeView === "resources" && resources.state.selectedModuleId ? "" : undefined}
+      data-lesson-style={readingLessonStyle}
     >
       <div className="community-knowledge-header">
         <h1>Knowledge</h1>

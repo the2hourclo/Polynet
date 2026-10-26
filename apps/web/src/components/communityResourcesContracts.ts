@@ -42,6 +42,10 @@ export type CommunityResource = {
   created_at: string;
 };
 
+// How a course's lessons read: a clean article page, or a classic video
+// course with the text on a card under the video.
+export type CommunityResourceModuleLessonStyle = "article" | "video";
+
 export type CommunityResourceModule = {
   id: string;
   directory_uri: string;
@@ -54,6 +58,7 @@ export type CommunityResourceModule = {
   banner_focus_x: number | null;
   banner_focus_y: number | null;
   banner_zoom: number | null;
+  lesson_style?: CommunityResourceModuleLessonStyle | null;
   sort_order: number;
   is_virtual?: boolean;
 };

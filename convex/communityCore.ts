@@ -283,10 +283,17 @@ export type CommunityResourceModuleLike = {
   bannerFocusX?: number;
   bannerFocusY?: number;
   bannerZoom?: number;
+  lessonStyle?: CommunityResourceModuleLessonStyle;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
 };
+
+export type CommunityResourceModuleLessonStyle = "article" | "video";
+
+export function normalizeResourceModuleLessonStyle(value: unknown): CommunityResourceModuleLessonStyle {
+  return value === "video" ? "video" : "article";
+}
 
 async function resolveCommunityResourceModuleName(
   ctx: any,
@@ -1125,6 +1132,7 @@ export async function mapCommunityResourceModuleRow(
     banner_focus_x: typeof row.bannerFocusX === "number" ? row.bannerFocusX : null,
     banner_focus_y: typeof row.bannerFocusY === "number" ? row.bannerFocusY : null,
     banner_zoom: typeof row.bannerZoom === "number" ? row.bannerZoom : null,
+    lesson_style: normalizeResourceModuleLessonStyle(row.lessonStyle),
     sort_order: Number.isFinite(row.sortOrder) ? row.sortOrder : 0,
     created_at: toIsoString(row.createdAt),
     updated_at: toIsoString(row.updatedAt),
