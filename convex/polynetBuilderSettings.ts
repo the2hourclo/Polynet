@@ -548,6 +548,7 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityResourceProgress:setOwnLessonResponse": "not a setting: a member's own lesson answers",
   "communityResourceProgress:setOwnResourceProgressStatus": "not a setting: a member's own progress",
   "communityCommerce:startPublicCommunityCheckout": "not a setting: a visitor paying",
+  "communityOfferCheckout:startCommunityOfferUpgrade": "not a setting: a member paying for a higher offer",
   "communityCommerce:redeemPurchaseClaim": "not a setting: a visitor paying",
   "communityCommerce:redeemPendingPurchaseClaims": "not a setting: a visitor paying",
   "communityPublic:joinPublicCommunity": "not a setting: a visitor joining",

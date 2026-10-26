@@ -16,6 +16,7 @@ import { workflowConditionHolds } from "../shared/communityMemberWorkflow";
 
 const modules = import.meta.glob([
   "./communityOffers.ts",
+  "./communityOfferCheckout.ts",
   "./communityAccess.ts",
   "./communityAccessSync.ts",
   "./communityClients.ts",
@@ -224,5 +225,50 @@ describe("offers in a community", () => {
     expect(await run([key])).toMatchObject({ results: [{ status: "already_executed" }] });
     const value = await f.t.run(async (ctx) => (await ctx.db.query("communityClientValues").collect()).find((row) => row.propertyKey === "track"));
     expect(value?.value).toBe("Consulting");
+  });
+
+  test("buying a higher offer: a visitor checks out at its price, a paying member switches plan, a hand-given member asks the owner", async () => {
+    const f = await fixture();
+    const { key } = await f.asOwner.mutation(api.communityOffers.saveCommunityOffer, {
+      communityId: f.communityId, name: "Consulting", price: { billingPeriod: "monthly", amountBaseUnits: 50000 },
+    });
+    await f.asOwner.mutation(api.communityOffers.setCommunityChannelOfferAudience, { communityId: f.communityId, channelId: f.roomId, offerKeys: [key] });
+    await f.t.run(async (ctx) => {
+      const sub = await ctx.db.query("communitySubscriptions").first();
+      await ctx.db.patch(sub!._id, { providerAccountId: "acct_owner", providerSubscriptionId: "sub_thomas" });
+      await ctx.db.patch(f.pricePointId, { providerAccountId: "acct_owner", providerPriceId: "price_membership" });
+    });
+
+    // The sales page lists both, lowest first; Thomas sees he is on Membership and can move up here.
+    const seen = await f.asThomas.query(api.communityOfferCheckout.getCommunityOffersForVisitor, { communityId: f.communityId });
+    expect(seen.offers.map((offer: any) => [offer.name, offer.prices[0].amount_base_units])).toEqual([["Membership", 13000], ["Consulting", 50000]]);
+    expect(seen).toMatchObject({ current_offer_key: "membership", can_upgrade_here: true });
+
+    // A visitor's checkout charges the offer's own price, not the membership's.
+    const { resolveCommunityOfferCheckoutPricePoint } = await import("./communityOfferAccessCore");
+    const visitor = await f.t.run(async (ctx) => await resolveCommunityOfferCheckoutPricePoint(ctx, { communityId: f.communityId, offerKey: key, billingPeriod: "monthly" }));
+    expect(visitor).toMatchObject({ offerKey: key, offerName: "Consulting", pricePoint: { amountBaseUnits: 50000 } });
+    expect(await f.t.run(async (ctx) => await resolveCommunityOfferCheckoutPricePoint(ctx, { communityId: f.communityId, offerKey: "membership", billingPeriod: "monthly" }))).toBeNull();
+    await expect(f.t.run(async (ctx) => await resolveCommunityOfferCheckoutPricePoint(ctx, { communityId: f.communityId, offerKey: key, billingPeriod: "annual" })))
+      .rejects.toThrow("offer_price_missing");
+
+    const plan = (userId: any) => f.t.query(internalApi.communityOfferCheckout.planCommunityOfferUpgradeInternal, { communityId: f.communityId, userId, offerKey: key });
+    expect(await plan(f.thomasId)).toMatchObject({ kind: "update", providerSubscriptionId: "sub_thomas", providerAccountId: "acct_owner",
+      amountBaseUnits: 50000, billingPeriod: "monthly", offerName: "Consulting" });
+    expect(await plan(f.deanId)).toEqual({ kind: "checkout" });
+    await expect(plan(f.annaId)).rejects.toThrow("offer_upgrade_ask_owner");
+
+    // Stripe bills the Consulting price (an upgrade, or a switch in Stripe itself): Thomas moves up and into the room.
+    const consulting = await f.t.run(async (ctx) => (await ctx.db.query("communityPricePoints").collect()).find((row) => row.offerId)!);
+    await f.t.run(async (ctx) => { await ctx.db.patch(consulting._id, { providerAccountId: "acct_owner", providerPriceId: "price_consulting" }); });
+    await f.t.mutation(internalApi.communityCommerce.syncCommunitySubscriptionLifecycleInternal, {
+      communityId: f.communityId, userId: f.thomasId, source: "stripe", status: "active", pricePointId: f.pricePointId,
+      providerAccountId: "acct_owner", providerPriceId: "price_consulting", providerSubscriptionId: "sub_thomas",
+    });
+    expect(await roomMembers(f)).toContain(`user:${f.thomasId}`);
+    expect(await offerValue(f, f.thomasMembership)).toEqual(["Membership", "Consulting"]);
+    expect(await f.t.run(async (ctx) => (await ctx.db.query("communitySubscriptions").collect()).map((row) => String(row.pricePointId))))
+      .toEqual([String(consulting._id)]);
+    await expect(plan(f.thomasId)).rejects.toThrow("offer_upgrade_not_higher");
   });
 });

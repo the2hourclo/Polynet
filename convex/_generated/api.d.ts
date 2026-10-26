@@ -110,6 +110,7 @@ import type * as communityLayouts from "../communityLayouts.js";
 import type * as communityLessonTracks from "../communityLessonTracks.js";
 import type * as communityOfferAccessCore from "../communityOfferAccessCore.js";
 import type * as communityOffers from "../communityOffers.js";
+import type * as communityOfferCheckout from "../communityOfferCheckout.js";
 import type * as communityLessonValidators from "../communityLessonValidators.js";
 import type * as communityLifecycle from "../communityLifecycle.js";
 import type * as communityLive from "../communityLive.js";
@@ -385,6 +386,7 @@ declare const fullApi: ApiFromModules<{
   communityLayouts: typeof communityLayouts;
   communityLessonTracks: typeof communityLessonTracks;
   communityOfferAccessCore: typeof communityOfferAccessCore;
+  communityOfferCheckout: typeof communityOfferCheckout;
   communityOffers: typeof communityOffers;
   communityLessonValidators: typeof communityLessonValidators;
   communityLifecycle: typeof communityLifecycle;

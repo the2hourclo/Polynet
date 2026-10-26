@@ -17,6 +17,8 @@ import { WebBlockingSetupModal } from "./WebBlockingSetupModal";
 import { WebCommunityBridgeCard } from "./WebCommunityBridgeCard";
 import { communityJoinUrl } from "../controllers/useWebCommunityFrame";
 import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeStyle";
+import type { AuthSession } from "../auth";
+import { useCommunityOfferChoice, WebCommunityOfferChooser } from "./WebCommunityOfferChooser";
 import "./WebPublicCommunityFunnel.css";
 
 type CheckoutStatus = "idle" | "loading" | "pending" | "succeeded" | "error";
@@ -71,6 +73,10 @@ type WebPublicCommunityFunnelProps = {
   isCancellingPendingRequest: boolean;
   onCancelPendingRequest: () => void;
   onPrimaryJoinAction: () => void;
+  /** A higher offer picked on the sales page's offer cards. */
+  onStartOfferCheckout?: (offerKey: string, billingPeriod: "monthly" | "annual") => void;
+  /** Who is looking, so a member sees their offer and can upgrade. Null in previews. */
+  offerSession?: AuthSession | null;
   publicCommunityError: string | null;
   publicJoinError: string | null;
   checkoutError: string | null;
@@ -164,6 +170,13 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
     (!canEnterCommunity && canJoinWithCheckout && (!hasSelectedPublicCommunityPlan || !primaryAction.hasValidPaidPlan)) ||
     (!canEnterCommunity && !canJoinWithCheckout && !canJoinForFree && !canJoinWithApproval) ||
     (canJoinWithApproval && (approvalPending || (approvalDenied && !canRequestAgain)));
+  const offerChoice = useCommunityOfferChoice({
+    communityId: isPreviewMode ? null : publicCommunity?.id ?? null,
+    session: props.offerSession ?? null,
+    preferredPeriod: paidPlan?.billing_period ?? null,
+    onStartOfferCheckout: props.onStartOfferCheckout,
+    navigateToUrl: (url) => window.location.assign(url),
+  });
   const funnelErrors = [publicCommunityError, publicJoinError, checkoutError].filter(
     Boolean,
   ) as string[];
@@ -235,14 +248,27 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
           : []}
         action={
           <div className="community-sales-join">
-            <button
-              type="button"
-              className="community-sales-join-button"
-              disabled={isPrimaryActionDisabled}
-              onClick={onPrimaryJoinAction}
-            >
-              {primaryActionLabel}
-            </button>
+            <WebCommunityOfferChooser choice={offerChoice} preferredPeriod={paidPlan?.billing_period ?? null} />
+            {offerChoice.button ? (
+              <button
+                type="button"
+                className="community-sales-join-button"
+                disabled={isPreviewMode || checkoutStatus === "loading" || offerChoice.button.disabled}
+                onClick={offerChoice.button.onClick}
+              >
+                {checkoutStatus === "loading" ? "Opening checkout…" : offerChoice.button.label}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="community-sales-join-button"
+                disabled={isPrimaryActionDisabled}
+                onClick={onPrimaryJoinAction}
+              >
+                {primaryActionLabel}
+              </button>
+            )}
+            {offerChoice.note ? <p className="community-sales-join-note">{offerChoice.note}</p> : null}
             <ActionStatusCards action={action} />
           </div>
         }

@@ -1,0 +1,12 @@
+/* Sales page › Choose your offer: stacked plan cards, the picked one outlined. */
+.pn-offer-chooser { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pn-offer-chooser legend { padding: 0; margin-bottom: 4px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.pn-offer-choice { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 10px; cursor: pointer; background: var(--bg-surface, transparent); }
+.pn-offer-choice.is-selected { border-color: var(--pn-button, var(--accent-brand)); box-shadow: 0 0 0 1px var(--pn-button, var(--accent-brand)); }
+.pn-offer-choice input { margin: 3px 0 0; accent-color: var(--pn-button, var(--accent-brand)); }
+.pn-offer-choice-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.pn-offer-choice-head { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; color: var(--text-primary); }
+.pn-offer-choice-tag { padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 18px; font-weight: 600; background: var(--hover-overlay); color: var(--text-secondary); }
+.pn-offer-choice-plus { font-size: 12px; font-weight: 600; color: var(--pn-button, var(--accent-brand)); }
+.pn-offer-choice-blurb { font-size: 13px; line-height: 1.4; color: var(--text-secondary); }
+.pn-offer-choice-price { flex-shrink: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }

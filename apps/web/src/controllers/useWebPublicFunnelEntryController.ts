@@ -43,6 +43,7 @@ export function useWebPublicFunnelEntryController(params: {
     communitySlug: string,
     billingPeriod: CommunityBillingPeriod,
     returnPath: string,
+    offerKey?: string | null,
   ) => Promise<unknown>;
   joinPublicCommunity: (value: {
     communitySlug: string;
@@ -100,6 +101,17 @@ export function useWebPublicFunnelEntryController(params: {
     });
   };
 
+  // A higher offer from the sales page's offer cards; the base offer uses the primary action.
+  const handleOfferCheckout = (offerKey: string, billingPeriod: CommunityBillingPeriod) => {
+    if (params.isPreviewRoute || !params.publicCommunity) return;
+    const fallbackPath = `/c/${encodeURIComponent(params.publicCommunity.slug)}`;
+    const returnPath = applyShellVariantToPublicPath(
+      buildCommunityFunnelPath(params.publicCommunity.slug) ?? fallbackPath,
+      params.shellVariant,
+    );
+    void params.startCheckoutForPlan(params.publicCommunity.slug, billingPeriod, returnPath, offerKey);
+  };
+
   const handleCheckoutContinue = () => {
     if (!pendingToken) return;
     if (params.showPublicSignIn) {
@@ -128,6 +140,7 @@ export function useWebPublicFunnelEntryController(params: {
 
   return {
     pendingToken,
+    handleOfferCheckout,
     handlePrimaryAction,
     handleCheckoutContinue,
     handleClaimContinue,

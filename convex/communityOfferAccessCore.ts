@@ -21,6 +21,32 @@ export async function readCommunityOfferRows(ctx: any, communityId: any): Promis
   return await ctx.db.query("communityOffers").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).take(50);
 }
 
+/**
+ * The price a checkout for a higher offer charges. Null for the base offer (or
+ * no offer), which the community's own current price covers.
+ */
+export async function resolveCommunityOfferCheckoutPricePoint(ctx: any, args: {
+  communityId: any; offerKey?: string | null; billingPeriod: "monthly" | "annual";
+}): Promise<{ pricePoint: any; offerKey: string; offerName: string; rank: number } | null> {
+  const key = String(args.offerKey ?? "").trim();
+  if (!key) return null;
+  const offerRows = await readCommunityOfferRows(ctx, args.communityId);
+  const row = offerRows.find((offer: any) => offer.key === key);
+  if (!row) {
+    if (key === resolveCommunityOfferLadder([]).find((offer) => offer.isBase)!.key) return null;
+    throw new Error("offer_not_found");
+  }
+  if (row.isBase) return null;
+  if (row.archivedAt) throw new Error("offer_not_for_sale");
+  const prices = await ctx.db.query("communityPricePoints")
+    .withIndex("by_community", (q: any) => q.eq("communityId", args.communityId)).take(200);
+  const pricePoint = prices
+    .filter((price: any) => String(price.offerId) === String(row._id) && price.billingPeriod === args.billingPeriod && !price.archivedAt)
+    .sort((a: any, b: any) => b.updatedAt - a.updatedAt)[0];
+  if (!pricePoint) throw new Error("offer_price_missing");
+  return { pricePoint, offerKey: row.key, offerName: row.name, rank: row.rank };
+}
+
 export function communityOfferDefinitionOf(row: any): CommunityOfferDefinition & { id: string } {
   return { id: String(row._id), key: row.key, name: row.name, rank: row.rank, isBase: Boolean(row.isBase), archived: Boolean(row.archivedAt) };
 }
@@ -38,15 +64,16 @@ export async function resolveMemberOfferKey(ctx: any, args: { communityId: any; 
   if (grant) return base.key;
   const subscriptions = await ctx.db.query("communitySubscriptions")
     .withIndex("by_membership", (q: any) => q.eq("membershipId", membership._id)).take(20);
-  const live = subscriptions.filter((row: any) => row.status === "active" || row.status === "past_due" || row.status === "cancel_at_period_end")
-    .sort((a: any, b: any) => b.updatedAt - a.updatedAt)[0];
-  const pricePointId = live?.pricePointId ?? membership.pricePointId;
-  const pricePoint = pricePointId ? await ctx.db.get(pricePointId) : null;
-  if (pricePoint?.offerId) {
-    const row = args.offerRows.find((offer: any) => String(offer._id) === String(pricePoint.offerId));
-    if (row) return row.key;
+  const live = subscriptions.filter((row: any) => row.status === "active" || row.status === "past_due" || row.status === "cancel_at_period_end");
+  const pricePointIds = live.length ? live.map((row: any) => row.pricePointId) : [membership.pricePointId];
+  // More than one live plan (mid-switch): the highest offer among them.
+  let best: any = null;
+  for (const pricePointId of pricePointIds) {
+    const pricePoint = pricePointId ? await ctx.db.get(pricePointId) : null;
+    const row = pricePoint?.offerId ? args.offerRows.find((offer: any) => String(offer._id) === String(pricePoint.offerId)) : null;
+    if (row && (!best || row.rank > best.rank)) best = row;
   }
-  return base.key;
+  return best?.key ?? base.key;
 }
 
 /** The system "Offer" member property, created the first time it is needed, with the offers' names as options. */
