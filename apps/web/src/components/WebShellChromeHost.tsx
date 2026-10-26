@@ -22,7 +22,7 @@ import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerB
 import type { AppTheme } from "../../../../shared/theme";
 import { WebCommunityDisplayMenu } from "./WebCommunityDisplayMenu";
 import { WebAccountSettingsButton } from "./WebAccountSettingsButton";
-import { DRAFT_LOOKS_IN_DISPLAY_MENU, useDraftLook } from "../controllers/useDraftLook";
+import { useDraftLook } from "../controllers/useDraftLook";
 import { courseCardLookWords } from "./ResourceCourseCatalog";
 import { WebChannelsFeelMasthead } from "./WebChannelsFeelMasthead";
 import { setMemberPickEverywhere, useMemberPickEverywhere } from "../controllers/communityLookPreference";
@@ -171,15 +171,13 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     !welcome &&
     communityLayout.navigation.position === "top";
   // Channels keeps Polynet's bar above the page; the Display menu sits at its
-  // right, where Classroom's tab bar has it.
-  const hasDisplayChoices = Boolean(communityFrame.displayMode) || Boolean(communityLayoutChoice?.allowed.length);
+  // right, where Classroom's tab bar has it. Everyone can pick the chat view,
+  // so it always shows.
   const sideBarDisplayMenu =
     !props.showMobileAppShell &&
     props.communityShell.showDesktopCommunityNav &&
     !welcome &&
-    !isTopCommunityNav &&
-    // Draft looks experiment: the owner's menu always has the draft look choices.
-    (hasDisplayChoices || (DRAFT_LOOKS_IN_DISPLAY_MENU && canTryLooks)) ? <WebCommunityDisplayMenu placement="bar" look={draftLookState} canTryLooks={canTryLooks} /> : null;
+    !isTopCommunityNav ? <WebCommunityDisplayMenu placement="bar" look={draftLookState} canTryLooks={canTryLooks} /> : null;
   const shellHeader = props.showMobileAppShell ? (
     isMobileDedicatedRoot || isMobileDiscoverRoot ? null : (
       <WebMobileTopBar
@@ -227,6 +225,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   ) : null;
   // Draft Substack-feel looks for Channels (see useDraftLook); off in Classroom.
   const channelsFeelAttribute = desktopCommunityNav && !isTopCommunityNav && draftLook.feel !== "current" ? draftLook.feel : undefined;
+  // Wide chat: messages full width from the left edge, in either layout.
+  const chatViewAttribute = desktopCommunityNav && draftLook.chatView === "wide" ? "wide" : undefined;
   // Draft rail looks, set on <html> so the rail and the frame around the
   // community both see them. The rail reads the community's colours, copied
   // from the themed surface, so it never wears the theme's fonts.
@@ -376,6 +376,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
             className={`product-shell-surface product-shell-surface--${desktopFrameMode}`}
             data-community-theme={desktopCommunityNav || props.isGlobalSettings ? communityThemeAttribute ?? undefined : undefined}
             data-channels-feel={channelsFeelAttribute}
+            data-chat-view={chatViewAttribute}
           >
             {settingsReplacesNav ? null : desktopCommunityNav}
             {mainSurface}
@@ -385,6 +386,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
             className={`product-shell-surface product-shell-surface--${settingsReplacesNav ? "single" : isTopCommunityNav ? "community-top" : "community"}`}
             data-community-theme={communityThemeAttribute ?? undefined}
             data-channels-feel={channelsFeelAttribute}
+            data-chat-view={chatViewAttribute}
           >
             {settingsReplacesNav ? null : desktopCommunityNav}
             {mainSurface}
