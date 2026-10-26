@@ -8,6 +8,7 @@
 @import "./styles/community-layout.css";
 @import "./styles/community-theme-hooks.css";
 @import "./styles/draft-looks.css";
+@import "./styles/chat-view.css";
 @import "./styles/course-cards.css";
 
 :root {

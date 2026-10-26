@@ -57,7 +57,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color" | "sibling_communities";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "chat_view" | "rail_size" | "rail_color" | "sibling_communities";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -80,6 +80,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   media_plate: ["White images (dark scheme)", [["none", "As they are"], ["light", "On a light plate"]]],
   banner_name: ["Name on the banner", [["show", "Show it"], ["hide", "Hide it"]]],
   channels_look: ["Page style", [["current", "Polynet (today)"], ["quiet", "Quiet: plain menu, one column"], ["reader", "Reader: reading column, post lists"], ["publication", "Publication: masthead, editorial cards"]]],
+  chat_view: ["Chat view", [["centered", "Centred: a reading column"], ["wide", "Wide: full width, lined up on the left"]]],
   sibling_communities: ["Your other communities", [["hide", "Hidden"], ["show", "Show them under members"]]],
   rail_size: ["Icon size", [["standard", "Standard"], ["large", "Bigger"]]],
   rail_color: ["Colour", [["polynet", "Polynet (today)"], ["blend", "Blend with the page"], ["tint", "Soft brand tint"], ["brand", "Solid brand colour"]]],
@@ -817,6 +818,10 @@ function AppearanceEditor(props: EditorProps) {
         <Group title="Channels look · draft">
           {choice("channels_look")}
           <p className="appearance-hint">Substack-style pages for the Channels layout. Classroom keeps its own look.</p>
+        </Group>
+        <Group title="Chat">
+          {choice("chat_view")}
+          <p className="appearance-hint">Wide runs messages across the whole chat, with avatars, names, joins and dates lined up on the left. Members can switch views in the Display menu; this sets what they see first.</p>
         </Group>
         <Group title="Left rail · draft">
           {choice("rail_size")}
