@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { EmojiPickerButton, QUICK_REACTIONS, ReactionSummary } from "./communityInteractionRowParts";
+import { PostCardView } from "./CommunityPostCard";
 import { MessageLinkMedia } from "./MessageLinkMedia";
 import { PdfDocumentCard } from "./PdfDocumentCard";
 import { isPdfDocument, safeDocumentUrl } from "../../../../shared/messagePdf";
@@ -1107,7 +1108,8 @@ export function CommunityInteractionFeedList(
                                 onReply={() => props.onSelectRoot(root.id)}
                                 replyLabel="Reply in thread"
                                 onEdit={
-                                  isOwnRoot && props.onEditMessage
+                                  // A poll or form post's text is only its fallback; the card is the post.
+                                  isOwnRoot && props.onEditMessage && !bundle.post_card
                                     ? () => startEdit("root", root.id, body)
                                     : undefined
                                 }
@@ -1147,7 +1149,7 @@ export function CommunityInteractionFeedList(
                                       : ""
                                   }`}
                                 >
-                                  <InteractionContent
+                                  {bundle.post_card ? <PostCardView bundle={bundle} /> : <InteractionContent
                                     text={body}
                                     renderTextWithLinks={props.renderTextWithLinks}
                                     mentionContext={{
@@ -1167,7 +1169,7 @@ export function CommunityInteractionFeedList(
                                         onOpenImage={props.onOpenCommunityChatLightbox}
                                       />
                                     )}
-                                  />
+                                  />}
                                 </div>
                                 {firstRootBodyExpansion && !firstRootBodyExpansion.expanded ? (
                                   <button
@@ -1203,6 +1205,7 @@ export function CommunityInteractionFeedList(
                                   rows={root.reaction_summary}
                                   viewerEmojis={root.viewer_emojis}
                                   onToggle={(emoji) => props.onToggleReaction?.("root", root.id, emoji)}
+                                  target={{ type: "root", id: root.id }}
                                 />
                                 {threadTypers.length > 0 ? (
                                   <div className="community-interaction-thread-row">

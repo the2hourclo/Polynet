@@ -175,6 +175,7 @@ import {
 import { interactionMentionsViewer } from "../controllers/communityMentionAttention";
 import { CommunityPinnedRootSurface } from "./CommunityPinnedRootSurface";
 import { CommunityPostsFeed, splitPostTitle } from "./CommunityPostsFeed";
+import { PostCardView, postCardTitle } from "./CommunityPostCard";
 import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 
 export function resolveSelectedCommunityInteractionRoot(
@@ -547,7 +548,9 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
   const closeDetail = props.profilePanel ? props.onCloseProfile : props.onCloseDrawer;
   // A post opened as a dialog reads like an article: its title on top (or its
   // first line, the same way its card shows it), then the byline and body.
-  const dialogPost = detailAsDialog && selectedRoot ? splitPostTitle(selectedRoot.root.title, selectedRootText) : null;
+  const dialogPost = detailAsDialog && selectedRoot
+    ? (selectedRoot.post_card ? { title: postCardTitle(selectedRoot), body: "" } : splitPostTitle(selectedRoot.root.title, selectedRootText))
+    : null;
   useEffect(() => {
     if (!detailAsDialog) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -805,7 +808,9 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                   {selectedRoot.root.title && !dialogPost ? (
                     <div className="community-interaction-title">{selectedRoot.root.title}</div>
                   ) : null}
-                  <InteractionContent
+                  {selectedRoot.post_card ? (
+                    <PostCardView bundle={selectedRoot} showQuestion={!dialogPost} />
+                  ) : <InteractionContent
                     text={dialogPost ? dialogPost.body : selectedRootText}
                     renderTextWithLinks={props.renderTextWithLinks}
                     mentionContext={{
@@ -825,12 +830,14 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                         onOpenImage={props.onOpenCommunityChatLightbox}
                       />
                     )}
-                  />
+                  />}
                   <div className="community-interaction-thread-anchor-actions">
                     <ReactionSummary
                       rows={selectedRoot.root.reaction_summary}
                       viewerEmojis={selectedRoot.root.viewer_emojis}
                       onToggle={(emoji) => props.onToggleReaction?.("root", selectedRoot.root.id, emoji)}
+                      target={{ type: "root", id: selectedRoot.root.id }}
+                      whoVariant={isPostsPresentation ? "faces" : "names"}
                     />
                     <EmojiPickerButton
                       className="community-interaction-reaction-add"
@@ -1012,6 +1019,8 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                             rows={reply.reaction_summary}
                             viewerEmojis={reply.viewer_emojis}
                             onToggle={(emoji) => props.onToggleReaction?.("reply", reply.id, emoji)}
+                            target={{ type: "reply", id: reply.id }}
+                            whoVariant={isPostsPresentation ? "faces" : "names"}
                           />
                         )}
                       </div>

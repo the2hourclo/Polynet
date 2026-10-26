@@ -1918,6 +1918,8 @@ export default defineSchema({
     })),
     idempotencyKey: v.string(),
     lastReplyAt: v.optional(v.number()),
+    // Set when the post carries a poll or a shared Form (communityPostCards.ts).
+    cardKind: v.optional(v.union(v.literal("poll"), v.literal("form"))),
     composerPayloadHash: v.optional(v.string()),
     lockedAt: v.optional(v.number()),
     hiddenAt: v.optional(v.number()),
@@ -2345,6 +2347,56 @@ export default defineSchema({
     .index("by_sourceReply", ["sourceReplyId"])
     .index("by_requester_createdAt", ["requesterUserId", "createdAt"])
     .index("by_requester_community_createdAt", ["requesterUserId", "communityId", "createdAt"]),
+
+  // A post's card (shared/communityPostCards.ts): a poll or a shared Form.
+  communityInteractionPolls: defineTable({
+    communityId: v.id("communities"),
+    rootId: v.id("communityInteractionRoots"),
+    question: v.string(),
+    options: v.array(v.object({ key: v.string(), label: v.string() })),
+    multiple: v.boolean(),
+    createdByUserId: v.id("users"),
+    closedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_root", ["rootId"]),
+
+  communityInteractionPollVotes: defineTable({
+    communityId: v.id("communities"),
+    pollId: v.id("communityInteractionPolls"),
+    userId: v.id("users"),
+    optionKey: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_poll", ["pollId"])
+    .index("by_poll_user", ["pollId", "userId"])
+    .index("by_user", ["userId"]),
+
+  communityInteractionFormShares: defineTable({
+    communityId: v.id("communities"),
+    rootId: v.id("communityInteractionRoots"),
+    formId: v.id("communityForms"),
+    versionId: v.id("communityFormVersions"),
+    note: v.string(),
+    answersVisibleTo: v.union(v.literal("everyone"), v.literal("builders")),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_root", ["rootId"]),
+
+  communityInteractionFormResponses: defineTable({
+    communityId: v.id("communities"),
+    shareId: v.id("communityInteractionFormShares"),
+    userId: v.id("users"),
+    status: v.union(v.literal("draft"), v.literal("submitted")),
+    answers: v.record(v.string(), v.union(v.string(), v.array(v.string()))),
+    revision: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    submittedAt: v.optional(v.number()),
+  })
+    .index("by_share", ["shareId"])
+    .index("by_share_user", ["shareId", "userId"])
+    .index("by_user", ["userId"]),
 
   communityInteractionReactions: defineTable({
     communityId: v.id("communities"),
