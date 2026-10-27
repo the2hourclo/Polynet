@@ -574,7 +574,7 @@ export const updateBuilderWorkflowMilestone = mutation({
       ...(a.trigger.type === "form_submitted" ? [a.trigger.formKey] : []),
     ]))) {
       const form = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", formKey)).unique();
-      if (!form?.publishedRevision) throw new Error("form_not_published");
+      if (!form?.publishedRevision || form.deletedAt) throw new Error("form_not_published");
     }
     if (JSON.stringify(current) === JSON.stringify(milestone)) {
       return {
@@ -731,7 +731,7 @@ async function saveWelcomePage(ctx: MutationCtx, userId: Id<"users">, args: {
     if (JSON.stringify([...current].sort()) !== JSON.stringify([...wanted].sort())) {
       for (const formKey of wanted.filter(key => !current.includes(key))) {
         const form = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", formKey)).unique();
-        if (!form?.publishedRevision) throw new Error("form_not_published");
+        if (!form?.publishedRevision || form.deletedAt) throw new Error("form_not_published");
       }
       const drafts = [
         ...first.automations.filter(a => !isJoinForm(a) || wanted.includes(joinFormKey(a))),

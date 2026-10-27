@@ -160,6 +160,24 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     required: ["key", "expected_revision"], effects: ["publish_form_version"],
   }),
   op({
+    operation: "community.form.reorder", area: "forms", name: "Reorder forms",
+    calls: "communityForms:reorderBuilderForms", ref: api.communityForms.reorderBuilderForms, kind: "mutation",
+    fields: { keys: "form keys in the new order; forms left out keep their place after them" },
+    required: ["keys"], effects: ["reorder_forms"],
+  }),
+  op({
+    operation: "community.form.delete", area: "forms", name: "Delete a form that isn't used",
+    calls: "communityForms:deleteBuilderForm", ref: api.communityForms.deleteBuilderForm, kind: "mutation",
+    fields: { key: "the form's key; refused with form_in_use while usedIn (in /builder/settings.json) lists an automation or the Welcome page" },
+    required: ["key"], effects: ["delete_form"],
+  }),
+  op({
+    operation: "community.form.restore", area: "forms", name: "Restore a deleted form",
+    calls: "communityForms:restoreBuilderForm", ref: api.communityForms.restoreBuilderForm, kind: "mutation",
+    fields: { key: "the deleted form's key" },
+    required: ["key"], effects: ["restore_form"],
+  }),
+  op({
     operation: "community.access.grant", area: "access", name: "Give access, or change a grant's end date",
     calls: "communityAccess:grantCommunityAccess", ref: internal.communityAccess.grantCommunityAccessInternal, kind: "mutation",
     identity: "user", extra: { via: "agent" },
@@ -741,7 +759,8 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     read(api.communityLifecycle.getCommunitySettings),
     read(api.communityFunnel.getCommunityFunnelConfig),
     read(api.communityMemberWorkflows.getBuilderWorkflowBoardPage, { pageSize: 1 }).then(board => board ? board.workflow : null),
-    read(api.communityForms.listBuilderForms),
+    Promise.all([read(api.communityForms.listBuilderForms), read(api.communityForms.listDeletedBuilderForms)])
+      .then(([live, deleted]) => live && deleted?.length ? [...live, ...deleted] : live),
     read(api.communityAccess.listAccessIntegrations),
     read(api.communityAgent.getCommunityAgentConfig),
     read(api.communityChannels.listCommunityChannels),
