@@ -1,10 +1,10 @@
-/* Wide chat (theme token chat_view "wide", or a member's pick in the Display
-   menu; Rashid, 2026-10-26). Today's chat keeps a centred reading column with
-   joins and dates centred; Wide runs every message the full width of the chat
-   from the left edge: avatar and name on the left, messages stacked under the
-   name, and joins, dates and the message box lined up on the same left edge.
-   Rows highlight across the whole width on hover. Colours all come from the
-   community's theme. Sizes are in rem so the theme map leaves them alone. */
+/* Wide chat: every Channels chat (Rashid, 2026-10-27; the centred reading
+   column and the chat_view choice are retired). Messages run the full width
+   of the chat from the left edge: avatar and name on the left, messages
+   stacked under the name, and joins, dates and the message box lined up on
+   the same left edge. Rows highlight across the whole width on hover.
+   Colours all come from the community's theme. Sizes are in rem so the theme
+   map leaves them alone. */
 .product-shell-surface[data-chat-view="wide"] {
   --wide-chat-inset: 1.25rem;
   --wide-chat-gutter: 2.25rem;

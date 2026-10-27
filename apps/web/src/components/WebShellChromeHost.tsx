@@ -186,8 +186,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     !welcome &&
     communityLayout.navigation.position === "top";
   // Channels keeps Polynet's bar above the page; the Display menu sits at its
-  // right, where Classroom's tab bar has it. Everyone can pick the chat view,
-  // so it always shows.
+  // right, where Classroom's tab bar has it. It draws nothing when there is
+  // nothing to choose.
   const sideBarDisplayMenu =
     !props.showMobileAppShell &&
     props.communityShell.showDesktopCommunityNav &&
@@ -240,8 +240,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   ) : null;
   // Draft Substack-feel looks for Channels (see useDraftLook); off in Classroom.
   const channelsFeelAttribute = desktopCommunityNav && !isTopCommunityNav && draftLook.feel !== "current" ? draftLook.feel : undefined;
-  // Wide chat: messages full width from the left edge, in either layout.
-  const chatViewAttribute = desktopCommunityNav && draftLook.chatView === "wide" ? "wide" : undefined;
+  // Channels chat is always Wide: messages full width from the left edge
+  // (Rashid, 2026-10-27, retiring the centred column). Classroom keeps its own.
+  const chatViewAttribute = desktopCommunityNav && !isTopCommunityNav ? "wide" : undefined;
   // Draft rail looks, set on <html> so the rail and the frame around the
   // community both see them. The rail reads the community's colours, copied
   // from the themed surface, so it never wears the theme's fonts.
