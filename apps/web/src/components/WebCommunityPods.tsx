@@ -7,7 +7,7 @@ import { bootstrapConvexAuthenticatedClient } from "../../../../shared/convexAut
 import { communityPresenceLeaseIsActive } from "../../../../shared/communityPresenceContract";
 import { CommunityAgentIcon, useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import { MemberAvatarStack, type MemberAvatarStackFace } from "./MemberAvatarStack";
-import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
+import { useWebCommunityFrame, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import "./WebCommunityPods.css";
 
 // Pods (Rashid, 2026-10-26): in Classroom, a member's invite-only channels are
@@ -65,6 +65,31 @@ function faces(people: PodPerson[]): MemberAvatarStackFace[] {
     avatar_zoom: person.profile.avatar_zoom,
     initials: initials(personName(person)),
   }));
+}
+
+const spacesCache = new Map<string, PodSpaces>();
+type PodSpaces = { mine: string | null; member_spaces: string[] };
+
+/** Which invite-only channels are members' guide channels (see listPodSpaces). */
+export function usePodSpaces(communityId: string | null, session: WebCommunityFrame["session"]): PodSpaces | null {
+  const [spaces, setSpaces] = useState<PodSpaces | null>(() => (communityId ? spacesCache.get(communityId) ?? null : null));
+  useEffect(() => {
+    setSpaces(communityId ? spacesCache.get(communityId) ?? null : null);
+    if (!communityId || !session) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+        const result = await client.query(api.communityPods.listPodSpaces, { authSubject, communityId: communityId as Id<"communities"> });
+        spacesCache.set(communityId, result);
+        if (alive) setSpaces(result);
+      } catch {
+        // Without it every invite-only channel stays a pod.
+      }
+    })();
+    return () => { alive = false; };
+  }, [communityId, session]);
+  return spaces;
 }
 
 /** Who can see each pod, refreshed while the pods are on screen. */
@@ -155,8 +180,10 @@ function PodRow({ pod, people, selected, unread, onOpen }: { pod: CommunityPod; 
 
 function PodList({ pods, onPicked }: { pods: WebCommunityPodsFrame; onPicked?: () => void }) {
   const [showAll, setShowAll] = useState(false);
-  // Pods with something new come first, then the community's own order.
-  const ordered = [...pods.pods].sort((a, b) => Number(Boolean(pods.unread[b.slug])) - Number(Boolean(pods.unread[a.slug])) || a.position - b.position);
+  // Pods with something new come first, then the order given (own space first).
+  const ordered = pods.pods.map((pod, index) => ({ pod, index }))
+    .sort((a, b) => Number(Boolean(pods.unread[b.pod.slug])) - Number(Boolean(pods.unread[a.pod.slug])) || a.index - b.index)
+    .map(({ pod }) => pod);
   const visible = showAll ? ordered : ordered.slice(0, COLLAPSED_PODS);
   const people = usePodPeople(visible.map((pod) => pod.id));
   return (

@@ -225,3 +225,24 @@ async function readPodShelf(ctx: any, communityId: any, channel: any) {
     truncated: roots.length === MAX_SHELF_ROOTS,
   };
 }
+
+// A member's guide channel (their membership's serviceChannelId) is invite-only
+// too, so it would otherwise show as a pod. The member sees their own first;
+// the owner and admins, who can open every member's, don't get one pod per
+// member in Your pods.
+export const listPodSpaces = query({
+  args: { communityId: v.id("communities"), userId: v.optional(v.id("users")), authSubject: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    const rows = await ctx.db.query("communityMemberships")
+      .withIndex("by_community", (q: any) => q.eq("communityId", args.communityId)).take(MAX_MEMBERSHIPS_READ);
+    let mine: string | null = null;
+    const others: string[] = [];
+    for (const row of rows) {
+      if (!row.serviceChannelId) continue;
+      if (row.userId === userId) { if (communityMembershipRowIsActive(row)) mine = String(row.serviceChannelId); }
+      else others.push(String(row.serviceChannelId));
+    }
+    return { mine, member_spaces: others };
+  },
+});

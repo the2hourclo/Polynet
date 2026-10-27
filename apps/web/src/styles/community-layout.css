@@ -909,6 +909,8 @@
 }
 
 .community-aside-card {
+  /* The column scrolls; cards keep their height instead of shrinking into it. */
+  flex: none;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
   border-radius: 12px;

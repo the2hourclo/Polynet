@@ -101,3 +101,10 @@ test("a pod's shelf lists the files and videos posted in it, and the pinned post
   await expect(outsider.query("communityPods:listPodShelf" as any, { communityId: f.communityId, channelId: f.podId })).rejects.toThrow();
   await expect(owner.query("communityPods:listPodShelf" as any, { communityId: f.communityId, channelId: f.topicId })).rejects.toThrow();
 });
+
+test("members' guide channels: the member's own is theirs, everyone else's is listed apart", async () => {
+  const { t, f, owner, member } = await fixture();
+  await t.run(ctx => ctx.db.patch(f.membershipId, { serviceChannelId: f.podId }));
+  expect(await member.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: String(f.podId), member_spaces: [] });
+  expect(await owner.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: null, member_spaces: [String(f.podId)] });
+});

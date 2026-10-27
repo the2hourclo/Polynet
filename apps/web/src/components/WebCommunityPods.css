@@ -339,16 +339,21 @@
 
 /* The channel's own header (name, people, owner menu) folds into the band:
    its actions sit at the top right, its name is already in the title. */
-.community-pod-room .community-channel-header {
+/* Doubled classes: the Channels looks (draft-looks.css) style this header
+   with a more specific selector. It floats at the top right of the chat. */
+.community-pod-room.community-pod-room .community-channel-header.community-channel-header {
   position: absolute;
-  top: 0.75rem;
-  right: 1rem;
+  top: 0.5rem;
+  right: 0.75rem;
   z-index: 2;
+  flex: none;
   width: auto;
+  height: auto;
   min-height: 0;
   padding: 0;
   border: 0;
   background: transparent;
+  box-shadow: none;
 }
 
 .community-pod-room .community-channel-header-identity {

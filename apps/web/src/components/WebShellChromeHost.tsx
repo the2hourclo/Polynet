@@ -17,6 +17,7 @@ import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeSt
 import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controllers/useWebCommunityLayout";
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityAside } from "./WebCommunityAside";
+import { usePodSpaces } from "./WebCommunityPods";
 import { WebCommunityTopNav } from "./WebCommunityTopNav";
 import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
 import type { AppTheme } from "../../../../shared/theme";
@@ -289,8 +290,13 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     else delete root.dataset.courseCards;
   }, [courseCardsAttribute]);
   // Classroom shows invite-only channels as pods instead of topic chips.
+  // Other members' guide channels aren't the viewer's pods; their own comes first.
+  const podSpaces = usePodSpaces(isTopCommunityNav ? props.communityShell.activeCommunity?.id ?? null : null, props.memberSession ?? null);
+  const memberSpaces = new Set(podSpaces?.member_spaces ?? []);
   const podChannels = isTopCommunityNav
-    ? props.communityShell.communityChannels.filter((channel) => channel.access_mode === "restricted").sort((a, b) => a.position - b.position)
+    ? props.communityShell.communityChannels
+      .filter((channel) => channel.access_mode === "restricted" && !memberSpaces.has(channel.id))
+      .sort((a, b) => Number(b.id === podSpaces?.mine) - Number(a.id === podSpaces?.mine) || a.position - b.position)
     : [];
   communityFrame.pods = isTopCommunityNav ? {
     place: PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside",
