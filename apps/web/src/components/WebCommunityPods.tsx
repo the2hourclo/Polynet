@@ -14,27 +14,32 @@ import "./WebCommunityPods.css";
 // pods, not topic chips. Each shows the faces of everyone who can see it, so
 // it reads as a small private room. The owner picks where they sit in
 // Customize (theme pods_place): the top of the right column or the header.
-// Opening one turns the chat into the pod's room (WebCommunityPodRoom).
+// Opening one turns the chat into the pod's room, with the pod panel
+// (WebCommunityPodPanel) beside it. Channels lists them as their own group.
 
 export type CommunityPod = { id: string; slug: string; name: string; is_general: boolean; position: number; access_mode?: "all_members" | "restricted" };
 
 export type WebCommunityPodsFrame = {
+  mode: "classroom" | "channels";
   place: "aside" | "header";
   pods: CommunityPod[];
   unread: Record<string, boolean>;
   selectedSlug: string | null;
   onOpen: (pod: CommunityPod) => void;
   onLeave: () => void;
+  // Classroom: the right column's element while a pod is open. The pod panel
+  // is portalled into it, so it replaces the community card and blocks.
+  panelSlot: HTMLElement | null;
 };
 
-type PodPerson = {
+export type PodPerson = {
   user_id: string;
   role: "owner" | "admin" | "member";
   profile: { display_name: string | null; avatar_url: string | null; avatar_focus_x: number; avatar_focus_y: number; avatar_zoom: number };
   last_seen_at: number | null;
   active_until: number | null;
 };
-type PodPeople = { channel_id: string; people: PodPerson[]; people_count: number; agent: boolean };
+export type PodPeople = { channel_id: string; people: PodPerson[]; people_count: number; agent: boolean };
 
 const REFRESH_MS = 45_000;
 // The pods list shows this many before "Show all".
@@ -46,11 +51,11 @@ function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("") || "?";
 }
 
-function personName(person: PodPerson): string {
+export function personName(person: PodPerson): string {
   return person.profile.display_name?.trim() || "Member";
 }
 
-function isOnline(person: PodPerson, now: number): boolean {
+export function isOnline(person: PodPerson, now: number): boolean {
   return person.last_seen_at !== null
     && communityPresenceLeaseIsActive({ lastSeenAt: person.last_seen_at, activeUntil: person.active_until ?? undefined }, now);
 }
@@ -93,7 +98,7 @@ export function usePodSpaces(communityId: string | null, session: WebCommunityFr
 }
 
 /** Who can see each pod, refreshed while the pods are on screen. */
-function usePodPeople(podIds: string[]): Record<string, PodPeople> {
+export function usePodPeople(podIds: string[]): Record<string, PodPeople> {
   const frame = useWebCommunityFrame();
   const communityId = frame.community?.id ?? null;
   const session = frame.session;
@@ -131,7 +136,7 @@ function usePodPeople(podIds: string[]): Record<string, PodPeople> {
   return people;
 }
 
-function PodFaces({ people, agent, size }: { people?: PodPeople; agent?: boolean; size: "small" | "large" }) {
+export function PodFaces({ people, agent, size }: { people?: PodPeople; agent?: boolean; size: "small" | "large" }) {
   const now = Date.now();
   const online = new Set((people?.people ?? []).filter((person) => isOnline(person, now)).map((person) => person.user_id));
   return (
@@ -178,7 +183,7 @@ function PodRow({ pod, people, selected, unread, onOpen }: { pod: CommunityPod; 
   );
 }
 
-function PodList({ pods, onPicked }: { pods: WebCommunityPodsFrame; onPicked?: () => void }) {
+export function PodList({ pods, onPicked }: { pods: WebCommunityPodsFrame; onPicked?: () => void }) {
   const [showAll, setShowAll] = useState(false);
   // Pods with something new come first, then the order given (own space first).
   const ordered = pods.pods.map((pod, index) => ({ pod, index }))
@@ -315,18 +320,17 @@ export function WebCommunityPodRoomHead({ pods, podId }: { pods: WebCommunityPod
   );
 }
 
-// The shelf under a pod's chat: its pinned post, then every file and video
-// shared in it. A channel's own features with a pod's layout; each item opens
-// the post it came from, where the file plays or downloads as usual.
+// What the pod panel lists under "Files & videos": every file and video
+// shared in the pod. Each item opens the post it came from, where the file
+// plays or downloads as usual.
 
-type ShelfItem = {
+export type ShelfItem = {
   root_id: string; id: string; kind: "file" | "image" | "video"; name: string; mime: string | null;
   size: number | null; image_url: string | null; provider: string | null; author_name: string | null; created_at: string;
 };
 type Shelf = { pinned_root_id: string | null; files: ShelfItem[]; videos: ShelfItem[] };
-type ShelfTab = "pinned" | "files" | "videos";
 
-function usePodShelf(podId: string, refreshKey: string): Shelf | null {
+export function usePodShelf(podId: string, refreshKey: string): Shelf | null {
   const frame = useWebCommunityFrame();
   const communityId = frame.community?.id ?? null;
   const session = frame.session;
@@ -362,102 +366,6 @@ function shelfDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function shelfMeta(item: ShelfItem, agentName: string): string {
+export function shelfMeta(item: ShelfItem, agentName: string): string {
   return [item.author_name ?? agentName, shelfDate(item.created_at), item.provider ?? shelfSize(item.size)].filter(Boolean).join(" · ");
-}
-
-export function WebCommunityPodShelf(props: {
-  podId: string;
-  podName: string;
-  pinnedRoot: CommunityInteractionRootBundle | null | undefined;
-  roots: CommunityInteractionRootBundle[];
-  onOpenPost: (rootId: string) => void;
-}) {
-  const agentName = useCommunityAgentName("the agent");
-  // New posts and a changed pin refresh the shelf.
-  const refreshKey = `${props.roots.length}:${props.roots[0]?.root.id ?? ""}:${props.roots[0]?.root.updated_at ?? ""}:${props.pinnedRoot?.root.id ?? ""}`;
-  const shelf = usePodShelf(props.podId, refreshKey);
-  const [tab, setTab] = useState<ShelfTab>("pinned");
-  const files = shelf?.files ?? [];
-  const videos = shelf?.videos ?? [];
-  const pinned = props.pinnedRoot ?? null;
-  const tabs: Array<{ id: ShelfTab; label: string; count: number }> = [
-    { id: "pinned", label: "Pinned", count: pinned ? 1 : 0 },
-    { id: "files", label: "Files", count: files.length },
-    { id: "videos", label: "Videos", count: videos.length },
-  ];
-  return (
-    <section className="community-pod-shelf" aria-label={`Saved in ${props.podName}`}>
-      <header className="community-pod-shelf-head">
-        <h2>Saved in this pod</h2>
-        <div className="community-pod-shelf-tabs" role="tablist">
-          {tabs.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === entry.id}
-              className={tab === entry.id ? "is-active" : undefined}
-              onClick={() => setTab(entry.id)}
-            >
-              {entry.label}{entry.count ? <span>{entry.count}</span> : null}
-            </button>
-          ))}
-        </div>
-      </header>
-      {tab === "pinned" ? (
-        pinned ? (
-          <button type="button" className="community-pod-shelf-pinned" onClick={() => props.onOpenPost(pinned.root.id)}>
-            <Pin size={16} aria-hidden="true" />
-            <span className="community-pod-shelf-pinned-text">
-              <strong>{pinned.root.title || pinned.root.content_summary || "Pinned post"}</strong>
-              {pinned.root.title && pinned.root.content_summary ? <span>{pinned.root.content_summary}</span> : null}
-            </span>
-          </button>
-        ) : (
-          <p className="community-pod-shelf-empty">Nothing pinned yet. Pin a message from its ⋯ menu and it stays here.</p>
-        )
-      ) : null}
-      {tab === "files" ? (
-        files.length ? (
-          <ul className="community-pod-shelf-files">
-            {files.map((item) => (
-              <li key={item.id}>
-                <button type="button" onClick={() => props.onOpenPost(item.root_id)}>
-                  <span className="community-pod-shelf-icon" aria-hidden="true">
-                    {item.kind === "image" ? <ImageIcon size={16} /> : <FileText size={16} />}
-                  </span>
-                  <span className="community-pod-shelf-file-text">
-                    <strong>{item.name}</strong>
-                    <span>{shelfMeta(item, agentName)}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="community-pod-shelf-empty">Files shared in this pod collect here. Add one with + in the message box.</p>
-        )
-      ) : null}
-      {tab === "videos" ? (
-        videos.length ? (
-          <ul className="community-pod-shelf-videos">
-            {videos.map((item) => (
-              <li key={item.id}>
-                <button type="button" onClick={() => props.onOpenPost(item.root_id)}>
-                  <span className="community-pod-shelf-thumb" style={item.image_url ? { backgroundImage: `url("${item.image_url.replace(/"/g, "%22")}")` } : undefined}>
-                    <Play size={18} aria-hidden="true" />
-                  </span>
-                  <strong>{item.name}</strong>
-                  <span>{shelfMeta(item, agentName)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="community-pod-shelf-empty">Videos only this pod can see collect here: upload one, or paste a YouTube or Loom link.</p>
-        )
-      ) : null}
-    </section>
-  );
 }

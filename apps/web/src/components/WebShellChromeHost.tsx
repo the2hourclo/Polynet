@@ -149,6 +149,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   }, [layoutHidesActiveTab, onSelectCommunityTab]);
   const activeCommunityId = props.communityShell.activeCommunity?.id ?? null;
   const [postSearchState, setPostSearchState] = useState<{ communityId: string | null; query: string }>({ communityId: null, query: "" });
+  const [podPanelSlot, setPodPanelSlot] = useState<HTMLElement | null>(null);
   const postSearch = postSearchState.communityId === activeCommunityId ? postSearchState.query : "";
   const setPostSearch = useCallback(
     (query: string) => setPostSearchState({ communityId: activeCommunityId, query }),
@@ -309,18 +310,22 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   }, [courseCardsAttribute]);
   // Classroom shows invite-only channels as pods instead of topic chips.
   // Other members' guide channels aren't the viewer's pods; their own comes first.
-  const podSpaces = usePodSpaces(isTopCommunityNav ? props.communityShell.activeCommunity?.id ?? null : null, props.memberSession ?? null);
+  const podSpaces = usePodSpaces(props.communityShell.activeCommunity?.id ?? null, props.memberSession ?? null);
   const memberSpaces = new Set(podSpaces?.member_spaces ?? []);
-  const podChannels = isTopCommunityNav
-    ? props.communityShell.communityChannels
-      .filter((channel) => channel.access_mode === "restricted" && !memberSpaces.has(channel.id))
-      .sort((a, b) => Number(b.id === podSpaces?.mine) - Number(a.id === podSpaces?.mine) || a.position - b.position)
-    : [];
-  communityFrame.pods = isTopCommunityNav ? {
+  const podChannels = props.communityShell.communityChannels
+    .filter((channel) => channel.access_mode === "restricted" && !memberSpaces.has(channel.id))
+    .sort((a, b) => Number(b.id === podSpaces?.mine) - Number(a.id === podSpaces?.mine) || a.position - b.position);
+  // Both layouts show pods: Classroom as a card and a room, Channels as their
+  // own group in the channel list. Opening one shows the same pod panel.
+  const selectedPodSlug = props.communityShell.communityTab === "chat" ? props.communityShell.selectedCommunityChannelSlug || null : null;
+  const podOpenInAside = Boolean(isTopCommunityNav && selectedPodSlug && podChannels.some((channel) => channel.slug === selectedPodSlug));
+  communityFrame.pods = props.communityShell.activeCommunity ? {
+    mode: isTopCommunityNav ? "classroom" : "channels",
     place: PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside",
     pods: podChannels,
     unread: Object.fromEntries(podChannels.map((channel) => [channel.slug, Boolean(props.communityShell.communityChannelIndicators[channel.slug]?.chat)])),
-    selectedSlug: props.communityShell.communityTab === "chat" ? props.communityShell.selectedCommunityChannelSlug || null : null,
+    selectedSlug: selectedPodSlug,
+    panelSlot: podOpenInAside ? podPanelSlot : null,
     onOpen: (channel) => {
       props.communityShell.onSelectCommunityTab("chat");
       props.communityShell.onSelectCommunityChannel(channel);
@@ -331,10 +336,10 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       if (home) props.communityShell.onSelectCommunityChannel(home);
     },
   } : null;
-  const showPodsCard = Boolean(communityFrame.pods && communityFrame.pods.place === "aside" && podChannels.length > 0);
+  const showPodsCard = Boolean(isTopCommunityNav && communityFrame.pods && communityFrame.pods.place === "aside" && podChannels.length > 0);
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
-  const hasCommunityAside = communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat");
+  const hasCommunityAside = podOpenInAside || communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat");
   const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
@@ -375,7 +380,9 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const topBody = isTopCommunityNav ? (
     <div className={`community-top-body${hasCommunityAside ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
       <div className="community-top-main">{themedMainSurface}</div>
-      {hasCommunityAside ? <WebCommunityAside blocks={communityAsideBlocks} pods={communityFrame.pods} /> : null}
+      {podOpenInAside ? (
+        <aside className="community-aside community-pod-panel-aside" aria-label="Pod" ref={setPodPanelSlot} />
+      ) : hasCommunityAside ? <WebCommunityAside blocks={communityAsideBlocks} pods={communityFrame.pods} /> : null}
     </div>
   ) : null;
   // The posts page scrolls as one page, so its scrollbar sits at the window's

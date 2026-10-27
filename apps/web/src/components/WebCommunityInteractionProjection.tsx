@@ -177,6 +177,8 @@ import { CommunityPinnedRootSurface } from "./CommunityPinnedRootSurface";
 import { CommunityPostsFeed, splitPostTitle } from "./CommunityPostsFeed";
 import { PostCardView, postCardTitle } from "./CommunityPostCard";
 import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
+import { WebCommunityPodPanel } from "./WebCommunityPodPanel";
 
 export function resolveSelectedCommunityInteractionRoot(
   roots: CommunityInteractionRootBundle[],
@@ -203,6 +205,11 @@ export function communityInteractionRootHasRichContent(
 export function WebCommunityInteractionProjection(props: WebCommunityInteractionProjectionProps) {
   const agentName = useCommunityAgentName(props.activeCommunityName);
   const hasChannelContext = Boolean(props.communityId && props.activeChannel);
+  // A pod keeps its pinned post in the pod panel instead of a banner over the
+  // chat. In Channels the panel takes the member list's column; in Classroom
+  // it sits in the page's right column (WebCommunityHost).
+  const pods = useWebCommunityFrame().pods;
+  const podMode = props.activeChannel && pods?.pods.some((pod) => pod.id === props.activeChannel!.id) ? pods.mode : null;
   // The Members page is the member list kept open.
   const peopleOpen = Boolean((props.peopleOpen || props.surface === "members") && hasChannelContext);
   const closePeople = useCallback(() => {
@@ -608,7 +615,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             onDeleteChannel={props.onDeleteChannel}
           />
         ) : null}
-        {!isPostsPresentation && props.pinnedRoot ? (
+        {!isPostsPresentation && !podMode && props.pinnedRoot ? (
           <CommunityPinnedRootSurface
             hasRichContent={communityInteractionRootHasRichContent(props.pinnedRoot)}
             selected={props.pinnedRoot.root.id === props.selectedRootId}
@@ -1060,7 +1067,17 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           ) : null}
         </ThreadSurface>
       ) : null}
-      {props.communityId && props.activeChannel ? <ChannelRosterPanel
+      {podMode === "channels" && props.surface !== "members" ? (
+        <aside className="community-context-panel channel-roster-panel community-pod-panel-column" aria-label="Pod">
+          <WebCommunityPodPanel
+            podId={props.activeChannel!.id}
+            pinnedRoot={props.pinnedRoot}
+            roots={props.roots}
+            onOpenPost={props.onSelectRoot}
+            canManage={Boolean(props.canManageActiveChannel)}
+          />
+        </aside>
+      ) : podMode === "classroom" && props.surface !== "members" ? null : props.communityId && props.activeChannel ? <ChannelRosterPanel
         page={props.surface === "members"}
         onCloseNarrow={closePeople}
         narrowOpen={peopleOpen}
