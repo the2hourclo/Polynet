@@ -501,7 +501,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
             </label>
             <p className="workflow-field-hint" id={`${id}-email-help`}>{"{first_name}"}, {"{name}"} and {"{community}"} fill in for each member.
               Every email has an unsubscribe link, and a test member's copy comes to you.</p>
-          </> : automation.action.type === "create_service_channel" ? <p className="workflow-field-hint">Creates a private service channel for the member, community managers, and community agent.</p> : automation.action.type === "request_form" ? <label>Form<select value={automation.action.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, action: { key: automation.action.key, type: "request_form", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select><small>Shown privately in the member’s community sidebar. No channel is required. One request per rule and stage visit.</small></label> : automation.action.type === "prompt_agent" ? (
+          </> : automation.action.type === "create_service_channel" ? <p className="workflow-field-hint">Creates a personal pod with just them, you and the agent.</p> : automation.action.type === "request_form" ? <label>Form<select value={automation.action.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, action: { key: automation.action.key, type: "request_form", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select><small>Shown privately in the member’s community sidebar. No channel is required. One request per rule and stage visit.</small></label> : automation.action.type === "prompt_agent" ? (
             <>
               <label>
                 <span id={`${id}-prompt-label`}>Agent instructions</span>
@@ -512,8 +512,8 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               </label>
               <p className="workflow-field-hint" id={`${id}-prompt-help`}>
                 {automation.action.prompt.trim() ? "" : "Add instructions to save. "}
-                {isForm ? "Uses the submitted answers and responds once in the member’s assigned private service channel. Only the member and community managers may have access. Submission stays saved if delivery is unavailable."
-                  : isSequence ? "Starts after the preceding action completes and responds in the member’s assigned private service channel. The next action waits until this response is delivered. No additional tool actions."
+                {isForm ? "Uses the submitted answers and responds once in the member’s personal pod. Only the member and community managers may have access. Submission stays saved if delivery is unavailable."
+                  : isSequence ? "Starts after the preceding action completes and responds in the member’s personal pod. The next action waits until this response is delivered. No additional tool actions."
                   : isLesson || isCourse ? "Starts once when they finish it and replies in the member’s private guide channel."
                   : isRecord ? "Starts when their record changes and replies in the member’s private guide channel."
                   : isDate ? "Starts on that day and replies in the member’s private guide channel."
