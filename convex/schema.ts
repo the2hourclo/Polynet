@@ -3356,6 +3356,16 @@ export default defineSchema({
   })
     .index("by_resource_createdAt", ["resourceId", "createdAt"]),
 
+  // A YouTube video's chapters, read from its public description once and
+  // shared by every lesson that shows the video (convex/youtubeChapters.ts).
+  youtubeVideoChapters: defineTable({
+    videoId: v.string(),
+    chapters: v.array(v.object({ seconds: v.number(), time: v.string(), label: v.string() })),
+    found: v.boolean(),
+    fetchedAt: v.number(),
+  })
+    .index("by_video", ["videoId"]),
+
   communitySourceUnits: defineTable({
     communityId: v.id("communities"),
     crawlJobId: v.id("communitySourceCrawlJobs"),

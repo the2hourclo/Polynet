@@ -279,6 +279,7 @@ import type * as webResearchTools from "../webResearchTools.js";
 import type * as webSearchTypes from "../webSearchTypes.js";
 import type * as workosEmailVerification from "../workosEmailVerification.js";
 import type * as workspaceCredits from "../workspaceCredits.js";
+import type * as youtubeChapters from "../youtubeChapters.js";
 import type * as xAiSearchTransport from "../xAiSearchTransport.js";
 
 import type {
@@ -559,6 +560,7 @@ declare const fullApi: ApiFromModules<{
   webSearchTypes: typeof webSearchTypes;
   workosEmailVerification: typeof workosEmailVerification;
   workspaceCredits: typeof workspaceCredits;
+  youtubeChapters: typeof youtubeChapters;
   xAiSearchTransport: typeof xAiSearchTransport;
 }>;
 
