@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
-import { ArrowLeft, ArrowDown, ArrowUp, ChevronRight, ClipboardList, Plus, Trash2 } from "lucide-react";
-import { blankCommunityFormQuestion, communityFormIssue, communityFormValidationIssue, COMMUNITY_FORM_MAX_FORMS, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion, type CommunityFormValidationIssue } from "../../../../shared/communityForms";
+import { ArrowLeft, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ClipboardList, GripVertical, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { WorkflowSentence, type WorkflowSentencePart } from "./workflowSubjectPills";
+import { blankCommunityFormQuestion, communityFormIssue, communityFormValidationIssue, COMMUNITY_FORM_MAX_FORMS, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion, type CommunityFormUse, type CommunityFormValidationIssue } from "../../../../shared/communityForms";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
 import { communityClientPropertyAcceptsQuestion, type CommunityClientPropertyType } from "../../../../shared/communityClients";
 import "./WebCommunityForms.css";
@@ -21,22 +22,75 @@ const errorText = (error: unknown, operation: "save" | "publish") => String(erro
   : "Could not save. Your edits are still here. Try again.";
 
 type LeaveGuard = MutableRefObject<(() => Promise<boolean>) | null>;
+type Property = { key: string; name: string; type: string; options: string[] };
+
+const member: WorkflowSentencePart = { pill: "member", text: "Member" };
+/** "Send [Member] [Your goals] · [First win]" for each place a form is used. */
+export function formUseParts(form: CommunityFormDraft, use: CommunityFormUse): WorkflowSentencePart[] {
+  const formPill: WorkflowSentencePart = { pill: "form", text: form.name || "Untitled form" };
+  if (use.kind === "welcome_page") return [{ pill: "stage", text: "Welcome page" }, " join form"];
+  return [...(use.role === "sends" ? ["Send ", member, " ", formPill] : ["When ", member, " submits ", formPill]),
+    " · ", { pill: "stage", text: use.stageName || "a stage" }, ...(use.paused ? [" (off)"] : [])];
+}
+const formFills = (form: CommunityFormDraft, properties: Property[]) => [...new Set(form.questions.flatMap(q => q.clientPropertyKey ? [q.clientPropertyKey] : []))]
+  .map(key => properties.find(p => p.key === key)?.name ?? key);
+const formStatus = (form: CommunityFormDraft) => form.publishedRevision === form.revision ? "published" : form.publishedRevision ? "edited" : "draft";
+const STATUS_LABEL = { published: "Published", edited: "Unpublished edits", draft: "Draft" } as const;
+
+// Workflows → Forms as a Notion-style table: drag a row to reorder, see where
+// each form is used, and delete one only when nothing uses it.
 export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityFormsGateway; leaveGuard?: LeaveGuard }) {
   const [forms, setForms] = useState<CommunityFormDraft[]>([]);
+  const [deleted, setDeleted] = useState<CommunityFormDraft[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [selected, setSelected] = useState<CommunityFormDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "used" | "unused">("all");
+  const [menu, setMenu] = useState<string | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const dragged = useRef<string | null>(null);
+  const [dropOn, setDropOn] = useState<string | null>(null);
   useEffect(() => {
     let active = true; setLoading(true); setError(false);
     gateway.load().then(rows => { if (active) setForms(rows); }).catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });
+    gateway.loadDeleted?.().then(rows => { if (active) setDeleted(rows); }).catch(() => {});
+    gateway.clientProperties?.().then(rows => { if (active) setProperties(rows); }).catch(() => {});
     return () => { active = false; };
   }, [gateway, refresh]);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (event: MouseEvent) => { if (!(event.target as HTMLElement).closest(".community-form-menu")) setMenu(null); };
+    document.addEventListener("mousedown", close); return () => document.removeEventListener("mousedown", close);
+  }, [menu]);
   if (selected) return <CommunityFormEditor key={selected.key} initial={selected} gateway={gateway} leaveGuard={leaveGuard}
     onBack={() => { setSelected(null); setRefresh(n => n + 1); }} />;
   const newForm = () => setSelected({ key: crypto.randomUUID(), name: "Untitled form", questions: [blankCommunityFormQuestion()], revision: 0, publishedRevision: null });
-  const atLimit = forms.length >= COMMUNITY_FORM_MAX_FORMS;
+  const atLimit = forms.length + deleted.length >= COMMUNITY_FORM_MAX_FORMS;
+  const used = (form: CommunityFormDraft) => (form.usedIn?.length ?? 0) > 0;
+  const shown = forms.filter(form => filter === "all" || (filter === "used") === used(form));
+  const drop = (target: string) => {
+    const from = dragged.current; dragged.current = null; setDropOn(null);
+    if (!from || from === target || !gateway.reorder) return;
+    const keys = forms.map(form => form.key).filter(key => key !== from);
+    keys.splice(keys.indexOf(target), 0, from);
+    const before = forms;
+    setForms(keys.map(key => forms.find(form => form.key === key)!));
+    gateway.reorder(keys).catch(() => { setForms(before); setNotice("Couldn't save the new order. Try again."); });
+  };
+  const remove = async (form: CommunityFormDraft) => {
+    setMenu(null);
+    if (!gateway.remove || !window.confirm(`Delete “${form.name || "Untitled form"}”? Past answers stay on member records, and you can restore it from Deleted forms.`)) return;
+    try { await gateway.remove(form.key); setNotice(`Deleted “${form.name}”.`); setRefresh(n => n + 1); }
+    catch (e) { setNotice(String(e).includes("form_in_use") ? "That form is in use now. Take it out of its automations first." : "Couldn't delete the form. Try again."); setRefresh(n => n + 1); }
+  };
+  const restore = async (form: CommunityFormDraft) => {
+    try { await gateway.restore?.(form.key); setNotice(`Restored “${form.name}”.`); setRefresh(n => n + 1); } catch { setNotice("Couldn't restore the form. Try again."); }
+  };
+  const count = (kind: "all" | "used" | "unused") => kind === "all" ? forms.length : forms.filter(form => (kind === "used") === used(form)).length;
   return <div className="workflow-page community-forms-page">
     <div className="pn-wf-section-head">
       <div>
@@ -45,6 +99,7 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
       </div>
       {!loading && !error && forms.length ? <button type="button" className="pn-wf-primary" disabled={atLimit} onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button> : null}
     </div>
+    {notice ? <p className="community-form-notice" role="status">{notice} <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss">×</button></p> : null}
     {loading ? <p role="status" className="pn-wf-muted">Loading forms…</p> : error ? <p role="alert">Could not load forms. <button className="workflow-secondary-button" onClick={() => setRefresh(n => n + 1)}>Try again</button></p>
       : !forms.length ? <div className="pn-wf-empty">
         <span className="pn-wf-empty-icon" aria-hidden="true"><ClipboardList size={20} strokeWidth={2} /></span>
@@ -52,15 +107,49 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
         <p>Build a form, then preview it one question at a time.</p>
         <button type="button" className="pn-wf-primary" onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button>
       </div>
-      : <div className="community-form-list pn-wf-list">{forms.map(form => {
-        const status = form.publishedRevision === form.revision ? "published" : form.publishedRevision ? "edited" : "draft";
-        return <button type="button" key={form.key} onClick={() => setSelected(form)}>
-          <span className="pn-wf-row-icon" aria-hidden="true"><ClipboardList size={16} strokeWidth={2} /></span>
-          <span className="pn-wf-row-text"><strong>{form.name || "Untitled form"}</strong><small>{form.questions.length} {form.questions.length === 1 ? "question" : "questions"}</small></span>
-          <span className={`pn-wf-badge is-${status}`}>{status === "published" ? "Published" : status === "edited" ? "Unpublished edits" : "Draft"}</span>
-          <ChevronRight className="pn-wf-row-chevron" size={16} strokeWidth={2} aria-hidden="true" />
-        </button>;
-      })}</div>}
+      : <div className="community-form-table-card">
+        <div className="community-form-filters" role="tablist" aria-label="Show forms">
+          {(["all", "used", "unused"] as const).map(kind => <button key={kind} type="button" role="tab" aria-selected={filter === kind} onClick={() => setFilter(kind)}>
+            {kind === "all" ? "All" : kind === "used" ? "In use" : "Not used"} <span>{count(kind)}</span></button>)}
+        </div>
+        <div className="community-form-table-scroll">
+        <table className="community-form-table">
+          <thead><tr><th aria-label="Drag to reorder" /><th>Name</th><th>Used in</th><th>Fills</th><th>Status</th><th aria-label="Actions" /></tr></thead>
+          <tbody>{shown.map(form => {
+            const status = formStatus(form);
+            const fills = formFills(form, properties);
+            return <tr key={form.key} className={dropOn === form.key ? "is-drop" : undefined}
+              onDragOver={event => { if (dragged.current) { event.preventDefault(); setDropOn(form.key); } }} onDragLeave={() => setDropOn(null)} onDrop={() => drop(form.key)}>
+              <td className="community-form-grip">{gateway.reorder && filter === "all" ? <span draggable aria-label={`Drag to reorder ${form.name}`} title="Drag to reorder"
+                onDragStart={event => { dragged.current = form.key; event.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { dragged.current = null; setDropOn(null); }}>
+                <GripVertical size={15} aria-hidden="true" /></span> : null}</td>
+              <td><button type="button" className="community-form-open" onClick={() => setSelected(form)}>
+                <ClipboardList size={15} strokeWidth={2} aria-hidden="true" /><span><strong>{form.name || "Untitled form"}</strong>
+                <small>{form.questions.length} {form.questions.length === 1 ? "question" : "questions"}</small></span></button></td>
+              <td className="community-form-uses">{used(form) ? form.usedIn!.map((use, i) => <span key={i}><WorkflowSentence parts={formUseParts(form, use)} /></span>)
+                : <small>Not used anywhere</small>}</td>
+              <td className="community-form-fills">{fills.length ? fills.map(name => <span key={name} className="pn-pill pn-pill-field">{name}</span>) : <small>—</small>}</td>
+              <td><span className={`pn-wf-badge is-${status}`}>{STATUS_LABEL[status]}</span></td>
+              <td className="community-form-menu">
+                <button type="button" className="pn-au-iconbtn" aria-label={`More for ${form.name}`} aria-expanded={menu === form.key} onClick={() => setMenu(menu === form.key ? null : form.key)}>
+                  <MoreHorizontal size={16} aria-hidden="true" /></button>
+                {menu === form.key ? <div className="community-form-pop" role="menu">
+                  <button type="button" role="menuitem" onClick={() => { setMenu(null); setSelected(form); }}>Open</button>
+                  {used(form) ? <div className="is-disabled" role="menuitem" aria-disabled="true">Delete<small>Used by {form.usedIn!.length === 1 ? "1 place" : `${form.usedIn!.length} places`}. Take it out of {form.usedIn!.some(use => use.kind === "welcome_page") ? "the Welcome page and its automations" : "its automations"} first.</small></div>
+                    : <button type="button" role="menuitem" className="is-danger" disabled={!gateway.remove} onClick={() => void remove(form)}>Delete</button>}
+                </div> : null}
+              </td>
+            </tr>;
+          })}</tbody>
+        </table>
+        </div>
+        {filter !== "all" ? <p className="community-form-foot">Show All to drag forms into a new order.</p> : null}
+        {deleted.length ? <div className="community-form-deleted">
+          <button type="button" aria-expanded={showDeleted} onClick={() => setShowDeleted(!showDeleted)}>{showDeleted ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />} Deleted forms ({deleted.length})</button>
+          {showDeleted ? <ul>{deleted.map(form => <li key={form.key}><span>{form.name || "Untitled form"}</span>
+            <button type="button" className="workflow-secondary-button" onClick={() => void restore(form)}>Restore</button></li>)}</ul> : null}
+        </div> : null}
+      </div>}
   </div>;
 }
 

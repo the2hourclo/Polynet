@@ -47,6 +47,22 @@ export async function ensureCloudCommunitySelectProperty(session: unknown, commu
   }
   throw new Error("client_property_name_taken");
 }
+export async function listDeletedCloudCommunityForms(session: unknown, communityId: string): Promise<CommunityFormDraft[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.query(api.communityForms.listDeletedBuilderForms, { authSubject, communityId: communityId as Id<"communities"> });
+}
+export async function reorderCloudCommunityForms(session: unknown, communityId: string, keys: string[]) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.mutation(api.communityForms.reorderBuilderForms, { authSubject, communityId: communityId as Id<"communities">, keys });
+}
+export async function deleteCloudCommunityForm(session: unknown, communityId: string, key: string) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.mutation(api.communityForms.deleteBuilderForm, { authSubject, communityId: communityId as Id<"communities">, key });
+}
+export async function restoreCloudCommunityForm(session: unknown, communityId: string, key: string) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.mutation(api.communityForms.restoreBuilderForm, { authSubject, communityId: communityId as Id<"communities">, key });
+}
 export async function publishCloudCommunityForm(session: unknown, communityId: string, form: CommunityFormDraft): Promise<CommunityFormDraft> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.mutation(api.communityForms.publishBuilderForm, { authSubject, communityId: communityId as Id<"communities">,

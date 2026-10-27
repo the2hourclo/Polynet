@@ -2,7 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireCommunityManager, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 import { communityFormQuestionValidator } from "./communityFormValidators";
-import { COMMUNITY_FORM_MAX_FORMS, communityFormIssue } from "../shared/communityForms";
+import { COMMUNITY_FORM_MAX_FORMS, communityFormIssue, type CommunityFormUse } from "../shared/communityForms";
 import { communityClientPropertyAcceptsQuestion, communityClientUnmatchedOptions } from "../shared/communityClients";
 import { getCommunityMemberWorkflowByCommunity } from "./communityMemberWorkflowReadCore";
 
@@ -15,11 +15,6 @@ async function manager(ctx: any, args: any) {
 const project = (row: any, usedIn?: CommunityFormUse[]) => ({ key: row.key, name: row.name, questions: row.questions,
   revision: row.revision, publishedRevision: row.publishedRevision ?? null,
   ...(usedIn ? { usedIn } : {}), ...(row.deletedAt ? { deletedAt: row.deletedAt } : {}) });
-
-/** Where a form is used: an automation that sends it or starts when it's sent back, or the Welcome page. */
-export type CommunityFormUse =
-  | { kind: "automation"; stageKey: string; stageName: string; automationKey: string; role: "sends" | "starts"; paused: boolean }
-  | { kind: "welcome_page" };
 
 async function formUses(ctx: any, communityId: any): Promise<Map<string, CommunityFormUse[]>> {
   const uses = new Map<string, CommunityFormUse[]>();

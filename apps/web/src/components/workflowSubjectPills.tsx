@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { CommunityMemberWorkflowAutomation } from "../../../../shared/communityMemberWorkflow";
 import { workflowDurationLabel, type WorkflowStepNames } from "./workflowStepSentences";
+import "./workflowSubjectPills.css";
 
 // Rules read as sentences with the subjects coloured, so "When [Member] submits
 // [Welcome form] · Then [Agent] sends [Member] a message" can be followed at a

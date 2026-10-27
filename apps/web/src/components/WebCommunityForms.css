@@ -112,3 +112,49 @@
   .community-form-question h2, .community-form-title { font-size: 1.25rem; }
 }
 @media (prefers-reduced-motion: reduce) { .community-form-questions > div, .community-form-tools input[type=checkbox], .community-form-tools input[type=checkbox]::after { transition: none; } }
+
+/* Forms list: a Notion-style table in a card. Rows drag to reorder by the grip;
+   Used in reads as pill sentences, so a form in use is plain to see. */
+.community-form-notice { display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: var(--hover-overlay); color: var(--text-primary); font-size: 0.875rem; }
+.community-form-notice button { margin-left: auto; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 1rem; }
+.community-form-table-card { border: 1px solid var(--border-default); border-radius: 0.75rem; background: var(--bg-card, var(--surface-workspace)); }
+.community-form-filters { display: flex; gap: 0.25rem; padding: 0.625rem 0.75rem; border-bottom: 1px solid var(--border-default); }
+.community-form-filters button { height: 1.875rem; padding: 0 0.625rem; border: 0; border-radius: 0.375rem; background: transparent; color: var(--text-secondary); font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
+.community-form-filters button span { margin-left: 0.25rem; color: var(--text-muted, var(--text-secondary)); }
+.community-form-filters button[aria-selected=true] { background: var(--hover-overlay); color: var(--text-primary); font-weight: 600; }
+.community-form-table-scroll { overflow-x: auto; }
+.community-form-table { width: 100%; min-width: 46rem; border-collapse: collapse; font-size: 0.875rem; }
+.community-form-table th { padding: 0.5rem 0.625rem; border-bottom: 1px solid var(--border-default); color: var(--text-secondary); font-size: 0.78125rem; font-weight: 500; text-align: left; white-space: nowrap; }
+.community-form-table td { padding: 0.625rem; border-bottom: 1px solid var(--border-default); color: var(--text-primary); vertical-align: top; }
+.community-form-table tbody tr:last-child td { border-bottom: 0; }
+.community-form-table tbody tr:hover td { background: var(--hover-overlay); }
+.community-form-table tr.is-drop td { box-shadow: inset 0 2px 0 var(--pn-form-accent); }
+.community-form-grip { width: 1.75rem; padding-right: 0 !important; }
+.community-form-grip span { display: inline-grid; place-items: center; width: 1.375rem; height: 1.5rem; border-radius: 0.25rem; color: var(--text-muted, var(--text-secondary)); cursor: grab; }
+@media (hover: hover) { .community-form-grip span { opacity: 0; } .community-form-table tr:is(:hover, :focus-within) .community-form-grip span { opacity: 1; } }
+.community-form-open { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.community-form-open svg { margin-top: 0.125rem; color: var(--text-secondary); flex-shrink: 0; }
+.community-form-open span { display: flex; flex-direction: column; }
+.community-form-open strong { font-weight: 600; }
+.community-form-open:hover strong { text-decoration: underline; text-underline-offset: 2px; }
+.community-form-open small, .community-form-uses small, .community-form-fills small { color: var(--text-secondary); font-size: 0.8125rem; }
+.community-form-uses { line-height: 1.55; }
+.community-form-uses > span { display: block; }
+.community-form-uses > span + span { margin-top: 0.3125rem; }
+.community-form-fills { line-height: 1.8; }
+.community-form-fills .pn-pill { margin: 0 0.25rem 0.125rem 0; }
+.community-form-menu { position: relative; width: 2.5rem; text-align: right; }
+.community-form-pop { position: absolute; z-index: 5; top: 2.25rem; right: 0.5rem; width: 16rem; padding: 0.3125rem; border: 1px solid var(--border-default); border-radius: 0.625rem; background: var(--bg-card, var(--surface-workspace)); box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / .14); text-align: left; }
+.community-form-pop > * { display: block; width: 100%; padding: 0.4375rem 0.625rem; border: 0; border-radius: 0.375rem; background: transparent; color: var(--text-primary); font-size: 0.875rem; text-align: left; cursor: pointer; }
+.community-form-pop > button:hover { background: var(--hover-overlay); }
+.community-form-pop .is-danger { color: var(--danger-text, #c2413a); }
+.community-form-pop .is-disabled { color: var(--text-muted, var(--text-secondary)); cursor: default; }
+.community-form-pop .is-disabled small { display: block; margin-top: 0.125rem; color: var(--text-secondary); font-size: 0.75rem; line-height: 1.4; }
+.community-form-foot { margin: 0; padding: 0.5rem 0.875rem; color: var(--text-secondary); font-size: 0.8125rem; border-top: 1px solid var(--border-default); }
+.community-form-deleted { border-top: 1px solid var(--border-default); padding: 0.5rem 0.75rem; }
+.community-form-deleted > button { display: inline-flex; align-items: center; gap: 0.25rem; border: 0; background: transparent; color: var(--text-secondary); font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
+.community-form-deleted ul { margin: 0.375rem 0 0; padding: 0; list-style: none; }
+.community-form-deleted li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.375rem 0.25rem; color: var(--text-secondary); font-size: 0.875rem; }
+.community-form-table th:nth-child(2) { width: 12rem; }
+.community-form-table th:nth-child(4) { width: 8rem; }
+.community-form-table th:nth-child(5) { width: 6.5rem; }
