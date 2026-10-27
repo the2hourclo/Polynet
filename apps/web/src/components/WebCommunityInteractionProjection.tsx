@@ -1073,6 +1073,12 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
           {/* The same head row as the member list: it lines up with the chat's
               header and keeps the cards clear of the top-right buttons. */}
           <div className="community-context-rail-head community-pod-panel-head">
+            {/* Narrow windows open the panel full screen from the people button. */}
+            <div className="channel-people-back">
+              <button className="back-to-workspace" type="button" aria-label="Back to pod" onClick={closePeople}>
+                <svg viewBox="0 0 24 24" className="back-icon" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+              </button>
+            </div>
             <span><Lock size={13} aria-hidden="true" /> Private pod</span>
           </div>
           <WebCommunityPodPanel

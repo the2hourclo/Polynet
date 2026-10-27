@@ -2,7 +2,8 @@ import { isCommunityChatBackedTab, type AppView, type CommunityTab } from "../..
 import { useActiveCommunityLayout } from "../controllers/useWebCommunityLayout";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { createPortal } from "react-dom";
-import { WebCommunityPodRoomHead } from "./WebCommunityPods";
+import { useState } from "react";
+import { PodDetailsSheet, WebCommunityPodRoomHead } from "./WebCommunityPods";
 import { WebCommunityPodPanel } from "./WebCommunityPodPanel";
 import { WebCommunityChatPanel, type WebCommunityChatPanelProps } from "./WebCommunityChatPanel";
 import type { CommunityAdmissionControl } from "./CommunityAutoJoinControl";
@@ -20,6 +21,7 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
   const { communityTab, chatPanelProps, secondaryPanelsProps } = props;
   const layout = useActiveCommunityLayout();
   const { pods } = useWebCommunityFrame();
+  const [podDetailsOpen, setPodDetailsOpen] = useState<string | null>(null);
   // In Classroom an invite-only channel opens as its pod's room: a full-height
   // chat with the people along the top, and the pod panel in the right column.
   const projection = chatPanelProps.interactionProjection;
@@ -41,7 +43,7 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
       {isCommunityChatBackedTab(communityTab) ? (
         podId && pods ? (
           <div className="community-pod-room">
-            <WebCommunityPodRoomHead pods={pods} podId={podId} />
+            <WebCommunityPodRoomHead pods={pods} podId={podId} onShowDetails={() => setPodDetailsOpen(podId)} />
             {chatPanel}
             {projection && pods.panelSlot ? createPortal(
               <WebCommunityPodPanel
@@ -52,6 +54,20 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
                 canManage={Boolean(projection.canManageActiveChannel)}
               />,
               pods.panelSlot,
+            ) : null}
+            {projection && podDetailsOpen === podId && !pods.panelSlot?.offsetParent ? (
+              <PodDetailsSheet name={activeChannel?.name ?? "Pod"} onClose={() => setPodDetailsOpen(null)}>
+                <WebCommunityPodPanel
+                  podId={podId}
+                  pinnedRoot={projection.pinnedRoot}
+                  roots={projection.roots}
+                  onOpenPost={(rootId) => {
+                    setPodDetailsOpen(null);
+                    projection.onSelectRoot(rootId);
+                  }}
+                  canManage={Boolean(projection.canManageActiveChannel)}
+                />
+              </PodDetailsSheet>
             ) : null}
           </div>
         ) : chatPanel

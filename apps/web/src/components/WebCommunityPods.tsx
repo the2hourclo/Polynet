@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, FileText, Image as ImageIcon, Lock, Pin, Play, Plus, X } from "lucide-react";
+import { ArrowLeft, FileText, Image as ImageIcon, Info, Lock, Pin, Play, Plus, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -387,7 +387,7 @@ export function WebCommunityPodsButton({ pods }: { pods: WebCommunityPodsFrame }
 }
 
 /** The band across the top of an open pod: who's in the room, and who can see it. */
-export function WebCommunityPodRoomHead({ pods, podId }: { pods: WebCommunityPodsFrame; podId: string }) {
+export function WebCommunityPodRoomHead({ pods, podId, onShowDetails }: { pods: WebCommunityPodsFrame; podId: string; onShowDetails?: () => void }) {
   const pod = pods.pods.find((candidate) => candidate.id === podId);
   const people = usePodPeople(pod ? [pod.id] : [])[podId];
   const agentName = useCommunityAgentName("the agent");
@@ -410,8 +410,41 @@ export function WebCommunityPodRoomHead({ pods, podId }: { pods: WebCommunityPod
             {people ? <span>Only {audience} can see this pod</span> : <span>Private pod</span>}
           </p>
         </div>
+        {/* Narrow windows have no right column: the pod panel opens from here. */}
+        {onShowDetails ? (
+          <button type="button" className="community-pod-room-details" onClick={onShowDetails} aria-label="Pod details: people, pinned, files and calls">
+            <Info size={16} aria-hidden="true" /> <span>Details</span>
+          </button>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+/** The pod panel as a sheet from the bottom, for windows without a right column. */
+export function PodDetailsSheet({ name, onClose, children }: { name: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      // A dialog opened from the sheet (Schedule, Add people) closes first.
+      if (event.key === "Escape" && !document.querySelector(".community-channel-modal-backdrop, .community-event-sheet-overlay")) onClose();
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [onClose]);
+  const themeScope = document.querySelector<HTMLElement>("[data-community-theme]")?.dataset.communityTheme;
+  return createPortal(
+    <div className="community-pod-sheet-backdrop" role="presentation" data-community-theme={themeScope} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="community-pod-sheet" role="dialog" aria-modal="true" aria-label={`${name} details`}>
+        <div className="community-pod-sheet-head">
+          <strong>{name}</strong>
+          <button type="button" className="community-channel-modal-close" onClick={onClose} aria-label="Close pod details">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="community-pod-sheet-body">{children}</div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

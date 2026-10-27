@@ -589,6 +589,15 @@
 [data-community-theme] .community-pod-panel-head > span {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .community-pod-room-details {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-pod-sheet {
+  border-radius: calc(16px * var(--pn-radius-scale, 1)) calc(16px * var(--pn-radius-scale, 1)) 0 0;
+}
+[data-community-theme] .community-pod-sheet-head {
+  font-size: var(--pn-type-reading);
+}
 [data-community-theme] .community-sales-title {
   font-size: var(--pn-type-title);
 }
