@@ -235,8 +235,10 @@
   --pod-tint: color-mix(in srgb, var(--accent-brand) 7%, var(--bg-workspace, var(--surface-card)));
   position: relative;
   display: flex;
-  flex: 1;
+  flex: none;
   flex-direction: column;
+  /* Header and tabs above take about 8.25rem; the frame's own edge 1rem. */
+  height: max(30rem, calc(100dvh - 10.5rem));
   min-height: 0;
   margin-block: 1rem;
   overflow: hidden;
@@ -441,17 +443,21 @@
 }
 
 .community-pod-switcher-name {
+  display: -webkit-box;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   font-size: 14px;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .community-pod-switcher-count {
   flex: none;
+  white-space: nowrap;
   color: var(--text-muted);
   font-size: 12px;
 }

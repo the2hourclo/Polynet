@@ -12,6 +12,7 @@ import {
   Settings,
   UserPlus,
   Users,
+  UserRound,
   UsersRound,
   X,
 } from "lucide-react";
@@ -56,6 +57,8 @@ type CommunityNavProps = {
   /** Guest mode (public funnel): tabs rendered with a lock glyph instead of an indicator dot. */
   lockedTabs?: Partial<Record<CommunityTab, boolean>>;
   channels?: CommunityNavChannel[];
+  /** Other members' guide channels: invite-only, but listed apart from pods. */
+  memberSpaceIds?: string[];
   isLoadingChannels?: boolean;
   selectedChannelSlug?: string | null;
   channelIndicators?: Record<string, { chat: boolean; mentions: boolean }>;
@@ -172,6 +175,7 @@ export const CommunityNav = memo(function CommunityNav({
   onCopyCommunityJoinLink,
   lockedTabs = {},
   channels = [],
+  memberSpaceIds,
   isLoadingChannels = false,
   selectedChannelSlug = "general",
   channelIndicators = {},
@@ -217,11 +221,16 @@ export const CommunityNav = memo(function CommunityNav({
     isLoadingAccess || (isLoadingChannels && channels.every((channel) => !channel.id));
   // Pods (Rashid, 2026-10-27): invite-only channels sit in their own group
   // under the shared ones, the same Pods as in Classroom.
+  // Members' own guide channels follow, under Members' spaces.
+  const memberSpaces = new Set(memberSpaceIds ?? []);
+  const isPod = (channel: CommunityNavChannel) => channel.access_mode === "restricted" && !memberSpaces.has(channel.id);
   const groupedChannels = [
     ...channels.filter((channel) => channel.access_mode !== "restricted"),
-    ...channels.filter((channel) => channel.access_mode === "restricted"),
+    ...channels.filter(isPod),
+    ...channels.filter((channel) => memberSpaces.has(channel.id) && channel.access_mode === "restricted"),
   ];
-  const firstPodId = groupedChannels.find((channel) => channel.access_mode === "restricted")?.id ?? null;
+  const firstPodId = groupedChannels.find(isPod)?.id ?? null;
+  const firstMemberSpaceId = groupedChannels.find((channel) => memberSpaces.has(channel.id) && channel.access_mode === "restricted")?.id ?? null;
   const reorderableChannelIds = groupedChannels
     .filter((channel) => !channel.is_general && Boolean(channel.id))
     .map((channel) => channel.id);
@@ -461,6 +470,9 @@ export const CommunityNav = memo(function CommunityNav({
             {channel.id && channel.id === firstPodId ? (
               <div className="community-nav-group-label" role="presentation">Pods</div>
             ) : null}
+            {channel.id && channel.id === firstMemberSpaceId ? (
+              <div className="community-nav-group-label" role="presentation">Members' spaces</div>
+            ) : null}
             <div
               ref={sortableBindings?.ref}
               style={sortableBindings?.style}
@@ -478,7 +490,9 @@ export const CommunityNav = memo(function CommunityNav({
                 title={channel.name}
               >
                 <span className="nav-icon community-channel-icon" aria-hidden="true">
-                  {channel.access_mode === "restricted" ? <UsersRound size={17} strokeWidth={1.8} /> : <Hash size={17} strokeWidth={1.8} />}
+                  {channel.access_mode !== "restricted" ? <Hash size={17} strokeWidth={1.8} />
+                    : memberSpaces.has(channel.id) ? <UserRound size={17} strokeWidth={1.8} />
+                    : <UsersRound size={17} strokeWidth={1.8} />}
                 </span>
                 <span className="nav-item-label">{channel.name}</span>
                 {lockedTabs.chat ? <NavLockGlyph /> : !isSelected && (indicator?.chat || indicator?.mentions) ? (

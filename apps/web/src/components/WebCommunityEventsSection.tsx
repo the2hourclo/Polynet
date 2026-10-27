@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { communityEventDisplayEnd, communityEventPhase, DEFAULT_COMMUNITY_EVENT_DURATION_MS } from "../../../../shared/communityEventLifecycle";
 import { useCommunityEventClock } from "../../../../shared/useCommunityEventClock";
 import {
@@ -278,7 +279,8 @@ export function EventModal(props: {
     onSubmit();
   };
 
-  return (
+  // On the body, so nothing in the page (a pod's composer, say) paints over it.
+  return createPortal(
     <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
       <form
         className="modal community-event-modal"
@@ -423,7 +425,8 @@ export function EventModal(props: {
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

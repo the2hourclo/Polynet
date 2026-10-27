@@ -331,6 +331,7 @@ function PodCallsCard({ podId, podName, canManage }: { podId: string; podName: s
           isSaving={saving}
           error={error}
           title={`New call for ${podName}`}
+          pods={frame.pods?.pods.map((pod) => ({ id: pod.id, name: pod.name })) ?? [{ id: podId, name: podName }]}
           onChange={setDraft}
           onClose={() => setDraft(null)}
           onSubmit={() => void save()}

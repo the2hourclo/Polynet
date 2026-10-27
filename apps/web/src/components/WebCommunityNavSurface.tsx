@@ -5,11 +5,13 @@ import type { WebCommunityShellProps } from "./webShellChromeShared";
 type WebCommunityNavSurfaceProps = {
   communityShell: WebCommunityShellProps;
   presentation: "desktop" | "mobile-home";
+  memberSpaceIds?: string[];
 };
 
 export function WebCommunityNavSurface({
   communityShell,
   presentation,
+  memberSpaceIds,
 }: WebCommunityNavSurfaceProps) {
   const isMobileHome = presentation === "mobile-home";
   const hasDestinationSelection =
@@ -26,6 +28,7 @@ export function WebCommunityNavSurface({
       activeSelectionMode={hasDestinationSelection ? "route" : "none"}
       tabIndicators={communityShell.communityTabIndicators}
       channels={communityShell.communityChannels}
+      memberSpaceIds={memberSpaceIds}
       isLoadingChannels={communityShell.isLoadingCommunityChannels}
       selectedChannelSlug={isMobileHome ? null : communityShell.selectedCommunityChannelSlug}
       channelIndicators={communityShell.communityChannelIndicators}
