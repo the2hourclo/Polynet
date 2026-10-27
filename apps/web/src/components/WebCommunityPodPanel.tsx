@@ -248,10 +248,16 @@ function waitForPodImage(session: unknown, attachmentId: string): { promise: Pro
 function PodImage({ attachmentId, alt }: { attachmentId: string; alt: string }) {
   // The chat's own session scope stands in where the frame has none.
   const chatScope = useContext(CommunityChannelSessionContext);
-  const session = useWebCommunityFrame().session ?? chatScope?.session ?? null;
+  const frameSession = useWebCommunityFrame().session;
+  const session = frameSession ?? chatScope?.session ?? null;
   const [url, setUrl] = useState<string | null>(() => podImageReady.get(attachmentId) ?? null);
   useEffect(() => {
     const ready = podImageReady.get(attachmentId);
+    // Temporary (2026-10-27): tracing the phone panel's grey images.
+    console.info("[pods] image mount", attachmentId, {
+      hasFrameSession: Boolean(frameSession), hasChatSession: Boolean(chatScope?.session),
+      ready: Boolean(ready), inFlight: podImageDownloads.has(attachmentId),
+    });
     if (ready) {
       setUrl(ready);
       return;
@@ -261,7 +267,10 @@ function PodImage({ attachmentId, alt }: { attachmentId: string; alt: string }) 
     let alive = true;
     const download = waitForPodImage(session, attachmentId);
     download.promise
-      .then((next) => { if (alive) setUrl(next); })
+      .then((next) => {
+        console.info("[pods] image ready", attachmentId, { alive });
+        if (alive) setUrl(next);
+      })
       .catch((error) => console.warn("[pods] image download failed", attachmentId, error));
     return () => {
       alive = false;
