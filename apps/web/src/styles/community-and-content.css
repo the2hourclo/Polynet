@@ -13823,3 +13823,16 @@ button.chat-reply-quote:hover {
   .lesson-history-list li { flex: 0 0 auto; }
   .lesson-history-preview { padding: 16px; }
 }
+/* In the lesson editor's bar it sits inline, before History and Done. */
+.resource-course-style-switch.is-editor {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+.resource-course-style-switch.is-editor .resource-course-style-label { white-space: nowrap; }
+@media (max-width: 900px) {
+  .resource-course-style-switch.is-editor .resource-course-style-label { display: none; }
+}
