@@ -1,7 +1,7 @@
 import { isCommunityChatBackedTab, type AppView, type CommunityTab } from "../../../../shared/appShellNavigation";
 import { useActiveCommunityLayout } from "../controllers/useWebCommunityLayout";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
-import { WebCommunityPodRoomHead } from "./WebCommunityPods";
+import { WebCommunityPodRoomHead, WebCommunityPodShelf } from "./WebCommunityPods";
 import { WebCommunityChatPanel, type WebCommunityChatPanelProps } from "./WebCommunityChatPanel";
 import type { CommunityAdmissionControl } from "./CommunityAutoJoinControl";
 import { WebCommunitySecondaryPanels, type WebCommunitySecondaryPanelsProps } from "./WebCommunitySecondaryPanels";
@@ -37,9 +37,20 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
     <div className="community-body">
       {isCommunityChatBackedTab(communityTab) ? (
         podId && pods ? (
-          <div className="community-pod-room">
-            <WebCommunityPodRoomHead pods={pods} podId={podId} />
-            {chatPanel}
+          <div className="community-pod-stack">
+            <div className="community-pod-room">
+              <WebCommunityPodRoomHead pods={pods} podId={podId} />
+              {chatPanel}
+            </div>
+            {chatPanelProps.interactionProjection ? (
+              <WebCommunityPodShelf
+                podId={podId}
+                podName={activeChannel?.name ?? ""}
+                pinnedRoot={chatPanelProps.interactionProjection.pinnedRoot}
+                roots={chatPanelProps.interactionProjection.roots}
+                onOpenPost={chatPanelProps.interactionProjection.onSelectRoot}
+              />
+            ) : null}
           </div>
         ) : chatPanel
       ) : (

@@ -15,6 +15,7 @@ import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { WebCommunityKnowledgePanel } from "./WebCommunityKnowledgePanel";
 import { WebCommunitySettingsSection } from "./WebCommunitySettingsSection";
 import { WebCommunityWorkflowsSection } from "./WebCommunityWorkflowsSection";
+import { WebCommunityMembers } from "./WebCommunityMembers";
 import { WebCommunityFunnelsSection } from "./WebCommunityFunnelsSection";
 
 export type WebCommunitySecondaryPanelsProps = {
@@ -133,6 +134,11 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
 
       {props.communityTab === "workflows" &&
         renderWorkspacePane(<WebCommunityWorkflowsSection {...props.workflows} />)}
+
+      {props.communityTab === "people" &&
+        renderWorkspacePane(props.workflows.access
+          ? <WebCommunityMembers key={props.workflows.access.scopeKey} gateway={props.workflows.access} />
+          : <p role="status">Only the community's owner and admins can see members.</p>)}
 
       {props.communityTab === "funnels" &&
         renderWorkspacePane(

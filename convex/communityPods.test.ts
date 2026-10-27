@@ -64,10 +64,40 @@ test("the owner's agent reads every pod with the user ids participant.set takes;
   await owner.mutation(set, { communityId: f.communityId, channelId: f.podId, target: { kind: "member", userId: f.memberId }, active: true });
   const result: any = await owner.query("communityPods:listBuilderPods" as any, { communityId: f.communityId });
   expect(result.contract).toBe("polynet.builder_pods.v1");
-  expect(result.pods).toEqual([{ channel_id: String(f.podId), slug: "agency-owners", name: "Agency owners", agent_in_pod: false, people: [
+  expect(result.pods).toEqual([{ channel_id: String(f.podId), slug: "agency-owners", name: "Agency owners", agent_in_pod: false, pinned_root_id: null, people: [
     { user_id: String(f.memberId), name: "member", role: "member" },
     { user_id: String(f.adminId), name: "admin", role: "admin" },
     { user_id: String(f.ownerId), name: "owner", role: "owner" },
   ] }]);
   await expect(member.query("communityPods:listBuilderPods" as any, { communityId: f.communityId })).rejects.toThrow();
+});
+
+test("a pod's shelf lists the files and videos posted in it, and the pinned post", async () => {
+  const { t, f, owner, member, outsider } = await fixture();
+  await owner.mutation(set, { communityId: f.communityId, channelId: f.podId, target: { kind: "member", userId: f.memberId }, active: true });
+  const rootId = await t.run(async ctx => {
+    const root = (createdAt: number, summary: string, status: "live" | "deleted" = "live") => ctx.db.insert("communityInteractionRoots", {
+      communityId: f.communityId, channelId: f.podId, actorType: "human", actorUserId: f.ownerId, kind: "discussion", status,
+      visibilityScope: "community", contentSummary: summary, replyCount: 0, reactionSummary: [], idempotencyKey: summary, createdAt, updatedAt: createdAt });
+    const first = await root(10, "Playbook");
+    const second = await root(20, "Walkthrough");
+    const gone = await root(30, "Deleted", "deleted");
+    const file = (rootId: any, name: string, attachmentKind: "file" | "video", mimeType: string, status: "uploaded" | "pending" = "uploaded") =>
+      ctx.db.insert("communityInteractionAttachments", { communityId: f.communityId, channelId: f.podId, rootId, attachmentKind, status,
+        name, mimeType, sizeBytes: 2048, createdByActorType: "human", createdByUserId: f.ownerId, createdAt: 1, updatedAt: 1 });
+    await file(first, "playbook.pdf", "file", "application/pdf");
+    await file(first, "half-uploaded.pdf", "file", "application/pdf", "pending");
+    await file(second, "walkthrough.mp4", "video", "video/mp4");
+    await file(gone, "deleted.pdf", "file", "application/pdf");
+    await ctx.db.insert("communityInteractionEmbeds", { communityId: f.communityId, rootId: second, embedKind: "link", status: "ready",
+      visibilityScope: "community", previewKind: "video", provider: "YouTube", title: "Live call replay", sourceUrl: "https://youtu.be/x", createdAt: 1, updatedAt: 1 });
+    await ctx.db.patch(f.podId, { pinnedRootId: first });
+    return first;
+  });
+  const shelf: any = await member.query("communityPods:listPodShelf" as any, { communityId: f.communityId, channelId: f.podId });
+  expect(shelf.pinned_root_id).toBe(String(rootId));
+  expect(shelf.files.map((item: any) => [item.name, item.author_name])).toEqual([["playbook.pdf", "owner"]]);
+  expect(shelf.videos.map((item: any) => [item.name, item.provider])).toEqual([["walkthrough.mp4", null], ["Live call replay", "YouTube"]]);
+  await expect(outsider.query("communityPods:listPodShelf" as any, { communityId: f.communityId, channelId: f.podId })).rejects.toThrow();
+  await expect(owner.query("communityPods:listPodShelf" as any, { communityId: f.communityId, channelId: f.topicId })).rejects.toThrow();
 });
