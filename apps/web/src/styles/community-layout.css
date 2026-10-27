@@ -1268,6 +1268,22 @@
   display: none;
 }
 
+/* Classroom with a chat instead of posts (theme classroom_chat "chat"): the
+   right column is Classroom's aside (pods, side blocks), so the channel's
+   member column stays out, and the chat fills the window under the tabs with
+   the message box at the bottom. The header and tabs take about 7.5rem. */
+.app-root.community-layout-top .community-top-main .community-interaction-projection.has-channel-context {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-root.community-layout-top .community-top-main .community-interaction-projection.has-channel-context > .channel-roster-panel {
+  display: none;
+}
+
+.app-root.community-layout-top .community-top-main .community-body > .community-chat:has(.community-interaction-projection:not(.is-posts-presentation)) {
+  height: max(30rem, calc(100dvh - 7.5rem));
+}
+
 /* The open post box: the chat composer laid out as a writing area. */
 .community-posts-composer.is-open .chat-input-bar {
   --community-composer-control-size: 34px;
