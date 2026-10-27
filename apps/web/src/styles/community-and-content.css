@@ -9724,6 +9724,14 @@ button.chat-reply-quote:hover {
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
+/* Phone: one row (Done keeps its size, Next shortens), and the floating Ask AI
+   button rises above the bar instead of covering Next. */
+@media (max-width: 640px) {
+  .lesson-done-row:has(> button) { flex-wrap: nowrap; gap: 0.5rem; }
+  .lesson-done-row .lesson-done-button { flex: none; }
+  .lesson-done-row .lesson-next-button { flex: 1 1 auto; justify-content: center; }
+  body:has(.lesson-done-row > button) .member-agent-launcher { bottom: 5.25rem; }
+}
 /* Next lesson, on the right of Mark as done, in the community's accent. */
 .lesson-next-button {
   display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; margin-left: auto;
