@@ -1085,7 +1085,8 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   grid-template-columns: minmax(0, 1fr);
 }
 /* The lesson never sizes itself past the page (on a phone it ran 16px wide). */
-.community-knowledge-page[data-reading] .knowledge-resource-reader :is(.resource-viewer-body, .resource-viewer-column) { min-width: 0; }
+.community-knowledge-page[data-reading] .knowledge-resource-reader :is(.resource-viewer-body, .resource-viewer-column, .lesson-done-row) { min-width: 0; }
+.community-knowledge-page[data-reading] .knowledge-resource-reader .resource-viewer-column { grid-template-columns: minmax(0, 1fr); }
 /* Too narrow for the outline beside a full column: it moves above the lesson
    as a collapsible bar, whatever the window or look. */
 @container (max-width: 58rem) {
