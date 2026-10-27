@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { communityMembershipIsCoCreator, communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, normalizeIdValue,
@@ -114,6 +115,8 @@ export const setParticipant = mutation({
 export async function setChannelParticipantCore(ctx: any, args: {
   communityId: any; channelId: any; createdByUserId: any; active: boolean;
   target: { kind: "member"; userId: any } | { kind: "community_agent" };
+  /** "workflow" for a Workflow step's own add, which never fires "Joins a pod". */
+  via?: "workflow";
 }) {
     const principalKey = args.target.kind === "member" ? `user:${args.target.userId}` : "community_agent";
     const existing = await ctx.db.query("communityChannelParticipants")
@@ -138,6 +141,12 @@ export async function setChannelParticipantCore(ctx: any, args: {
     if (previous) await ctx.db.patch(previous._id, { status, ...binding, updatedAt: now });
     else await ctx.db.insert("communityChannelParticipants", { communityId: args.communityId, channelId: args.channelId,
       principalKey, status, ...binding, createdByUserId: args.createdByUserId, createdAt: now, updatedAt: now });
+    if (membership && args.via !== "workflow") {
+      const channel = await ctx.db.get(args.channelId);
+      if (channel?.accessMode === "restricted") await ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.handlePodMemberAddedInternal, {
+        communityId: args.communityId, membershipId: membership._id, activationSequence: binding.membershipActivationSequence ?? 0,
+        channelId: args.channelId, at: now });
+    }
     return { changed: true };
 }
 

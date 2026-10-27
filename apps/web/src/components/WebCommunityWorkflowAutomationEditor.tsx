@@ -244,6 +244,11 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const setRecord = (key: string, value?: string | number | boolean) => props.onChange({ ...automation,
     trigger: { type: "client_property_changed", propertyKey: key, ...(value === undefined || value === "" ? {} : { value }) } });
   const isOffer = automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended";
+  // Pods are the invite-only channels; the general channel never is one.
+  const pods = props.channels.filter((channel) => channel.access_mode === "restricted" && !channel.is_general);
+  const isPodTrigger = automation.trigger.type === "pod_member_added";
+  const podTriggerId = automation.trigger.type === "pod_member_added" ? automation.trigger.channelId : undefined;
+  const podName = (podId: string | undefined, any: string) => podId ? pods.find((pod) => pod.id === podId)?.name ?? "Unavailable pod" : any;
   const offers = props.catalog?.offers ?? [];
   const offerKey = automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended" ? automation.trigger.offerKey : undefined;
   const offerName = offerKey ? offers.find((offer) => offer.key === offerKey)?.name ?? (props.catalog?.offers ? "Unavailable offer" : "An offer") : "Any offer";
@@ -270,11 +275,13 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const triggerIssue = triggerSelected ? workflowTriggerIssue(automation, props.channels, props.channelsUnavailable) : null;
   const triggerReady = triggerSelected && !triggerIssue;
   const triggerLabel = isSequence ? `${waitMinutes ? `${workflowDurationLabel(waitMinutes)} after` : "After"} ${(() => { const step = earlierSteps.find((item) => item.action.key === predecessorKey); return step ? `“${stepLabel(step).slice(0, 60)}”` : "an earlier step"; })()}` : isJoin ? "Member joins for the first time"
+    : isPodTrigger ? `Added to a pod · ${podName(podTriggerId, "Any pod")}`
     : isRecord ? `Record changes · ${recordProperty?.name ?? (recordKey || "Choose a field")}`
     : isDate ? `Date in their record · ${dateName}`
     : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : isOffer ? `${automation.trigger.type === "offer_started" ? "Starts" : "Leaves"} an offer · ${offerName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isArrival ? "Reaches this stage" : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this stage` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "send_email" ? "Send an email"
+    : automation.action.type === "set_pod_member" ? `${automation.action.active ? "Add to" : "Take out of"} ${podName(automation.action.channelId, "a pod")}`
     : automation.action.type === "create_service_channel" ? "Create private channel" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
 
   return (
@@ -396,6 +403,12 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               </select><small>{automation.trigger.type === "offer_started"
                 ? "Runs when they join on this offer or upgrade to it. It never holds anyone's stage."
                 : "Runs when they move down from this offer or their paid time on it ends. It never holds anyone's stage."}</small></label>
+            : isPodTrigger ? <label>Pod<select value={podTriggerId ?? ""} disabled={props.disabled}
+                onChange={e => props.onChange({ ...automation, trigger: { type: "pod_member_added", ...(e.target.value ? { channelId: e.target.value } : {}) } })}>
+                <option value="">Any pod</option>
+                {podTriggerId && !pods.some((pod) => pod.id === podTriggerId) ? <option value={podTriggerId}>Unavailable pod</option> : null}
+                {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.name}</option>)}
+              </select><small>Runs when you, an admin, an agent or an offer adds them. A pod step in a workflow never sets it off. It never holds anyone's stage.</small></label>
             : automation.trigger.type === "form_submitted" ? <label>Form<select value={automation.trigger.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, trigger: { type: "form_submitted", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select></label> : isArrival ? <div className="workflow-automation-field">
             <small className="workflow-field-hint">Runs the moment someone reaches this stage, once per visit. To wait first, pick "After some time in this stage".</small>
           </div> : isTimed ? <div className="workflow-automation-field">
@@ -430,7 +443,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
           {triggerReady && !props.hideTypeSelects ? <label>Then
             <select value={actionSelected ? automation.action.type : ""} disabled={props.disabled} onChange={event => {
               const type = event.target.value;
-              if (type !== "create_service_channel" && type !== "prompt_agent" && type !== "request_form" && type !== "set_client_property" && type !== "send_email") return;
+              if (type !== "create_service_channel" && type !== "prompt_agent" && type !== "request_form" && type !== "set_client_property" && type !== "send_email" && type !== "set_pod_member") return;
               props.onChange(replaceWorkflowDraftAction(automation, type));
               props.creation?.onActionSelected();
             }}>
@@ -439,6 +452,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               {!isForm ? <option value="request_form">Request form</option> : null}
               {!isJoin ? <option value="send_email">Send an email</option> : null}
               {!isJoin ? <option value="set_client_property">Set client property</option> : null}
+              {!isJoin ? <option value="set_pod_member">Add to or take out of a pod</option> : null}
             </select>
           </label> : null}
 
@@ -454,6 +468,19 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
             {property && automation.action.type === "set_client_property" ? <PropertyValueField id={`${id}-property-value`} property={property} value={automation.action.value}
               disabled={props.disabled} onChange={(value) => props.onChange({ ...automation, action: { key: automation.action.key, type: "set_client_property", propertyKey, value } })} /> : null}
             <p className="workflow-field-hint">Writes this value on the member's client record. You'll see it in the client's timeline as set by Workflow.</p>
+          </> : automation.action.type === "set_pod_member" ? <>
+            <label>Pod<select value={automation.action.channelId} disabled={props.disabled}
+              onChange={e => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "set_pod_member" }>), channelId: e.target.value } })}>
+              <option value="">{pods.length ? "Choose a pod" : "No pods yet"}</option>
+              {automation.action.channelId && !pods.some((pod) => pod.id === (automation.action as { channelId: string }).channelId) ? <option value={automation.action.channelId}>Unavailable pod</option> : null}
+              {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.name}</option>)}
+            </select></label>
+            <label>What happens<select value={automation.action.active ? "add" : "remove"} disabled={props.disabled}
+              onChange={e => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "set_pod_member" }>), active: e.target.value === "add" } })}>
+              <option value="add">Add them to the pod</option>
+              <option value="remove">Take them out of the pod</option>
+            </select></label>
+            <p className="workflow-field-hint">Pods are your invite-only channels. Adding them lets them read and post there and see its calls.</p>
           </> : automation.action.type === "send_email" ? <>
             <label>Subject
               <input value={automation.action.subject} maxLength={COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH} disabled={props.disabled}

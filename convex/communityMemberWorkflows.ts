@@ -14,6 +14,7 @@ import { COMPLETION_REVIEW_KEY, readCompletionReviewSnapshot, requireCompletionR
 import { internal } from "./_generated/api";
 import { workflowJoinArgs, resolveFirstMemberWorkflowJoin, provisionJoinedMemberServiceChannel } from "./communityMemberWorkflowJoinCore";
 import { assignWorkflowForm, cancelMilestoneFormRequests, requestIsCurrent } from "./communityFormRequestCore";
+import { setChannelParticipantCore } from "./communityChannelParticipants";
 import { enrollWorkflowMilestoneTimers, resolveWorkflowTimer, startWorkflowSourceTimer } from "./communityMemberWorkflowTimerCore";
 import {
   COMMUNITY_MEMBER_WORKFLOW_MAX_AUTOMATIONS_PER_MILESTONE,
@@ -41,6 +42,8 @@ import {
   normalizeWorkflowDelayMinutes,
   normalizeWorkflowStageDelayMinutes,
   workflowTriggerIdentity,
+  workflowActionIsInstant,
+  workflowTriggerIsReactive,
   splitPausedWorkflowAutomations,
   type CommunityMemberWorkflowAction,
   type CommunityMemberWorkflowAutomation,
@@ -154,6 +157,7 @@ const automationInputValidator = v.object({
     v.object({ type: v.literal("property_date"), propertyKey: v.string(), offsetDays: v.number() }),
     v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
     v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("pod_member_added"), channelId: v.optional(v.string()) }),
   ),
   action: v.union(
     v.object({ key: v.optional(v.string()), type: v.literal("create_service_channel") }),
@@ -171,6 +175,7 @@ const automationInputValidator = v.object({
       value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
     }),
     v.object({ key: v.optional(v.string()), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
+    v.object({ key: v.optional(v.string()), type: v.literal("set_pod_member"), channelId: v.string(), active: v.boolean() }),
   ),
   /** Switched off: kept but never run. Steps after it are off too. */
   paused: v.optional(v.boolean()),
@@ -302,8 +307,10 @@ function normalizeAutomations(
         : input.action.type === "set_client_property"
         ? { key: actionKey, type: "set_client_property", propertyKey: String(input.action.propertyKey).trim(), value: input.action.value }
         : input.action.type === "send_email" ? normalizeWorkflowEmailAction(actionKey, input.action)
+        : input.action.type === "set_pod_member" ? { key: actionKey, type: "set_pod_member", channelId: String(input.action.channelId).trim(), active: input.action.active === true }
         : { key: actionKey, type: "create_service_channel" };
     if (action.type === "set_client_property" && !action.propertyKey) throw new Error("client_property_required");
+    if (action.type === "set_pod_member" && !action.channelId) throw new Error("workflow_pod_required");
     if ((action.type === "request_form" && !action.formKey.trim()) || (input.trigger.type === "form_submitted" && !input.trigger.formKey.trim())) throw new Error("form_required");
     if ((action.type === "create_service_channel" && input.trigger.type !== "member_joined")
       || (input.trigger.type === "member_joined" && action.type !== "create_service_channel" && action.type !== "request_form")) throw new Error("workflow_join_action_invalid");
@@ -311,8 +318,8 @@ function normalizeAutomations(
     // agent (through a timer that starts the moment the lesson is done).
     if ((input.trigger.type === "lesson_completed" || input.trigger.type === "course_completed" || input.trigger.type === "track_completed"
         || input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
-        || input.trigger.type === "client_property_changed" || input.trigger.type === "property_date")
-      && action.type !== "request_form" && action.type !== "set_client_property" && action.type !== "prompt_agent" && action.type !== "send_email") {
+        || workflowTriggerIsReactive(input.trigger.type))
+      && action.type !== "request_form" && action.type !== "prompt_agent" && !workflowActionIsInstant(action.type)) {
       throw new Error("lesson_trigger_action_invalid");
     }
     // A nudge is an agent check-in; nothing else may skip holding the stage.
@@ -358,6 +365,7 @@ function normalizeAutomations(
           ...(input.trigger.value === undefined || input.trigger.value === "" ? {} : { value: typeof input.trigger.value === "string" ? input.trigger.value.trim().slice(0, 200) : input.trigger.value }) }
         : input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
         ? { type: input.trigger.type, ...(input.trigger.offerKey ? { offerKey: input.trigger.offerKey } : {}) }
+        : input.trigger.type === "pod_member_added" ? { type: "pod_member_added", ...(input.trigger.channelId ? { channelId: input.trigger.channelId } : {}) }
         : input.trigger.type === "milestone_elapsed"
         ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowStageDelayMinutes(input.trigger.delayMinutes, input.trigger.nudge === true), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
         : { type: "member_contributed", ...(input.trigger.channelId !== undefined ? { channelId: input.trigger.channelId } : {}) },
@@ -508,6 +516,16 @@ export const updateBuilderWorkflowMilestone = mutation({
       if (!channel || channel.communityId !== args.communityId || channel.status !== "active") {
         throw new Error("community_member_workflow_channel_unavailable");
       }
+    }
+    // A pod is an invite-only channel in this community; the general channel never is.
+    for (const rawChannelId of new Set(everyRule.flatMap((automation) => [
+      ...(automation.action.type === "set_pod_member" ? [automation.action.channelId] : []),
+      ...(automation.trigger.type === "pod_member_added" && automation.trigger.channelId ? [automation.trigger.channelId] : []),
+    ]))) {
+      const channelId = ctx.db.normalizeId("communityChannels", rawChannelId);
+      const channel = channelId ? await ctx.db.get(channelId) : null;
+      if (!channel || channel.communityId !== args.communityId || channel.status !== "active"
+        || channel.accessMode !== "restricted" || channel.systemRole === "general") throw new Error("workflow_pod_unavailable");
     }
     for (const automation of everyRule) {
       // The property must exist and the value must fit it now; the run checks
@@ -1615,6 +1633,21 @@ async function executeWorkflowAutomation(args: {
       await args.ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.reconcileCompletedWorkflowActionsInternal, { workflowRunId });
       return { status: "client_property_set" as const, workflow_run_id: String(workflowRunId), key: result.key, replayed: false };
     }
+    if (args.automation.action.type === "set_pod_member") {
+      const channelId = args.ctx.db.normalizeId("communityChannels", args.automation.action.channelId);
+      const channel = channelId ? await args.ctx.db.get(channelId) : null;
+      if (!channel || channel.communityId !== args.workflow.communityId || channel.status !== "active"
+        || channel.accessMode !== "restricted" || channel.systemRole === "general") throw new Error("workflow_pod_unavailable");
+      const result = await setChannelParticipantCore(args.ctx, { communityId: args.workflow.communityId, channelId: channel._id,
+        createdByUserId: args.workflow.updatedByUserId, active: args.automation.action.active,
+        target: { kind: "member", userId: args.membership.userId }, via: "workflow" });
+      const resultCode = args.automation.action.active ? "pod_member_added" : "pod_member_removed";
+      await args.ctx.db.patch(workflowRunId, { status: "finished", actionResult: {
+        actionKey: args.automation.action.key, status: "complete", resultCode,
+      }, finishedAt: nowMs, updatedAt: nowMs });
+      await args.ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.reconcileCompletedWorkflowActionsInternal, { workflowRunId });
+      return { status: resultCode, workflow_run_id: String(workflowRunId), changed: result.changed, replayed: false };
+    }
     if (args.automation.action.type === "send_email") {
       // Queued, opted out or not sendable, the step is done: an email never holds a member up.
       const email = await sendWorkflowEmail(args.ctx, { communityId: args.workflow.communityId, membership: args.membership,
@@ -1684,7 +1717,7 @@ async function executeWorkflowAutomation(args: {
     const capacityRejected = args.automation.action.type === "request_form" && errorCode === "form_pending_limit_reached";
     // A property that was archived or changed since the save fails the run, not
     // the lesson, form or post that triggered it.
-    const propertyRejected = args.automation.action.type === "set_client_property" || args.automation.action.type === "send_email";
+    const propertyRejected = workflowActionIsInstant(args.automation.action.type);
     if (!capacityRejected && !propertyRejected && (args.workflowTimerId || args.automation.action.type !== "prompt_agent")) throw error;
     await args.ctx.db.patch(workflowRunId, {
       status: "failed",
@@ -1832,6 +1865,37 @@ export const handleOfferChangedInternal = internalMutation({
         if (!offerKey) continue;
         results.push(await runRule(automation, `${type}:${offerKey}:${membership._id}:${args.activationSequence}:${args.at}`));
       }
+    }
+    return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
+  },
+});
+
+// "Joins a pod": someone (the owner, an admin, an agent or an offer) added the
+// member to a pod. A Workflow step's own add never schedules this, so rules can't loop.
+export const handlePodMemberAddedInternal = internalMutation({
+  args: { communityId: v.id("communities"), membershipId: v.id("communityMemberships"), activationSequence: v.number(),
+    channelId: v.id("communityChannels"), at: v.number() },
+  handler: async (ctx, args) => {
+    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId });
+    if (!workflow || workflow.milestones.length < 1) return { status: "workflow_ineligible" as const };
+    const membership = await ctx.db.get(args.membershipId);
+    if (!membership || membership.communityId !== args.communityId || !communityMembershipRowIsActive(membership)
+      || Number(membership.activationSequence ?? 0) !== args.activationSequence) return { status: "membership_ineligible" as const };
+    const state = await getMemberMilestone({ ctx, workflowId: workflow._id, membershipId: membership._id });
+    const current = resolveCurrentMilestone({ workflow, membership, state });
+    if (current.completedAt) return { status: "workflow_completed" as const };
+    const matches = (current.milestone as CommunityMemberWorkflowMilestone).automations.filter(a => a.trigger.type === "pod_member_added"
+      && (!a.trigger.channelId || a.trigger.channelId === String(args.channelId)));
+    const results = [];
+    for (const automation of matches) {
+      const receipt = `pod_member_added:${args.channelId}:${membership._id}:${args.activationSequence}:${args.at}`;
+      if (automation.action.type !== "prompt_agent") {
+        results.push(await executeWorkflowAutomation({ ctx, workflow, membership, current, automation, timerReceiptRef: receipt }));
+        continue;
+      }
+      const timer = await startWorkflowSourceTimer({ ctx, workflow, membership, current, transitionSeq: Number(state?.transitionSeq ?? 0),
+        automation, startedAt: Date.now(), sourceRef: receipt });
+      results.push({ status: await runWorkflowTimerNow(ctx, timer) ? "agent_started" as const : "already_executed" as const });
     }
     return { status: results.length ? "handled" as const : "trigger_unconfigured" as const, results };
   },

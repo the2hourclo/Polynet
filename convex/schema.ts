@@ -46,6 +46,7 @@ const workflowAutomationValidator = v.object({
     v.object({ type: v.literal("property_date"), propertyKey: v.string(), offsetDays: v.number() }),
     v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
     v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
+    v.object({ type: v.literal("pod_member_added"), channelId: v.optional(v.string()) }),
     v.object({ type: v.literal("member_contributed"), channelId: v.optional(v.string()) }),
     v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
   ),
@@ -65,6 +66,7 @@ const workflowAutomationValidator = v.object({
       value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string()), v.null()),
     }),
     v.object({ key: v.string(), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
+    v.object({ key: v.string(), type: v.literal("set_pod_member"), channelId: v.string(), active: v.boolean() }),
   ),
 });
 
@@ -1442,7 +1444,7 @@ export default defineSchema({
     milestoneEnteredAt: v.number(),
     workflowRevision: v.number(),
     automationKey: v.string(),
-    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed"), v.literal("lesson_completed"), v.literal("course_completed"), v.literal("track_completed"), v.literal("client_property_changed"), v.literal("offer_started"), v.literal("offer_ended"), v.literal("property_date")),
+    triggerType: v.union(v.literal("member_joined"), v.literal("member_contributed"), v.literal("milestone_elapsed"), v.literal("form_submitted"), v.literal("all_actions_complete"), v.literal("previous_action_completed"), v.literal("lesson_completed"), v.literal("course_completed"), v.literal("track_completed"), v.literal("client_property_changed"), v.literal("offer_started"), v.literal("offer_ended"), v.literal("property_date"), v.literal("pod_member_added")),
     // Optional for historical runs. New runs capture the condition that matched.
     triggerSnapshot: v.optional(v.union(
       v.object({ type: v.literal("member_joined") }),
@@ -1456,6 +1458,7 @@ export default defineSchema({
       v.object({ type: v.literal("property_date"), propertyKey: v.string(), offsetDays: v.number() }),
             v.object({ type: v.literal("offer_started"), offerKey: v.optional(v.string()) }),
             v.object({ type: v.literal("offer_ended"), offerKey: v.optional(v.string()) }),
+            v.object({ type: v.literal("pod_member_added"), channelId: v.optional(v.string()) }),
       v.object({ type: v.literal("milestone_elapsed"), delayMinutes: v.number(), nudge: v.optional(v.boolean()) }),
     )),
     triggerReceiptRef: v.string(),
@@ -1487,6 +1490,7 @@ export default defineSchema({
         destination: v.literal("next_or_complete"),
       }),
       v.object({ key: v.string(), type: v.literal("send_email"), subject: v.string(), body: v.string() }),
+      v.object({ key: v.string(), type: v.literal("set_pod_member"), channelId: v.string(), active: v.boolean() }),
     ),
     status: v.union(
       v.literal("running"),

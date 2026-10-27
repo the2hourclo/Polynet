@@ -1,4 +1,4 @@
-import { workflowSequenceReceipt } from "../shared/communityMemberWorkflow";
+import { workflowActionIsInstant, workflowSequenceReceipt } from "../shared/communityMemberWorkflow";
 import type { Doc, Id } from "./_generated/dataModel";
 import { buildCommunityAgentServeRunId } from "../shared/communityAgentServeContract";
 import { readAssessmentCitations } from "../shared/communityWorkflowAssessment";
@@ -270,7 +270,7 @@ async function readMembershipContextRecords(args: {
     ]);
   // Property writes are bookkeeping; the client timeline shows them.
   const recentWorkflowActivity = await Promise.all(
-    workflowRunRows.filter((run) => run.actionSnapshot.type !== "set_client_property" && run.actionSnapshot.type !== "send_email").map(async (run) => {
+    workflowRunRows.filter((run) => !workflowActionIsInstant(run.actionSnapshot.type)).map(async (run) => {
       // History pagination is presentation only, never outcome authority.
       // A missing or mismatched linked record does not establish live work.
       const validActionResult =

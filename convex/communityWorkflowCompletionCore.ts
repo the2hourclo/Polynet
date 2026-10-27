@@ -4,7 +4,7 @@ import type { QueryCtx } from "./_generated/server";
 import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, requireCommunityChatAccess } from "./communityCore";
 import { readSubmittedFormRecord, readSubmittedFormRecords, projectSubmittedFormEvidence } from "./communityFormEvidenceCore";
 import { resolveMemberServiceChannel } from "./communityMemberServiceChannelCore";
-import { workflowRuleIsNudge, workflowRunWasSkipped, workflowTriggerIdentity, type CommunityMemberWorkflowMilestone } from "../shared/communityMemberWorkflow";
+import { workflowActionIsInstant, workflowTriggerIsReactive, workflowRuleIsNudge, workflowRunWasSkipped, workflowTriggerIdentity, type CommunityMemberWorkflowMilestone } from "../shared/communityMemberWorkflow";
 import { getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
 import type { WorkflowMilestoneApproval, WorkflowActionProgress } from "../shared/communityMembershipContext";
 import { buildCommunityInteractionEvidenceRef } from "../shared/communityEvidenceContract";
@@ -37,12 +37,11 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
   // it (reactive_actions, so a chain can follow them), and never holds the stage.
   const reactive = new Set<string>();
   for (const rule of milestone.automations) {
-    if (rule.trigger.type === "client_property_changed" || rule.trigger.type === "offer_started" || rule.trigger.type === "offer_ended"
-      || rule.trigger.type === "property_date"
+    if (workflowTriggerIsReactive(rule.trigger.type)
       || (rule.trigger.type === "previous_action_completed" && reactive.has(rule.trigger.predecessorActionKey))) reactive.add(rule.action.key);
   }
   const work = milestone.automations.filter(rule => !workflowRuleIsNudge(rule)
-    && ((rule.action.type !== "set_client_property" && rule.action.type !== "send_email") || finishes(rule) || followed.has(rule.action.key)
+    && (!workflowActionIsInstant(rule.action.type) || finishes(rule) || followed.has(rule.action.key)
       || rule.trigger.type === "previous_action_completed"));
   if (!work.length) return { actions: [], all_actions_complete: false, scan_truncated: false };
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
@@ -63,6 +62,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
       label: rule.action.type === "request_form" ? `Request ${form?.name ?? "selected form"}`
         : rule.action.type === "prompt_agent" ? `Ask agent: ${rule.action.prompt.slice(0, 120)}${rule.action.prompt.length > 120 ? "…" : ""}`
         : rule.action.type === "send_email" ? `Email: ${rule.action.subject}`
+        : rule.action.type === "set_pod_member" ? rule.action.active ? "Add to a pod" : "Take out of a pod"
         : propertyKey ? `${finished}, then set ${property?.name ?? propertyKey}` : "Create private channel",
       status: "unavailable", evidence: null,
     };
@@ -120,7 +120,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
               }
             }
           }
-        } else if (rule.action.type === "set_client_property" || rule.action.type === "send_email") {
+        } else if (workflowActionIsInstant(rule.action.type)) {
           if (run.finishedAt !== undefined) evidence = { run_id: String(run._id), source_id: String(run._id), completed_at: run.finishedAt };
         } else if (rule.action.type === "create_service_channel") {
           const destination = await resolveMemberServiceChannel({ ctx, membership });
@@ -173,6 +173,9 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
     } else if (!seen && !item.evidence && rule.trigger.type === "client_property_changed") {
       item.status = "waiting";
       item.waiting_for = "their record to change";
+    } else if (!seen && !item.evidence && rule.trigger.type === "pod_member_added") {
+      item.status = "waiting";
+      item.waiting_for = "someone to add them to a pod";
     } else if (!seen && !item.evidence && finishes(rule) && !fired) {
       item.status = "waiting";
       item.waiting_for = rule.trigger.type === "course_completed" ? "the course to be finished"

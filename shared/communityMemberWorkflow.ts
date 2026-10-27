@@ -39,7 +39,10 @@ export type CommunityMemberWorkflowTrigger =
   /** A date field on their record comes round: `offsetDays` before (negative),
    * on (0) or after it, at 09:00 UTC. Only for dates still ahead when they're in
    * the stage; it never holds the stage. */
-  | { type: "property_date"; propertyKey: string; offsetDays: number };
+  | { type: "property_date"; propertyKey: string; offsetDays: number }
+  /** Someone added them to a pod (an invite-only channel). Absent channelId means
+   * any pod. A Workflow step's own add never fires it. It never holds the stage. */
+  | { type: "pod_member_added"; channelId?: string };
 
 export const WORKFLOW_PROPERTY_DATE_MAX_OFFSET_DAYS = 365;
 /** The hour (UTC) a date trigger runs on its day. */
@@ -106,12 +109,32 @@ export type CommunityMemberWorkflowSendEmailAction = {
   body: string;
 };
 
+/** Adds the member to a pod (an invite-only channel), or takes them out. */
+export type CommunityMemberWorkflowSetPodMemberAction = {
+  key: string;
+  type: "set_pod_member";
+  channelId: string;
+  active: boolean;
+};
+
 export type CommunityMemberWorkflowAction =
   | { key: string; type: "create_service_channel" }
   | { key: string; type: "request_form"; formKey: string }
   | CommunityMemberWorkflowPromptAgentAction
   | CommunityMemberWorkflowSetClientPropertyAction
-  | CommunityMemberWorkflowSendEmailAction;
+  | CommunityMemberWorkflowSendEmailAction
+  | CommunityMemberWorkflowSetPodMemberAction;
+
+/** Steps that finish the moment they run: a record write, an email, a pod change. */
+export function workflowActionIsInstant(type: string): boolean {
+  return type === "set_client_property" || type === "send_email" || type === "set_pod_member";
+}
+
+/** Triggers that only fire when something else happens; they never hold the stage. */
+export function workflowTriggerIsReactive(type: CommunityMemberWorkflowTrigger["type"]): boolean {
+  return type === "client_property_changed" || type === "offer_started" || type === "offer_ended"
+    || type === "property_date" || type === "pod_member_added";
+}
 
 export const COMMUNITY_MEMBER_WORKFLOW_EMAIL_SUBJECT_MAX_LENGTH = 150;
 export const COMMUNITY_MEMBER_WORKFLOW_EMAIL_BODY_MAX_LENGTH = 5000;
@@ -225,6 +248,7 @@ export function workflowTriggerIdentity(trigger: CommunityMemberWorkflowTrigger)
     : trigger.type === "client_property_changed" ? [trigger.type, trigger.propertyKey, trigger.value ?? null]
     : trigger.type === "property_date" ? [trigger.type, trigger.propertyKey, trigger.offsetDays]
     : trigger.type === "offer_started" || trigger.type === "offer_ended" ? [trigger.type, trigger.offerKey ?? null]
+    : trigger.type === "pod_member_added" ? [trigger.type, trigger.channelId ?? null]
     : trigger.type === "member_joined" ? [trigger.type]
     : trigger.nudge ? [trigger.type, trigger.delayMinutes, "nudge"] : [trigger.type, trigger.delayMinutes]);
 }
@@ -339,8 +363,8 @@ export function workflowSequenceIssue(rules: CommunityMemberWorkflowAutomation[]
   const earlier: CommunityMemberWorkflowAutomation[] = [];
   for (const rule of rules) {
     if (rule.trigger.type === "previous_action_completed") {
-      if (rule.action.type !== "request_form" && rule.action.type !== "prompt_agent" && rule.action.type !== "set_client_property" && rule.action.type !== "send_email")
-        return "A step after another step can ask the agent, send an email, request a form or update the member record";
+      if (rule.action.type !== "request_form" && rule.action.type !== "prompt_agent" && !workflowActionIsInstant(rule.action.type))
+        return "A step after another step can ask the agent, send an email, request a form, update the member record or change their pods";
       const predecessorKey = rule.trigger.predecessorActionKey;
       const predecessor = earlier.find((item) => item.action.key === predecessorKey);
       if (!predecessor) return "Choose an earlier step for this one to follow";
@@ -358,7 +382,7 @@ export function workflowRuleUsesTimer(rule: { trigger: CommunityMemberWorkflowTr
     || (rule.trigger.type === "previous_action_completed" && (rule.trigger.delayMinutes ?? 0) > 0)
     || ((rule.trigger.type === "lesson_completed" || rule.trigger.type === "course_completed" || rule.trigger.type === "track_completed"
         || rule.trigger.type === "offer_started" || rule.trigger.type === "offer_ended"
-        || rule.trigger.type === "client_property_changed" || rule.trigger.type === "property_date")
+        || workflowTriggerIsReactive(rule.trigger.type))
       && rule.action.type === "prompt_agent");
 }
 

@@ -21,7 +21,7 @@ const snapshot: CommunityMemberWorkflowMilestone = { key: "milestone-1", name: "
 describe("workflow milestone editor drafts", () => {
   it("lesson and course triggers take a form or a client property, and a property rule needs its property", () => {
     const lessonDone = toWorkflowAutomationDraft({ ...automation, trigger: { type: "lesson_completed", resourceId: "lesson-1" } });
-    expect(workflowAutomationIssue(lessonDone, [], false)).toBe("Choose Request form, Send an email or Update member record");
+    expect(workflowAutomationIssue(lessonDone, [], false)).toBe("Choose Request form, Send an email, Update member record or a pod step");
     const setTier = replaceWorkflowDraftAction(lessonDone, "set_client_property");
     expect(setTier.action).toEqual({ key: "action-1", type: "set_client_property", propertyKey: "", value: null });
     expect(workflowAutomationIssue(setTier, [], false)).toBe("Choose a client property");

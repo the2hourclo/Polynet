@@ -3,7 +3,7 @@ import type {
   CommunityMemberWorkflowMilestone,
 } from "../../../../shared/communityMemberWorkflow";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { normalizeWorkflowDelayMinutes, normalizeWorkflowStageDelayMinutes } from "../../../../shared/communityMemberWorkflow";
+import { normalizeWorkflowDelayMinutes, normalizeWorkflowStageDelayMinutes, workflowActionIsInstant } from "../../../../shared/communityMemberWorkflow";
 
 export function workflowChannelLabel(channelId: string | undefined, channels: CloudCommunityChannel[], unavailable: boolean): string {
   if (channelId === undefined) return "Any channel";
@@ -19,9 +19,10 @@ export function workflowAutomationIssue(automation: CommunityMemberWorkflowAutom
   if (automation.trigger.type === "form_submitted" && automation.action.type === "request_form") return "Choose Ask agent";
   if ((automation.trigger.type === "lesson_completed" || automation.trigger.type === "course_completed" || automation.trigger.type === "track_completed"
       || automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended")
-    && automation.action.type !== "request_form" && automation.action.type !== "set_client_property" && automation.action.type !== "send_email") return "Choose Request form, Send an email or Update member record";
+    && automation.action.type !== "request_form" && !workflowActionIsInstant(automation.action.type)) return "Choose Request form, Send an email, Update member record or a pod step";
   if (automation.action.type === "set_client_property" && !automation.action.propertyKey) return "Choose a client property";
   if (automation.action.type === "send_email" && (!automation.action.subject.trim() || !automation.action.body.trim())) return "Add a subject and a message";
+  if (automation.action.type === "set_pod_member" && !automation.action.channelId) return "Choose a pod";
   const triggerIssue = workflowTriggerIssue(automation, channels, unavailable);
   if (triggerIssue) return triggerIssue;
   return automation.action.type === "prompt_agent" && !automation.action.prompt.trim() ? "Add agent instructions" : null;
@@ -68,7 +69,7 @@ export function toWorkflowAutomationDraft(automation: CommunityMemberWorkflowAut
 
 export function replaceWorkflowDraftAction(
   automation: WorkflowAutomationDraft,
-  type: "prompt_agent" | "request_form" | "create_service_channel" | "set_client_property" | "send_email",
+  type: WorkflowActionType,
 ): WorkflowAutomationDraft {
   if (automation.action.type === type) return automation;
   const promptDraft = automation.action.type === "prompt_agent" ? automation.action.prompt : automation.promptDraft;
@@ -80,6 +81,7 @@ export function replaceWorkflowDraftAction(
       : type === "request_form" ? { key: automation.action.key, type, formKey: "" }
       : type === "set_client_property" ? { key: automation.action.key, type, propertyKey: "", value: null }
       : type === "send_email" ? { key: automation.action.key, type, subject: "", body: "" }
+      : type === "set_pod_member" ? { key: automation.action.key, type, channelId: "", active: true }
       : { key: automation.action.key, type: "create_service_channel" },
   };
 }
@@ -129,14 +131,14 @@ export function applyWorkflowTriggerType(automation: WorkflowAutomationDraft, ty
   if (type === "previous_action_completed") {
     const predecessor = earlierSteps.at(-1);
     if (!predecessor) return null;
-    return { ...replaceWorkflowDraftAction(automation, action === "request_form" || action === "set_client_property" || action === "send_email" ? action : "prompt_agent"),
+    return { ...replaceWorkflowDraftAction(automation, action === "request_form" || workflowActionIsInstant(action) ? action : "prompt_agent"),
       trigger: { type, predecessorActionKey: predecessor.action.key } };
   }
   if (type === "form_submitted") {
-    return { ...replaceWorkflowDraftAction(automation, action === "set_client_property" || action === "send_email" ? action : "prompt_agent"), trigger: { type, formKey: "" } };
+    return { ...replaceWorkflowDraftAction(automation, workflowActionIsInstant(action) ? action : "prompt_agent"), trigger: { type, formKey: "" } };
   }
-  if (type === "lesson_completed" || type === "course_completed" || type === "track_completed" || type === "offer_started" || type === "offer_ended") {
-    return { ...replaceWorkflowDraftAction(automation, action === "set_client_property" || action === "request_form" || action === "send_email" ? action : "prompt_agent"), trigger: { type } };
+  if (type === "lesson_completed" || type === "course_completed" || type === "track_completed" || type === "offer_started" || type === "offer_ended" || type === "pod_member_added") {
+    return { ...replaceWorkflowDraftAction(automation, action === "request_form" || workflowActionIsInstant(action) ? action : "prompt_agent"), trigger: { type } };
   }
   const next = action === "request_form" || action === "send_email" ? action : "prompt_agent";
   return { ...replaceWorkflowDraftAction(automation, next), trigger: type === "member_contributed" ? { type } : { type: "milestone_elapsed", delayMinutes: 1440 } };
@@ -146,6 +148,6 @@ export function applyWorkflowTriggerType(automation: WorkflowAutomationDraft, ty
 export function workflowActionChoices(trigger: WorkflowTriggerType): WorkflowActionType[] {
   const choices: WorkflowActionType[] = [trigger === "member_joined" ? "create_service_channel" : "prompt_agent"];
   if (trigger !== "form_submitted") choices.push("request_form");
-  if (trigger !== "member_joined") choices.push("send_email", "set_client_property");
+  if (trigger !== "member_joined") choices.push("send_email", "set_client_property", "set_pod_member");
   return choices;
 }

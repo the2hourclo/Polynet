@@ -101,6 +101,10 @@ export function workflowTriggerPhrase(automation: CommunityMemberWorkflowAutomat
       const channel = trigger.channelId ? names.channels?.find((item) => item.id === trigger.channelId)?.name : null;
       return trigger.channelId ? `When they post in #${channel ?? "a channel"}` : "When they post anywhere";
     }
+    case "pod_member_added": {
+      const pod = trigger.channelId ? names.channels?.find((item) => item.id === trigger.channelId)?.name : null;
+      return trigger.channelId ? `When they're added to ${pod ? `the ${quote(pod, 50)} pod` : "a pod"}` : "When they're added to any pod";
+    }
     case "milestone_elapsed":
       if (trigger.delayMinutes === 0 && !trigger.nudge) return "When they reach this stage";
       return trigger.nudge ? `If they're still here after ${workflowDurationLabel(trigger.delayMinutes)}` : `${workflowDurationLabel(trigger.delayMinutes)} after they reach this stage`;
@@ -117,6 +121,10 @@ export function workflowActionPhrase(automation: CommunityMemberWorkflowAutomati
     case "prompt_agent": return action.prompt.trim() ? `ask the agent: ${quote(action.prompt)}` : "ask the agent (no instructions yet)";
     case "set_client_property": return `set ${propertyName(action.propertyKey, names)} to ${formatValue(action.value)}`;
     case "send_email": return action.subject.trim() ? `email them: ${quote(action.subject)}` : "email them (no subject yet)";
+    case "set_pod_member": {
+      const pod = names.channels?.find((item) => item.id === action.channelId)?.name;
+      return `${action.active ? "add them to" : "take them out of"} ${pod ? `the ${quote(pod, 50)} pod` : "a pod"}`;
+    }
   }
 }
 
