@@ -1815,3 +1815,11 @@
 .app-root:has(.app-topbar .community-member-view-button) {
   --web-topbar-right-action-safe-inset: 226px;
 }
+
+/* Classroom keeps its pages in a 1120px column, but a lesson being read uses
+   the page's width, like in Channels: at 1120 the outline, the text and the
+   Contents/Chapters column can't all fit, so Chapters never showed beside the
+   video (2026-10-27). */
+.community-layout-centered .community-top-body:has(.community-knowledge-page[data-reading]) {
+  max-width: none;
+}

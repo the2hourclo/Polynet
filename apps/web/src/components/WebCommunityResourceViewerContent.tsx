@@ -885,10 +885,18 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
             </div>
           ) : null}
 
-          {contents.toc.length ? (
+          {contents.toc.length || contents.chapters.length ? (
             <details className="lesson-toc-compact" open={compactTocOpen} onToggle={(event) => setCompactTocOpen(event.currentTarget.open)}>
-              <summary><ListOrdered aria-hidden="true" /><span>Contents</span></summary>
-              <LessonContents toc={contents.toc} activeId={contents.activeId} onJump={(id) => { setCompactTocOpen(false); contents.jumpTo(id); }} />
+              <summary><ListOrdered aria-hidden="true" /><span>{contents.toc.length ? "Contents" : "Chapters"}</span></summary>
+              {/* Too narrow for the side column: the video's chapters come here too. */}
+              {contents.chapters.length ? <>
+                {contents.toc.length ? <p className="lesson-toc-compact-label">Chapters</p> : null}
+                <LessonChapters chapters={contents.chapters} onPlay={(seconds) => { setCompactTocOpen(false); contents.playFrom(seconds); }} />
+              </> : null}
+              {contents.toc.length ? <>
+                {contents.chapters.length ? <p className="lesson-toc-compact-label">Contents</p> : null}
+                <LessonContents toc={contents.toc} activeId={contents.activeId} onJump={(id) => { setCompactTocOpen(false); contents.jumpTo(id); }} />
+              </> : null}
             </details>
           ) : null}
 
