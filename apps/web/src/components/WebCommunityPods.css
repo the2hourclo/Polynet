@@ -79,11 +79,12 @@
 }
 
 .community-pod-row-meta {
+  display: -webkit-box;
   overflow: hidden;
   color: var(--text-muted);
   font-size: 0.75rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .community-pod-unread {
@@ -239,7 +240,6 @@
   min-height: 0;
   padding-block: 1rem 2rem;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .community-pod-room {
@@ -248,7 +248,8 @@
   display: flex;
   flex: none;
   flex-direction: column;
-  height: max(30rem, calc(100% - 4.5rem));
+  /* The header and tabs above take about 8rem; 4.5rem of shelf peeks below. */
+  height: max(30rem, calc(100dvh - 13rem));
   min-height: 0;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--accent-brand) 28%, transparent);
