@@ -13635,7 +13635,7 @@ button.chat-reply-quote:hover {
 /* Headings step down like Notion's (Rashid, 2026-10-26): the editor's
    Heading 1, 2 and 3 are "##", "###" and "####" in the Markdown, which the
    read view renders as h3, h4 and h5 and the editor as h2, h3 and h4. */
-.knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2) {
+.knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2):not(.lesson-editor-platform-heading) {
   margin: 1.6em 0 0.4em;
   font-size: 2rem;
   font-weight: 700;
@@ -13651,9 +13651,12 @@ button.chat-reply-quote:hover {
   text-transform: none;
   color: var(--text-primary);
 }
-.knowledge-resource-reader .resource-viewer-prose :is(h5.md-header, h6.md-header, .lesson-editor-content > h4, .lesson-editor-content > h5) {
-  margin: 1.3em 0 0.3em;
-  font-size: 1.3125rem;
+/* Heading 3: the :not() lifts it over the theme's "h5 = body size" rule, which
+   made it read as bold text (Rashid, 2026-10-27: "it feels too similar to the
+   text but just bolded"). */
+.knowledge-resource-reader .resource-viewer-prose :is(h5.md-header, h6.md-header, .lesson-editor-content > h4, .lesson-editor-content > h5):not(.lesson-editor-platform-heading) {
+  margin: 1.6em 0 0.4em;
+  font-size: 1.375rem;
   font-weight: 650;
   line-height: 1.3;
   letter-spacing: -0.008em;
@@ -13673,9 +13676,9 @@ button.chat-reply-quote:hover {
 .knowledge-resource-reader .resource-viewer-prose a:not([class]) { text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
 @media (max-width: 640px) {
   .knowledge-resource-reader .resource-viewer-prose { font-size: 1.0625rem; line-height: 1.65; }
-  .knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2) { font-size: 1.625rem; }
+  .knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2):not(.lesson-editor-platform-heading) { font-size: 1.625rem; }
   .knowledge-resource-reader .resource-viewer-prose :is(h4.md-header, .lesson-editor-content > h3:not(.lesson-editor-platform-heading)) { font-size: 1.375rem; }
-  .knowledge-resource-reader .resource-viewer-prose :is(h5.md-header, .lesson-editor-content > h4) { font-size: 1.1875rem; }
+  .knowledge-resource-reader .resource-viewer-prose :is(h5.md-header, h6.md-header, .lesson-editor-content > h4, .lesson-editor-content > h5):not(.lesson-editor-platform-heading) { font-size: 1.25rem; }
 }
 
 /* Edit course › Lesson style: two cards with a small sketch of each page. */
