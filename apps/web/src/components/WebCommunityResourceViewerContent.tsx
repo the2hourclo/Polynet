@@ -866,6 +866,15 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
               />
             )}
           </div>
+          {/* On a wide page the chapters sit right beside the video, like YouTube's. */}
+          {contents.chapters.length ? (
+            <nav className="lesson-hero-chapters" aria-label="Video chapters">
+              <div className="lesson-hero-chapters-scroll">
+                <p className="lesson-rail-label">Chapters</p>
+                <LessonChapters chapters={contents.chapters} onPlay={contents.playFrom} />
+              </div>
+            </nav>
+          ) : null}
         </div>
       ) : null}
 
