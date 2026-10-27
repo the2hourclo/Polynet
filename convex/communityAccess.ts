@@ -29,6 +29,10 @@ import {
 import { decryptCommunityAccessSecret, encryptCommunityAccessSecret } from "./communityAccessSecrets";
 import { normalizeEmailForVerification } from "./workosEmailVerification";
 import {
+  COMMUNITY_ACCESS_SIGN_IN_CODE_TTL_MS,
+  communityAccessReturnUrlFor,
+  communityAccessSignInCodeLooksValid,
+  newCommunityAccessSignInCode,
   COMMUNITY_ACCESS_DELIVERY_WINDOW_MS,
   COMMUNITY_ACCESS_INTEGRATION_LIMIT,
   CommunityAccessError,
@@ -759,8 +763,9 @@ export const lookupCommunityAccessInternal = internalMutation({
   args: {
     slug: v.string(),
     apiKey: v.string(),
-    mode: v.union(v.literal("email"), v.literal("member"), v.literal("license"), v.literal("list")),
+    mode: v.union(v.literal("email"), v.literal("member"), v.literal("license"), v.literal("list"), v.literal("sign_in")),
     value: v.optional(v.string()),
+    returnUrl: v.optional(v.string()),
     cursor: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
@@ -810,6 +815,18 @@ export const lookupCommunityAccessInternal = internalMutation({
       if (!mapping || normalizeIdValue(mapping.communityId) !== normalizeIdValue(community._id)) return notFound;
       return { status: 200, body: await describe(mapping.userId) };
     }
+    if (args.mode === "sign_in") {
+      // One use, five minutes, this integration, the exact return address.
+      const code = String(args.value ?? "").trim();
+      if (!communityAccessSignInCodeLooksValid(code)) return notFound;
+      const codeHash = await sha256HexOf(code);
+      const codeRow = await ctx.db.query("communityAccessSignInCodes").withIndex("by_code_hash", (q) => q.eq("codeHash", codeHash)).first();
+      if (!codeRow || codeRow.usedAt || codeRow.expiresAt <= nowMs) return notFound;
+      if (normalizeIdValue(codeRow.integrationId) !== normalizeIdValue(row._id)) return notFound;
+      if (String(args.returnUrl ?? "").trim() !== codeRow.returnUrl) return notFound;
+      await ctx.db.patch(codeRow._id, { usedAt: nowMs });
+      return { status: 200, body: await describe(codeRow.userId) };
+    }
     const key = String(args.value ?? "").trim();
     if (!communityLicenseKeyLooksValid(key)) return notFound;
     const keyHash = await sha256HexOf(key);
@@ -817,6 +834,78 @@ export const lookupCommunityAccessInternal = internalMutation({
     if (!keyRow || keyRow.status !== "active" || normalizeIdValue(keyRow.communityId) !== normalizeIdValue(community._id)) return notFound;
     await ctx.db.patch(keyRow._id, { lastCheckedAt: nowMs, lastCheckedByIntegrationId: row._id });
     return { status: 200, body: await describe(keyRow.userId) };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// "Continue with Polynet": the member, signed in here, lets a connected
+// service (the AIEB MCP) learn who they are. Polynet hands their browser a
+// one-time code for the service's own return address; the service redeems it
+// with its API key (POST …/sign-in/redeem) and gets the usual lookup answer.
+
+async function signInTarget(ctx: any, slug: string, returnUrl: string) {
+  const community = await ctx.db.query("communities").withIndex("by_slug", (q: any) => q.eq("slug", String(slug ?? "").trim().toLowerCase())).first();
+  if (!community) return null;
+  const integrations = await listActiveCommunityAccessIntegrations(ctx, community._id);
+  for (const integration of integrations) {
+    const url = communityAccessReturnUrlFor(returnUrl, integration.webhookUrl);
+    if (url) return { community, integration, returnUrl: url };
+  }
+  return { community, integration: null, returnUrl: null };
+}
+
+const signInArgs = { authSubject: v.optional(v.string()), slug: v.string(), returnUrl: v.string() };
+
+export const getAccessSignInTarget = query({
+  args: signInArgs,
+  handler: async (ctx, args) => {
+    const target = await signInTarget(ctx, args.slug, args.returnUrl);
+    if (!target) return { found: false as const };
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null }).catch(() => null);
+    let member: null | { email: string | null; is_member: boolean; entitled: boolean; status: string } = null;
+    if (userId) {
+      const membership = await getUniqueCommunityMembershipByPair({ ctx, communityId: target.community._id, userId });
+      const isOwner = normalizeIdValue(target.community.ownerId) === normalizeIdValue(userId);
+      const computed = await computeCommunityMemberAccess(ctx, {
+        community: target.community, userId, nowMs: Date.now(), integrations: target.integration ? [target.integration] : [],
+      });
+      const covered = target.integration
+        ? communityIntegrationCoversAccess(computed.access, integrationInput(target.integration), { isTestMember: computed.isTestMember })
+        : false;
+      member = { email: computed.user?.email ?? null, is_member: Boolean(membership) || isOwner, entitled: covered, status: computed.access.status };
+    }
+    return {
+      found: true as const,
+      community: { id: String(target.community._id), slug: target.community.slug, name: target.community.name },
+      service: target.integration ? { name: target.integration.name } : null,
+      member,
+    };
+  },
+});
+
+export const createAccessSignInCode = mutation({
+  args: signInArgs,
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, authSubject: args.authSubject ?? null });
+    const nowMs = Date.now();
+    const target = await signInTarget(ctx, args.slug, args.returnUrl);
+    if (!target) throw new CommunityAccessError("community_not_found");
+    if (!target.integration || !target.returnUrl) throw new CommunityAccessError("sign_in_not_set_up");
+    const membership = await getUniqueCommunityMembershipByPair({ ctx, communityId: target.community._id, userId });
+    const isOwner = normalizeIdValue(target.community.ownerId) === normalizeIdValue(userId);
+    if (!membership && !isOwner) throw new CommunityAccessError("sign_in_not_a_member");
+    // A handful a minute is plenty for a person; more is someone looping.
+    const recent = await ctx.db.query("communityAccessSignInCodes")
+      .withIndex("by_user_createdAt", (q) => q.eq("userId", userId).gt("createdAt", nowMs - 60_000)).take(6);
+    if (recent.length >= 6) throw new CommunityAccessError("sign_in_rate_limited");
+    const code = newCommunityAccessSignInCode();
+    await ctx.db.insert("communityAccessSignInCodes", {
+      communityId: target.community._id, integrationId: target.integration._id, userId,
+      codeHash: await sha256HexOf(code), returnUrl: target.returnUrl, createdAt: nowMs,
+      expiresAt: nowMs + COMMUNITY_ACCESS_SIGN_IN_CODE_TTL_MS,
+    });
+    await ensureCommunityAccessMemberId(ctx, target.community._id, userId, nowMs);
+    return { code, return_url: target.returnUrl, expires_at: toIso(nowMs + COMMUNITY_ACCESS_SIGN_IN_CODE_TTL_MS) };
   },
 });
 

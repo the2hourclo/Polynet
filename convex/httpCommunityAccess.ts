@@ -7,6 +7,7 @@ import { internal } from "./_generated/api";
 //   GET  /access/v1/communities/<slug>/members/<member id>
 //   GET  /access/v1/communities/<slug>/members            (every member, paged by ?cursor=)
 //   POST /access/v1/communities/<slug>/licenses/verify    {"key": "pnk_..."}
+//   POST /access/v1/communities/<slug>/sign-in/redeem     {"code": "pnc_...", "return_url": "..."}
 //
 // A license key travels in a POST body, never in a URL, so it stays out of
 // access logs. Every answer is computed live from the membership; anything
@@ -66,9 +67,17 @@ export function registerCommunityAccessRoutes(args: { http: HttpRouterLike; http
     method: "POST",
     handler: httpAction(async (ctx, req) => {
       const parsed = parsePath(req);
-      if (!parsed || parsed.rest.join("/") !== "licenses/verify") return json(404, { error: "not_found" });
+      const route = parsed?.rest.join("/");
+      if (!parsed || (route !== "licenses/verify" && route !== "sign-in/redeem")) return json(404, { error: "not_found" });
       let body: any = null;
       try { body = await req.json(); } catch { body = null; }
+      if (route === "sign-in/redeem") {
+        const result = await ctx.runMutation((internal as any).communityAccess.lookupCommunityAccessInternal, {
+          slug: parsed.slug, apiKey: bearer(req), mode: "sign_in",
+          value: typeof body?.code === "string" ? body.code : "", returnUrl: typeof body?.return_url === "string" ? body.return_url : "",
+        });
+        return json(result.status, result.body);
+      }
       const key = typeof body?.key === "string" ? body.key : typeof body?.license_key === "string" ? body.license_key : "";
       const result = await ctx.runMutation((internal as any).communityAccess.lookupCommunityAccessInternal, {
         slug: parsed.slug, apiKey: bearer(req), mode: "license", value: key,

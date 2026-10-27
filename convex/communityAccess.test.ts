@@ -390,6 +390,41 @@ describe("access integrations, grants and license keys", () => {
       .rejects.toThrow("license_key_requires_access");
   });
 
+  test("Continue with Polynet: a member's one-time code reaches only the connected service, once, in time", async () => {
+    const f = await fixture();
+    const created = await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
+      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+    });
+    await settle(f);
+    const back = "https://mcp.example.com/oauth/polynet/callback";
+    const target = await f.asThomas.query(api.communityAccess.getAccessSignInTarget, { slug: "aieb", returnUrl: back });
+    expect(target).toMatchObject({ found: true, service: { name: "AIEB MCP" }, member: { email: "thomas@example.com", is_member: true, entitled: true } });
+    // Another site can't receive a code.
+    expect(await f.asThomas.query(api.communityAccess.getAccessSignInTarget, { slug: "aieb", returnUrl: "https://evil.example.com/cb" }))
+      .toMatchObject({ found: true, service: null });
+    await expect(f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: "https://evil.example.com/cb" }))
+      .rejects.toThrow("sign_in_not_set_up");
+    await expect(f.asOutsider.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back }))
+      .rejects.toThrow("sign_in_not_a_member");
+
+    const redeem = (code: string, returnUrl = back, apiKey = created.api_key) =>
+      f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey, mode: "sign_in", value: code, returnUrl });
+    const issued = await f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back });
+    expect(issued.code).toMatch(/^pnc_[A-Za-z0-9]{40}$/);
+    expect((await redeem(issued.code, "https://mcp.example.com/other")).body).toMatchObject({ found: false });
+    expect((await redeem(issued.code)).body).toMatchObject({ found: true, member: { email: "thomas@example.com" }, access: { entitled: true } });
+    // Once only.
+    expect((await redeem(issued.code)).body).toMatchObject({ found: false, access: { entitled: false } });
+
+    // Five minutes, then it's gone.
+    const late = await f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back });
+    vi.advanceTimersByTime(5 * 60_000 + 1);
+    expect((await redeem(late.code)).body).toMatchObject({ found: false });
+    // Someone else's API key can't redeem it.
+    const fresh = await f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back });
+    expect((await redeem(fresh.code, back, "pna_" + "x".repeat(40))).status).toBe(401);
+  });
+
   test("a failing webhook retries, then waits for a person after 72 hours", async () => {
     const f = await fixture();
     respond = () => 503;
