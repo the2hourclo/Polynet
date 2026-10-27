@@ -1635,3 +1635,13 @@ body {
   color: var(--text-muted);
   font-size: 14px;
 }
+
+/* confirmInPage: on the body, over any sheet or dialog. The host only carries
+   the community theme. */
+.confirm-in-page-host {
+  display: contents;
+}
+
+.community-channel-modal-backdrop.confirm-in-page {
+  z-index: 10000;
+}

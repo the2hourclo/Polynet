@@ -15,6 +15,7 @@ import { EmojiPickerButton, QUICK_REACTIONS, ReactionSummary } from "./community
 import { PostCardView } from "./CommunityPostCard";
 import { MessageLinkMedia } from "./MessageLinkMedia";
 import { PdfDocumentCard } from "./PdfDocumentCard";
+import { confirmInPage } from "./confirmInPage";
 import { isPdfDocument, safeDocumentUrl } from "../../../../shared/messagePdf";
 import { groupInteractionFeed } from "./groupInteractionFeed";
 import { MemberAvatarStack, type MemberAvatarStackFace } from "./MemberAvatarStack";
@@ -1144,8 +1145,14 @@ export function CommunityInteractionFeedList(
                                         }
                                         // One pin per channel or pod: say so before replacing it.
                                         const place = props.activeChannel?.access_mode === "restricted" ? "pod" : "channel";
-                                        if (props.pinnedRoot && !window.confirm(`This ${place} already has a pinned message. Pin this one instead?`)) return;
-                                        void props.onSetPinnedRoot?.(root.id);
+                                        const replace = props.pinnedRoot
+                                          ? confirmInPage({
+                                              title: "Replace the pinned message?",
+                                              body: `This ${place} keeps one pinned message. Pinning this one unpins the current one.`,
+                                              confirmLabel: "Pin this instead",
+                                            })
+                                          : Promise.resolve(true);
+                                        void replace.then((ok) => { if (ok) void props.onSetPinnedRoot?.(root.id); });
                                       }
                                     : undefined
                                 }
