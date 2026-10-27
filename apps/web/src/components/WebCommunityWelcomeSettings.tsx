@@ -10,7 +10,7 @@ import {
   legacyWelcomeLayout, normalizeWelcomeLayout, welcomeLayoutSteps, welcomeLayoutWithForms, welcomeScreens,
   type WelcomeBlock, type WelcomeChoiceOption, type WelcomeStep,
 } from "../../../../shared/communityWelcomeLayout";
-import { renderMarkdown } from "../../../../shared/markdownUi";
+import { CONTENT_MARKDOWN_OPTIONS, CONTENT_PROSE_CLASS, renderMarkdown } from "../../../../shared/markdownUi";
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
 import type { CommunityFormDraft } from "../../../../shared/communityForms";
@@ -484,8 +484,8 @@ function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement
 
 // Words show as the member reads them (videos play inline); a click puts the cursor back in.
 function TextView(props: { id: string; markdown: string; onEdit: () => void }) {
-  const rendered = useMemo(() => renderMarkdown(props.markdown, { embedStandaloneMedia: true }), [props.markdown]);
-  return <div id={props.id} className="community-welcome-message welcome-settings-text-view" tabIndex={0} role="group" aria-label="Text. Press Enter to edit."
+  const rendered = useMemo(() => renderMarkdown(props.markdown, CONTENT_MARKDOWN_OPTIONS), [props.markdown]);
+  return <div id={props.id} className={`community-welcome-message welcome-settings-text-view ${CONTENT_PROSE_CLASS}`} tabIndex={0} role="group" aria-label="Text. Press Enter to edit."
     onClick={(event) => { if (!(event.target as HTMLElement).closest("a, button, iframe, video")) props.onEdit(); }}
     onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); props.onEdit(); } }}>{rendered}</div>;
 }

@@ -89,7 +89,17 @@ export type MarkdownRenderOptions = {
   renderLessonElement?: ((id: string) => ReactNode | null) | null;
   headingLevelOffset?: number;
   onCopyCode?: (text: string) => Promise<void> | void;
+  // Lessons: every fenced block is a code card with a Copy button, even a
+  // one-line command, so a member can always copy what the lesson shows.
+  codeCards?: boolean;
 };
+
+/** How owner-written content reads everywhere it shows (lessons, the welcome
+ * page and its setup cards): media plays inline and code is a card with Copy.
+ * Wrap it in CONTENT_PROSE_CLASS so it wears the same type, callouts and code
+ * colours (Rashid, 2026-10-27: "Visually, it should look consistent"). */
+export const CONTENT_MARKDOWN_OPTIONS = { embedStandaloneMedia: true, codeCards: true } as const satisfies MarkdownRenderOptions;
+export const CONTENT_PROSE_CLASS = "resource-viewer-prose";
 
 type MarkdownHeadingProps = {
   children: ReactNode;
@@ -429,6 +439,19 @@ function MarkdownTable({
   );
 }
 
+/** The highlighted HTML for a code block, as the reader shows it. The lesson
+ * editor colours its code blocks from this too, so both look the same. */
+export function highlightCodeHtml(code: string, language?: string | null): string | null {
+  const normalizedLanguage = normalizeCodeLanguage(language ?? undefined);
+  if (normalizedLanguage && PLAIN_TEXT_LANGUAGES.has(normalizedLanguage)) return null;
+  try {
+    if (normalizedLanguage && hljs.getLanguage(normalizedLanguage)) return hljs.highlight(code, { language: normalizedLanguage }).value;
+    return hljs.highlightAuto(code).value;
+  } catch {
+    return null;
+  }
+}
+
 function CodeBlock({ code, language, onCopyCode }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const normalizedLanguage = useMemo(() => {
@@ -463,8 +486,13 @@ function CodeBlock({ code, language, onCopyCode }: CodeBlockProps) {
     <div className={`code-block-wrapper code-block-variant-${variant}`}>
       <div className="code-block-header">
         {language && <span className="code-block-lang">{language}</span>}
-        <button className="code-block-copy" type="button" onClick={() => void handleCopy()}>
-          {copied ? "Copied!" : "Copy"}
+        <button className={`code-block-copy${copied ? " is-copied" : ""}`} type="button" onClick={() => void handleCopy()} aria-live="polite">
+          {copied ? (
+            <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+          )}
+          {copied ? "Copied" : "Copy"}
         </button>
       </div>
       <pre className="md-code-block">
@@ -707,7 +735,7 @@ export function renderMarkdown(text: string, options?: MarkdownRenderOptions): R
           />
         );
       }
-      if (!shouldRenderCodeCard(raw, language)) {
+      if (!options?.codeCards && !shouldRenderCodeCard(raw, language)) {
         return <PlainTextBlock text={raw} onCopyText={options?.onCopyCode} />;
       }
       return (

@@ -1475,3 +1475,39 @@ select.lesson-editor-field {
 }
 .lesson-editor-callout-title::placeholder { color: var(--text-faint, var(--text-muted)); font-weight: 600; }
 .lesson-editor .md-callout > .md-callout-body { grid-column: 2; }
+
+/* Code blocks read like the lesson shows them: grey card, colours, Copy at
+   the top right (colours come from .resource-viewer-prose in
+   community-and-content.css). */
+.lesson-editor-content .lesson-editor-code {
+  position: relative;
+  padding: 36px 16px 16px;
+  border-color: var(--lesson-code-line);
+  background: var(--lesson-code-bg);
+  color: var(--lesson-code-text);
+  white-space: pre;
+  overflow-x: auto;
+  overflow-wrap: normal;
+}
+.lesson-editor-content .lesson-editor-code .lesson-editor-code-copy {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-family: var(--pn-font-body, inherit);
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--lesson-code-line);
+  background: color-mix(in srgb, var(--bg-card, transparent) 70%, transparent);
+  color: var(--lesson-code-muted);
+  cursor: pointer;
+  user-select: none;
+  opacity: 1;
+}
+.lesson-editor-content .lesson-editor-code .lesson-editor-code-copy:hover { color: var(--text-primary); }
+.lesson-editor-content .lesson-editor-code .lesson-editor-code-copy.is-copied { color: var(--lesson-code-blue); border-color: currentColor; }
+.lesson-editor-content .lesson-editor-code .hljs-comment, .lesson-editor-content .lesson-editor-code .hljs-quote { color: var(--lesson-code-muted); font-style: italic; }
+.lesson-editor-content .lesson-editor-code .hljs-keyword, .lesson-editor-content .lesson-editor-code .hljs-selector-tag, .lesson-editor-content .lesson-editor-code .hljs-literal, .lesson-editor-content .lesson-editor-code .hljs-built_in, .lesson-editor-content .lesson-editor-code .hljs-type, .lesson-editor-content .lesson-editor-code .hljs-section, .lesson-editor-content .lesson-editor-code .hljs-link { color: var(--lesson-code-blue); }
+.lesson-editor-content .lesson-editor-code .hljs-string, .lesson-editor-content .lesson-editor-code .hljs-regexp, .lesson-editor-content .lesson-editor-code .hljs-addition, .lesson-editor-content .lesson-editor-code .hljs-bullet { color: var(--lesson-code-yellow); }
+.lesson-editor-content .lesson-editor-code .hljs-title, .lesson-editor-content .lesson-editor-code .hljs-name, .lesson-editor-content .lesson-editor-code .hljs-attr, .lesson-editor-content .lesson-editor-code .hljs-attribute, .lesson-editor-content .lesson-editor-code .hljs-selector-class, .lesson-editor-content .lesson-editor-code .hljs-deletion, .lesson-editor-content .lesson-editor-code .hljs-variable, .lesson-editor-content .lesson-editor-code .hljs-template-variable { color: var(--lesson-code-red); }
+.lesson-editor-content .lesson-editor-code .hljs-number, .lesson-editor-content .lesson-editor-code .hljs-symbol, .lesson-editor-content .lesson-editor-code .hljs-meta, .lesson-editor-content .lesson-editor-code .hljs-params, .lesson-editor-content .lesson-editor-code .hljs-subst { color: var(--lesson-code-purple); }

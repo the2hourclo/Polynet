@@ -1234,7 +1234,8 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 .community-knowledge-page[data-reading][data-focus] {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  /* Above the community rail and bars, below dialogs (9999). */
+  z-index: 1000;
   overflow-y: auto;
   background: var(--bg-workspace);
 }
@@ -1248,7 +1249,21 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 .community-knowledge-page[data-focus] .resource-course-workspace { grid-template-columns: minmax(0, 1fr) !important; }
 .community-knowledge-page[data-focus] .knowledge-resource-reader .resource-viewer-content { padding-right: 0 !important; }
 .community-knowledge-page[data-focus] .resource-viewer-body.has-lesson-rail { display: block !important; }
-.community-knowledge-page[data-focus] .resource-viewer-body.has-lesson-rail > .resource-viewer-column { margin-inline: auto !important; }
+/* The lesson keeps its reading width, centred under its title: the wide
+   page's three-column measure doesn't apply once the outline is gone (it had
+   let the text run the full width, under the rail, 2026-10-27). */
+.community-knowledge-page[data-focus] .knowledge-resource-reader {
+  --lesson-reading-measure: var(--knowledge-reading-measure, 46rem);
+}
+.community-knowledge-page[data-focus] .knowledge-resource-reader .resource-viewer-content {
+  padding-inline: clamp(16px, 5vw, 64px) !important;
+}
+.community-knowledge-page[data-focus] .resource-viewer-body > .resource-viewer-column,
+.community-knowledge-page[data-focus] .resource-viewer-body.has-lesson-rail > .resource-viewer-column {
+  width: 100%;
+  max-width: var(--lesson-reading-measure) !important;
+  margin-inline: auto !important;
+}
 html[data-lesson-focus] .member-agent-launcher { display: none; }
 .community-knowledge-focus-button {
   display: inline-flex;

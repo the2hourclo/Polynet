@@ -1224,6 +1224,10 @@
   border-radius: calc(11px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .lesson-editor-content .lesson-editor-code .lesson-editor-code-copy {
+  font-size: var(--pn-type-label);
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .pn-landing .brand {
   font-size: var(--pn-type-subheading);
 }
@@ -3016,6 +3020,21 @@
 [data-community-theme] .members-view-all.members-view-all-footer {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
+}
+[data-community-theme] .resource-viewer-prose .code-block-wrapper .code-block-copy {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .resource-viewer-prose .code-block-wrapper .md-code-block {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .pn-page-back {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .lesson-chapter-list button {
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .resource-viewer-prose .lesson-chapter-line {
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .community-top-nav-avatar {
   border-radius: calc(8px * var(--pn-radius-scale, 1));

@@ -69,6 +69,7 @@ import {
   type LessonEditorServices,
 } from "./LessonEditorNodeViews";
 import { ToolbarMenuList, type ToolbarMenu } from "./LessonEditorMenu";
+import { lessonCodeHighlightExtension } from "./lessonCodeHighlight";
 import "./lessonEditor.css";
 
 export type LessonEditorProps = {
@@ -840,6 +841,7 @@ export default function LessonEditor(props: LessonEditorProps) {
       if (extension === LessonRawMarkdown) return LessonRawMarkdown.extend({ addNodeView: () => ReactNodeViewRenderer(LessonRawMarkdownView) });
       return extension;
     }),
+    lessonCodeHighlightExtension,
     Placeholder.configure({
       placeholder: ({ editor, node }) => {
         if (node.type.name === "heading") return "Heading";

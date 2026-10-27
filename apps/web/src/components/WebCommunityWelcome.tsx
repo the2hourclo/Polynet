@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode, 
 import type { AuthSession } from "../auth";
 import { getMemberWelcomePage, subscribeMemberForms, type MemberFormSummary, type MemberWelcomePage } from "../../../../shared/cloudCommunityFormRequestsGateway";
 import { setCloudOwnResourceProgress } from "../../../../shared/cloudCommunityResourceProgressGateway";
-import { renderMarkdown } from "../../../../shared/markdownUi";
+import { CONTENT_MARKDOWN_OPTIONS, CONTENT_PROSE_CLASS, renderMarkdown } from "../../../../shared/markdownUi";
 import { legacyWelcomeLayout, welcomeLayoutWithForms, welcomeScreens, type WelcomeBlock, type WelcomeChoiceOption, type WelcomeScreen, type WelcomeStep } from "../../../../shared/communityWelcomeLayout";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { MemberFormRunner } from "./WebCommunityNextStep";
@@ -51,7 +51,7 @@ export function WelcomeScreenView(props: {
   const screen = props.screens[props.index] ?? null;
   const total = props.screens.length;
   const rendered = useMemo(() => (screen?.blocks ?? []).map((block) =>
-    block.type === "text" ? renderMarkdown(block.markdown, { embedStandaloneMedia: true }) : null), [screen]);
+    block.type === "text" ? renderMarkdown(block.markdown, CONTENT_MARKDOWN_OPTIONS) : null), [screen]);
   return <>
     <div className="community-welcome-intro">
       {total > 1 ? <div className="community-welcome-progress">
@@ -62,7 +62,7 @@ export function WelcomeScreenView(props: {
       {props.index === 0 ? <h1 ref={props.titleRef} tabIndex={-1} aria-level={props.headingLevel}>{props.title}</h1> : null}
     </div>
     {screen?.blocks.map((block, index) => block.type === "text"
-      ? <div key={index} className="community-welcome-message">{rendered[index]}</div>
+      ? <div key={index} className={`community-welcome-message ${CONTENT_PROSE_CLASS}`}>{rendered[index]}</div>
       : block.type === "choice" ? <WelcomeChoiceView key={`${props.index}:${index}`} prompt={block.prompt} options={block.options} agent={block.agent}
         storageKey={props.choiceStorageKey ? `${props.choiceStorageKey}:${props.index}:${index}` : undefined} />
       : block.type === "next" ? null : <Fragment key={index}>{props.renderStep(block)}</Fragment>)}
@@ -87,7 +87,7 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
     } catch { return 0; }
   });
   const option = props.options[picked] ?? null;
-  const rendered = useMemo(() => (option ? renderMarkdown(option.markdown, { embedStandaloneMedia: true }) : null), [option]);
+  const rendered = useMemo(() => (option ? renderMarkdown(option.markdown, CONTENT_MARKDOWN_OPTIONS) : null), [option]);
   const groupId = useId();
   const pick = (index: number) => {
     setPicked(index);
@@ -119,7 +119,7 @@ export function WelcomeChoiceView(props: { prompt: string; options: WelcomeChoic
         </button>
       ))}
     </div>
-    {option ? <div className="community-welcome-message community-welcome-choice-body" aria-live="polite">{rendered}</div> : null}
+    {option ? <div className={`community-welcome-message community-welcome-choice-body ${CONTENT_PROSE_CLASS}`} aria-live="polite">{rendered}</div> : null}
   </div>;
 }
 

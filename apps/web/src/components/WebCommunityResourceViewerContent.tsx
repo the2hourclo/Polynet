@@ -14,7 +14,7 @@ import {
 } from "react";
 
 import { normalizeExternalUrl, parseEmbedUrl, StableMediaEmbedFrame } from "../../../../shared/linkEmbedUi";
-import { renderMarkdown } from "../../../../shared/markdownUi";
+import { CONTENT_MARKDOWN_OPTIONS, renderMarkdown } from "../../../../shared/markdownUi";
 import type { CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
 import type { CommunityEmbedStorage } from "../../../../shared/communityEmbed";
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
@@ -165,6 +165,39 @@ function readLessonPlatform(): string {
 }
 
 type LessonFileLink = { href: string; label: string };
+type LessonChapter = { id: string; label: string; time: string; seconds: number };
+
+// "02:15 Title" (or "1:02:15 - Title", as a list item or its own line) after a
+// YouTube video is a chapter: the same lines YouTube reads from a description,
+// so an owner, or their agent, can paste them into the lesson as they are.
+const LESSON_CHAPTER_LINE = /^\(?((?:\d{1,2}:)?\d{1,2}:\d{2})\)?\s*[-–—:|]?\s*(\S.*)$/;
+const LESSON_CHAPTER_MIN = 2;
+
+export function parseLessonChapterLine(text: string): { time: string; seconds: number; label: string } | null {
+  const match = LESSON_CHAPTER_LINE.exec(text.trim());
+  if (!match) return null;
+  const seconds = match[1]!.split(":").reduce((total, part) => total * 60 + Number(part), 0);
+  return Number.isFinite(seconds) ? { time: match[1]!, seconds, label: match[2]!.trim() } : null;
+}
+
+/** Plays the lesson's YouTube video from `seconds`, scrolling it into view. */
+function seekLessonVideo(root: HTMLElement | null, seconds: number) {
+  const frame = root?.querySelector<HTMLIFrameElement>('iframe[src*="youtube.com/embed/"], iframe[src*="youtube-nocookie.com/embed/"]');
+  if (!frame) return;
+  frame.scrollIntoView({ behavior: "smooth", block: "center" });
+  const url = new URL(frame.src);
+  if (url.searchParams.get("enablejsapi") === "1" && frame.contentWindow) {
+    // The player already listens: jump without reloading it.
+    for (const [func, args] of [["seekTo", [seconds, true]], ["playVideo", []]] as const) {
+      frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+    }
+    return;
+  }
+  url.searchParams.set("start", String(seconds));
+  url.searchParams.set("autoplay", "1");
+  url.searchParams.set("enablejsapi", "1");
+  frame.src = url.href;
+}
 
 // Reads the lesson for its contents (sections, then videos under the section
 // they sit in) and the files it links to. In the read view each stop gets an
@@ -182,6 +215,7 @@ function isStandaloneBoldLine(node: HTMLElement): boolean {
 function useLessonContents(root: { current: HTMLElement | null }, mode: "read" | "edit", renderKey: unknown) {
   const [toc, setToc] = useState<LessonTocEntry[]>([]);
   const [files, setFiles] = useState<LessonFileLink[]>([]);
+  const [chapters, setChapters] = useState<LessonChapter[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const targetsRef = useRef(new Map<string, HTMLElement>());
   useEffect(() => {
@@ -189,6 +223,7 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
     if (!element) {
       setToc([]);
       setFiles([]);
+      setChapters([]);
       return;
     }
     let frame = 0;
@@ -226,8 +261,30 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
         .filter((link) => isLessonFileLink(link.href) && !seen.has(link.href) && Boolean(seen.add(link.href)))
         .map((link) => ({ href: link.href, label: link.textContent?.trim() || decodeURIComponent(link.pathname.split("/").pop() ?? "File") }));
       setFiles((current) => (JSON.stringify(current) === JSON.stringify(nextFiles) ? current : nextFiles));
+      // Chapters: timestamp lines, once the lesson has a YouTube video to play.
+      const nextChapters: LessonChapter[] = [];
+      if (mode === "read" && element.querySelector('iframe[src*="youtube.com/embed/"], iframe[src*="youtube-nocookie.com/embed/"]')) {
+        element.querySelectorAll<HTMLElement>("p, li").forEach((node) => {
+          if (node.closest(".lesson-slide-deck, .code-block-wrapper") || node.querySelector("p, li")) return;
+          const chapter = parseLessonChapterLine(node.textContent ?? "");
+          if (!chapter) return;
+          node.classList.add("lesson-chapter-line");
+          node.dataset.seconds = String(chapter.seconds);
+          nextChapters.push({ id: `chapter-${chapter.seconds}-${nextChapters.length}`, ...chapter });
+        });
+      }
+      const shownChapters = nextChapters.length >= LESSON_CHAPTER_MIN ? nextChapters : [];
+      setChapters((current) => (JSON.stringify(current) === JSON.stringify(shownChapters) ? current : shownChapters));
     };
     scan();
+    // A chapter line in the lesson itself plays the video from there too, so it
+    // works on a phone, where the right panel folds away.
+    const onChapterClick = (event: Event) => {
+      const line = (event.target as HTMLElement | null)?.closest<HTMLElement>(".lesson-chapter-line");
+      if (!line || (event.target as HTMLElement).closest("a, button") || !line.dataset.seconds) return;
+      seekLessonVideo(element, Number(line.dataset.seconds));
+    };
+    if (mode === "read") element.addEventListener("click", onChapterClick);
     // Ids are attributes, so watching only content can't loop on our own writes.
     const observer = new MutationObserver(() => {
       if (!frame) frame = window.requestAnimationFrame(scan);
@@ -235,6 +292,7 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
     observer.observe(element, { childList: true, subtree: true, characterData: true });
     return () => {
       observer.disconnect();
+      element.removeEventListener("click", onChapterClick);
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, [root, mode, renderKey]);
@@ -257,7 +315,23 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
   const jumpTo = useCallback((id: string) => {
     targetsRef.current.get(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
-  return { toc, files, activeId, jumpTo };
+  const playFrom = useCallback((seconds: number) => seekLessonVideo(root.current, seconds), [root]);
+  return { toc, files, chapters, activeId, jumpTo, playFrom };
+}
+
+function LessonChapters(props: { chapters: LessonChapter[]; onPlay: (seconds: number) => void }) {
+  return (
+    <ol className="lesson-chapter-list">
+      {props.chapters.map((chapter) => (
+        <li key={chapter.id}>
+          <button type="button" onClick={() => props.onPlay(chapter.seconds)} aria-label={`Play from ${chapter.time}: ${chapter.label}`}>
+            <span className="lesson-chapter-time">{chapter.time}</span>
+            <span className="lesson-chapter-label">{chapter.label}</span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 function LessonContents(props: { toc: LessonTocEntry[]; activeId: string | null; onJump: (id: string) => void }) {
@@ -416,7 +490,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     if (!shownBody) return null;
     const ids = new Set(lessonElementIds ? lessonElementIds.split(" ") : []);
     const render = (markdown: string) => renderMarkdown(ids.size ? markCommunityLessonElementBlocks(markdown, ids) : markdown, {
-      embedStandaloneMedia: true,
+      ...CONTENT_MARKDOWN_OPTIONS,
       headingLevelOffset: 1,
       communityEmbeds: props.communityEmbeds ?? null,
       renderLessonElement: hasLessonActivity ? (id) => ids.has(id) ? <LessonElementSlot key={id} id={id} /> : null : null,
@@ -436,7 +510,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   const readingRef = useRef<HTMLDivElement | null>(null);
   const contents = useLessonContents(readingRef, isEditing && !isPreviewing ? "edit" : "read", renderedBodyMarkdown);
   const [compactTocOpen, setCompactTocOpen] = useState(false);
-  const hasRail = contents.toc.length > 0 || contents.files.length > 0;
+  const hasRail = contents.toc.length > 0 || contents.files.length > 0 || contents.chapters.length > 0;
 
   useEffect(() => {
     if (!isTitleEditing) return;
@@ -830,6 +904,12 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         </div>
         {hasRail ? (
           <aside className="lesson-rail" aria-label="In this lesson">
+            {contents.chapters.length ? (
+              <nav className="lesson-rail-section" aria-label="Video chapters">
+                <p className="lesson-rail-label">Chapters</p>
+                <LessonChapters chapters={contents.chapters} onPlay={contents.playFrom} />
+              </nav>
+            ) : null}
             {contents.toc.length ? (
               <nav className="lesson-rail-section" aria-label="Contents">
                 <p className="lesson-rail-label">Contents</p>
