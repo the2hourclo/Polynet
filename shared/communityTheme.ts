@@ -95,6 +95,10 @@ export type CommunityThemeV1 = {
   // at the top of the right column, or a stack of faces in the header that
   // opens the list. Channels lists them with the other channels either way.
   pods_place: "aside" | "header";
+  // Classroom's Community tab: "posts" (the default: post cards with the
+  // Pods card and side blocks) or "chat" (a chat timeline, opted into in
+  // Customize). Channels always shows the Wide chat (Rashid, 2026-10-27).
+  classroom_chat: "posts" | "chat";
 };
 
 export type CommunityThemeProblem = {
@@ -185,6 +189,7 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   rail_color: "polynet",
   sibling_communities: "hide",
   pods_place: "aside",
+  classroom_chat: "posts",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -228,6 +233,7 @@ const ENUMS = {
   rail_color: ["polynet", "blend", "tint", "brand"],
   sibling_communities: ["hide", "show"],
   pods_place: ["aside", "header"],
+  classroom_chat: ["posts", "chat"],
 } as const;
 
 const RANGES = {
