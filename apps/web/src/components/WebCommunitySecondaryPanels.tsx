@@ -138,7 +138,7 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
 
       {props.communityTab === "people" &&
         renderWorkspacePane(props.workflows.access
-          ? <><WebCommunityPageBack /><WebCommunityMembers key={props.workflows.access.scopeKey} gateway={props.workflows.access} /></>
+          ? <div className="pn-page-with-back"><WebCommunityPageBack /><WebCommunityMembers key={props.workflows.access.scopeKey} gateway={props.workflows.access} /></div>
           : <p role="status">Only the community's owner and admins can see members.</p>)}
 
       {props.communityTab === "funnels" &&
