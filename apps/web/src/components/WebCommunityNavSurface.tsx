@@ -1,7 +1,7 @@
 import { CommunityNav } from "../../../../shared/CommunityNav";
 import { webDestinationHasCommunityNavSelection } from "../../../../shared/webAppRouteState";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
-import { podsAwaitingPeople } from "./WebCommunityPodPanel";
+import { podsAwaitingPeople } from "./WebCommunityPods";
 
 type WebCommunityNavSurfaceProps = {
   communityShell: WebCommunityShellProps;

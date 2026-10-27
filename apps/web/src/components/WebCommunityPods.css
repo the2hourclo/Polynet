@@ -216,8 +216,10 @@
 
 .community-pods-popover-head {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.125rem 0.5rem;
   padding: 0.875rem 1rem 0.375rem;
   font-size: 0.9375rem;
 }
@@ -684,5 +686,12 @@
 }
 
 .community-pod-panel-head svg {
+  color: var(--accent-brand);
+}
+
+.community-pods-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--accent-brand);
 }

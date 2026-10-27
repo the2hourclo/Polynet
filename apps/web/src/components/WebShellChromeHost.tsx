@@ -18,7 +18,7 @@ import { useWebCommunityThemeStyle } from "../controllers/useWebCommunityThemeSt
 import { useWebCommunityLayout, useWebCommunityLayoutChoice } from "../controllers/useWebCommunityLayout";
 import { WebCommunityFrameContext, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityAside } from "./WebCommunityAside";
-import { usePodSpaces } from "./WebCommunityPods";
+import { podsAwaitingPeople, usePodSpaces } from "./WebCommunityPods";
 import { WebCommunityTopNav } from "./WebCommunityTopNav";
 import { WebCommunityOwnerBar, isCommunityOwnerPage } from "./WebCommunityOwnerBar";
 import type { AppTheme } from "../../../../shared/theme";
@@ -334,6 +334,20 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     unread: Object.fromEntries(podChannels.map((channel) => [channel.slug, Boolean(props.communityShell.communityChannelIndicators[channel.slug]?.chat)])),
     selectedSlug: selectedPodSlug,
     panelSlot: podOpenInAside ? podPanelSlot : null,
+    createPod: props.communityShell.canManageMembersActiveCommunity ? {
+      create: async (name) => {
+        const created = await props.communityShell.onCreateCommunityChannel(name, "restricted");
+        const id = (created as { id?: unknown } | null)?.id;
+        if (typeof id !== "string") return false;
+        // The new pod opens (the channel controller selects it) on Add people.
+        podsAwaitingPeople.add(id);
+        props.communityShell.onSelectCommunityTab("chat");
+        return true;
+      },
+      isCreating: props.communityShell.isCreatingCommunityChannel,
+      error: props.communityShell.communityChannelCreateError,
+      clearError: props.communityShell.clearCommunityChannelCreateError,
+    } : null,
     onOpen: (channel) => {
       props.communityShell.onSelectCommunityTab("chat");
       props.communityShell.onSelectCommunityChannel(channel);
@@ -344,7 +358,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       if (home) props.communityShell.onSelectCommunityChannel(home);
     },
   } : null;
-  const showPodsCard = Boolean(isTopCommunityNav && communityFrame.pods && communityFrame.pods.place === "aside" && podChannels.length > 0);
+  const showPodsCard = Boolean(isTopCommunityNav && communityFrame.pods && communityFrame.pods.place === "aside" && (podChannels.length > 0 || communityFrame.pods.createPod));
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
   const hasCommunityAside = podOpenInAside || communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat");

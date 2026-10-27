@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, FileText, Image as ImageIcon, Lock, Pin, Play } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import { ArrowLeft, FileText, Image as ImageIcon, Lock, Pin, Play, Plus, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -30,7 +31,14 @@ export type WebCommunityPodsFrame = {
   // Classroom: the right column's element while a pod is open. The pod panel
   // is portalled into it, so it replaces the community card and blocks.
   panelSlot: HTMLElement | null;
+  // Owners and admins: make a new pod (name first, then who's in it). Null for
+  // everyone else.
+  createPod: { create: (name: string) => Promise<boolean>; isCreating: boolean; error: string | null; clearError: () => void } | null;
 };
+
+// A pod made from "New pod" opens on Add people, so the owner picks who's in
+// it straight away (the pod panel's In this pod card reads this).
+export const podsAwaitingPeople = new Set<string>();
 
 export type PodPerson = {
   user_id: string;
@@ -219,15 +227,98 @@ export function PodList({ pods, onPicked }: { pods: WebCommunityPodsFrame; onPic
 
 /** "Your pods" at the top of the right column. */
 export function WebCommunityPodsCard({ pods }: { pods: WebCommunityPodsFrame }) {
-  if (pods.place !== "aside" || pods.pods.length === 0) return null;
+  if (pods.place !== "aside" || (pods.pods.length === 0 && !pods.createPod)) return null;
   return (
     <section className="community-aside-card community-pods-card" aria-label="Your pods">
       <div className="community-aside-card-header">
         <h2>Your pods</h2>
-        <span className="community-pods-card-note"><Lock size={12} aria-hidden="true" /> Private</span>
+        {pods.createPod ? <NewPodButton pods={pods} /> : (
+          <span className="community-pods-card-note"><Lock size={12} aria-hidden="true" /> Private</span>
+        )}
       </div>
-      <PodList pods={pods} />
+      {pods.pods.length ? <PodList pods={pods} /> : (
+        <p className="community-aside-empty">No pods yet. A pod is a private room for a few members, like a cohort or a mastermind.</p>
+      )}
     </section>
+  );
+}
+
+/** "+ New pod" for owners and admins, in Classroom's pod card, switcher and
+ *  header list. The same flow as the + beside PODS in Channels. */
+export function NewPodButton({ pods, onOpened }: { pods: WebCommunityPodsFrame; onOpened?: () => void }) {
+  const [open, setOpen] = useState(false);
+  if (!pods.createPod) return null;
+  return (
+    <>
+      <button
+        type="button"
+        className="community-aside-link community-pods-new"
+        onClick={() => {
+          pods.createPod?.clearError();
+          setOpen(true);
+          onOpened?.();
+        }}
+      >
+        <Plus size={13} aria-hidden="true" /> New pod
+      </button>
+      {open ? <NewPodDialog createPod={pods.createPod} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
+function NewPodDialog({ createPod, onClose }: { createPod: NonNullable<WebCommunityPodsFrame["createPod"]>; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !createPod.isCreating) onClose();
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [createPod.isCreating, onClose]);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = name.trim().replace(/\s+/g, " ");
+    if (!trimmed || createPod.isCreating) return;
+    if (await createPod.create(trimmed)) onClose();
+  };
+  return createPortal(
+    <div className="community-channel-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !createPod.isCreating) onClose(); }}>
+      <form className="community-channel-modal" role="dialog" aria-modal="true" aria-labelledby="community-new-pod-title" onSubmit={(event) => void submit(event)}>
+        <div className="community-channel-modal-header">
+          <div>
+            <h2 id="community-new-pod-title">New pod</h2>
+            <p>A private room. Next you pick who's in it; owners and admins always are.</p>
+          </div>
+          <button type="button" className="community-channel-modal-close" onClick={onClose} aria-label="Close new pod dialog" disabled={createPod.isCreating}>
+            <X size={18} />
+          </button>
+        </div>
+        <label className="community-channel-modal-field">
+          <span>Pod name</span>
+          <input
+            ref={inputRef}
+            value={name}
+            maxLength={48}
+            placeholder="e.g. Agency owners"
+            onChange={(event) => {
+              setName(event.target.value);
+              createPod.clearError();
+            }}
+            disabled={createPod.isCreating}
+          />
+        </label>
+        {createPod.error ? <div className="community-channel-modal-error" role="alert">{createPod.error}</div> : null}
+        <div className="community-channel-modal-actions">
+          <button type="button" onClick={onClose} disabled={createPod.isCreating}>Cancel</button>
+          <button type="submit" className="is-primary" disabled={createPod.isCreating || !name.trim()}>
+            {createPod.isCreating ? "Creating…" : "Create pod"}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   );
 }
 
@@ -240,6 +331,8 @@ export function WebCommunityPodsButton({ pods }: { pods: WebCommunityPodsFrame }
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => {
+      // A dialog opened from the list (New pod) sits outside it on the page.
+      if ((event.target as Element).closest?.(".community-channel-modal-backdrop")) return;
       if (!ref.current?.contains(event.target as Node)) setOpen(false);
     };
     const escape = (event: KeyboardEvent) => {
@@ -252,7 +345,7 @@ export function WebCommunityPodsButton({ pods }: { pods: WebCommunityPodsFrame }
       window.removeEventListener("keydown", escape);
     };
   }, [open]);
-  if (pods.pods.length === 0) return null;
+  if (pods.pods.length === 0 && !pods.createPod) return null;
   const unread = pods.pods.filter((pod) => pods.unread[pod.slug]).length;
   // One face from each of the first pods: the people a member knows best.
   const seen = new Set<string>();
@@ -282,7 +375,9 @@ export function WebCommunityPodsButton({ pods }: { pods: WebCommunityPodsFrame }
         <div className="community-pods-popover" role="dialog" aria-label="Your pods">
           <div className="community-pods-popover-head">
             <strong>Your pods</strong>
-            <span className="community-pods-card-note"><Lock size={12} aria-hidden="true" /> Only the people in each pod see it</span>
+            {pods.createPod ? <NewPodButton pods={pods} /> : (
+              <span className="community-pods-card-note"><Lock size={12} aria-hidden="true" /> Only the people in each pod see it</span>
+            )}
           </div>
           <PodList pods={pods} onPicked={() => setOpen(false)} />
         </div>

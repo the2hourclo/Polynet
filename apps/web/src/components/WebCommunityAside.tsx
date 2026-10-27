@@ -153,7 +153,7 @@ export function WebCommunityUpcomingEvents() {
 }
 
 export function WebCommunityAside({ blocks, pods }: { blocks: CommunityLayoutAsideBlock[]; pods?: WebCommunityPodsFrame | null }) {
-  const showPods = Boolean(pods && pods.place === "aside" && pods.pods.length > 0);
+  const showPods = Boolean(pods && pods.place === "aside" && (pods.pods.length > 0 || pods.createPod));
   if (blocks.length === 0 && !showPods) return null;
   return (
     <aside className="community-aside" aria-label="Community sidebar">
