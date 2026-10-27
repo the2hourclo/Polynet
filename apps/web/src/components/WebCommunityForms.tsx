@@ -73,7 +73,9 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
   useEffect(() => {
     if (!menu) return;
     const close = (event: MouseEvent) => { if (!(event.target as HTMLElement).closest(".community-form-menu")) setMenu(null); };
-    document.addEventListener("mousedown", close); return () => document.removeEventListener("mousedown", close);
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenu(null); };
+    document.addEventListener("mousedown", close); document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", escape); };
   }, [menu]);
   if (selected) return <CommunityFormEditor key={selected.key} initial={selected} gateway={gateway} leaveGuard={leaveGuard}
     draftedBy={drafted === selected.key ? agentName : undefined}
