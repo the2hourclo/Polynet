@@ -16,6 +16,7 @@ import { PostCardView } from "./CommunityPostCard";
 import { MessageLinkMedia } from "./MessageLinkMedia";
 import { PdfDocumentCard } from "./PdfDocumentCard";
 import { confirmInPage } from "./confirmInPage";
+import { useProtectedImage } from "./protectedImageStore";
 import { isPdfDocument, safeDocumentUrl } from "../../../../shared/messagePdf";
 import { groupInteractionFeed } from "./groupInteractionFeed";
 import { MemberAvatarStack, type MemberAvatarStackFace } from "./MemberAvatarStack";
@@ -815,17 +816,15 @@ function ProtectedInteractionAttachment({ attachment, onOpenImage }: {
     } catch { if (!abort.signal.aborted) setError("Attachment unavailable. Check your access and try again."); }
     finally { if (!abort.signal.aborted) setBusy(false); }
   };
-  // Images load on their own so they show as pictures, like in open channels;
+  // Images load on their own so they show as pictures, like in open channels,
+  // through the shared store (one download, also used by the pod panel);
   // other files wait for a click.
   const isImage = /^image\//.test(attachment.mime ?? "");
-  useEffect(() => {
-    if (isImage && scope?.session) void open();
-    // open() reads the current scope; rerun only when the image or session changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isImage, scope?.session, scope?.communityId, attachment.id]);
-  return url ? <InteractionAttachments attachments={[{ ...attachment, protected_download: false, url }]} onOpenImage={onOpenImage} />
-    : <div><button className="attachment-item" type="button" disabled={busy || !scope?.session} onClick={() => void open()}>
-      <span className="attachment-name">{busy ? (isImage ? "Loading image…" : "Opening…") : attachment.name}</span></button>{error ? <p role="alert">{error}</p> : null}</div>;
+  const imageUrl = useProtectedImage(isImage ? scope?.session ?? null : null, attachment.id, attachment.mime ?? null);
+  const shownUrl = isImage ? imageUrl : url;
+  return shownUrl ? <InteractionAttachments attachments={[{ ...attachment, protected_download: false, url: shownUrl }]} onOpenImage={onOpenImage} />
+    : <div><button className="attachment-item" type="button" disabled={isImage || busy || !scope?.session} onClick={() => void open()}>
+      <span className="attachment-name">{isImage ? (scope?.session ? "Loading image…" : attachment.name) : busy ? "Opening…" : attachment.name}</span></button>{error ? <p role="alert">{error}</p> : null}</div>;
 }
 
 export function InteractionAttachments(props: {

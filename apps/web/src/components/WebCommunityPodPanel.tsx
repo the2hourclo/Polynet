@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, FileText, Image as ImageIcon, Lock, Pin, Play, Plus, UserPlus, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import { listCloudCommunityEvents, saveCloudCommunityEvent, type CloudCommunityEvent } from "../../../../shared/cloudCommunityEventsGateway";
-import { downloadCloudCommunityChatAttachment } from "../../../../shared/cloudCommunityChatGateway";
+import { useProtectedImage } from "./protectedImageStore";
 import { CommunityAgentIcon, useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
@@ -205,78 +205,12 @@ function PodPeopleDialog({ podId, podName, onClose }: { podId: string; podName: 
 }
 
 // A pod's files can only be opened by its people, so images come through the
-// same checked download as in the chat rather than a public URL. One download
-// per image is shared by every card that shows it (Pinned, Files & videos).
-// In-flight downloads are shared only while some card is waiting on them: when
-// the last one unmounts (a resize, the phone panel opening) the entry goes, so
-// the next mount starts its own instead of waiting on one that may have stalled.
-const podImageDownloads = new Map<string, { promise: Promise<string>; waiting: number }>();
-const podImageReady = new Map<string, string>();
-const POD_IMAGE_TIMEOUT_MS = 45_000;
-
-function waitForPodImage(session: unknown, attachmentId: string): { promise: Promise<string>; release: () => void } {
-  let entry = podImageDownloads.get(attachmentId);
-  if (!entry) {
-    const promise = Promise.race([
-      downloadCloudCommunityChatAttachment({ session, attachmentId }),
-      new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("pod_image_timeout")), POD_IMAGE_TIMEOUT_MS)),
-    ]).then((bytes) => {
-      const next = URL.createObjectURL(bytes);
-      podImageReady.set(attachmentId, next);
-      return next;
-    });
-    const created = { promise, waiting: 0 };
-    promise.catch(() => {}).finally(() => {
-      if (podImageDownloads.get(attachmentId) === created) podImageDownloads.delete(attachmentId);
-    });
-    entry = created;
-    podImageDownloads.set(attachmentId, entry);
-  }
-  const held = entry;
-  held.waiting += 1;
-  return {
-    promise: held.promise,
-    release: () => {
-      held.waiting -= 1;
-      if (held.waiting <= 0 && podImageDownloads.get(attachmentId) === held && !podImageReady.has(attachmentId)) {
-        podImageDownloads.delete(attachmentId);
-      }
-    },
-  };
-}
-
+// same checked download as in the chat (protectedImageStore), shared with it.
 function PodImage({ attachmentId, alt }: { attachmentId: string; alt: string }) {
   // The chat's own session scope stands in where the frame has none.
   const chatScope = useContext(CommunityChannelSessionContext);
-  const frameSession = useWebCommunityFrame().session;
-  const session = frameSession ?? chatScope?.session ?? null;
-  const [url, setUrl] = useState<string | null>(() => podImageReady.get(attachmentId) ?? null);
-  useEffect(() => {
-    const ready = podImageReady.get(attachmentId);
-    // Temporary (2026-10-27): tracing the phone panel's grey images.
-    console.info("[pods] image mount", attachmentId, {
-      hasFrameSession: Boolean(frameSession), hasChatSession: Boolean(chatScope?.session),
-      ready: Boolean(ready), inFlight: podImageDownloads.has(attachmentId),
-    });
-    if (ready) {
-      setUrl(ready);
-      return;
-    }
-    setUrl(null);
-    if (!session) return;
-    let alive = true;
-    const download = waitForPodImage(session, attachmentId);
-    download.promise
-      .then((next) => {
-        console.info("[pods] image ready", attachmentId, { alive });
-        if (alive) setUrl(next);
-      })
-      .catch((error) => console.warn("[pods] image download failed", attachmentId, error));
-    return () => {
-      alive = false;
-      download.release();
-    };
-  }, [session, attachmentId]);
+  const session = useWebCommunityFrame().session ?? chatScope?.session ?? null;
+  const url = useProtectedImage(session, attachmentId);
   return url ? <img src={url} alt={alt} /> : <span className="community-pod-image-placeholder" aria-hidden="true"><ImageIcon size={18} /></span>;
 }
 
