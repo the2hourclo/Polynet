@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import schema from "./schema";
 
-const modules = import.meta.glob(["./communityPods.ts", "./communityChannelParticipants.ts", "./_generated/**/*.*s"]);
+const modules = import.meta.glob(["./communityPods.ts", "./communityEvents.ts", "./communityChannelParticipants.ts", "./_generated/**/*.*s"]);
 const set = "communityChannelParticipants:setParticipant" as any;
 const people = "communityPods:listPodPeople" as any;
 
@@ -107,4 +107,21 @@ test("members' guide channels: the member's own is theirs, everyone else's is li
   await t.run(ctx => ctx.db.patch(f.membershipId, { serviceChannelId: f.podId }));
   expect(await member.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: String(f.podId), member_spaces: [] });
   expect(await owner.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: null, member_spaces: [String(f.podId)] });
+});
+
+test("a pod's call is seen only by the pod, and only the pod's ids can be used", async () => {
+  const { f, owner, member, outsider } = await fixture();
+  await owner.mutation(set, { communityId: f.communityId, channelId: f.podId, target: { kind: "member", userId: f.memberId }, active: true });
+  const startsAt = new Date(Date.now() + 86400000).toISOString();
+  const call: any = await owner.mutation("communityEvents:saveCommunityEvent" as any, { communityId: f.communityId,
+    payload: { title: "Cohort call", starts_at: startsAt, timezone: "UTC", location_type: "online", visibility: "public", channel_id: String(f.podId) } });
+  expect(call).toMatchObject({ channel_id: String(f.podId), visibility: "members" });
+  await owner.mutation("communityEvents:saveCommunityEvent" as any, { communityId: f.communityId,
+    payload: { title: "Town hall", starts_at: startsAt, timezone: "UTC", location_type: "online" } });
+  const titles = async (who: any, extra = {}) => ((await who.query("communityEvents:listCommunityEvents" as any, { communityId: f.communityId, ...extra })) as any[]).map((row) => row.title).sort();
+  expect(await titles(member)).toEqual(["Cohort call", "Town hall"]);
+  expect(await titles(outsider)).toEqual(["Town hall"]);
+  expect(await titles(member, { channelId: f.podId })).toEqual(["Cohort call"]);
+  await expect(owner.mutation("communityEvents:saveCommunityEvent" as any, { communityId: f.communityId,
+    payload: { title: "Bad", starts_at: startsAt, timezone: "UTC", channel_id: String(f.topicId) } })).rejects.toThrow("community_event_channel_invalid");
 });

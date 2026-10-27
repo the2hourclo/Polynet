@@ -481,6 +481,7 @@ BUILDER_SETTING_OPERATIONS.push(
     fields: { event_id: "an event id from /builder/events.json to change it; leave out to create one",
       payload: "the event: title, starts_at and ends_at (ISO), timezone (IANA, e.g. Europe/London), description_md, "
         + "location_type (online, physical or tbd), location_label, url, visibility (members or public), "
+        + "channel_id (a pod's id from /builder/pods.json to make it that pod's own call, seen and reminded only to the pod; null for everyone), "
         + "recurrence_frequency (none, daily, weekly or monthly), recurrence_interval, recurrence_until (ISO), status (live or cancelled). "
         + "When changing, left-out keys keep their value" },
     required: ["payload"], effects: ["save_event"],
