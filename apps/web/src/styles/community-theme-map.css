@@ -650,6 +650,66 @@
 [data-community-theme] .community-sales-join-note {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .community-sales-edit-bar {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-sales-edit-status {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-sales-edit-switch {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-sales-edit-button {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-sales-edit-link {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-sales-edit-icon {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-sales-slide-tools {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-sales-caption-input {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-sales-gallery-add-first {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-sales-gallery-add-first strong {
+  font-size: var(--pn-type-reading);
+}
+[data-community-theme] .community-sales-gallery-add-first span {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-sales-picker {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-sales-picker-head {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-sales-picker-or {
+  font-size: var(--pn-type-meta);
+}
+[data-community-theme] .community-sales-picker-link {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .community-sales-picker-link input {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .community-sales-edit-problem {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .community-sales-text-input {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-body);
+}
+[data-community-theme] .community-sales-edit-hint {
+  font-size: var(--pn-type-label);
+}
 [data-community-theme] .community-siblings h2 {
   font-size: var(--pn-type-label);
 }
