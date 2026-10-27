@@ -14,7 +14,7 @@ import {
 } from "react";
 
 import { normalizeExternalUrl, parseEmbedUrl, StableMediaEmbedFrame } from "../../../../shared/linkEmbedUi";
-import { renderMarkdown } from "../../../../shared/markdownUi";
+import { CONTENT_MARKDOWN_OPTIONS, renderMarkdown } from "../../../../shared/markdownUi";
 import type { CommunityEmbedContext } from "../../../../shared/communityEmbedUi";
 import type { CommunityEmbedStorage } from "../../../../shared/communityEmbed";
 import { buildCommunityResourceEvidenceRef } from "../../../../shared/communityEvidenceContract";
@@ -490,9 +490,8 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     if (!shownBody) return null;
     const ids = new Set(lessonElementIds ? lessonElementIds.split(" ") : []);
     const render = (markdown: string) => renderMarkdown(ids.size ? markCommunityLessonElementBlocks(markdown, ids) : markdown, {
-      embedStandaloneMedia: true,
+      ...CONTENT_MARKDOWN_OPTIONS,
       headingLevelOffset: 1,
-      codeCards: true,
       communityEmbeds: props.communityEmbeds ?? null,
       renderLessonElement: hasLessonActivity ? (id) => ids.has(id) ? <LessonElementSlot key={id} id={id} /> : null : null,
     });

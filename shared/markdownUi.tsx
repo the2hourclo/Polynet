@@ -94,6 +94,13 @@ export type MarkdownRenderOptions = {
   codeCards?: boolean;
 };
 
+/** How owner-written content reads everywhere it shows (lessons, the welcome
+ * page and its setup cards): media plays inline and code is a card with Copy.
+ * Wrap it in CONTENT_PROSE_CLASS so it wears the same type, callouts and code
+ * colours (Rashid, 2026-10-27: "Visually, it should look consistent"). */
+export const CONTENT_MARKDOWN_OPTIONS = { embedStandaloneMedia: true, codeCards: true } as const satisfies MarkdownRenderOptions;
+export const CONTENT_PROSE_CLASS = "resource-viewer-prose";
+
 type MarkdownHeadingProps = {
   children: ReactNode;
   level: number;
