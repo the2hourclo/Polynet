@@ -133,13 +133,15 @@ export const listBuilderPods = query({
         // role "member" was invited; the owner and admins see every pod anyway.
         people.push({ user_id: String(entry.id), name: profile.display_name, role: entry.role });
       }
-      pods.push({ channel_id: String(channel._id), slug: channel.slug, name: channel.name, people, agent_in_pod: agent });
+      pods.push({ channel_id: String(channel._id), slug: channel.slug, name: channel.name, people, agent_in_pod: agent,
+        pinned_root_id: channel.pinnedRootId ? String(channel.pinnedRootId) : null });
     }
     return {
       contract: "polynet.builder_pods.v1",
       guidance: "Pods are the invite-only channels, shown in Classroom with the faces of everyone who can see them. "
         + "Start one with community.channel.create (access_mode \"restricted\"); add or remove a member with "
         + "community.channel.participant.set (target { kind: \"member\", userId }) and the agent with target { kind: \"community_agent\" }. "
+        + "Under its chat a pod shows its shelf: the pinned post (community.channel.pin) and every file and video posted in it, read from the pod's messages. "
         + "The owner and admins can see every pod. Where Classroom shows pods is the theme token pods_place "
         + "(\"aside\": top of the right column, \"header\": a faces button in the header): change it in /builder/theme.json with community.theme.save_draft, then community.theme.publish.",
       pods,
@@ -147,3 +149,79 @@ export const listBuilderPods = query({
     };
   },
 });
+
+// The pod's shelf, under its chat: every file and video shared in the pod,
+// newest first. Read from the pod's own posts, so it holds nothing a reader
+// couldn't already open in the chat; each item opens the post it came from.
+const MAX_SHELF_ROOTS = 200;
+const MAX_SHELF_ITEMS = 60;
+
+type ShelfItem = {
+  root_id: string;
+  id: string;
+  kind: "file" | "image" | "video";
+  name: string;
+  mime: string | null;
+  size: number | null;
+  image_url: string | null;
+  provider: string | null;
+  author_name: string | null;
+  created_at: string;
+};
+
+export const listPodShelf = query({
+  args: {
+    communityId: v.id("communities"),
+    channelId: v.id("communityChannels"),
+    userId: v.optional(v.id("users")),
+    authSubject: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    const actor = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId });
+    const channel = await resolveAuthorizedCommunityChannel({ ctx, communityId: args.communityId, channelId: args.channelId, actor, capability: "canRead" });
+    if (channel.accessMode !== "restricted") throw new Error("community_pod_not_found");
+    return await readPodShelf(ctx, args.communityId, channel);
+  },
+});
+
+async function readPodShelf(ctx: any, communityId: any, channel: any) {
+  const roots = await ctx.db.query("communityInteractionRoots")
+    .withIndex("by_channel_updatedAt", (q: any) => q.eq("channelId", channel._id)).order("desc").take(MAX_SHELF_ROOTS);
+  const files: ShelfItem[] = [];
+  const videos: ShelfItem[] = [];
+  const names = new Map<string, string | null>();
+  const authorName = async (root: any) => {
+    if (root.actorType === "community_agent") return null;
+    if (!root.actorUserId) return null;
+    const key = String(root.actorUserId);
+    if (!names.has(key)) names.set(key, (await resolveUserProfileDisplayProjection(ctx, root.actorUserId)).display_name ?? null);
+    return names.get(key) ?? null;
+  };
+  for (const root of roots) {
+    if (root.status !== "live" || root.communityId !== communityId) continue;
+    const base = { root_id: String(root._id), created_at: new Date(root.createdAt).toISOString() };
+    const attachments = await ctx.db.query("communityInteractionAttachments")
+      .withIndex("by_root", (q: any) => q.eq("rootId", root._id)).take(20);
+    for (const row of attachments) {
+      if (row.status !== "uploaded" || row.replyId) continue;
+      const video = row.attachmentKind === "video" || /^video\//.test(row.mimeType ?? "");
+      (video ? videos : files).push({ ...base, id: String(row._id), kind: video ? "video" : row.attachmentKind,
+        name: row.name, mime: row.mimeType ?? null, size: Math.max(0, Math.floor(Number(row.sizeBytes) || 0)),
+        image_url: null, provider: null, author_name: await authorName(root) });
+    }
+    const embeds = await ctx.db.query("communityInteractionEmbeds")
+      .withIndex("by_root", (q: any) => q.eq("rootId", root._id)).take(10);
+    for (const embed of embeds) {
+      if (embed.replyId || embed.status !== "ready" || embed.previewKind !== "video") continue;
+      videos.push({ ...base, id: String(embed._id), kind: "video", name: embed.title ?? embed.sourceUrl ?? "Video",
+        mime: null, size: null, image_url: embed.imageUrl ?? null, provider: embed.provider ?? null, author_name: await authorName(root) });
+    }
+  }
+  return {
+    pinned_root_id: channel.pinnedRootId ? String(channel.pinnedRootId) : null,
+    files: files.slice(0, MAX_SHELF_ITEMS),
+    videos: videos.slice(0, MAX_SHELF_ITEMS),
+    truncated: roots.length === MAX_SHELF_ROOTS,
+  };
+}

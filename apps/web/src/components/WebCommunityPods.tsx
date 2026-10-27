@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, FileText, Image as ImageIcon, Lock, Pin, Play } from "lucide-react";
+import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { bootstrapConvexAuthenticatedClient } from "../../../../shared/convexAuthenticatedClient";
@@ -284,5 +285,152 @@ export function WebCommunityPodRoomHead({ pods, podId }: { pods: WebCommunityPod
         </div>
       </div>
     </div>
+  );
+}
+
+// The shelf under a pod's chat: its pinned post, then every file and video
+// shared in it. A channel's own features with a pod's layout; each item opens
+// the post it came from, where the file plays or downloads as usual.
+
+type ShelfItem = {
+  root_id: string; id: string; kind: "file" | "image" | "video"; name: string; mime: string | null;
+  size: number | null; image_url: string | null; provider: string | null; author_name: string | null; created_at: string;
+};
+type Shelf = { pinned_root_id: string | null; files: ShelfItem[]; videos: ShelfItem[] };
+type ShelfTab = "pinned" | "files" | "videos";
+
+function usePodShelf(podId: string, refreshKey: string): Shelf | null {
+  const frame = useWebCommunityFrame();
+  const communityId = frame.community?.id ?? null;
+  const session = frame.session;
+  const [shelf, setShelf] = useState<Shelf | null>(null);
+  useEffect(() => {
+    if (!communityId || !session) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+        const result = await client.query(api.communityPods.listPodShelf, {
+          authSubject,
+          communityId: communityId as Id<"communities">,
+          channelId: podId as Id<"communityChannels">,
+        });
+        if (alive) setShelf(result as Shelf);
+      } catch {
+        if (alive) setShelf({ pinned_root_id: null, files: [], videos: [] });
+      }
+    })();
+    return () => { alive = false; };
+  }, [communityId, session, podId, refreshKey]);
+  return shelf;
+}
+
+function shelfSize(bytes: number | null): string {
+  if (!bytes) return "";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function shelfDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function shelfMeta(item: ShelfItem, agentName: string): string {
+  return [item.author_name ?? agentName, shelfDate(item.created_at), item.provider ?? shelfSize(item.size)].filter(Boolean).join(" · ");
+}
+
+export function WebCommunityPodShelf(props: {
+  podId: string;
+  podName: string;
+  pinnedRoot: CommunityInteractionRootBundle | null | undefined;
+  roots: CommunityInteractionRootBundle[];
+  onOpenPost: (rootId: string) => void;
+}) {
+  const agentName = useCommunityAgentName("the agent");
+  // New posts and a changed pin refresh the shelf.
+  const refreshKey = `${props.roots.length}:${props.roots[0]?.root.id ?? ""}:${props.roots[0]?.root.updated_at ?? ""}:${props.pinnedRoot?.root.id ?? ""}`;
+  const shelf = usePodShelf(props.podId, refreshKey);
+  const [tab, setTab] = useState<ShelfTab>("pinned");
+  const files = shelf?.files ?? [];
+  const videos = shelf?.videos ?? [];
+  const pinned = props.pinnedRoot ?? null;
+  const tabs: Array<{ id: ShelfTab; label: string; count: number }> = [
+    { id: "pinned", label: "Pinned", count: pinned ? 1 : 0 },
+    { id: "files", label: "Files", count: files.length },
+    { id: "videos", label: "Videos", count: videos.length },
+  ];
+  return (
+    <section className="community-pod-shelf" aria-label={`Saved in ${props.podName}`}>
+      <header className="community-pod-shelf-head">
+        <h2>Saved in this pod</h2>
+        <div className="community-pod-shelf-tabs" role="tablist">
+          {tabs.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === entry.id}
+              className={tab === entry.id ? "is-active" : undefined}
+              onClick={() => setTab(entry.id)}
+            >
+              {entry.label}{entry.count ? <span>{entry.count}</span> : null}
+            </button>
+          ))}
+        </div>
+      </header>
+      {tab === "pinned" ? (
+        pinned ? (
+          <button type="button" className="community-pod-shelf-pinned" onClick={() => props.onOpenPost(pinned.root.id)}>
+            <Pin size={16} aria-hidden="true" />
+            <span className="community-pod-shelf-pinned-text">
+              <strong>{pinned.root.title || pinned.root.content_summary || "Pinned post"}</strong>
+              {pinned.root.title && pinned.root.content_summary ? <span>{pinned.root.content_summary}</span> : null}
+            </span>
+          </button>
+        ) : (
+          <p className="community-pod-shelf-empty">Nothing pinned yet. Pin a message from its ⋯ menu and it stays here.</p>
+        )
+      ) : null}
+      {tab === "files" ? (
+        files.length ? (
+          <ul className="community-pod-shelf-files">
+            {files.map((item) => (
+              <li key={item.id}>
+                <button type="button" onClick={() => props.onOpenPost(item.root_id)}>
+                  <span className="community-pod-shelf-icon" aria-hidden="true">
+                    {item.kind === "image" ? <ImageIcon size={16} /> : <FileText size={16} />}
+                  </span>
+                  <span className="community-pod-shelf-file-text">
+                    <strong>{item.name}</strong>
+                    <span>{shelfMeta(item, agentName)}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="community-pod-shelf-empty">Files shared in this pod collect here. Add one with + in the message box.</p>
+        )
+      ) : null}
+      {tab === "videos" ? (
+        videos.length ? (
+          <ul className="community-pod-shelf-videos">
+            {videos.map((item) => (
+              <li key={item.id}>
+                <button type="button" onClick={() => props.onOpenPost(item.root_id)}>
+                  <span className="community-pod-shelf-thumb" style={item.image_url ? { backgroundImage: `url("${item.image_url.replace(/"/g, "%22")}")` } : undefined}>
+                    <Play size={18} aria-hidden="true" />
+                  </span>
+                  <strong>{item.name}</strong>
+                  <span>{shelfMeta(item, agentName)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="community-pod-shelf-empty">Videos only this pod can see collect here: upload one, or paste a YouTube or Loom link.</p>
+        )
+      ) : null}
+    </section>
   );
 }
