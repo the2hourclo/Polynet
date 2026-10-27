@@ -160,7 +160,7 @@ export function WebCommunityWorkflowsSection(
       (caught) => setTestError(testRunErrorMessage(caught)));
   };
   const milestones = props.board?.milestones ?? [];
-  // In Channels this page (Members included, which Settings links to) has a
+  // In Channels this page has a
   // way back to the community, like Settings' own menu; Classroom has its
   // owner bar (Rashid, 2026-10-27).
   const frame = useWebCommunityFrame();
