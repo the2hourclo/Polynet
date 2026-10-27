@@ -124,7 +124,7 @@ function isWebAddress(value) {
 }
 // The funnel's video rule (isSupportedCommunityFunnelVideoUrl in
 // shared/communityFunnel.ts), repeated here because this file is copied into
-// the CLI on its own. A test keeps the two in step.
+// the CLI on its own, plus Descript share links. A test keeps the two in step.
 export function isCommunityLayoutVideoUrl(raw) {
     let url;
     try {
@@ -149,6 +149,8 @@ export function isCommunityLayoutVideoUrl(raw) {
         return parts.some((part) => /^\d{6,}$/.test(part));
     if (on("loom.com"))
         return ["share", "embed"].includes(parts[0] ?? "") && Boolean(parts[1]);
+    if (host === "share.descript.com")
+        return ["view", "embed"].includes(parts[0] ?? "") && (parts[1] ?? "").length >= 6;
     if (on("wistia.com") || on("wistia.net")) {
         if (url.searchParams.get("wvideo"))
             return true;
@@ -182,7 +184,7 @@ function normalizeAboutMedia(raw, problems) {
             return;
         }
         if (kind === "video" && !isCommunityLayoutVideoUrl(url)) {
-            problems.push({ path: `${path}.url`, message: "Videos are YouTube, Vimeo, Loom or Wistia links." });
+            problems.push({ path: `${path}.url`, message: "Videos are YouTube, Vimeo, Loom, Wistia or Descript links." });
             return;
         }
         if (caption === null || caption.length > MAX_CAPTION_LENGTH) {

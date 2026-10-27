@@ -72,7 +72,7 @@ export function WebCommunitySalesGalleryEditor(props: Props) {
       setProblem("Paste a full web address, starting with https://");
       return;
     }
-    // A YouTube, Vimeo, Loom or Wistia link is a video; anything else is a picture.
+    // A YouTube, Vimeo, Loom, Wistia or Descript link is a video; anything else is a picture.
     const kind = isCommunityLayoutVideoUrl(url) ? "video" : "image";
     setProblem(null);
     if (await saveMedia([...props.media, { kind, url, caption: "" }])) setLink("");
@@ -209,7 +209,7 @@ export function WebCommunitySalesGalleryEditor(props: Props) {
                   className="pn-settings-input"
                   type="url"
                   value={link}
-                  placeholder="Paste a YouTube, Vimeo, Loom or picture link"
+                  placeholder="Paste a YouTube, Vimeo, Loom, Descript or picture link"
                   aria-label="Add a video or picture by link"
                   disabled={disabled}
                   onChange={(event) => setLink(event.target.value)}

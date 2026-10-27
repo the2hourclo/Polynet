@@ -102,7 +102,7 @@ edits in Funnels › Sales page:
 }
 ```
 
-Videos are YouTube, Vimeo, Loom or Wistia links; up to 12 slides. An empty
+Videos are YouTube, Vimeo, Loom, Wistia or Descript links; up to 12 slides. An empty
 `text` keeps the funnel copy.
 
 - `polynet init` also puts Polynet's skills in the folder, including

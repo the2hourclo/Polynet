@@ -60,7 +60,7 @@ export type CommunityLayoutV1 = {
       presentation: "page" | "funnel";
       // The sales page's media, shown as a gallery visitors click through like
       // slides: pictures (any web address, or one uploaded to Polynet) and
-      // videos (YouTube, Vimeo, Loom or Wistia links). Empty: the funnel's
+      // videos (YouTube, Vimeo, Loom, Wistia or Descript links). Empty: the funnel's
       // video, else the banner.
       media: CommunityLayoutAboutMedia[];
       // The words under the media, in Markdown. Empty: the funnel's copy, else
@@ -198,7 +198,7 @@ function isWebAddress(value: string): boolean {
 
 // The funnel's video rule (isSupportedCommunityFunnelVideoUrl in
 // shared/communityFunnel.ts), repeated here because this file is copied into
-// the CLI on its own. A test keeps the two in step.
+// the CLI on its own, plus Descript share links. A test keeps the two in step.
 export function isCommunityLayoutVideoUrl(raw: string): boolean {
   let url: URL;
   try {
@@ -217,6 +217,7 @@ export function isCommunityLayoutVideoUrl(raw: string): boolean {
   }
   if (on("vimeo.com")) return parts.some((part) => /^\d{6,}$/.test(part));
   if (on("loom.com")) return ["share", "embed"].includes(parts[0] ?? "") && Boolean(parts[1]);
+  if (host === "share.descript.com") return ["view", "embed"].includes(parts[0] ?? "") && (parts[1] ?? "").length >= 6;
   if (on("wistia.com") || on("wistia.net")) {
     if (url.searchParams.get("wvideo")) return true;
     return parts.some((part, index) => ["medias", "iframe"].includes(part) && Boolean(parts[index + 1]));
@@ -249,7 +250,7 @@ function normalizeAboutMedia(raw: unknown, problems: CommunityLayoutProblem[]): 
       return;
     }
     if (kind === "video" && !isCommunityLayoutVideoUrl(url)) {
-      problems.push({ path: `${path}.url`, message: "Videos are YouTube, Vimeo, Loom or Wistia links." });
+      problems.push({ path: `${path}.url`, message: "Videos are YouTube, Vimeo, Loom, Wistia or Descript links." });
       return;
     }
     if (caption === null || caption.length > MAX_CAPTION_LENGTH) {
