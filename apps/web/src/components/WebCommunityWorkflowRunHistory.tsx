@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronRight, CircleDot, FileText, GitBranch, Lock, Mail, PenLine, type LucideIcon } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, CircleDot, FileText, GitBranch, Lock, Mail, PenLine, Users, type LucideIcon } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CommunityMemberWorkflowAutomation, CommunityMemberWorkflowMilestone } from "../../../../shared/communityMemberWorkflow";
 import {
@@ -101,7 +101,7 @@ export function WebCommunityWorkflowRunHistory(props: Props) {
     const rule = rules.get(automationKey);
     if (rule) return capitalize(workflowActionPhrase(rule, props.names));
     return actionType === "prompt_agent" ? "Agent sent a message" : actionType === "request_form" ? "Sent a form"
-      : actionType === "set_client_property" ? "Updated the member record" : actionType === "send_email" ? "Sent an email" : actionType === "create_service_channel" ? "Opened a private room" : "A step";
+      : actionType === "set_client_property" ? "Updated the member record" : actionType === "send_email" ? "Sent an email" : actionType === "set_pod_member" ? "Changed their pods" : actionType === "create_service_channel" ? "Opened a private room" : "A step";
   };
 
   return <div className="pn-runs">

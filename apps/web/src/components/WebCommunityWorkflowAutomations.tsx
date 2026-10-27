@@ -38,6 +38,7 @@ const TRIGGERS: Array<{ name: string; options: Option[] }> = [
     { icon: ShoppingBag, label: "Starts an offer", hint: "Joins on it or upgrades to it", type: "offer_started" },
     { icon: CreditCard, label: "Leaves an offer", hint: "Downgrades or their paid time ends", type: "offer_ended" },
     { icon: UserCog, label: "Member record changes", hint: "e.g. Plan becomes Pro", type: "client_property_changed" },
+    { icon: Users, label: "Added to a pod", hint: "By you, an admin, an agent or an offer", type: "pod_member_added" },
   ] },
   { name: "Learning", options: [
     { icon: BookOpen, label: "Finishes a lesson", type: "lesson_completed" },
@@ -63,6 +64,7 @@ const ACTIONS: Record<WorkflowActionType, Option & { group: string }> = {
   send_email: { group: "Talk to them", icon: Mail, label: "Send an email", hint: "From Polynet, to their inbox" },
   request_form: { group: "Talk to them", icon: FileText, label: "Send a form" },
   set_client_property: { group: "Change things", icon: PenLine, label: "Update member record", hint: "Writes to the Members database" },
+  set_pod_member: { group: "Change things", icon: Users, label: "Add to or take out of a pod", hint: "Your invite-only channels" },
   create_service_channel: { group: "Change things", icon: Lock, label: "Open a private room", hint: "Just them, you and the agent" },
 };
 

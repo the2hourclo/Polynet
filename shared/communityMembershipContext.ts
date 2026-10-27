@@ -43,7 +43,7 @@ export type CommunityMemberSuccessMilestoneHistoryEntry = {
 type WorkflowActionProgressItem = {
   automation_key: string; action_key: string;
   label: string;
-  action_type: "prompt_agent" | "request_form" | "create_service_channel" | "set_client_property" | "send_email";
+  action_type: "prompt_agent" | "request_form" | "create_service_channel" | "set_client_property" | "send_email" | "set_pod_member";
   status: "pending" | "running" | "complete" | "failed" | "unavailable" | "waiting";
   waiting_for?: string;
   /** A lesson- or course-done property write a builder can run again. */

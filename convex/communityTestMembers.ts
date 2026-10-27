@@ -295,6 +295,7 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : a.type === "create_service_channel" ? "Open a private channel with them"
     : a.type === "prompt_agent" ? `Agent: ${String(a.prompt ?? "").slice(0, 160)}${String(a.prompt ?? "").length > 160 ? "…" : ""}`
     : a.type === "send_email" ? `Email them: ${String(a.subject ?? "")}`
+    : a.type === "set_pod_member" ? `${a.active ? "Add them to" : "Take them out of"} the ${(await nameOf(ctx, "communityChannels", a.channelId, "name")) ?? "selected"} pod`
     : a.type === "set_client_property" ? `Set ${a.propertyKey} to ${a.value === null ? "empty" : Array.isArray(a.value) ? a.value.join(", ") : String(a.value)}`
     : String(a.type ?? "action").replace(/_/g, " ");
   const predecessor = trigger.type === "previous_action_completed"
@@ -314,6 +315,7 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
     : trigger.type === "client_property_changed" ? `When ${(await propertyName(ctx, communityId, trigger.propertyKey)) ?? trigger.propertyKey} changes${trigger.value === undefined ? "" : ` to ${String(trigger.value)}`} on their record`
     : trigger.type === "offer_started" || trigger.type === "offer_ended"
       ? `When they ${trigger.type === "offer_started" ? "start" : "leave"} ${trigger.offerKey ? `the “${(await offerName(ctx, communityId, trigger.offerKey)) ?? trigger.offerKey}” offer` : "any offer"}`
+    : trigger.type === "pod_member_added" ? `When they're added to ${trigger.channelId ? `the ${(await nameOf(ctx, "communityChannels", trigger.channelId, "name")) ?? "selected"} pod` : "any pod"}`
     : "When its trigger happens";
   const condition = rule.condition;
   const clause = (c: { propertyKey: string; op: string; value?: unknown }) => c.op === "is_set" ? `${c.propertyKey} is filled in`

@@ -315,7 +315,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                     {dossier.workflow.action_progress.actions.map(action => <li key={action.automation_key} tabIndex={-1}
                       ref={(node) => { if (node) actionRows.current.set(action.automation_key, node); else actionRows.current.delete(action.automation_key); }}>
                       <div><strong>{action.label}</strong>
-                        <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : action.action_type === "set_client_property" ? "Done" : action.action_type === "send_email" ? "Sent" : "Channel ready"
+                        <span>{action.status === "complete" ? action.action_type === "request_form" ? "Form submitted" : action.action_type === "prompt_agent" ? "Response delivered" : action.action_type === "set_client_property" || action.action_type === "set_pod_member" ? "Done" : action.action_type === "send_email" ? "Sent" : "Channel ready"
                           : action.status === "pending" ? action.action_type === "request_form" ? "Awaiting submission" : "Queued"
                           : action.status === "waiting" ? `Waiting for ${action.waiting_for ?? "previous action"}`
                           : action.retryable && action.status === "unavailable" ? "Changed since it ran"

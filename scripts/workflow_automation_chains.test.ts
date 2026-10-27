@@ -23,5 +23,5 @@ it("switching triggers keeps a compatible action and offers only allowed actions
   expect(applyWorkflowTriggerType(draft, "form_submitted", [])?.action.type).toBe("prompt_agent");
   expect(applyWorkflowTriggerType(draft, "previous_action_completed", [])).toBeNull();
   expect(workflowActionChoices("member_joined")).toEqual(["create_service_channel", "request_form"]);
-  expect(workflowActionChoices("form_submitted")).toEqual(["prompt_agent", "send_email", "set_client_property"]);
+  expect(workflowActionChoices("form_submitted")).toEqual(["prompt_agent", "send_email", "set_client_property", "set_pod_member"]);
 });

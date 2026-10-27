@@ -360,6 +360,7 @@ async function readTimeline(ctx: any, args: any) {
       : action.type === "send_email" ? code === "email_opted_out" ? `Workflow skipped an email (they unsubscribed): ${action.subject}`
         : code === "email_previewed" ? `Workflow previewed an email (Autoplay, not sent): ${action.subject}`
         : code === "email_not_sent" ? `Workflow couldn't email them (no verified address): ${action.subject}` : `Workflow sent an email: ${action.subject}`
+      : action.type === "set_pod_member" ? action.active ? "Workflow added them to a pod" : "Workflow took them out of a pod"
       : action.type === "create_service_channel" ? "Workflow opened a private channel"
       : action.type === "prompt_agent" ? row.actionResult?.resultCode === "agent_previewed"
         ? "Workflow previewed an agent message (Autoplay, not sent)" : "Workflow asked the agent to act"
