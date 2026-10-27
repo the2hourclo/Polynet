@@ -166,8 +166,9 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   font-family: var(--pn-font-body, inherit);
 }
 .product-shell-surface[data-channels-feel] > .community-nav .community-channel-list::before {
-  content: "Channels";
-  margin-top: 0.5rem;
+  /* The list draws its own Channels label, with its + (CommunityNav). */
+  content: none;
+  display: none;
 }
 .product-shell-surface[data-channels-feel] > .community-nav .community-channel-list + .community-nav-divider::before {
   content: "Community";

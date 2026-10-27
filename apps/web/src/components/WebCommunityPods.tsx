@@ -98,7 +98,7 @@ export function usePodSpaces(communityId: string | null, session: WebCommunityFr
 }
 
 /** Who can see each pod, refreshed while the pods are on screen. */
-export function usePodPeople(podIds: string[]): Record<string, PodPeople> {
+export function usePodPeople(podIds: string[], refreshKey = 0): Record<string, PodPeople> {
   const frame = useWebCommunityFrame();
   const communityId = frame.community?.id ?? null;
   const session = frame.session;
@@ -132,7 +132,7 @@ export function usePodPeople(podIds: string[]): Record<string, PodPeople> {
       alive = false;
       window.clearInterval(timer);
     };
-  }, [communityId, session, key]);
+  }, [communityId, session, key, refreshKey]);
   return people;
 }
 
