@@ -85,6 +85,7 @@ import type * as communityEvidenceCitations from "../communityEvidenceCitations.
 import type * as communityEvidenceCore from "../communityEvidenceCore.js";
 import type * as communityFeatured from "../communityFeatured.js";
 import type * as communityFormEvidenceCore from "../communityFormEvidenceCore.js";
+import type * as communityFormDrafts from "../communityFormDrafts.js";
 import type * as communityFormRequestCore from "../communityFormRequestCore.js";
 import type * as communityFormRequests from "../communityFormRequests.js";
 import type * as communityFormValidators from "../communityFormValidators.js";
@@ -165,6 +166,7 @@ import type * as communityWikiArchitect from "../communityWikiArchitect.js";
 import type * as communityWorkflowAssessmentCore from "../communityWorkflowAssessmentCore.js";
 import type * as communityWorkflowCompletionCore from "../communityWorkflowCompletionCore.js";
 import type * as communityWorkflowGoalReviewCore from "../communityWorkflowGoalReviewCore.js";
+import type * as communityWorkflowGuideChannels from "../communityWorkflowGuideChannels.js";
 import type * as communityWorkflowRunHistory from "../communityWorkflowRunHistory.js";
 import type * as composioConnectionAdapter from "../composioConnectionAdapter.js";
 import type * as creatorCommerce from "../creatorCommerce.js";
@@ -366,6 +368,7 @@ declare const fullApi: ApiFromModules<{
   communityEvidenceCore: typeof communityEvidenceCore;
   communityFeatured: typeof communityFeatured;
   communityFormEvidenceCore: typeof communityFormEvidenceCore;
+  communityFormDrafts: typeof communityFormDrafts;
   communityFormRequestCore: typeof communityFormRequestCore;
   communityFormRequests: typeof communityFormRequests;
   communityFormValidators: typeof communityFormValidators;
@@ -446,6 +449,7 @@ declare const fullApi: ApiFromModules<{
   communityWorkflowAssessmentCore: typeof communityWorkflowAssessmentCore;
   communityWorkflowCompletionCore: typeof communityWorkflowCompletionCore;
   communityWorkflowGoalReviewCore: typeof communityWorkflowGoalReviewCore;
+  communityWorkflowGuideChannels: typeof communityWorkflowGuideChannels;
   communityWorkflowRunHistory: typeof communityWorkflowRunHistory;
   composioConnectionAdapter: typeof composioConnectionAdapter;
   creatorCommerce: typeof creatorCommerce;

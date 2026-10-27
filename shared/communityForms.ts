@@ -11,8 +11,15 @@ export type CommunityFormQuestion = {
   answerFormat?: "number" | "date" | "url";
 };
 export type CommunityFormContent = { name: string; questions: CommunityFormQuestion[] };
+/** Where a form is used: an automation that sends it or starts when it's sent back, or the Welcome page. */
+export type CommunityFormUse =
+  | { kind: "automation"; stageKey: string; stageName: string; automationKey: string; role: "sends" | "starts"; paused: boolean }
+  | { kind: "welcome_page" };
 export type CommunityFormDraft = CommunityFormContent & {
   key: string; revision: number; publishedRevision: number | null;
+  /** From the list read: empty means nothing uses it, so it can be deleted. */
+  usedIn?: CommunityFormUse[];
+  deletedAt?: number;
 };
 export const COMMUNITY_FORM_MAX_QUESTIONS = 30;
 export const COMMUNITY_FORM_MAX_FORMS = 30;

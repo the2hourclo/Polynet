@@ -47,8 +47,38 @@ export async function ensureCloudCommunitySelectProperty(session: unknown, commu
   }
   throw new Error("client_property_name_taken");
 }
+export async function listDeletedCloudCommunityForms(session: unknown, communityId: string): Promise<CommunityFormDraft[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.query(api.communityForms.listDeletedBuilderForms, { authSubject, communityId: communityId as Id<"communities"> });
+}
+export async function reorderCloudCommunityForms(session: unknown, communityId: string, keys: string[]) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.mutation(api.communityForms.reorderBuilderForms, { authSubject, communityId: communityId as Id<"communities">, keys });
+}
+export async function deleteCloudCommunityForm(session: unknown, communityId: string, key: string) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.mutation(api.communityForms.deleteBuilderForm, { authSubject, communityId: communityId as Id<"communities">, key });
+}
+export async function restoreCloudCommunityForm(session: unknown, communityId: string, key: string) {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.mutation(api.communityForms.restoreBuilderForm, { authSubject, communityId: communityId as Id<"communities">, key });
+}
 export async function publishCloudCommunityForm(session: unknown, communityId: string, form: CommunityFormDraft): Promise<CommunityFormDraft> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.mutation(api.communityForms.publishBuilderForm, { authSubject, communityId: communityId as Id<"communities">,
     key: form.key, expectedRevision: form.revision });
+}
+/** The Builder writes a form from a brief. Returns an unsaved draft for review. */
+export async function draftCloudCommunityFormWithAgent(session: unknown, communityId: string, brief: string): Promise<{ name: string; questions: CommunityFormDraft["questions"] }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.action(api.communityFormDrafts.draftBuilderFormWithAgent, { authSubject, communityId: communityId as Id<"communities">, brief });
+}
+export async function loadCloudCommunityFormDraftAgentName(session: unknown, communityId: string): Promise<string> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.query(api.communityFormDrafts.formDraftAgentName, { authSubject, communityId: communityId as Id<"communities"> });
+}
+/** Members' guide channels, which the pod picker leaves out. */
+export async function listCloudWorkflowGuideChannelIds(session: unknown, communityId: string): Promise<string[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.query(api.communityWorkflowGuideChannels.listWorkflowGuideChannelIds, { authSubject, communityId: communityId as Id<"communities"> });
 }

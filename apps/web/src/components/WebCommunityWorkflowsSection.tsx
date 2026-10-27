@@ -247,6 +247,7 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
     (props.forms?.clientProperties?.() ?? Promise.resolve([])).then(properties => { if (alive) setCatalog(c => ({ ...c, properties })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, properties: [] })); });
     (props.onLoadTrackOptions?.() ?? Promise.resolve([])).then(tracks => { if (alive) setCatalog(c => ({ ...c, tracks })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, tracks: [] })); });
     (props.onLoadOfferOptions?.() ?? Promise.resolve([])).then(offers => { if (alive) setCatalog(c => ({ ...c, offers })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, offers: [] })); });
+    (props.forms?.guideChannelIds?.() ?? Promise.resolve([])).then(guideChannelIds => { if (alive) setCatalog(c => ({ ...c, guideChannelIds })); }).catch(() => { if (alive) setCatalog(c => ({ ...c, guideChannelIds: [] })); });
     return () => { alive = false; };
   }, [props.forms, props.onLoadWelcomeLessonOptions, props.onLoadTrackOptions, props.onLoadOfferOptions]);
   const [editingMilestoneKey, setEditingMilestoneKey] = useState<string | null>(null);

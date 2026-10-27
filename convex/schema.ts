@@ -86,6 +86,10 @@ export default defineSchema({
     communityId: v.id("communities"), key: v.string(), name: v.string(),
     questions: v.array(communityFormQuestionValidator), revision: v.number(),
     publishedRevision: v.optional(v.number()), createdAt: v.number(), updatedAt: v.number(),
+    /** Order in the Forms list and every form picker; absent sorts by creation. */
+    position: v.optional(v.number()),
+    /** Deleted from the list but kept, so past answers still read; restorable. */
+    deletedAt: v.optional(v.number()),
   }).index("by_community_key", ["communityId", "key"]),
   communityFormVersions: defineTable({
     communityId: v.id("communities"), formId: v.id("communityForms"), revision: v.number(),

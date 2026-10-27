@@ -45,7 +45,7 @@ export async function assignWorkflowForm(args: any) {
   await requireCommunityChatAccess({ ctx, communityId: workflow.communityId, userId: membership.userId, allowWelcome: true });
   const form = await ctx.db.query("communityForms").withIndex("by_community_key", (q: any) => q
     .eq("communityId", workflow.communityId).eq("key", automation.action.formKey)).unique();
-  if (!form?.publishedRevision) throw new Error("form_not_published");
+  if (!form?.publishedRevision || form.deletedAt) throw new Error("form_not_published");
   const version = await ctx.db.query("communityFormVersions").withIndex("by_form_revision", (q: any) => q
     .eq("formId", form._id).eq("revision", form.publishedRevision)).unique();
   if (!version) throw new Error("form_version_missing");

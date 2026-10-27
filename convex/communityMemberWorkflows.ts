@@ -1,3 +1,4 @@
+import { workflowGuideChannelIds } from "./communityWorkflowGuideChannels";
 import { listMemberVisibleLessonPages, readProgressRows } from "./communityResourceProgress";
 import { communityTracksFinishedByLesson } from "./communityLessonTracks";
 import { COMMUNITY_MAIN_TRACK_KEY } from "../shared/communityLessonTracks";
@@ -517,15 +518,19 @@ export const updateBuilderWorkflowMilestone = mutation({
         throw new Error("community_member_workflow_channel_unavailable");
       }
     }
-    // A pod is an invite-only channel in this community; the general channel never is.
-    for (const rawChannelId of new Set(everyRule.flatMap((automation) => [
+    // A pod is an invite-only channel in this community; the general channel and
+    // members' guide channels never are.
+    const podChannelIds = new Set(everyRule.flatMap((automation) => [
       ...(automation.action.type === "set_pod_member" ? [automation.action.channelId] : []),
       ...(automation.trigger.type === "pod_member_added" && automation.trigger.channelId ? [automation.trigger.channelId] : []),
-    ]))) {
+    ]));
+    const guideChannelIds = podChannelIds.size ? await workflowGuideChannelIds(ctx, args.communityId) : new Set<string>();
+    for (const rawChannelId of podChannelIds) {
       const channelId = ctx.db.normalizeId("communityChannels", rawChannelId);
       const channel = channelId ? await ctx.db.get(channelId) : null;
       if (!channel || channel.communityId !== args.communityId || channel.status !== "active"
-        || channel.accessMode !== "restricted" || channel.systemRole === "general") throw new Error("workflow_pod_unavailable");
+        || channel.accessMode !== "restricted" || channel.systemRole === "general"
+        || guideChannelIds.has(String(channelId))) throw new Error("workflow_pod_unavailable");
     }
     for (const automation of everyRule) {
       // The property must exist and the value must fit it now; the run checks
@@ -574,7 +579,7 @@ export const updateBuilderWorkflowMilestone = mutation({
       ...(a.trigger.type === "form_submitted" ? [a.trigger.formKey] : []),
     ]))) {
       const form = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", formKey)).unique();
-      if (!form?.publishedRevision) throw new Error("form_not_published");
+      if (!form?.publishedRevision || form.deletedAt) throw new Error("form_not_published");
     }
     if (JSON.stringify(current) === JSON.stringify(milestone)) {
       return {
@@ -731,7 +736,7 @@ async function saveWelcomePage(ctx: MutationCtx, userId: Id<"users">, args: {
     if (JSON.stringify([...current].sort()) !== JSON.stringify([...wanted].sort())) {
       for (const formKey of wanted.filter(key => !current.includes(key))) {
         const form = await ctx.db.query("communityForms").withIndex("by_community_key", q => q.eq("communityId", args.communityId).eq("key", formKey)).unique();
-        if (!form?.publishedRevision) throw new Error("form_not_published");
+        if (!form?.publishedRevision || form.deletedAt) throw new Error("form_not_published");
       }
       const drafts = [
         ...first.automations.filter(a => !isJoinForm(a) || wanted.includes(joinFormKey(a))),
@@ -1886,6 +1891,8 @@ export const handlePodMemberAddedInternal = internalMutation({
     if (current.completedAt) return { status: "workflow_completed" as const };
     const matches = (current.milestone as CommunityMemberWorkflowMilestone).automations.filter(a => a.trigger.type === "pod_member_added"
       && (!a.trigger.channelId || a.trigger.channelId === String(args.channelId)));
+    // Opening someone's guide channel adds them to it; that isn't joining a pod.
+    if (matches.length && (await workflowGuideChannelIds(ctx, args.communityId)).has(String(args.channelId))) return { status: "guide_channel" as const };
     const results = [];
     for (const automation of matches) {
       const receipt = `pod_member_added:${args.channelId}:${membership._id}:${args.activationSequence}:${args.at}`;
