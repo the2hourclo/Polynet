@@ -13962,3 +13962,19 @@ button.chat-reply-quote:hover {
 .pn-page-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pn-page-back:hover { background: var(--hover-overlay); color: var(--text-primary); }
 .pn-page-back:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
+
+/* Video chapters (Rashid, 2026-10-27): in the right panel, each timestamp
+   plays the lesson's video from there; the same lines in the lesson do too. */
+.lesson-chapter-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.lesson-chapter-list button {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.625rem; align-items: baseline;
+  width: 100%; padding: 0.375rem 0.5rem; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.875rem;
+  text-align: left; cursor: pointer;
+}
+.lesson-chapter-list button:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); color: var(--text-primary); }
+.lesson-chapter-list button:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
+.lesson-chapter-time { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent-primary, var(--text-primary)); }
+.lesson-chapter-label { overflow-wrap: anywhere; }
+.resource-viewer-prose .lesson-chapter-line { cursor: pointer; border-radius: 6px; }
+.resource-viewer-prose .lesson-chapter-line:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
