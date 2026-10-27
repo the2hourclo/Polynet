@@ -292,7 +292,7 @@ async function describeRule(ctx: any, communityId: any, rules: any[], rule: any,
   const action = rule.action;
   const actionText = async (a: any): Promise<string> =>
     a.type === "request_form" ? `Send the ${await formName(a.formKey)} form`
-    : a.type === "create_service_channel" ? "Open a private channel with them"
+    : a.type === "create_service_channel" ? "Create a personal pod for them"
     : a.type === "prompt_agent" ? `Agent: ${String(a.prompt ?? "").slice(0, 160)}${String(a.prompt ?? "").length > 160 ? "…" : ""}`
     : a.type === "send_email" ? `Email them: ${String(a.subject ?? "")}`
     : a.type === "set_pod_member" ? `${a.active ? "Add them to" : "Take them out of"} the ${(await nameOf(ctx, "communityChannels", a.channelId, "name")) ?? "selected"} pod`

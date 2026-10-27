@@ -61,12 +61,12 @@ const TRIGGERS: Array<{ name: string; options: Option[] }> = [
 ];
 
 const ACTIONS: Record<WorkflowActionType, Option & { group: string }> = {
-  prompt_agent: { group: "Talk to them", icon: Bot, label: "Agent sends a message", hint: "In their private room" },
+  prompt_agent: { group: "Talk to them", icon: Bot, label: "Agent sends a message", hint: "In their personal pod" },
   send_email: { group: "Talk to them", icon: Mail, label: "Send an email", hint: "From Polynet, to their inbox" },
   request_form: { group: "Talk to them", icon: FileText, label: "Send a form" },
   set_client_property: { group: "Change things", icon: PenLine, label: "Update member record", hint: "Writes to the Members database" },
   set_pod_member: { group: "Change things", icon: Users, label: "Add to or take out of a pod", hint: "Your invite-only channels" },
-  create_service_channel: { group: "Change things", icon: Lock, label: "Open a private room", hint: "Just them, you and the agent" },
+  create_service_channel: { group: "Change things", icon: Lock, label: "Create a personal pod for this member", hint: "Just them, you and the agent" },
 };
 
 function optionMatches(option: Option, rule: WorkflowAutomationDraft): boolean {
@@ -226,7 +226,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       if (rule.action.type === "prompt_agent" && !rule.action.prompt.trim()) return "An agent step needs instructions";
     }
     const joins = list.filter((rule) => rule.trigger.type === "member_joined").map((rule) => rule.action.type === "request_form" ? `form:${rule.action.formKey}` : rule.action.type);
-    if (new Set(joins).size !== joins.length) return "Use one private room and one request per form when someone joins";
+    if (new Set(joins).size !== joins.length) return "Use one personal pod and one request per form when someone joins";
     return null;
   };
   const saveAll = async () => {

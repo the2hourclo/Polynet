@@ -31,7 +31,7 @@ function workflowActivityLabel(
 ): string {
   if (activity.action_type === "request_form") return `Form · ${readableLabel(activity.status)}`;
   if (activity.action_type === "evaluate_goal") return `${activity.milestone_name} · Goal evaluation · ${activity.status === "responded" ? "Assessed" : readableLabel(activity.status)}`;
-  if (activity.action_type === "create_service_channel") return `Private channel setup · ${readableLabel(activity.status)}`;
+  if (activity.action_type === "create_service_channel") return `Personal pod setup · ${readableLabel(activity.status)}`;
   if (activity.status === "requirement_satisfied") return `Requirement satisfied in ${activity.milestone_name}`;
   if (activity.status === "unavailable") {
     return `${activity.action_type === "prompt_agent" ? "Community agent" : "Stage move"} · Status unavailable`;

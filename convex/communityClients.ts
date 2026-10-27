@@ -361,7 +361,7 @@ async function readTimeline(ctx: any, args: any) {
         : code === "email_previewed" ? `Workflow previewed an email (Autoplay, not sent): ${action.subject}`
         : code === "email_not_sent" ? `Workflow couldn't email them (no verified address): ${action.subject}` : `Workflow sent an email: ${action.subject}`
       : action.type === "set_pod_member" ? action.active ? "Workflow added them to a pod" : "Workflow took them out of a pod"
-      : action.type === "create_service_channel" ? "Workflow opened a private channel"
+      : action.type === "create_service_channel" ? "Workflow created their personal pod"
       : action.type === "prompt_agent" ? row.actionResult?.resultCode === "agent_previewed"
         ? "Workflow previewed an agent message (Autoplay, not sent)" : "Workflow asked the agent to act"
       : `Workflow ran ${String(action.type ?? "an action").replace(/_/g, " ")}`;

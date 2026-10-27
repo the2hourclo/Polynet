@@ -61,7 +61,7 @@ export async function readCompletionReviewSnapshot(ctx: any, workflow: any, memb
   for (const action of progress.actions) {
     const proof = action.evidence!;
     facts.push({ ref: `action:${proof.run_id}:${proof.source_id}`, action: action.action_type,
-      statement: action.action_type === "create_service_channel" ? "The member's private channel was created."
+      statement: action.action_type === "create_service_channel" ? "The member's personal pod was created."
         : action.action_type === "request_form" ? "The member submitted the requested form."
         : action.action_type === "set_client_property" ? `The member finished what this rule waits for (${action.label}).`
         : "An agent response was delivered. This establishes delivery only, not the claimed outcome.", ...proof });

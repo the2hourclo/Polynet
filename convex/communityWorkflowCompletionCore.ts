@@ -63,7 +63,7 @@ export async function readWorkflowActionProgress(ctx: QueryCtx, args: {
         : rule.action.type === "prompt_agent" ? `Ask agent: ${rule.action.prompt.slice(0, 120)}${rule.action.prompt.length > 120 ? "…" : ""}`
         : rule.action.type === "send_email" ? `Email: ${rule.action.subject}`
         : rule.action.type === "set_pod_member" ? rule.action.active ? "Add to a pod" : "Take out of a pod"
-        : propertyKey ? `${finished}, then set ${property?.name ?? propertyKey}` : "Create private channel",
+        : propertyKey ? `${finished}, then set ${property?.name ?? propertyKey}` : "Create a personal pod for this member",
       status: "unavailable", evidence: null,
     };
     let seen = false;

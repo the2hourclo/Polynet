@@ -15,7 +15,7 @@ export type WorkflowCatalog = {
   tracks?: Array<{ key: string; title: string }> | null;
   /** Settings › Offers; missing until loaded. */
   offers?: Array<{ key: string; name: string }> | null;
-  /** Members' guide channels: invite-only, but not pods. */
+  /** Members' personal pods, listed after the group pods. */
   guideChannelIds?: string[] | null;
 };
 
@@ -246,9 +246,13 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const setRecord = (key: string, value?: string | number | boolean) => props.onChange({ ...automation,
     trigger: { type: "client_property_changed", propertyKey: key, ...(value === undefined || value === "" ? {} : { value }) } });
   const isOffer = automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended";
-  // Pods are the invite-only channels; the general channel and members' guide channels never are.
-  const pods = props.channels.filter((channel) => channel.access_mode === "restricted" && !channel.is_general
-    && !props.catalog?.guideChannelIds?.includes(channel.id));
+  // Pods are the invite-only channels; the general channel never is one. Members'
+  // personal pods come after the group pods.
+  const allPods = props.channels.filter((channel) => channel.access_mode === "restricted" && !channel.is_general);
+  const isPersonal = (channel: { id: string }) => Boolean(props.catalog?.guideChannelIds?.includes(channel.id));
+  const pods = [...allPods.filter((pod) => !isPersonal(pod)), ...allPods.filter(isPersonal)];
+  const podOptions = <>{pods.filter((pod) => !isPersonal(pod)).map((pod) => <option key={pod.id} value={pod.id}>{pod.name}</option>)}
+    {pods.some(isPersonal) ? <optgroup label="Personal pods">{pods.filter(isPersonal).map((pod) => <option key={pod.id} value={pod.id}>{pod.name}</option>)}</optgroup> : null}</>;
   const isPodTrigger = automation.trigger.type === "pod_member_added";
   const podTriggerId = automation.trigger.type === "pod_member_added" ? automation.trigger.channelId : undefined;
   const podName = (podId: string | undefined, any: string) => podId ? pods.find((pod) => pod.id === podId)?.name ?? "Unavailable pod" : any;
@@ -285,7 +289,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
     : automation.action.type === "send_email" ? "Send an email"
     : automation.action.type === "set_pod_member" ? `${automation.action.active ? "Add to" : "Take out of"} ${podName(automation.action.channelId, "a pod")}`
-    : automation.action.type === "create_service_channel" ? "Create private channel" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
+    : automation.action.type === "create_service_channel" ? "Create a personal pod for this member" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
 
   return (
     <div className="workflow-milestone-automation-row" data-automation-key={automation.key}>
@@ -410,7 +414,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
                 onChange={e => props.onChange({ ...automation, trigger: { type: "pod_member_added", ...(e.target.value ? { channelId: e.target.value } : {}) } })}>
                 <option value="">Any pod</option>
                 {podTriggerId && !pods.some((pod) => pod.id === podTriggerId) ? <option value={podTriggerId}>Unavailable pod</option> : null}
-                {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.name}</option>)}
+                {podOptions}
               </select><small>Runs when you, an admin, an agent or an offer adds them. A pod step in a workflow never sets it off. It never holds anyone's stage.</small></label>
             : automation.trigger.type === "form_submitted" ? <label>Form<select value={automation.trigger.formKey} disabled={props.disabled} onChange={e => props.onChange({ ...automation, trigger: { type: "form_submitted", formKey: e.target.value } })}><option value="">Choose a published form</option>{props.forms?.map(f => <option key={f.key} value={f.key}>{f.name}</option>)}</select></label> : isArrival ? <div className="workflow-automation-field">
             <small className="workflow-field-hint">Runs the moment someone reaches this stage, once per visit. To wait first, pick "After some time in this stage".</small>
@@ -451,7 +455,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               props.creation?.onActionSelected();
             }}>
               <option value="" disabled>Choose an action</option>
-              {isJoin ? <option value="create_service_channel">Create private channel</option> : <option value="prompt_agent">Ask community agent</option>}
+              {isJoin ? <option value="create_service_channel">Create a personal pod for this member</option> : <option value="prompt_agent">Ask community agent</option>}
               {!isForm ? <option value="request_form">Request form</option> : null}
               {!isJoin ? <option value="send_email">Send an email</option> : null}
               {!isJoin ? <option value="set_client_property">Set client property</option> : null}
@@ -476,7 +480,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               onChange={e => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "set_pod_member" }>), channelId: e.target.value } })}>
               <option value="">{pods.length ? "Choose a pod" : "No pods yet"}</option>
               {automation.action.channelId && !pods.some((pod) => pod.id === (automation.action as { channelId: string }).channelId) ? <option value={automation.action.channelId}>Unavailable pod</option> : null}
-              {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.name}</option>)}
+              {podOptions}
             </select></label>
             <label>What happens<select value={automation.action.active ? "add" : "remove"} disabled={props.disabled}
               onChange={e => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "set_pod_member" }>), active: e.target.value === "add" } })}>

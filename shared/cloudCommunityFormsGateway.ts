@@ -77,7 +77,7 @@ export async function loadCloudCommunityFormDraftAgentName(session: unknown, com
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.query(api.communityFormDrafts.formDraftAgentName, { authSubject, communityId: communityId as Id<"communities"> });
 }
-/** Members' guide channels, which the pod picker leaves out. */
+/** Members' personal pods, which pod pickers list after the group pods. */
 export async function listCloudWorkflowGuideChannelIds(session: unknown, communityId: string): Promise<string[]> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.query(api.communityWorkflowGuideChannels.listWorkflowGuideChannelIds, { authSubject, communityId: communityId as Id<"communities"> });
