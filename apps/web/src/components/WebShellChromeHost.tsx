@@ -154,6 +154,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     memberCount: props.communityShell.activeCommunityMemberCount,
     session: props.memberSession ?? null,
     canInvite: props.communityShell.canViewMembersActiveCommunity,
+    canEditSalesPage: Boolean(props.communityShell.canManageMembersActiveCommunity),
     onSelectTab: props.communityShell.onSelectCommunityTab,
     onCopyJoinLink: props.communityShell.onCopyCommunityJoinLink,
     postSearch,
@@ -365,11 +366,18 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       </div>
     ) : unthemedMainSurface;
   // With the top tab bar the page sits under it, beside the layout's aside.
-  const mainSurface = isTopCommunityNav ? (
+  const topBody = isTopCommunityNav ? (
     <div className={`community-top-body${hasCommunityAside ? " has-aside" : ""}${isTopOwnerPage ? " is-owner-page" : ""}`}>
       <div className="community-top-main">{themedMainSurface}</div>
       {hasCommunityAside ? <WebCommunityAside blocks={communityAsideBlocks} pods={communityFrame.pods} /> : null}
     </div>
+  ) : null;
+  // The posts page scrolls as one page, so its scrollbar sits at the window's
+  // right edge instead of between the posts and the aside.
+  const isPostsPageScroll =
+    isTopCommunityNav && activeCommunityTab === "chat" && communityLayout.pages.chat.presentation === "posts";
+  const mainSurface = isTopCommunityNav ? (
+    isPostsPageScroll ? <div className="community-top-scroll">{topBody}</div> : topBody
   ) : channelsFeelAttribute === "publication" ? (
     <div className="channels-feel-body">
       <WebChannelsFeelMasthead tab={activeCommunityTab} home={communityLayout.navigation.home} />
