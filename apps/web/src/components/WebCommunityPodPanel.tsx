@@ -207,22 +207,42 @@ function PodPeopleDialog({ podId, podName, onClose }: { podId: string; podName: 
 // A pod's files can only be opened by its people, so images come through the
 // same checked download as in the chat rather than a public URL. One download
 // per image is shared by every card that shows it (Pinned, Files & videos).
-const podImageUrls = new Map<string, Promise<string>>();
+// In-flight downloads are shared only while some card is waiting on them: when
+// the last one unmounts (a resize, the phone panel opening) the entry goes, so
+// the next mount starts its own instead of waiting on one that may have stalled.
+const podImageDownloads = new Map<string, { promise: Promise<string>; waiting: number }>();
 const podImageReady = new Map<string, string>();
+const POD_IMAGE_TIMEOUT_MS = 45_000;
 
-function podImageUrl(session: unknown, attachmentId: string): Promise<string> {
-  let url = podImageUrls.get(attachmentId);
-  if (!url) {
-    url = downloadCloudCommunityChatAttachment({ session, attachmentId })
-      .then((bytes) => {
-        const next = URL.createObjectURL(bytes);
-        podImageReady.set(attachmentId, next);
-        return next;
-      });
-    url.catch(() => podImageUrls.delete(attachmentId));
-    podImageUrls.set(attachmentId, url);
+function waitForPodImage(session: unknown, attachmentId: string): { promise: Promise<string>; release: () => void } {
+  let entry = podImageDownloads.get(attachmentId);
+  if (!entry) {
+    const promise = Promise.race([
+      downloadCloudCommunityChatAttachment({ session, attachmentId }),
+      new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("pod_image_timeout")), POD_IMAGE_TIMEOUT_MS)),
+    ]).then((bytes) => {
+      const next = URL.createObjectURL(bytes);
+      podImageReady.set(attachmentId, next);
+      return next;
+    });
+    const created = { promise, waiting: 0 };
+    promise.catch(() => {}).finally(() => {
+      if (podImageDownloads.get(attachmentId) === created) podImageDownloads.delete(attachmentId);
+    });
+    entry = created;
+    podImageDownloads.set(attachmentId, entry);
   }
-  return url;
+  const held = entry;
+  held.waiting += 1;
+  return {
+    promise: held.promise,
+    release: () => {
+      held.waiting -= 1;
+      if (held.waiting <= 0 && podImageDownloads.get(attachmentId) === held && !podImageReady.has(attachmentId)) {
+        podImageDownloads.delete(attachmentId);
+      }
+    },
+  };
 }
 
 function PodImage({ attachmentId, alt }: { attachmentId: string; alt: string }) {
@@ -236,12 +256,17 @@ function PodImage({ attachmentId, alt }: { attachmentId: string; alt: string }) 
       setUrl(ready);
       return;
     }
+    setUrl(null);
     if (!session) return;
     let alive = true;
-    podImageUrl(session, attachmentId)
+    const download = waitForPodImage(session, attachmentId);
+    download.promise
       .then((next) => { if (alive) setUrl(next); })
       .catch((error) => console.warn("[pods] image download failed", attachmentId, error));
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+      download.release();
+    };
   }, [session, attachmentId]);
   return url ? <img src={url} alt={alt} /> : <span className="community-pod-image-placeholder" aria-hidden="true"><ImageIcon size={18} /></span>;
 }
