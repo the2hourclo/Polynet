@@ -3,7 +3,7 @@ import type {
   CommunityMemberWorkflowMilestone,
 } from "../../../../shared/communityMemberWorkflow";
 import type { CloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
-import { normalizeWorkflowDelayMinutes } from "../../../../shared/communityMemberWorkflow";
+import { normalizeWorkflowDelayMinutes, normalizeWorkflowStageDelayMinutes } from "../../../../shared/communityMemberWorkflow";
 
 export function workflowChannelLabel(channelId: string | undefined, channels: CloudCommunityChannel[], unavailable: boolean): string {
   if (channelId === undefined) return "Any channel";
@@ -33,7 +33,7 @@ export function workflowTriggerIssue(automation: CommunityMemberWorkflowAutomati
   if (automation.trigger.type === "previous_action_completed" && !automation.trigger.predecessorActionKey) return "Choose a preceding action";
   if (automation.trigger.type === "form_submitted" && !automation.trigger.formKey) return "Choose a published form";
   if (automation.trigger.type === "milestone_elapsed") {
-    try { normalizeWorkflowDelayMinutes(automation.trigger.delayMinutes); }
+    try { normalizeWorkflowStageDelayMinutes(automation.trigger.delayMinutes, automation.trigger.nudge); }
     catch { return "Choose a duration from 1 minute to 365 days"; }
     if (automation.trigger.nudge && automation.action.type !== "prompt_agent") return "A nudge can only ask the agent";
   }

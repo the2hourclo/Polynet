@@ -1,7 +1,8 @@
 import { communityMembershipRowIsActive, type CommunityMembershipLike } from "./communityCore";
 import { getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
-import { normalizeWorkflowDelayMinutes, workflowRuleUsesTimer } from "../shared/communityMemberWorkflow";
+import { normalizeWorkflowDelayMinutes, normalizeWorkflowStageDelayMinutes, workflowRuleUsesTimer } from "../shared/communityMemberWorkflow";
 import { communityIsActive, normalizeCommunityLifecycle } from "../shared/communityLifecycle";
+import { internal } from "./_generated/api";
 
 /** Called only by an actual entry writer, never by a read or a rule save. */
 export async function enrollWorkflowMilestoneTimers(args: {
@@ -23,6 +24,7 @@ export async function enrollWorkflowMilestoneTimers(args: {
     .withIndex("by_member_entry", (q: any) => q.eq("workflowId", workflow._id)
       .eq("membershipId", membership._id).eq("activationSequence", activationSequence).eq("transitionSeq", transitionSeq))
     .take(13);
+  let arrivalDue = false;
   for (const rule of current.milestone.automations) {
   if (rule.trigger.type !== "milestone_elapsed" || !rule.timerGeneration
     || existing.some((timer: any) => timer.automationKey === rule.key)) continue;
@@ -31,10 +33,13 @@ export async function enrollWorkflowMilestoneTimers(args: {
     communityLifecycleGeneration: normalizeCommunityLifecycle(community).generation,
     milestoneKey: current.milestone.key, milestoneEnteredAt: current.milestoneEnteredAt,
     transitionSeq, activationSequence, automationKey: rule.key, timerGeneration: rule.timerGeneration,
-    dueAt: current.milestoneEnteredAt + normalizeWorkflowDelayMinutes(rule.trigger.delayMinutes) * 60_000,
+    dueAt: current.milestoneEnteredAt + normalizeWorkflowStageDelayMinutes(rule.trigger.delayMinutes, rule.trigger.nudge) * 60_000,
     status: "pending", createdAt: nowMs,
   });
+  if (rule.trigger.delayMinutes === 0) arrivalDue = true;
   }
+  // "Reaches this stage" runs now rather than on the next minute's sweep.
+  if (arrivalDue) await ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.processDueMilestoneTimersInternal, {});
 }
 
 /** Latest authority wins, even if an edit's background refresh has not run yet. */
@@ -58,7 +63,7 @@ export async function resolveWorkflowTimer(ctx: any, timer: any) {
   if (automation.trigger.type === "milestone_elapsed") {
     if (timer.startedAt !== undefined) return null;
     return { workflow, membership, current, automation,
-      dueAt: current.milestoneEnteredAt + normalizeWorkflowDelayMinutes(automation.trigger.delayMinutes) * 60_000 };
+      dueAt: current.milestoneEnteredAt + normalizeWorkflowStageDelayMinutes(automation.trigger.delayMinutes, automation.trigger.nudge) * 60_000 };
   }
   // A wait after another step, or an agent step a lesson or course started.
   if (timer.startedAt === undefined || !timer.sourceRef) return null;

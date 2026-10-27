@@ -70,8 +70,17 @@ test("picked inputs reach the agent: only the chosen property, the guide channel
   expect(context.workflowPrompt).toContain('"progress"');
 });
 
+test("all their data hands the agent every property, the guide channel and progress", async () => {
+  const context = await agentContext(["all_member_data"]);
+  expect(context.workflowPrompt).toContain("Weekly client report");
+  expect(context.workflowPrompt).toContain("OWNER_ONLY_NOTE");
+  expect(context.workflowPrompt).toContain("I run a bookkeeping firm");
+  expect(context.workflowPrompt).toContain('"progress"');
+});
+
 test("sees accepts the known inputs only", () => {
   expect(normalizeWorkflowAgentSees(undefined)).toBeUndefined();
+  expect(normalizeWorkflowAgentSees(["all_member_data"])).toEqual(["all_member_data"]);
   expect(normalizeWorkflowAgentSees(["facts", "facts", "form:intake", "lesson:abc123"])).toEqual(["facts", "form:intake", "lesson:abc123"]);
   expect(() => normalizeWorkflowAgentSees(["everything"])).toThrow("workflow_agent_sees_invalid");
   expect(() => normalizeWorkflowAgentSees(["property:"])).toThrow("workflow_agent_sees_invalid");

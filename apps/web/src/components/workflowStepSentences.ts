@@ -102,6 +102,7 @@ export function workflowTriggerPhrase(automation: CommunityMemberWorkflowAutomat
       return trigger.channelId ? `When they post in #${channel ?? "a channel"}` : "When they post anywhere";
     }
     case "milestone_elapsed":
+      if (trigger.delayMinutes === 0 && !trigger.nudge) return "When they reach this stage";
       return trigger.nudge ? `If they're still here after ${workflowDurationLabel(trigger.delayMinutes)}` : `${workflowDurationLabel(trigger.delayMinutes)} after they reach this stage`;
     case "previous_action_completed":
       return trigger.delayMinutes ? `${workflowDurationLabel(trigger.delayMinutes)} later` : "Then";
