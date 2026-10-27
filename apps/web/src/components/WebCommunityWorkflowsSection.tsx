@@ -29,7 +29,6 @@ import type { CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCom
 import { WebCommunityWelcomeSettings } from "./WebCommunityWelcomeSettings";
 import { WebCommunityTestRun, startTestRunInNewTab, testRunErrorMessage, type WebCommunityTestRunContext } from "./WebCommunityTestRun";
 import { WebCommunityClientAccessPanel } from "./WebCommunityAccess";
-import { WebCommunityMembers } from "./WebCommunityMembers";
 import { WebCommunityAgentLedJourney } from "./WebCommunityAgentLedJourney";
 import { WebCommunityWorkflowAutomations } from "./WebCommunityWorkflowAutomations";
 import { WebCommunityWorkflowRunHistory } from "./WebCommunityWorkflowRunHistory";
@@ -188,9 +187,6 @@ export function WebCommunityWorkflowsSection(
               stages={milestones.filter((m) => m.key && m.name.trim()).map((m) => ({ key: m.key, name: m.name }))}
               onOpenRecord={props.onOpenMemberDossier} hideEmpty />} />
           : <p role="status">Only the community's owner and admins can see runs.</p>
-        : section === "clients" ? props.access
-          ? <WebCommunityMembers key={props.access.scopeKey} gateway={props.access} />
-          : <p role="status">Only the community's owner and admins can see members.</p>
         : props.forms
         ? <WebCommunityForms key={props.forms.scopeKey} gateway={props.forms} leaveGuard={beforeLeave} />
         : <p role="status">Forms are unavailable.</p>}
@@ -220,7 +216,7 @@ export function WebCommunityWorkflowsSection(
 }
 
 const SECTION_LABELS: Record<WorkflowSection, string> = {
-  workflows: "Automations", runs: "Run history", clients: "Members", forms: "Forms", welcome: "Welcome page",
+  workflows: "Automations", runs: "Run history", forms: "Forms", welcome: "Welcome page",
 };
 
 function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?: (milestoneKey: string | null) => void }) {

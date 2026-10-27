@@ -8,10 +8,10 @@ import type { WebCommunityShellProps } from "./webShellChromeShared";
 // screen, like Substack's dashboard: this slim bar replaces the community's
 // tab bar, with a way back to the community and the page's name.
 
-const PAGE_LABEL: Partial<Record<CommunityTab, string>> = { settings: "Settings", workflows: "Workflows", funnels: "Funnels" };
+const PAGE_LABEL: Partial<Record<CommunityTab, string>> = { settings: "Settings", workflows: "Workflows", people: "Members", funnels: "Funnels" };
 
 export function isCommunityOwnerPage(tab: CommunityTab | null | undefined): boolean {
-  return tab === "settings" || tab === "workflows" || tab === "funnels";
+  return tab === "settings" || tab === "workflows" || tab === "people" || tab === "funnels";
 }
 
 export function WebCommunityOwnerBar(props: {

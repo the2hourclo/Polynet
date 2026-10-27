@@ -913,11 +913,12 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
   });
   const resolvedActiveCommunity = activeCommunity as ActiveCommunity;
   const workflowsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "workflows");
+  const peoplePath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "people");
   // The sales page has its own section, Funnels; Settings links to it.
   const funnelsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "funnels");
   const navGroups = useMemo(
-    () => buildCommunitySettingsNav({ panes: availableSettingsPanes, workflowsPath, funnelsPath }),
-    [availableSettingsPaneKey, workflowsPath, funnelsPath],
+    () => buildCommunitySettingsNav({ panes: availableSettingsPanes, workflowsPath, peoplePath, funnelsPath }),
+    [availableSettingsPaneKey, workflowsPath, peoplePath, funnelsPath],
   );
   const autosave = useCommunitySettingsAutosave({ state, actions });
   const accessGateway = useCommunityAccessGatewayForSession({

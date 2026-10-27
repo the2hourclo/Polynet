@@ -1,8 +1,9 @@
 import {
   BookOpen, Bot, CalendarDays, ChevronDown, Clock, CreditCard, DoorOpen, FileText, GitBranch, Hourglass, Lock, Mail,
-  MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Webhook, X, type LucideIcon,
+  MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Users, Webhook, X, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { openCommunityTab } from "../controllers/openCommunityTab";
 import {
   workflowRuleIsNudge,
   workflowSequenceIssue,
@@ -310,7 +311,9 @@ export function WebCommunityWorkflowAutomations(props: Props) {
           <header>
             {milestone.color ? <span className="pn-au-stagedot" aria-hidden="true" /> : null}
             <span className="pn-au-group">While in {milestone.name || `stage ${index + 1}`}{drafts[milestone.key] ? " · unsaved" : ""}</span>
-            <span className="pn-au-count" title={count === 1 ? "1 member here" : `${count} members here`}>{count}</span>
+            <button type="button" className="pn-au-count" onClick={() => openCommunityTab("people", { stage: milestone.name })}
+              title="View members in this stage" aria-label={`View members in ${milestone.name} (${count})`}>
+              <Users size={13} strokeWidth={2} aria-hidden="true" />{count}</button>
             <button type="button" className="pn-au-iconbtn" onClick={() => props.onEditStage(milestone.key)}
               aria-label={`Stage settings for ${milestone.name}`} title="Rename, colour, goal, delete">
               <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" /></button>
