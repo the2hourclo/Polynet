@@ -81,6 +81,17 @@ type CommunityAccessRow = {
   can_manage_pricing?: boolean;
 };
 
+// The sales page editor shows the page in a frame on Polynet itself; that
+// preview is the owner looking, not a visit, so it isn't counted.
+function isFramedByPolynet(): boolean {
+  if (typeof window === "undefined" || window.parent === window) return false;
+  try {
+    return window.parent.location.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 export function useWebPublicFunnelActions<
   PublicCommunityT extends {
     slug: string;
@@ -472,7 +483,7 @@ export function useWebPublicFunnelActions<
         current.setPublicCommunityPlans(payload.active_plan ? [payload.active_plan] : []);
         current.setIsLoadingPublicCommunity(false);
 
-        if (opts?.recordVisit !== false) {
+        if (opts?.recordVisit !== false && !isFramedByPolynet()) {
           void recordCloudPublicFunnelVisit<AuthSession>({
             session: current.getSession(),
             communitySlug: resolvedSlug,
