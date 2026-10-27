@@ -1710,3 +1710,34 @@
 .app-root:has(.app-topbar .community-member-view-button) {
   --web-topbar-right-action-safe-inset: 226px;
 }
+
+/* Classroom posts: the page scrolls, not the posts column, so the scrollbar
+   sits at the window's right edge instead of between the posts and the aside
+   (Rashid, 2026-10-27). The body spans the full width and centres its
+   content with padding; the aside stays put beside the feed. */
+.community-top-body:has(.community-posts-scroll) {
+  max-width: none !important;
+  height: 100%;
+  overflow-y: auto;
+  padding-inline: 24px;
+}
+.community-layout-centered .community-top-body:has(.community-posts-scroll) {
+  padding-inline: max(24px, calc((100% - 1120px) / 2 + 24px));
+}
+.community-top-body:has(.community-posts-scroll) .community-top-main,
+.community-top-body:has(.community-posts-scroll) .community-top-main :has(.community-posts-scroll),
+.community-top-body:has(.community-posts-scroll) .community-posts-scroll {
+  overflow: visible;
+  height: auto;
+  min-height: 0;
+}
+.community-top-body.has-aside:has(.community-posts-scroll) > .community-aside {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100%;
+}
+.community-top-body:not(.has-aside):has(.community-posts-scroll) .community-posts-feed {
+  padding-right: 0;
+  padding-left: 0;
+}
