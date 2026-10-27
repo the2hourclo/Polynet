@@ -100,7 +100,16 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     COMMUNITY_THEMED_DESTINATIONS.has(props.communityShell.destination.kind)
       ? props.communityShell.activeCommunity?.id ?? null
       : null,
-    { draftSession: props.themeDraftSession ?? null },
+    {
+      draftSession: props.themeDraftSession ?? null,
+      identity: props.communityShell.activeCommunity?.slug
+        ? {
+            slug: props.communityShell.activeCommunity.slug,
+            name: props.communityShell.activeCommunity.name,
+            logoUrl: props.communityShell.activeCommunity.avatar_url ?? null,
+          }
+        : null,
+    },
   );
   const communityThemeAttribute = communityTheme.attribute;
   // The owner's default from Customize, or this browser's Display menu pick.
