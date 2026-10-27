@@ -185,6 +185,8 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { 
   const inFlight = useRef<Promise<void> | null>(null);
   const alive = useRef(true);
   const dragged = useRef<number | null>(null);
+  const [dropAt, setDropAt] = useState<number | null>(null);
+  const [slash, setSlash] = useState<{ at: number } | null>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const dirty = contentKey(draft) !== saved.current;
   const flush = async () => {
@@ -246,57 +248,128 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { 
     if (q.required && (!value || (typeof value === "string" ? !value.trim() : !value.length))) { setValidation("Please answer this question."); return; }
     setValidation(null); if (index === draft.questions.length - 1) setFinished(true); else setIndex(index + 1);
   };
-  return <div ref={editor} className="workflow-page community-forms-page">
+  const TYPE_LABEL: Record<CommunityFormQuestion["type"], string> = { short_text: "Short text", long_text: "Long text", single_choice: "Single choice", multiple_choice: "Multiple choice" };
+  const addQuestion = (type: CommunityFormQuestion["type"], at = draft.questions.length) => {
+    if (publishing || draft.questions.length >= COMMUNITY_FORM_MAX_QUESTIONS) return;
+    const question = { ...blankCommunityFormQuestion(), type, options: type.endsWith("choice") ? ["", ""] : [] };
+    const questions = [...draft.questions]; questions.splice(at, 0, question);
+    setDraft({ ...draft, questions }); setIndex(at); setSlash(null);
+  };
+  const propertyName = (key?: string) => key ? clientProperties.find(p => p.key === key)?.name ?? key : null;
+  const fills = [...new Set(draft.questions.flatMap(item => item.clientPropertyKey ? [item.clientPropertyKey] : []))];
+  const missing = (() => {
+    const property = clientProperties.find(p => p.key === q.clientPropertyKey);
+    return property && (property.type === "select" || property.type === "multi_select")
+      ? { property, options: q.options.filter(option => !property.options.some(name => name.trim().toLowerCase() === option.trim().toLowerCase())) } : null;
+  })();
+  const status = saving ? "Saving…" : dirty ? "Unsaved edits" : published === revision ? "Published" : published ? "Unpublished edits · Saved" : "Draft saved";
+  return <div ref={editor} className="workflow-page community-forms-page community-form-doc">
     <header className="community-forms-header">
-      <button className="workflow-secondary-button" disabled={publishing} onClick={() => void close()}><ArrowLeft size={16} /> Forms</button>
-      <input className="community-form-name" aria-label="Form name" maxLength={120} disabled={preview || publishing} value={draft.name} onChange={e => { setValidation(null); setDraft({ ...draft, name: e.target.value }); }} />
-      <span className="community-form-hint" role="status" data-state={saving ? "saving" : dirty ? "dirty" : published === revision ? "published" : published ? "edited" : "draft"}>{saving ? "Saving…" : dirty ? "Unsaved edits" : published === revision ? "Published" : published ? "Unpublished edits · Saved" : "Draft saved"}</span>
+      <nav className="community-form-crumb" aria-label="Breadcrumb">
+        <button type="button" disabled={publishing} onClick={() => void close()}><ArrowLeft size={15} aria-hidden="true" /> Forms</button>
+        <span aria-hidden="true">/</span><span>{draft.name || "Untitled form"}</span>
+      </nav>
+      <span className="community-form-hint" role="status" data-state={saving ? "saving" : dirty ? "dirty" : published === revision ? "published" : published ? "edited" : "draft"}>{status}</span>
       <button className="workflow-secondary-button" onClick={() => { setPreview(!preview); setFinished(false); setIndex(0); setValidation(null); setAnswers({}); }}>{preview ? "Edit" : "Preview"}</button>
       {!preview ? <button className="pn-wf-primary" disabled={publishing || saving || (!dirty && published === revision)} onClick={() => void publish()}>{publishing ? "Publishing…" : "Publish"}</button> : null}
     </header>
     {error ? <div role="alert" className="workflow-error">{error.message} <button className="workflow-secondary-button" disabled={publishing || saving} onClick={() => { if (error.operation === "publish") void publish(); else { setError(null); void flush().catch(() => {}); } }}>{error.operation === "publish" ? "Retry publish" : "Retry save"}</button>
       <button className="workflow-secondary-button" disabled={publishing || saving} onClick={async () => { try { const rows = await gateway.load(); const row = rows.find(f => f.key === draft.key); if (alive.current && row) { persisted.current = row; saved.current = contentKey(row); setDraft(row); setRevision(row.revision); setPublished(row.publishedRevision); setIndex(0); setError(null); } else if (alive.current) setError({ ...error, message: "Saved form not found. Your edits are still here." }); } catch { if (alive.current) setError({ ...error, message: "Could not reload the saved form." }); } }}>Discard edits and reload</button></div> : null}
-    <div className={`community-form-workspace ${preview ? "is-preview" : ""}`}>
-      {!preview ? <aside aria-label="Questions" className="community-form-questions">
-        {draft.questions.map((item, i) => <div className={i === index ? "is-selected" : ""} key={item.key} draggable={!publishing}
-          onDragStart={() => { dragged.current = i; }} onDragOver={e => e.preventDefault()} onDrop={() => { if (dragged.current !== null) move(dragged.current, i); dragged.current = null; }}>
-          <button disabled={publishing} aria-current={i === index ? "step" : undefined} onClick={() => { setIndex(i); setValidation(null); }}><span>{i + 1}</span>{item.title || "Untitled question"}</button>
-          <button disabled={publishing || i === 0} aria-label={`Move question ${i + 1} up`} onClick={() => move(i, i - 1)}><ArrowUp size={13} /></button>
-          <button disabled={publishing || i === draft.questions.length - 1} aria-label={`Move question ${i + 1} down`} onClick={() => move(i, i + 1)}><ArrowDown size={13} /></button>
-        </div>)}
-        <button className="workflow-secondary-button" disabled={publishing || draft.questions.length >= COMMUNITY_FORM_MAX_QUESTIONS} onClick={() => { setDraft({ ...draft, questions: [...draft.questions, blankCommunityFormQuestion()] }); setIndex(draft.questions.length); }}><Plus size={15} /> Add question</button>
-      </aside> : null}
-      <main className="community-form-canvas">
-        {!preview ? <div className="community-form-tools">
-          <label>Answer <select disabled={publishing} aria-label="Answer type" value={q.type} onChange={e => { const type = e.target.value as CommunityFormQuestion["type"]; patch({ type, options: type.endsWith("choice") && q.options.length < 2 ? ["", ""] : q.options }); }}>
-            <option value="short_text">Short text</option><option value="long_text">Long text</option><option value="single_choice">Single choice</option><option value="multiple_choice">Multiple choice</option>
-          </select></label>
-          <label><input type="checkbox" disabled={publishing} checked={q.required} onChange={e => patch({ required: e.target.checked })} /> Required</label>
-          {clientProperties.length || q.clientPropertyKey ? <label title="The answer fills this property on the member's client record">Fills <select disabled={publishing} aria-label="Client property this answer fills" value={q.clientPropertyKey ?? ""}
-            onChange={e => { const { clientPropertyKey: _old, ...rest } = q; setValidation(null); setDraft(d => ({ ...d, questions: d.questions.map(item => item.key === q.key ? (e.target.value ? { ...rest, clientPropertyKey: e.target.value } : rest) : item) })); }}>
-            <option value="">Nothing</option>
-            {clientProperties.filter(p => clientPropertyFits(p.type, q.type) || p.key === q.clientPropertyKey).map(p => <option key={p.key} value={p.key}>{p.name}</option>)}
-          </select></label> : null}
-          {(() => {
-            const property = clientProperties.find(p => p.key === q.clientPropertyKey);
-            const missing = property && (property.type === "select" || property.type === "multi_select")
-              ? q.options.filter(option => !property.options.some(name => name.trim().toLowerCase() === option.trim().toLowerCase())) : [];
-            return missing.length ? <small className="community-form-hint" role="status">{property!.name} doesn't have {missing.map(option => `“${option}”`).join(", ")}. Add {missing.length > 1 ? "them" : "it"} to the property or change the choices, so every answer fills it.</small> : null;
-          })()}
-          <button className="workflow-secondary-button" aria-label="Delete question" disabled={publishing || draft.questions.length === 1} onClick={() => { setDraft({ ...draft, questions: draft.questions.filter(item => item.key !== q.key) }); setIndex(Math.max(0, index - 1)); }}><Trash2 size={15} /></button>
-        </div> : <p className="community-form-hint">Preview only · Answers are not submitted</p>}
-        {finished ? <div className="community-form-question"><h2>Preview complete</h2><p>No answers were submitted.</p><button className="workflow-secondary-button" onClick={() => { setFinished(false); setIndex(0); }}>Start again</button></div> : <div className="community-form-question" key={`${q.key}-${preview}`}>
-          <p className="community-form-hint">{index + 1} / {draft.questions.length}{q.required ? " · Required" : " · Optional"}</p>
-          {preview ? <><h2>{q.title || "Untitled question"}</h2>{q.description ? <p>{q.description}</p> : null}</> : <>
-            <textarea className="community-form-title" rows={2} aria-label="Question" placeholder="Your question goes here…" maxLength={500} disabled={publishing} value={q.title} onChange={e => patch({ title: e.target.value })} />
-            <textarea className="community-form-description" rows={2} aria-label="Question description" placeholder="Add a description (optional)" maxLength={2000} disabled={publishing} value={q.description} onChange={e => patch({ description: e.target.value })} />
-          </>}
-          {q.type.endsWith("choice") ? <div className="community-form-options">{q.options.map((option, i) => preview ? <label key={i}><input type={q.type === "single_choice" ? "radio" : "checkbox"} name={q.key} checked={q.type === "single_choice" ? answers[q.key] === String(i) : (answers[q.key] as string[] | undefined)?.includes(String(i)) ?? false} onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) || []), String(i)] : ((a[q.key] as string[]) || []).filter(v => v !== String(i)) }))} />{option || `Option ${i + 1}`}</label> : <div key={i}><span>{String.fromCharCode(65 + i)}</span><input aria-label={`Option ${i + 1}`} placeholder={`Option ${i + 1}`} maxLength={200} disabled={publishing} value={option} onChange={e => patch({ options: q.options.map((v, n) => n === i ? e.target.value : v) })} /><button aria-label={`Remove option ${i + 1}`} disabled={publishing || q.options.length <= 2} onClick={() => patch({ options: q.options.filter((_, n) => n !== i) })}>×</button></div>)}
-            {!preview ? <button className="workflow-secondary-button" disabled={publishing || q.options.length >= 12} onClick={() => patch({ options: [...q.options, ""] })}><Plus size={14} /> Add option</button> : null}</div> : q.type === "long_text" ? <textarea className="community-form-answer" rows={4} aria-label="Your answer" placeholder="Type your answer here…" disabled={!preview} value={(answers[q.key] as string) || ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} /> : <input className="community-form-answer" aria-label="Your answer" placeholder="Type your answer here…" disabled={!preview} value={(answers[q.key] as string) || ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
-          {validation ? <p className="workflow-error" role="alert">{validation}</p> : null}
-          {preview ? <div className="community-form-navigation"><button className="workflow-secondary-button" disabled={index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button className="workflow-secondary-button" onClick={next}>{index === draft.questions.length - 1 ? "Finish preview" : "Continue"}</button></div> : <p className="community-form-hint">Drafts save automatically. Publishing creates a fixed version for future requests.</p>}
-        </div>}
+    {preview ? <div className="community-form-preview">
+      <p className="community-form-hint">Preview only · Answers are not submitted</p>
+      {finished ? <div className="community-form-question"><h2>Preview complete</h2><p>No answers were submitted.</p><button className="workflow-secondary-button" onClick={() => { setFinished(false); setIndex(0); }}>Start again</button></div> : <div className="community-form-question" key={q.key}>
+        <p className="community-form-hint">{index + 1} / {draft.questions.length}{q.required ? " · Required" : " · Optional"}</p>
+        <h2>{q.title || "Untitled question"}</h2>{q.description ? <p>{q.description}</p> : null}
+        {q.type.endsWith("choice") ? <div className="community-form-options">{q.options.map((option, i) => <label key={i}><input type={q.type === "single_choice" ? "radio" : "checkbox"} name={q.key} checked={q.type === "single_choice" ? answers[q.key] === String(i) : (answers[q.key] as string[] | undefined)?.includes(String(i)) ?? false} onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) || []), String(i)] : ((a[q.key] as string[]) || []).filter(v => v !== String(i)) }))} />{option || `Option ${i + 1}`}</label>)}</div>
+          : q.type === "long_text" ? <textarea className="community-form-answer" rows={4} aria-label="Your answer" placeholder="Type your answer here…" value={(answers[q.key] as string) || ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />
+          : <input className="community-form-answer" aria-label="Your answer" placeholder="Type your answer here…" value={(answers[q.key] as string) || ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
+        {validation ? <p className="workflow-error" role="alert">{validation}</p> : null}
+        <div className="community-form-navigation"><button className="workflow-secondary-button" disabled={index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button className="workflow-secondary-button" onClick={next}>{index === draft.questions.length - 1 ? "Finish preview" : "Continue"}</button></div>
+      </div>}
+    </div> : <div className="community-form-workspace">
+      <main className="community-form-page">
+        <input className="community-form-name" aria-label="Form name" placeholder="Untitled form" maxLength={120} disabled={publishing} value={draft.name} onChange={e => { setValidation(null); setDraft({ ...draft, name: e.target.value }); }} />
+        <dl className="community-form-props">
+          <dt>Status</dt><dd><span className={`pn-wf-badge is-${published === revision ? "published" : published ? "edited" : "draft"}`}>{published === revision ? "Published" : published ? "Unpublished edits" : "Draft"}</span> <small>Drafts save as you type. Publishing fixes a version for future requests.</small></dd>
+          <dt>Used in</dt><dd className="community-form-props-uses">{initial.usedIn?.length ? initial.usedIn.map((use, i) => <span key={i}><WorkflowSentence parts={formUseParts(draft, use)} /></span>) : <small>Not used anywhere yet</small>}</dd>
+          <dt>Fills</dt><dd>{fills.length ? fills.map(key => <span key={key} className="pn-pill pn-pill-field">{propertyName(key)}</span>) : <small>No member fields yet. Pick one per question under Fills.</small>}</dd>
+        </dl>
+        <ol className="community-form-blocks" aria-label="Questions">
+          {draft.questions.map((item, i) => {
+            const selected = i === index;
+            return <li key={item.key} className={`community-form-block${selected ? " is-selected" : ""}${dropAt === i ? " is-drop" : ""}`}
+              onDragOver={e => { if (dragged.current !== null) { e.preventDefault(); setDropAt(i); } }} onDragLeave={() => setDropAt(at => at === i ? null : at)}
+              onDrop={() => { if (dragged.current !== null) move(dragged.current, i); dragged.current = null; setDropAt(null); }}
+              onFocus={() => { if (!selected) { setIndex(i); setValidation(null); } }} onClick={() => { if (!selected) { setIndex(i); setValidation(null); } }}>
+              <div className="community-form-block-handle">
+                <button type="button" aria-label={`Add a question below question ${i + 1}`} title="Add a question below" disabled={publishing || draft.questions.length >= COMMUNITY_FORM_MAX_QUESTIONS} onClick={e => { e.stopPropagation(); setSlash({ at: i + 1 }); }}><Plus size={15} /></button>
+                <span draggable={!publishing} title="Drag to reorder" aria-hidden="true" onDragStart={e => { dragged.current = i; e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { dragged.current = null; setDropAt(null); }}><GripVertical size={15} /></span>
+              </div>
+              <div className="community-form-block-body">
+                <p className="community-form-block-meta">{i + 1} · {TYPE_LABEL[item.type]}{item.required ? " · required" : ""}</p>
+                <textarea className="community-form-title" rows={1} aria-label={selected ? "Question" : `Question ${i + 1}`} placeholder="Your question goes here…" maxLength={500} disabled={publishing} value={item.title}
+                  onChange={e => { setValidation(null); setDraft(d => ({ ...d, questions: d.questions.map(row => row.key === item.key ? { ...row, title: e.target.value } : row) })); }} />
+                {selected || item.description ? <textarea className="community-form-description" rows={1} aria-label={selected ? "Question description" : `Question ${i + 1} description`} placeholder="Add a description (optional)" maxLength={2000} disabled={publishing} value={item.description}
+                  onChange={e => setDraft(d => ({ ...d, questions: d.questions.map(row => row.key === item.key ? { ...row, description: e.target.value } : row) }))} /> : null}
+                {item.type.endsWith("choice") ? selected ? <div className="community-form-options">
+                  {item.options.map((option, n) => <div key={n}><span>{String.fromCharCode(65 + n)}</span><input aria-label={`Option ${n + 1}`} placeholder={`Option ${n + 1}`} maxLength={200} disabled={publishing} value={option} onChange={e => patch({ options: item.options.map((v, m) => m === n ? e.target.value : v) })} /><button aria-label={`Remove option ${n + 1}`} disabled={publishing || item.options.length <= 2} onClick={() => patch({ options: item.options.filter((_, m) => m !== n) })}>×</button></div>)}
+                  <button className="workflow-secondary-button" disabled={publishing || item.options.length >= 12} onClick={() => patch({ options: [...item.options, ""] })}><Plus size={14} /> Add option</button>
+                </div> : <div className="community-form-chips">{item.options.map((option, n) => <span key={n}>{option || `Option ${n + 1}`}</span>)}</div>
+                  : <div className={`community-form-answer-ghost${item.type === "long_text" ? " is-long" : ""}`} aria-hidden="true">Type your answer…</div>}
+                {item.clientPropertyKey ? <p className="community-form-block-fills">Fills <span className="pn-pill pn-pill-field">{propertyName(item.clientPropertyKey)}</span> on <span className="pn-pill pn-pill-member">Member’s</span> record</p> : null}
+                {selected && validation ? <p className="workflow-error" role="alert">{validation}</p> : null}
+              </div>
+            </li>;
+          })}
+        </ol>
+        <div className="community-form-slash">
+          <input aria-label="Add a question" placeholder={draft.questions.length >= COMMUNITY_FORM_MAX_QUESTIONS ? "30 questions is the most a form can hold" : "Type “/” or click to add a question…"} disabled={publishing || draft.questions.length >= COMMUNITY_FORM_MAX_QUESTIONS} value=""
+            onChange={() => {}} onClick={() => setSlash({ at: draft.questions.length })}
+            onKeyDown={e => { if (e.key === "/" || e.key === "Enter") { e.preventDefault(); setSlash({ at: draft.questions.length }); } }} />
+          {slash ? <SlashMenu labels={TYPE_LABEL} below={slash.at < draft.questions.length ? slash.at : null} onPick={type => addQuestion(type, slash.at)} onClose={() => setSlash(null)} /> : null}
+        </div>
       </main>
-    </div>
+      <aside className="community-form-side" aria-label={`Question ${index + 1} settings`}>
+        <h3>Question {index + 1}</h3>
+        <label>Answer type<select disabled={publishing} aria-label="Answer type" value={q.type} onChange={e => { const type = e.target.value as CommunityFormQuestion["type"]; patch({ type, options: type.endsWith("choice") && q.options.length < 2 ? ["", ""] : q.options }); }}>
+          {(Object.keys(TYPE_LABEL) as CommunityFormQuestion["type"][]).map(type => <option key={type} value={type}>{TYPE_LABEL[type]}</option>)}
+        </select></label>
+        {clientProperties.length || q.clientPropertyKey ? <label title="The answer fills this property on the member's record">Fills on their record<select disabled={publishing} aria-label="Client property this answer fills" value={q.clientPropertyKey ?? ""}
+          onChange={e => { const { clientPropertyKey: _old, ...rest } = q; setValidation(null); setDraft(d => ({ ...d, questions: d.questions.map(item => item.key === q.key ? (e.target.value ? { ...rest, clientPropertyKey: e.target.value } : rest) : item) })); }}>
+          <option value="">Nothing</option>
+          {clientProperties.filter(p => clientPropertyFits(p.type, q.type) || p.key === q.clientPropertyKey).map(p => <option key={p.key} value={p.key}>{p.name}</option>)}
+        </select></label> : null}
+        {missing?.options.length ? <small className="community-form-hint" role="status">{missing.property.name} doesn't have {missing.options.map(option => `“${option}”`).join(", ")}. Add {missing.options.length > 1 ? "them" : "it"} to the property or change the choices, so every answer fills it.</small> : null}
+        <label className="community-form-side-toggle">Required<input type="checkbox" disabled={publishing} checked={q.required} onChange={e => patch({ required: e.target.checked })} /></label>
+        <div className="community-form-side-actions">
+          <button className="workflow-secondary-button" disabled={publishing || index === 0} aria-label={`Move question ${index + 1} up`} onClick={() => move(index, index - 1)}><ArrowUp size={14} /></button>
+          <button className="workflow-secondary-button" disabled={publishing || index === draft.questions.length - 1} aria-label={`Move question ${index + 1} down`} onClick={() => move(index, index + 1)}><ArrowDown size={14} /></button>
+          <button className="workflow-secondary-button is-danger" aria-label="Delete question" disabled={publishing || draft.questions.length === 1} onClick={() => { setDraft({ ...draft, questions: draft.questions.filter(item => item.key !== q.key) }); setIndex(Math.max(0, index - 1)); }}><Trash2 size={14} /> Delete</button>
+        </div>
+        <p className="community-form-hint">Drag ⋮⋮ to reorder questions. Hover a question and press + to add one below it.</p>
+      </aside>
+    </div>}
+  </div>;
+}
+
+/** The "/" menu: pick the kind of question to add. Arrow keys move, Enter picks, Escape closes. */
+function SlashMenu({ labels, below, onPick, onClose }: { labels: Record<CommunityFormQuestion["type"], string>; below: number | null; onPick: (type: CommunityFormQuestion["type"]) => void; onClose: () => void }) {
+  const types = Object.keys(labels) as CommunityFormQuestion["type"][];
+  const [active, setActive] = useState(0);
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => { menu.current?.focus(); }, []);
+  useEffect(() => {
+    const away = (event: MouseEvent) => { if (!menu.current?.contains(event.target as Node)) onClose(); };
+    document.addEventListener("mousedown", away); return () => document.removeEventListener("mousedown", away);
+  }, [onClose]);
+  return <div ref={menu} className="community-form-slash-menu" role="menu" tabIndex={-1} aria-label="Add a question"
+    onKeyDown={e => {
+      if (e.key === "ArrowDown") { e.preventDefault(); setActive(a => (a + 1) % types.length); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setActive(a => (a + types.length - 1) % types.length); }
+      else if (e.key === "Enter") { e.preventDefault(); onPick(types[active]); }
+      else if (e.key === "Escape") { e.preventDefault(); onClose(); }
+    }}>
+    <p>{below === null ? "Add a question" : `Add below question ${below}`}</p>
+    {types.map((type, i) => <button key={type} type="button" role="menuitem" className={i === active ? "is-active" : undefined} onMouseEnter={() => setActive(i)} onClick={() => onPick(type)}>{labels[type]}</button>)}
   </div>;
 }
