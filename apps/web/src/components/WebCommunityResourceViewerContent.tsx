@@ -418,6 +418,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
     const render = (markdown: string) => renderMarkdown(ids.size ? markCommunityLessonElementBlocks(markdown, ids) : markdown, {
       embedStandaloneMedia: true,
       headingLevelOffset: 1,
+      codeCards: true,
       communityEmbeds: props.communityEmbeds ?? null,
       renderLessonElement: hasLessonActivity ? (id) => ids.has(id) ? <LessonElementSlot key={id} id={id} /> : null : null,
     });

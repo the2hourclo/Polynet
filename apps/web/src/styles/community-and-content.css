@@ -13873,3 +13873,81 @@ button.chat-reply-quote:hover {
   font-size: 13px; color: var(--text-secondary); text-align: center;
 }
 .members-view-all.members-view-all-footer:hover { color: var(--text-primary); background: var(--bg-hover, transparent); }
+
+/* Lesson code, Notion style (Rashid, 2026-10-27): a soft grey card, colours
+   that tell the parts apart (blue words, yellow-brown text in quotes, red
+   names, grey notes), and Copy at the top right, like Claude's own UI. Each
+   colour is mixed with the page's text colour, so it darkens on a light page
+   and lightens on a dark one, in every community theme. Inline code is red
+   on grey, as in Notion. */
+.resource-viewer-prose {
+  --lesson-code-bg: color-mix(in srgb, var(--text-primary) 5%, var(--bg-card, transparent));
+  --lesson-code-line: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --lesson-code-text: color-mix(in srgb, var(--text-primary) 88%, transparent);
+  --lesson-code-muted: color-mix(in srgb, var(--text-primary) 50%, transparent);
+  --lesson-code-blue: color-mix(in srgb, #2f7fd8 78%, var(--text-primary) 22%);
+  --lesson-code-yellow: color-mix(in srgb, #c98a12 80%, var(--text-primary) 20%);
+  --lesson-code-red: color-mix(in srgb, #e0484f 80%, var(--text-primary) 20%);
+  --lesson-code-purple: color-mix(in srgb, #9a5bd0 78%, var(--text-primary) 22%);
+}
+.resource-viewer-prose .md-inline-code {
+  color: var(--lesson-code-red);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  border-color: transparent;
+}
+.resource-viewer-prose .code-block-wrapper,
+.resource-viewer-prose .code-block-variant-terminal,
+.resource-viewer-prose .code-block-variant-artifact,
+.resource-viewer-prose .code-block-variant-diff {
+  margin: 1.1em 0;
+  border: 1px solid var(--lesson-code-line);
+  background: var(--lesson-code-bg);
+  box-shadow: none;
+}
+.resource-viewer-prose .code-block-wrapper .code-block-header {
+  background: transparent;
+  border-bottom: 0;
+  padding: 8px 10px 0 16px;
+}
+.resource-viewer-prose .code-block-wrapper .code-block-lang { color: var(--lesson-code-muted); }
+.resource-viewer-prose .code-block-wrapper .code-block-copy {
+  display: inline-flex; align-items: center; gap: 5px; margin-left: auto;
+  font-family: inherit; font-size: 12px; padding: 4px 9px; opacity: 1;
+  color: var(--lesson-code-muted);
+  border: 1px solid var(--lesson-code-line);
+  background: color-mix(in srgb, var(--bg-card, transparent) 70%, transparent);
+}
+.resource-viewer-prose .code-block-wrapper .code-block-copy:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
+.resource-viewer-prose .code-block-wrapper .code-block-copy.is-copied { color: var(--lesson-code-blue); border-color: currentColor; }
+.resource-viewer-prose .code-block-wrapper .md-code-block { padding: 8px 16px 16px; font-size: 13.5px; line-height: 1.65; }
+.resource-viewer-prose .code-block-wrapper .md-code-block,
+.resource-viewer-prose .code-block-wrapper .md-code-block code,
+.resource-viewer-prose .code-block-wrapper .md-code-block code.hljs { color: var(--lesson-code-text); }
+.resource-viewer-prose .md-code-block .hljs-comment,
+.resource-viewer-prose .md-code-block .hljs-quote { color: var(--lesson-code-muted); font-style: italic; }
+.resource-viewer-prose .md-code-block .hljs-keyword,
+.resource-viewer-prose .md-code-block .hljs-selector-tag,
+.resource-viewer-prose .md-code-block .hljs-literal,
+.resource-viewer-prose .md-code-block .hljs-built_in,
+.resource-viewer-prose .md-code-block .hljs-type,
+.resource-viewer-prose .md-code-block .hljs-section,
+.resource-viewer-prose .md-code-block .hljs-link { color: var(--lesson-code-blue); }
+.resource-viewer-prose .md-code-block .hljs-string,
+.resource-viewer-prose .md-code-block .hljs-regexp,
+.resource-viewer-prose .md-code-block .hljs-addition,
+.resource-viewer-prose .md-code-block .hljs-bullet { color: var(--lesson-code-yellow); }
+.resource-viewer-prose .md-code-block .hljs-title,
+.resource-viewer-prose .md-code-block .hljs-name,
+.resource-viewer-prose .md-code-block .hljs-attr,
+.resource-viewer-prose .md-code-block .hljs-attribute,
+.resource-viewer-prose .md-code-block .hljs-selector-class,
+.resource-viewer-prose .md-code-block .hljs-deletion,
+.resource-viewer-prose .md-code-block .hljs-variable,
+.resource-viewer-prose .md-code-block .hljs-template-variable { color: var(--lesson-code-red); }
+.resource-viewer-prose .md-code-block .hljs-number,
+.resource-viewer-prose .md-code-block .hljs-symbol,
+.resource-viewer-prose .md-code-block .hljs-meta,
+.resource-viewer-prose .md-code-block .hljs-params,
+.resource-viewer-prose .md-code-block .hljs-subst { color: var(--lesson-code-purple); }
+.resource-viewer-prose .code-block-variant-terminal .md-code-block .hljs-built_in,
+.resource-viewer-prose .code-block-variant-terminal .md-code-block .hljs-keyword { color: var(--lesson-code-blue); }
