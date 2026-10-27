@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, ExternalLink, Link2, Pencil } from "lucide-react";
+import { Check, ExternalLink, Link2, Pencil, RotateCcw } from "lucide-react";
 import {
   fetchCloudPublicFunnelStats,
   resolveCloudPublicFunnel,
@@ -13,6 +13,7 @@ import { renderChatInlineMarkdown } from "../../../../shared/chatInlineMarkdownU
 import { communityJoinUrl, useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { WebCommunityCard, WebCommunityUpcomingEvents } from "./WebCommunityAside";
 import { WebCommunitySalesPage } from "./WebCommunitySalesPage";
+import { useWebSalesPageDraft } from "../controllers/useWebSalesPageDraft";
 
 type PublicCommunityStats = Pick<WebPublicCommunityRecord, "member_count" | "online_count" | "admin_count">;
 
@@ -29,6 +30,15 @@ function WebCommunityAboutSalesPage() {
     stats: PublicCommunityStats | null;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  // The owner edits the page where it sits; the changes go to the layout draft
+  // until Publish, and the page shows the draft while editing.
+  const [editing, setEditing] = useState(false);
+  const [published, setPublished] = useState(0);
+  const draft = useWebSalesPageDraft({
+    communityId: frame.community?.id ?? null,
+    session: frame.session,
+    enabled: editing && frame.canEditSalesPage,
+  });
 
   useEffect(() => {
     if (!slug) return;
@@ -50,7 +60,7 @@ function WebCommunityAboutSalesPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, published]);
 
   const current = loaded && loaded.slug === slug ? loaded : null;
   if (!current) {
@@ -68,20 +78,88 @@ function WebCommunityAboutSalesPage() {
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
+  const renderModel = buildCommunityFunnelRenderModel({
+    communityName: community.name,
+    oneLiner: community.one_liner,
+    about: community.about,
+    funnel: community.funnel,
+  });
+  const draftAbout = editing ? draft.state?.draft.pages.about ?? null : null;
+  const fallbackText = (renderModel.mode === "custom" ? renderModel.longFormMarkdown : null)
+    ?? (String(community.about ?? "").trim() || String(community.one_liner ?? "").trim());
+  const publishDraft = async () => {
+    if (await draft.publish()) {
+      setPublished((n) => n + 1);
+      setEditing(false);
+    }
+  };
+  const status = draft.busy
+    ? "Saving…"
+    : draft.error
+      ? draft.error
+      : draft.state?.hasUnpublishedChanges
+        ? "Draft saved. Visitors see the live page until you publish."
+        : "Everything is live.";
+
   return (
     <div className="community-tab-scroll">
+      {frame.canEditSalesPage ? (
+        <div className={`community-sales-edit-bar${editing ? " is-editing" : ""}`} role="toolbar" aria-label="Edit this page">
+          {editing ? (
+            <>
+              <span className="community-sales-edit-status" role="status">{draft.state ? status : draft.error ?? "Loading…"}</span>
+              {draftAbout ? (
+                <label className="community-sales-edit-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={draftAbout.show_members}
+                    disabled={draft.busy}
+                    onChange={(event) => void draft.saveAbout({ show_members: event.target.checked })}
+                  />
+                  Member count
+                </label>
+              ) : null}
+              {draft.state?.hasUnpublishedChanges ? (
+                <button type="button" className="community-sales-edit-button" disabled={draft.busy} onClick={() => void draft.discard()}>
+                  <RotateCcw size={14} aria-hidden="true" /> Discard
+                </button>
+              ) : null}
+              <button type="button" className="community-sales-edit-link" onClick={() => frame.onSelectTab("funnels")}>More settings</button>
+              <button type="button" className="community-sales-edit-button" onClick={() => setEditing(false)}>Done</button>
+              <button
+                type="button"
+                className="community-sales-edit-button is-primary"
+                disabled={draft.busy || !draft.state?.hasUnpublishedChanges}
+                onClick={() => void publishDraft()}
+              >
+                Publish
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="community-sales-edit-status">This is your sales page. Visitors see it at your public link.</span>
+              <button type="button" className="community-sales-edit-button is-primary" onClick={() => setEditing(true)}>
+                <Pencil size={14} aria-hidden="true" /> Edit page
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
       <WebCommunitySalesPage
         community={community}
         plan={current.plan}
-        renderModel={buildCommunityFunnelRenderModel({
-          communityName: community.name,
-          oneLiner: community.one_liner,
-          about: community.about,
-          funnel: community.funnel,
-        })}
-        media={community.about_media ?? []}
-        text={community.about_text ?? ""}
-        showMembers={community.about_show_members !== false}
+        renderModel={renderModel}
+        media={draftAbout?.media ?? community.about_media ?? []}
+        text={draftAbout ? draftAbout.text : community.about_text ?? ""}
+        showMembers={draftAbout ? draftAbout.show_members : community.about_show_members !== false}
+        edit={draftAbout ? {
+          busy: draft.busy,
+          saveMedia: (media) => draft.saveAbout({ media }),
+          saveText: (text) => draft.saveAbout({ text }),
+          uploadImage: draft.uploadImage,
+          fallbackText,
+        } : null}
         address={joinUrl ? joinUrl.replace(/^https?:\/\//, "") : null}
         action={
           <div className="community-sales-join">
@@ -93,11 +171,6 @@ function WebCommunityAboutSalesPage() {
             ) : (
               <p className="community-sales-join-note">You're a member</p>
             )}
-            {frame.canEditSalesPage ? (
-              <button type="button" className="community-aside-link community-sales-join-note" onClick={() => frame.onSelectTab("funnels")}>
-                <Pencil size={13} aria-hidden="true" /> Edit this page
-              </button>
-            ) : null}
             {joinUrl ? (
               <a className="community-aside-link community-sales-join-note" href={joinUrl} target="_blank" rel="noreferrer">
                 See it as a visitor <ExternalLink size={13} aria-hidden="true" />

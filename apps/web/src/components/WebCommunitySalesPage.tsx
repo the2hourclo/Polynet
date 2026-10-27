@@ -9,6 +9,7 @@ import { renderMarkdown } from "../../../../shared/markdownUi";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { renderHeroMediaDefault } from "./CommunityFunnelSurface";
 import { CommunityFunnelMemberProof } from "./CommunityFunnelMemberProof";
+import { EditableSalesGallery, EditableSalesText, type SalesPageEditControls } from "./WebCommunitySalesPageEditing";
 import "./WebCommunitySalesPage.css";
 
 // The About page as a sales page: one page that a
@@ -61,6 +62,8 @@ export type WebCommunitySalesPageProps = {
   text?: string | null;
   // Off: no member faces, counts or stats anywhere on the page.
   showMembers?: boolean;
+  // The owner editing the page in place (About tab › Edit page).
+  edit?: SalesPageEditControls | null;
 };
 
 function initials(name: string): string {
@@ -110,9 +113,25 @@ function videoThumbnail(url: string): string | null {
 
 // The gallery: one slide at a time, arrows and the arrow keys to move, and a
 // row of thumbnails to jump. A video plays in place; moving on stops it.
-export function SalesPageGallery(props: { items: SalesPageMediaItem[]; communityName: string }) {
+export function SalesPageGallery(props: {
+  items: SalesPageMediaItem[];
+  communityName: string;
+  // Editing on the page: the slide shown is held by the editor, which adds a
+  // toolbar on the slide, an editable caption and a "+" after the thumbnails.
+  index?: number;
+  onIndexChange?: (index: number) => void;
+  stageOverlay?: ReactNode;
+  caption?: ReactNode;
+  afterThumbs?: ReactNode;
+}) {
   const { items } = props;
-  const [index, setIndex] = useState(0);
+  const [ownIndex, setOwnIndex] = useState(0);
+  const index = props.index ?? ownIndex;
+  const setIndex = (next: number | ((value: number) => number)) => {
+    const value = typeof next === "function" ? next(index) : next;
+    if (props.onIndexChange) props.onIndexChange(value);
+    else setOwnIndex(value);
+  };
   useEffect(() => {
     if (index >= items.length) setIndex(Math.max(0, items.length - 1));
   }, [index, items.length]);
@@ -144,9 +163,12 @@ export function SalesPageGallery(props: { items: SalesPageMediaItem[]; community
             <span className="community-sales-gallery-count" aria-hidden="true">{index + 1} / {items.length}</span>
           </>
         ) : null}
+        {props.stageOverlay}
       </div>
-      {current.caption ? <figcaption className="community-sales-gallery-caption">{current.caption}</figcaption> : null}
-      {many ? (
+      {props.caption !== undefined
+        ? props.caption
+        : current.caption ? <figcaption className="community-sales-gallery-caption">{current.caption}</figcaption> : null}
+      {many || props.afterThumbs ? (
         <div className="community-sales-gallery-thumbs" role="tablist" aria-label="Choose a slide">
           {items.map((item, itemIndex) => {
             const picture = item.kind === "image" ? item.url : videoThumbnail(item.url);
@@ -165,6 +187,7 @@ export function SalesPageGallery(props: { items: SalesPageMediaItem[]; community
               </button>
             );
           })}
+          {props.afterThumbs}
         </div>
       ) : null}
     </figure>
@@ -188,9 +211,11 @@ export function WebCommunitySalesPage(props: WebCommunitySalesPageProps) {
     <div className="community-sales-page">
       <article className="community-sales-main">
         <h1 className="community-sales-title">{community.name}</h1>
-        {media.length > 0
-          ? <SalesPageGallery items={media} communityName={community.name} />
-          : <SalesPageMedia community={community} vslUrl={renderModel.vslUrl} />}
+        {props.edit
+          ? <EditableSalesGallery items={media} communityName={community.name} edit={props.edit} />
+          : media.length > 0
+            ? <SalesPageGallery items={media} communityName={community.name} />
+            : <SalesPageMedia community={community} vslUrl={renderModel.vslUrl} />}
 
         <ul className="community-sales-facts" aria-label="At a glance">
           <li>
@@ -236,7 +261,9 @@ export function WebCommunitySalesPage(props: WebCommunitySalesPageProps) {
 
         <div className="community-sales-action-inline">{props.action}</div>
 
-        <div className="community-sales-copy">
+        {props.edit ? (
+          <EditableSalesText text={ownText} edit={props.edit} />
+        ) : <div className="community-sales-copy">
           {ownText ? (
             renderMarkdown(ownText, { headingLevelOffset: 1 })
           ) : isCustom ? (
@@ -260,7 +287,7 @@ export function WebCommunitySalesPage(props: WebCommunitySalesPageProps) {
           ) : community.one_liner ? (
             <p className="community-sales-lead">{community.one_liner}</p>
           ) : null}
-        </div>
+        </div>}
       </article>
 
       <aside className="community-sales-card" aria-label={`Join ${community.name}`}>
