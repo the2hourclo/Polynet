@@ -966,7 +966,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
                     window.requestAnimationFrame(() => top?.scrollIntoView({ block: "start" }));
                   }}
                 >
-                  <span>Next: {nextLesson.title}</span>
+                  <span>Next<span className="lesson-next-title">: {nextLesson.title}</span></span>
                   <ArrowRight aria-hidden="true" />
                 </button>
               ) : null}
