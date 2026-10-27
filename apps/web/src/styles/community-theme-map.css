@@ -2,6 +2,30 @@
    Polynet's fixed text sizes and corners, routed through the community theme
    (--pn-type-*, --pn-radius-scale). Applies only inside data-community-theme. */
 
+[data-community-theme] .access-signin-card {
+  border-radius: calc(16px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-signin-card h1 {
+  font-size: var(--pn-type-heading);
+}
+[data-community-theme] .access-signin-card p {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .access-signin-kicker {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .access-signin-shares {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .access-signin-note {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .access-signin-warn {
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .access-signin-cancel {
+  font-size: var(--pn-type-ui);
+}
 [data-community-theme] .community-funnel-member-proof {
   font-size: var(--pn-type-body);
 }

@@ -655,6 +655,7 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityAccess:createAccessIntegration": "human only: the API key and signing secret are shown once, to the owner",
   "communityAccess:rotateAccessIntegrationSecret": "human only: the new secret is shown once, to the owner",
   "communityAccess:createMyCommunityLicenseKey": "human only: a member's license key is shown once, to them",
+  "communityAccess:createAccessSignInCode": "human only: the member approves \"Continue with Polynet\" on the consent page; the one-time code goes back to the connected service, not to an agent",
   "creatorCommerce:startConnectOnboarding": "human only: Stripe verifies the owner in person; an agent can only hand over the link",
   "founderBilling:startFounderSubscriptionCheckout": "human only: the founder pays with their own card",
   "founderBilling:startFounderBillingPortal": "human only: the founder's own billing portal",
