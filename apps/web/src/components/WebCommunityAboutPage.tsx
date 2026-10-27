@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, ExternalLink, Link2 } from "lucide-react";
+import { Check, ExternalLink, Link2, Pencil } from "lucide-react";
 import {
   fetchCloudPublicFunnelStats,
   resolveCloudPublicFunnel,
@@ -79,6 +79,9 @@ function WebCommunityAboutSalesPage() {
           about: community.about,
           funnel: community.funnel,
         })}
+        media={community.about_media ?? []}
+        text={community.about_text ?? ""}
+        showMembers={community.about_show_members !== false}
         address={joinUrl ? joinUrl.replace(/^https?:\/\//, "") : null}
         action={
           <div className="community-sales-join">
@@ -90,6 +93,11 @@ function WebCommunityAboutSalesPage() {
             ) : (
               <p className="community-sales-join-note">You're a member</p>
             )}
+            {frame.canEditSalesPage ? (
+              <button type="button" className="community-aside-link community-sales-join-note" onClick={() => frame.onSelectTab("funnels")}>
+                <Pencil size={13} aria-hidden="true" /> Edit this page
+              </button>
+            ) : null}
             {joinUrl ? (
               <a className="community-aside-link community-sales-join-note" href={joinUrl} target="_blank" rel="noreferrer">
                 See it as a visitor <ExternalLink size={13} aria-hidden="true" />

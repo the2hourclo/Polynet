@@ -8,11 +8,14 @@ import {
   saveCloudCommunityLayoutDraft,
   type CommunityLayoutDraftState,
 } from "../../../../shared/cloudCommunityLayoutGateway";
-import { DEFAULT_COMMUNITY_LAYOUT, type CommunityLayoutV1 } from "../../../../shared/communityLayout";
+import { uploadCloudCommunityResourceImage } from "../../../../shared/cloudCommunityAdminGateway";
+import { DEFAULT_COMMUNITY_LAYOUT, type CommunityLayoutAboutMedia, type CommunityLayoutV1 } from "../../../../shared/communityLayout";
 import { buildCommunityFunnelPath, buildCommunityFunnelPreviewPath } from "../../../../shared/webAppRouteState";
 import { COMMUNITY_LAYOUT_PUBLISHED_EVENT } from "../controllers/useWebCommunityLayout";
 import type { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
 import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
+import { WebCommunitySalesGalleryEditor } from "./WebCommunitySalesGalleryEditor";
+import { SALES_PREVIEW_MESSAGE } from "./WebCommunitySalesPage";
 
 type Presentation = CommunityLayoutV1["pages"]["about"]["presentation"];
 
@@ -63,7 +66,7 @@ function layoutWithPresentation(layout: CommunityLayoutV1, presentation: Present
 const FRAME_WIDTH = { desktop: 1280, phone: 390 } as const;
 const FRAME_HEIGHT = { desktop: 800, phone: 844 } as const;
 
-function SalesPreviewFrame(props: { device: "desktop" | "phone"; src: string; title: string }) {
+function SalesPreviewFrame(props: { device: "desktop" | "phone"; src: string; title: string; frameRef?: (frame: HTMLIFrameElement | null) => void }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [available, setAvailable] = useState<number | null>(null);
   useEffect(() => {
@@ -86,6 +89,7 @@ function SalesPreviewFrame(props: { device: "desktop" | "phone"; src: string; ti
     <div ref={wrap} className={`pn-sales-frame-wrap is-${props.device}`}>
       <div className="pn-sales-frame-box" style={{ width: width * scale, height: height * scale }}>
         <iframe
+          ref={props.frameRef}
           className="pn-sales-frame"
           src={props.src}
           title={props.title}
@@ -144,25 +148,49 @@ export function WebCommunitySalesPageSettings(props: Props) {
     return () => { active = false; };
   }, [props.communityId, reload]);
 
-  const run = async (operation: (session: unknown, current: CommunityLayoutDraftState) => Promise<CommunityLayoutDraftState>, after?: (next: CommunityLayoutDraftState) => void) => {
-    if (!state || busy) return;
+  const run = async (operation: (session: unknown, current: CommunityLayoutDraftState) => Promise<CommunityLayoutDraftState>, after?: (next: CommunityLayoutDraftState) => void): Promise<boolean> => {
+    if (!state || busy) return false;
     setBusy(true);
     setError(null);
     try {
       const next = await withSession((session) => operation(session, state));
-      if (!alive.current) return;
+      if (!alive.current) return false;
       setState(next);
       after?.(next);
+      return true;
     } catch (caught) {
-      if (!alive.current) return;
+      if (!alive.current) return false;
       const message = String((caught as { data?: { code?: string } })?.data?.code ?? caught ?? "");
       setError(message.includes("conflict")
         ? "The layout changed in another session. Reload to continue."
         : "Could not save. Try again.");
+      return false;
     } finally {
       if (alive.current) setBusy(false);
     }
   };
+
+  // The preview frame shows the unpublished gallery and text: they're sent to
+  // it whenever they change and whenever it (re)loads and says it's ready.
+  const previewFrame = useRef<HTMLIFrameElement | null>(null);
+  const draftAbout = state
+    ? { media: state.draft.pages.about.media, text: state.draft.pages.about.text, showMembers: state.draft.pages.about.show_members }
+    : null;
+  const draftAboutKey = JSON.stringify(draftAbout);
+  useEffect(() => {
+    if (!draftAbout) return;
+    const send = () => previewFrame.current?.contentWindow?.postMessage(
+      { type: SALES_PREVIEW_MESSAGE, ...draftAbout },
+      window.location.origin,
+    );
+    send();
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== previewFrame.current?.contentWindow) return;
+      if ((event.data as { type?: string } | null)?.type === `${SALES_PREVIEW_MESSAGE}:ready`) send();
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [draftAboutKey]);
 
   if (!state) {
     return (
@@ -208,7 +236,22 @@ export function WebCommunitySalesPageSettings(props: Props) {
     expectedDraftRevision: current.draftRevision,
   }), () => setFrameKey((n) => n + 1));
 
+  const saveAbout = (about: { media: CommunityLayoutAboutMedia[]; text: string; show_members: boolean }) => run((session, current) => saveCloudCommunityLayoutDraft({
+    session,
+    communityId: props.communityId,
+    expectedDraftRevision: current.draftRevision,
+    layout: { ...current.draft, pages: { ...current.draft.pages, about: { ...current.draft.pages.about, ...about } } },
+  }));
+  const uploadImage = async (file: File) => {
+    const session = await props.ensureSession(props.session);
+    if (!session) throw new Error("Sign in again to upload.");
+    return uploadCloudCommunityResourceImage({ session, communityId: props.communityId, file });
+  };
+
   const funnelConfig = props.funnel.editorProps.communityFunnelConfig;
+  const fallbackText = funnelConfig?.active_slot !== "default"
+    ? funnelConfig?.published_content_v2?.long_form_markdown?.trim() ?? ""
+    : "";
   const previewBase = buildCommunityFunnelPreviewPath(props.communitySlug, funnelConfig?.active_slot ?? "default");
   // Phone loads the phone app (/m/), as a real phone gets it, not the desktop
   // layout squeezed to 390px.
@@ -283,6 +326,17 @@ export function WebCommunitySalesPageSettings(props: Props) {
         ) : null}
       </section>
 
+      <WebCommunitySalesGalleryEditor
+        media={state.draft.pages.about.media}
+        text={state.draft.pages.about.text}
+        showMembers={state.draft.pages.about.show_members}
+        classroom={draftStyle === "funnel"}
+        fallbackText={fallbackText}
+        busy={busy}
+        onSave={saveAbout}
+        uploadImage={uploadImage}
+      />
+
       </div>
       <div className="pn-funnels-preview">
         <section className="settings-section pn-settings-card pn-sales-preview-card" aria-labelledby="sales-preview-title">
@@ -313,6 +367,7 @@ export function WebCommunitySalesPageSettings(props: Props) {
               device={device}
               src={previewSrc}
               title={`Preview of the ${styleName(draftStyle)}`}
+              frameRef={(frame) => { previewFrame.current = frame; }}
             />
           ) : null}
         </section>

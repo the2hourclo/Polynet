@@ -15,6 +15,8 @@ export type WebCommunityFrame = {
   memberCount: number | null;
   session: unknown | null;
   canInvite: boolean;
+  // Owners and admins: the sales page shows an "Edit page" link to Funnels.
+  canEditSalesPage: boolean;
   onSelectTab: (tab: CommunityTab) => void;
   onCopyJoinLink: ((joinUrl: string) => Promise<void> | void) | null;
   // Words typed in the top bar's search; the posts feed shows only matches.
@@ -37,6 +39,7 @@ export const WebCommunityFrameContext = createContext<WebCommunityFrame>({
   memberCount: null,
   session: null,
   canInvite: false,
+  canEditSalesPage: false,
   onSelectTab: () => {},
   onCopyJoinLink: null,
   postSearch: "",

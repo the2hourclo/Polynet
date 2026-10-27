@@ -1,12 +1,14 @@
-import type { ReactNode } from "react";
-import { Globe2, Lock, Tag, Users } from "lucide-react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, Globe2, Lock, Play, Tag, Users } from "lucide-react";
 
 import type { CommunityFunnelRenderModel } from "../../../../shared/communityFunnelUi";
 import { formatPublicPlanJoinPrice } from "../../../../shared/communityFunnelUi";
 import type { CommunityPublicFace, PublicPlanSummary } from "../../../../shared/communityTypes";
+import { parseEmbedUrl } from "../../../../shared/linkEmbedUi";
 import { renderMarkdown } from "../../../../shared/markdownUi";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { renderHeroMediaDefault } from "./CommunityFunnelSurface";
+import { CommunityFunnelMemberProof } from "./CommunityFunnelMemberProof";
 import "./WebCommunitySalesPage.css";
 
 // The About page as a sales page: one page that a
@@ -34,7 +36,15 @@ export type CommunitySalesPageCommunity = {
   member_count?: number | null;
   online_count?: number | null;
   admin_count?: number | null;
+  member_faces_preview?: CommunityPublicFace[] | null;
 };
+
+// A picture or video in the sales page gallery (layout pages.about.media).
+export type SalesPageMediaItem = { kind: "image" | "video"; url: string; caption: string };
+
+// What the sales page editor posts into its preview frame: the unpublished
+// gallery and text.
+export const SALES_PREVIEW_MESSAGE = "polynet:sales-page-preview";
 
 export type WebCommunitySalesPageProps = {
   community: CommunitySalesPageCommunity;
@@ -45,6 +55,12 @@ export type WebCommunitySalesPageProps = {
   // A short address under the card's name, e.g. polynet.ai/c/the-2-hour-club.
   address?: string | null;
   alertMessages?: string[];
+  // The owner's gallery: shown instead of the single video or banner.
+  media?: SalesPageMediaItem[] | null;
+  // The owner's text under the media: shown instead of the funnel copy.
+  text?: string | null;
+  // Off: no member faces, counts or stats anywhere on the page.
+  showMembers?: boolean;
 };
 
 function initials(name: string): string {
@@ -85,21 +101,96 @@ function SalesPageMedia(props: { community: CommunitySalesPageCommunity; vslUrl:
   );
 }
 
+function videoThumbnail(url: string): string | null {
+  const embed = parseEmbedUrl(url);
+  if (embed?.provider === "youtube") return embed.thumbnailUrl;
+  if (embed?.provider === "loom") return `https://cdn.loom.com/sessions/thumbnails/${embed.id}-00001.jpg`;
+  return null;
+}
+
+// The gallery: one slide at a time, arrows and the arrow keys to move, and a
+// row of thumbnails to jump. A video plays in place; moving on stops it.
+export function SalesPageGallery(props: { items: SalesPageMediaItem[]; communityName: string }) {
+  const { items } = props;
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (index >= items.length) setIndex(Math.max(0, items.length - 1));
+  }, [index, items.length]);
+  const current = items[Math.min(index, items.length - 1)];
+  if (!current) return null;
+  const many = items.length > 1;
+  const go = (step: number) => setIndex((value) => (value + step + items.length) % items.length);
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!many) return;
+    if (event.key === "ArrowLeft") { event.preventDefault(); go(-1); }
+    if (event.key === "ArrowRight") { event.preventDefault(); go(1); }
+  };
+  return (
+    <figure className="community-sales-gallery" aria-roledescription="carousel" aria-label={`${props.communityName} pictures and videos`}>
+      <div className="community-sales-gallery-stage" tabIndex={many ? 0 : undefined} onKeyDown={onKeyDown}>
+        <div className="community-sales-media" key={`${index}:${current.url}`} aria-roledescription="slide" aria-label={`${index + 1} of ${items.length}`}>
+          {current.kind === "video"
+            ? renderHeroMediaDefault("video", current.url, { eager: index === 0, playHint: "Watch" })
+            : <img src={current.url} alt={current.caption || ""} />}
+        </div>
+        {many ? (
+          <>
+            <button type="button" className="community-sales-gallery-arrow is-prev" aria-label="Previous" onClick={() => go(-1)}>
+              <ChevronLeft size={20} aria-hidden="true" />
+            </button>
+            <button type="button" className="community-sales-gallery-arrow is-next" aria-label="Next" onClick={() => go(1)}>
+              <ChevronRight size={20} aria-hidden="true" />
+            </button>
+            <span className="community-sales-gallery-count" aria-hidden="true">{index + 1} / {items.length}</span>
+          </>
+        ) : null}
+      </div>
+      {current.caption ? <figcaption className="community-sales-gallery-caption">{current.caption}</figcaption> : null}
+      {many ? (
+        <div className="community-sales-gallery-thumbs" role="tablist" aria-label="Choose a slide">
+          {items.map((item, itemIndex) => {
+            const picture = item.kind === "image" ? item.url : videoThumbnail(item.url);
+            return (
+              <button
+                key={`${itemIndex}:${item.url}`}
+                type="button"
+                role="tab"
+                aria-selected={itemIndex === index}
+                aria-label={`${item.kind === "video" ? "Video" : "Picture"} ${itemIndex + 1}${item.caption ? `: ${item.caption}` : ""}`}
+                className={`community-sales-gallery-thumb${itemIndex === index ? " is-current" : ""}${picture ? "" : " is-blank"}`}
+                onClick={() => setIndex(itemIndex)}
+              >
+                {picture ? <img src={picture} alt="" loading="lazy" /> : null}
+                {item.kind === "video" ? <span className="community-sales-gallery-play" aria-hidden="true"><Play size={12} fill="currentColor" /></span> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </figure>
+  );
+}
+
 export function WebCommunitySalesPage(props: WebCommunitySalesPageProps) {
   const { community, renderModel } = props;
-  const memberCount = typeof community.member_count === "number" ? community.member_count : null;
-  const onlineCount = typeof community.online_count === "number" ? community.online_count : null;
-  const adminCount = typeof community.admin_count === "number" ? community.admin_count : null;
+  const showMembers = props.showMembers !== false;
+  const memberCount = showMembers && typeof community.member_count === "number" ? community.member_count : null;
+  const onlineCount = showMembers && typeof community.online_count === "number" ? community.online_count : null;
+  const adminCount = showMembers && typeof community.admin_count === "number" ? community.admin_count : null;
   const isCustom = renderModel.mode === "custom";
   const about = String(community.about ?? "").trim();
   const hostName = community.host?.display_name?.trim() || null;
   const isOpen = community.entry_policy === "open";
+  const media = props.media ?? [];
+  const ownText = String(props.text ?? "").trim();
 
   return (
     <div className="community-sales-page">
       <article className="community-sales-main">
         <h1 className="community-sales-title">{community.name}</h1>
-        <SalesPageMedia community={community} vslUrl={renderModel.vslUrl} />
+        {media.length > 0
+          ? <SalesPageGallery items={media} communityName={community.name} />
+          : <SalesPageMedia community={community} vslUrl={renderModel.vslUrl} />}
 
         <ul className="community-sales-facts" aria-label="At a glance">
           <li>
@@ -146,7 +237,9 @@ export function WebCommunitySalesPage(props: WebCommunitySalesPageProps) {
         <div className="community-sales-action-inline">{props.action}</div>
 
         <div className="community-sales-copy">
-          {isCustom ? (
+          {ownText ? (
+            renderMarkdown(ownText, { headingLevelOffset: 1 })
+          ) : isCustom ? (
             <>
               {renderModel.headline ? <p className="community-sales-lead">{renderModel.headline}</p> : null}
               {renderModel.subheadline ? <p>{renderModel.subheadline}</p> : null}
@@ -204,6 +297,13 @@ export function WebCommunitySalesPage(props: WebCommunitySalesPageProps) {
             </div>
           </div>
           {community.one_liner ? <p className="community-sales-card-description">{community.one_liner}</p> : null}
+          {showMembers ? (
+            <CommunityFunnelMemberProof
+              communityName={community.name}
+              faces={community.member_faces_preview ?? []}
+              memberCount={memberCount}
+            />
+          ) : null}
           {memberCount !== null || onlineCount !== null || adminCount !== null ? (
             <dl className="community-sales-card-stats">
               {memberCount !== null ? (

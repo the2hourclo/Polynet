@@ -349,6 +349,9 @@ export const resolvePublicFunnelBySlug = query({
         funnel,
         // "funnel": the community's About page is its public page.
         about_presentation: layout?.pages.about.presentation ?? "page",
+        about_media: layout?.pages.about.media ?? [],
+        about_text: layout?.pages.about.text ?? "",
+        about_show_members: layout?.pages.about.show_members ?? true,
       },
       active_plan: activePlan,
     };
