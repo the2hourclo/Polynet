@@ -1178,6 +1178,14 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   }
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section { display: block; }
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
+  /* Chapters are as tall as the video beside them and scroll inside, so
+     Contents starts level with the video's bottom, not below the fold. */
+  .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-chapters-section {
+    display: flex;
+    flex-direction: column;
+    max-height: var(--lesson-hero-height, none);
+  }
+  .community-knowledge-page[data-reading] .lesson-rail nav.lesson-chapters-section .lesson-chapter-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
 }
 

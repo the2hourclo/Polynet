@@ -9853,14 +9853,6 @@ button.chat-reply-quote:hover {
   .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
   .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section { display: block; }
   .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
-  /* Chapters are as tall as the video beside them and scroll inside, so
-     Contents starts level with the video's bottom, not below the fold. */
-  .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-chapters-section {
-    display: flex;
-    flex-direction: column;
-    max-height: var(--lesson-hero-height, none);
-  }
-  .lesson-rail nav.lesson-chapters-section .lesson-chapter-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   /* With the side column, the title lines up with the text column. */
   .knowledge-resource-reader:has(.has-lesson-rail) .resource-viewer-header {
     max-width: calc(var(--lesson-reading-measure, 680px) + 16.5rem);
