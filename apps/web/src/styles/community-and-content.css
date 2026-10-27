@@ -13984,3 +13984,5 @@ button.chat-reply-quote:hover {
 /* The page's top row keeps clear of the bar's buttons fixed at the top right
    (the account avatar sat on "Give access" at 1980 wide, 2026-10-27). */
 .pn-page-with-back .pn-members-head { padding-right: var(--web-topbar-right-action-safe-inset, 0px); }
+.lesson-toc-compact-label { margin: 0.5rem 0.875rem 0.25rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.lesson-toc-compact .lesson-chapter-list { padding: 0 0.375rem 0.5rem; }
