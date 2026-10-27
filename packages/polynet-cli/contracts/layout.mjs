@@ -14,6 +14,9 @@ export const COMMUNITY_LAYOUT_VERSION = 1;
 export const COMMUNITY_LAYOUT_TABS = ["chat", "resources", "events", "members", "agent", "about"];
 export const COMMUNITY_LAYOUT_POSITIONS = ["top", "side"];
 export const COMMUNITY_LAYOUT_ASIDE_BLOCKS = ["community_card", "upcoming_events"];
+export const COMMUNITY_LAYOUT_ABOUT_MEDIA_LIMIT = 12;
+export const COMMUNITY_LAYOUT_ABOUT_TEXT_LIMIT = 20_000;
+const MAX_CAPTION_LENGTH = 140;
 export const COMMUNITY_LAYOUT_TAB_DEFAULT_LABELS = {
     chat: "Chat",
     resources: "Knowledge",
@@ -41,7 +44,7 @@ export const DEFAULT_COMMUNITY_LAYOUT = {
     width: "wide",
     pages: {
         chat: { presentation: "messages", aside: [] },
-        about: { presentation: "page" },
+        about: { presentation: "page", media: [], text: "", show_members: true },
     },
 };
 const MAX_LABEL_LENGTH = 24;
@@ -110,6 +113,86 @@ function normalizeTabs(raw, problems) {
     }
     return tabs;
 }
+function isWebAddress(value) {
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:" || url.protocol === "http:";
+    }
+    catch {
+        return false;
+    }
+}
+// The funnel's video rule (isSupportedCommunityFunnelVideoUrl in
+// shared/communityFunnel.ts), repeated here because this file is copied into
+// the CLI on its own. A test keeps the two in step.
+export function isCommunityLayoutVideoUrl(raw) {
+    let url;
+    try {
+        url = new URL(raw.trim());
+    }
+    catch {
+        return false;
+    }
+    if (url.protocol !== "https:")
+        return false;
+    const host = url.hostname.toLowerCase();
+    const on = (domain) => host === domain || host.endsWith(`.${domain}`);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (host === "youtu.be")
+        return Boolean(parts[0]);
+    if (on("youtube.com") || on("youtube-nocookie.com")) {
+        if (url.pathname === "/watch" && url.searchParams.get("v"))
+            return true;
+        return ["embed", "shorts", "live", "v"].includes(parts[0] ?? "") && Boolean(parts[1]);
+    }
+    if (on("vimeo.com"))
+        return parts.some((part) => /^\d{6,}$/.test(part));
+    if (on("loom.com"))
+        return ["share", "embed"].includes(parts[0] ?? "") && Boolean(parts[1]);
+    if (on("wistia.com") || on("wistia.net")) {
+        if (url.searchParams.get("wvideo"))
+            return true;
+        return parts.some((part, index) => ["medias", "iframe"].includes(part) && Boolean(parts[index + 1]));
+    }
+    return false;
+}
+function normalizeAboutMedia(raw, problems) {
+    if (!Array.isArray(raw)) {
+        problems.push({ path: "pages.about.media", message: "media is a list of { kind, url, caption }." });
+        return [];
+    }
+    if (raw.length > COMMUNITY_LAYOUT_ABOUT_MEDIA_LIMIT) {
+        problems.push({ path: "pages.about.media", message: `Up to ${COMMUNITY_LAYOUT_ABOUT_MEDIA_LIMIT} pictures and videos.` });
+    }
+    const media = [];
+    raw.slice(0, COMMUNITY_LAYOUT_ABOUT_MEDIA_LIMIT).forEach((entry, index) => {
+        const path = `pages.about.media.${index}`;
+        if (!isRecord(entry)) {
+            problems.push({ path, message: "Each item is { kind, url, caption }." });
+            return;
+        }
+        unknownKeys(entry, ["kind", "url", "caption"], path, problems);
+        const kind = oneOf(entry.kind, ["image", "video"], `${path}.kind`, problems);
+        const url = typeof entry.url === "string" ? entry.url.trim() : "";
+        const caption = entry.caption === undefined ? "" : typeof entry.caption === "string" ? entry.caption.trim() : null;
+        if (!kind)
+            return;
+        if (!url || url.length > 2048 || !isWebAddress(url)) {
+            problems.push({ path: `${path}.url`, message: "url is a web address (https://…)." });
+            return;
+        }
+        if (kind === "video" && !isCommunityLayoutVideoUrl(url)) {
+            problems.push({ path: `${path}.url`, message: "Videos are YouTube, Vimeo, Loom or Wistia links." });
+            return;
+        }
+        if (caption === null || caption.length > MAX_CAPTION_LENGTH) {
+            problems.push({ path: `${path}.caption`, message: `caption is text up to ${MAX_CAPTION_LENGTH} characters.` });
+            return;
+        }
+        media.push({ kind, url, caption });
+    });
+    return media;
+}
 export function normalizeCommunityLayout(raw) {
     const problems = [];
     if (!isRecord(raw))
@@ -124,7 +207,7 @@ export function normalizeCommunityLayout(raw) {
         width: DEFAULT_COMMUNITY_LAYOUT.width,
         pages: {
             chat: { ...DEFAULT_COMMUNITY_LAYOUT.pages.chat, aside: [] },
-            about: { ...DEFAULT_COMMUNITY_LAYOUT.pages.about },
+            about: { ...DEFAULT_COMMUNITY_LAYOUT.pages.about, media: [] },
         },
     };
     if (raw.navigation !== undefined) {
@@ -186,10 +269,30 @@ export function normalizeCommunityLayout(raw) {
                     problems.push({ path: "pages.about", message: "pages.about is an object." });
                 }
                 else {
-                    unknownKeys(about, ["presentation"], "pages.about", problems);
+                    unknownKeys(about, ["presentation", "media", "text", "show_members"], "pages.about", problems);
+                    if (about.show_members !== undefined) {
+                        if (typeof about.show_members === "boolean")
+                            layout.pages.about.show_members = about.show_members;
+                        else
+                            problems.push({ path: "pages.about.show_members", message: "show_members is true or false." });
+                    }
                     if (about.presentation !== undefined) {
                         layout.pages.about.presentation =
                             oneOf(about.presentation, ["page", "funnel"], "pages.about.presentation", problems) ?? layout.pages.about.presentation;
+                    }
+                    if (about.media !== undefined) {
+                        layout.pages.about.media = normalizeAboutMedia(about.media, problems);
+                    }
+                    if (about.text !== undefined) {
+                        if (typeof about.text !== "string") {
+                            problems.push({ path: "pages.about.text", message: "text is Markdown text." });
+                        }
+                        else if (about.text.length > COMMUNITY_LAYOUT_ABOUT_TEXT_LIMIT) {
+                            problems.push({ path: "pages.about.text", message: `Keep the text under ${COMMUNITY_LAYOUT_ABOUT_TEXT_LIMIT.toLocaleString("en-US")} characters.` });
+                        }
+                        else {
+                            layout.pages.about.text = about.text.trim();
+                        }
                     }
                 }
             }

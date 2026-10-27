@@ -87,6 +87,24 @@ npx @polynet/cli dev my-community       # saves theme.json to the draft on every
 npx @polynet/cli publish my-community   # makes it the theme members see
 ```
 
+The Classroom sales page (`"pages": { "about": { "presentation": "funnel" } }`)
+also takes its gallery and text from `layout.json`, the same fields the owner
+edits in Funnels › Sales page:
+
+```json
+"about": {
+  "presentation": "funnel",
+  "media": [
+    { "kind": "video", "url": "https://www.youtube.com/watch?v=…", "caption": "Two-minute tour" },
+    { "kind": "image", "url": "https://…/members.png", "caption": "" }
+  ],
+  "text": "## What you get\n- Weekly build calls"
+}
+```
+
+Videos are YouTube, Vimeo, Loom or Wistia links; up to 12 slides. An empty
+`text` keeps the funnel copy.
+
 - `polynet init` also puts Polynet's skills in the folder, including
   `polynet-ui-design`: design taste and craft for your agent (type, colour,
   space, polish, avoiding the generic AI look). It's guidance, not a style:

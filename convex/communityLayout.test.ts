@@ -3,12 +3,15 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 import {
+  COMMUNITY_LAYOUT_ABOUT_MEDIA_LIMIT,
   DEFAULT_COMMUNITY_LAYOUT,
   communityLayoutTabLabel,
+  isCommunityLayoutVideoUrl,
   layoutForMemberChoice,
   normalizeCommunityLayout,
   visibleCommunityLayoutTabs,
 } from "../shared/communityLayout";
+import { isSupportedCommunityFunnelVideoUrl } from "../shared/communityFunnel";
 
 const SKOOL_LAYOUT = JSON.parse(
   readFileSync(join(__dirname, "..", "packages", "polynet-cli", "templates", "skool", "layout.json"), "utf8"),
@@ -32,7 +35,7 @@ describe("community layout v1", () => {
     expect(result.layout.navigation.position).toBe("top");
     expect(result.layout.width).toBe("centered");
     expect(result.layout.pages.chat).toEqual({ presentation: "posts", aside: ["community_card", "upcoming_events"] });
-    expect(result.layout.pages.about).toEqual({ presentation: "funnel" });
+    expect(result.layout.pages.about).toEqual({ presentation: "funnel", media: [], text: "", show_members: true });
     expect(visibleCommunityLayoutTabs(result.layout).map((t) => communityLayoutTabLabel(result.layout, t.tab)))
       .toEqual(["Community", "Classroom", "Calendar", "Members", "Ask AI", "About"]);
   });
@@ -43,6 +46,55 @@ describe("community layout v1", () => {
     expect(funnel.ok && funnel.layout.pages.about.presentation).toBe("funnel");
     expect(problemsOf({ pages: { about: { presentation: "landing" } } }).map((p) => p.path)).toEqual(["pages.about.presentation"]);
     expect(problemsOf({ pages: { about: { video: true } } }).map((p) => p.path)).toEqual(["pages.about.video"]);
+  });
+
+  test("the sales page holds a gallery of pictures and videos and its own text", () => {
+    const result = normalizeCommunityLayout({
+      pages: {
+        about: {
+          presentation: "funnel",
+          media: [
+            { kind: "video", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", caption: " Intro " },
+            { kind: "image", url: "https://example.com/members.png" },
+          ],
+          text: "  ## What you get\n- Weekly calls  ",
+        },
+      },
+    });
+    expect(result.ok && result.layout.pages.about).toEqual({
+      presentation: "funnel",
+      media: [
+        { kind: "video", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", caption: "Intro" },
+        { kind: "image", url: "https://example.com/members.png", caption: "" },
+      ],
+      text: "## What you get\n- Weekly calls",
+      show_members: true,
+    });
+    const hidden = normalizeCommunityLayout({ pages: { about: { show_members: false } } });
+    expect(hidden.ok && hidden.layout.pages.about.show_members).toBe(false);
+    const paths = (about: unknown) => problemsOf({ pages: { about } }).map((p) => p.path);
+    expect(paths({ media: [{ kind: "video", url: "https://example.com/clip" }] })).toEqual(["pages.about.media.0.url"]);
+    expect(paths({ media: [{ kind: "image", url: "javascript:alert(1)" }] })).toEqual(["pages.about.media.0.url"]);
+    expect(paths({ media: [{ kind: "gif", url: "https://example.com/a.gif" }] })).toEqual(["pages.about.media.0.kind"]);
+    expect(paths({ media: [{ kind: "image", url: "https://example.com/a.png", caption: "x".repeat(141) }] })).toEqual(["pages.about.media.0.caption"]);
+    expect(paths({ media: Array.from({ length: COMMUNITY_LAYOUT_ABOUT_MEDIA_LIMIT + 1 }, () => ({ kind: "image", url: "https://example.com/a.png" })) })).toEqual(["pages.about.media"]);
+    expect(paths({ text: 5 })).toEqual(["pages.about.text"]);
+    expect(paths({ show_members: "yes" })).toEqual(["pages.about.show_members"]);
+  });
+
+  test("the gallery accepts the same video links as the funnel", () => {
+    for (const url of [
+      "https://youtu.be/dQw4w9WgXcQ",
+      "https://www.youtube.com/shorts/abc123",
+      "https://vimeo.com/123456789",
+      "https://www.loom.com/share/abcdef123456",
+      "https://fast.wistia.net/embed/iframe/abc123",
+      "https://example.com/video.mp4",
+      "http://youtu.be/dQw4w9WgXcQ",
+      "https://vimeo.com/channels/staff",
+    ]) {
+      expect(isCommunityLayoutVideoUrl(url), url).toBe(isSupportedCommunityFunnelVideoUrl(url));
+    }
   });
 
   test("members may pick Classroom or Channels where the owner offers it", () => {

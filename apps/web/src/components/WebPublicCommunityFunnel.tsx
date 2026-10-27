@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type {
   CommunityFunnelConfig,
   CommunityFunnelContentV2,
@@ -11,7 +12,7 @@ import {
 } from "../../../../shared/communityFunnelUi";
 import type { WebCommunityBridgeCardProps } from "./WebCommunityBridgeCard";
 import { WebCommunityFunnelRenderer } from "./WebCommunityFunnelRenderer";
-import { WebCommunitySalesPage, type CommunitySalesPageCommunity } from "./WebCommunitySalesPage";
+import { SALES_PREVIEW_MESSAGE, WebCommunitySalesPage, type CommunitySalesPageCommunity, type SalesPageMediaItem } from "./WebCommunitySalesPage";
 import { ActionStatusCards } from "./CommunityFunnelSurface";
 import { WebBlockingSetupModal } from "./WebBlockingSetupModal";
 import { WebCommunityBridgeCard } from "./WebCommunityBridgeCard";
@@ -46,6 +47,10 @@ export type PublicCommunityFunnelCommunityLike = CommunitySalesPageCommunity & {
   funnel?: CommunityFunnelConfig | null;
   // "funnel": the owner's layout makes the About page the public page.
   about_presentation?: "page" | "funnel" | null;
+  // The sales page's gallery and its own text (layout pages.about).
+  about_media?: SalesPageMediaItem[] | null;
+  about_text?: string | null;
+  about_show_members?: boolean | null;
 };
 
 type WebPublicCommunityFunnelProps = {
@@ -130,6 +135,26 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
     publicJoinError,
     checkoutError,
   } = props;
+
+  // The editor beside the preview frame sends its unpublished gallery and text,
+  // so the owner sees them before publishing. Only the parent window, on this
+  // site, can send them, and only into the embedded preview.
+  const [draftAbout, setDraftAbout] = useState<{ media: SalesPageMediaItem[]; text: string; showMembers: boolean } | null>(null);
+  useEffect(() => {
+    if (!SALES_PREVIEW_PARAMS.embed) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== window.parent) return;
+      const data = event.data as { type?: string; media?: unknown; text?: unknown; showMembers?: unknown } | null;
+      if (data?.type !== SALES_PREVIEW_MESSAGE || !Array.isArray(data.media) || typeof data.text !== "string") return;
+      setDraftAbout({ media: data.media as SalesPageMediaItem[], text: data.text, showMembers: data.showMembers !== false });
+    };
+    window.addEventListener("message", onMessage);
+    window.parent?.postMessage({ type: `${SALES_PREVIEW_MESSAGE}:ready` }, window.location.origin);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+  const aboutMedia = draftAbout?.media ?? publicCommunity?.about_media ?? [];
+  const aboutText = draftAbout?.text ?? publicCommunity?.about_text ?? "";
+  const showMembers = draftAbout?.showMembers ?? publicCommunity?.about_show_members !== false;
 
   const communityName = publicCommunity?.name ?? publicRouteSlug ?? "Community";
   // /preview itself resolves to the public page now, so the frame is told
@@ -245,6 +270,9 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
         community={publicCommunity}
         plan={paidPlan}
         renderModel={renderModel}
+        media={aboutMedia}
+        text={aboutText}
+        showMembers={showMembers}
         address={salesAddress}
         alertMessages={!isLoadingPublicCommunity
           ? [...funnelErrors, ...(previewDocumentError ? [previewDocumentError] : [])]
@@ -285,8 +313,8 @@ export function WebPublicCommunityFunnel(props: WebPublicCommunityFunnelProps) {
       avatarFocusX={publicCommunity?.avatar_focus_x ?? null}
       avatarFocusY={publicCommunity?.avatar_focus_y ?? null}
       avatarZoom={publicCommunity?.avatar_zoom ?? null}
-      memberCount={memberCount}
-      memberFaces={publicCommunity?.member_faces_preview ?? []}
+      memberCount={showMembers ? memberCount : null}
+      memberFaces={showMembers ? publicCommunity?.member_faces_preview ?? [] : []}
       renderModel={renderModel}
       action={action}
       alertMessages={!isLoadingPublicCommunity

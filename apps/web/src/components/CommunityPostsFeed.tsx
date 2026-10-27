@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { MessageSquare, Pin, ThumbsUp, X } from "lucide-react";
+import { MessageSquare, Pin, Play, ThumbsUp, X } from "lucide-react";
+import { parseEmbedUrl } from "../../../../shared/linkEmbedUi";
+import { extractCommunityInteractionLinkSources } from "../../../../shared/communityInteractionLinkExtraction";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import type { UserProfile } from "../../../../shared/communityTypes";
 import {
@@ -76,12 +78,77 @@ export function splitPostTitle(title: string | null, body: string): { title: str
 
 const LIKE = "👍";
 
-// The picture a post shows on its card: its first image, or a link preview's.
-function postThumbnail(bundle: CommunityInteractionRootBundle): { src: string; alt: string } | null {
-  const image = bundle.attachments.find((attachment) => attachment.type === "image" && (attachment.url || attachment.data_url));
-  if (image) return { src: (image.url || image.data_url)!, alt: image.name };
-  const embed = bundle.embeds?.find((entry) => entry.status === "ready" && entry.image_url);
-  return embed ? { src: embed.image_url!, alt: embed.image_alt ?? embed.title ?? "" } : null;
+// What a post shows on its card, so members see there's media before opening
+// it: its first image or video, a video link (YouTube and Loom bring their own
+// picture; Vimeo, Wistia and Descript show a plain video tile), or a link
+// preview's picture. "more" counts the other media in the post.
+type PostMedia = {
+  kind: "image" | "video";
+  src: string | null;
+  // For an uploaded video: the file itself, shown at its first frame.
+  videoSrc?: string | null;
+  alt: string;
+  provider?: string;
+  more: number;
+};
+
+const VIDEO_PROVIDER_NAMES: Record<string, string> = {
+  youtube: "YouTube",
+  vimeo: "Vimeo",
+  loom: "Loom",
+  wistia: "Wistia",
+  descript: "Descript",
+};
+
+export function postMedia(bundle: CommunityInteractionRootBundle, text: string): PostMedia | null {
+  const found: Omit<PostMedia, "more">[] = [];
+  for (const attachment of bundle.attachments) {
+    const src = attachment.url || attachment.data_url || null;
+    if (!src) continue;
+    if (attachment.type === "image") found.push({ kind: "image", src, alt: attachment.name });
+    else if (String(attachment.mime ?? "").startsWith("video/")) found.push({ kind: "video", src: null, videoSrc: src, alt: attachment.name });
+  }
+  const seen = new Set<string>();
+  for (const href of extractCommunityInteractionLinkSources(text, (url) => url, 12)) {
+    const embed = parseEmbedUrl(href);
+    if (!embed || seen.has(`${embed.provider}:${embed.id}`)) continue;
+    seen.add(`${embed.provider}:${embed.id}`);
+    const src = embed.provider === "youtube"
+      ? embed.thumbnailUrl
+      : embed.provider === "loom"
+        ? `https://cdn.loom.com/sessions/thumbnails/${embed.id}-00001.jpg`
+        : null;
+    found.push({ kind: "video", src, alt: `${VIDEO_PROVIDER_NAMES[embed.provider]} video`, provider: VIDEO_PROVIDER_NAMES[embed.provider] });
+  }
+  if (found.length === 0) {
+    const embed = bundle.embeds?.find((entry) => entry.status === "ready" && entry.image_url);
+    if (embed) found.push({ kind: "image", src: embed.image_url!, alt: embed.image_alt ?? embed.title ?? "" });
+  }
+  // A picture first: a video tile without one only leads when nothing else has a picture.
+  const first = found.find((entry) => entry.src || entry.videoSrc) ?? found[0];
+  return first ? { ...first, more: found.length - 1 } : null;
+}
+
+function PostCardMedia(props: { media: PostMedia }) {
+  const { media } = props;
+  const [failed, setFailed] = useState(false);
+  const showPicture = Boolean(media.src) && !failed;
+  return (
+    <span className={`community-post-card-thumbnail is-${media.kind}${showPicture || media.videoSrc ? "" : " is-blank"}`}>
+      {showPicture ? (
+        <img src={media.src!} alt={media.alt} loading="lazy" onError={() => setFailed(true)} />
+      ) : media.videoSrc ? (
+        <video src={`${media.videoSrc}#t=0.1`} preload="metadata" muted playsInline aria-label={media.alt} />
+      ) : null}
+      {media.kind === "video" ? (
+        <span className="community-post-card-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
+      ) : null}
+      {media.kind === "video" && !showPicture && !media.videoSrc && media.provider ? (
+        <span className="community-post-card-provider">{media.provider}</span>
+      ) : null}
+      {media.more > 0 ? <span className="community-post-card-more">+{media.more}</span> : null}
+    </span>
+  );
 }
 
 function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractionRootBundle; pinned: boolean }) {
@@ -98,7 +165,10 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
         root.title,
         stripSharedAttachmentSummary(bundleText(bundle.content_blocks, root.content_summary), bundle.attachments.length > 0),
       );
-  const thumbnail = postThumbnail(bundle);
+  const thumbnail = postMedia(
+    bundle,
+    bundle.post_card ? "" : bundleText(bundle.content_blocks, root.content_summary),
+  );
   const likes = root.reaction_summary.find((row) => row.emoji === LIKE)?.count ?? 0;
   const liked = root.viewer_emojis.includes(LIKE);
   const open = () => props.onSelectRoot(root.id);
@@ -146,7 +216,7 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
             </div>
           ) : null}
         </button>
-        {thumbnail ? <img className="community-post-card-thumbnail" src={thumbnail.src} alt={thumbnail.alt} loading="lazy" /> : null}
+        {thumbnail ? <PostCardMedia media={thumbnail} /> : null}
       </div>
       {bundle.post_card ? <PostCardView bundle={bundle} showQuestion={false} /> : null}
       <footer className="community-post-card-footer">
