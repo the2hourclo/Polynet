@@ -849,37 +849,29 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         {isEditing && bodyProblem ? <div className="auth-error resource-viewer-edit-error" role="alert">{bodyProblem}</div> : null}
         {isEditing && editor?.error ? <div className="auth-error resource-viewer-edit-error">{editor.error}</div> : null}
       </div>
-      {/* A video lesson shows its video wide, right under the title. */}
-      {embed ? (
-        <div className="resource-viewer-hero">
-          <div className="resource-viewer-embed" data-resource-media="true">
-            {embed.provider === "youtube" ? (
-              <DeferredYouTubeEmbed
-                key={embed.id}
-                embed={embed}
-                title={`${resource.title} video`}
-              />
-            ) : (
-              <StableMediaEmbedFrame
-                src={embed.src}
-                title={`${resource.title} video`}
-              />
-            )}
-          </div>
-          {/* On a wide page the chapters sit right beside the video, like YouTube's. */}
-          {contents.chapters.length ? (
-            <nav className="lesson-hero-chapters" aria-label="Video chapters">
-              <div className="lesson-hero-chapters-scroll">
-                <p className="lesson-rail-label">Chapters</p>
-                <LessonChapters chapters={contents.chapters} onPlay={contents.playFrom} />
-              </div>
-            </nav>
-          ) : null}
-        </div>
-      ) : null}
-
       <div className={`resource-viewer-body${hasRail ? " has-lesson-rail" : ""}`}>
         <div className="resource-viewer-column">
+          {/* The lesson's video, under the title and as wide as the text (Rashid,
+              2026-10-27: "If we're going to have the video wide, then we should
+              have the text be as wide"), with its chapters in the side column. */}
+          {embed ? (
+            <div className="resource-viewer-hero">
+              <div className="resource-viewer-embed" data-resource-media="true">
+                {embed.provider === "youtube" ? (
+                  <DeferredYouTubeEmbed
+                    key={embed.id}
+                    embed={embed}
+                    title={`${resource.title} video`}
+                  />
+                ) : (
+                  <StableMediaEmbedFrame
+                    src={embed.src}
+                    title={`${resource.title} video`}
+                  />
+                )}
+              </div>
+            </div>
+          ) : null}
           {platforms.length > 1 && activePlatform ? (
             <div className="lesson-platform-row">
               <span>I build in</span>

@@ -13,7 +13,8 @@ test("chapter lines read the way YouTube descriptions write them", () => {
 test("chapters sit in the right panel and seek the video, reloading it only once", () => {
   const source = readFileSync(new URL("../apps/web/src/components/WebCommunityResourceViewerContent.tsx", import.meta.url), "utf8");
   expect(source).toContain('<nav className="lesson-rail-section" aria-label="Video chapters">');
-  expect(source).toContain('<nav className="lesson-hero-chapters" aria-label="Video chapters">');
+  // The video sits at the top of the text column, so the side column's Chapters start level with it.
+  expect(source.indexOf('<div className="resource-viewer-hero">')).toBeGreaterThan(source.indexOf('<div className="resource-viewer-column">'));
   expect(source).toContain('url.searchParams.set("enablejsapi", "1")');
   expect(source).toContain('JSON.stringify({ event: "command", func, args })');
 });

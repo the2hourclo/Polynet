@@ -1201,18 +1201,12 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 /* Lesson style, chosen per course by its owner (Rashid, 2026-10-26).
    Article (the default) is the clean newsletter page above. Video course
    reads like a classic course (Rashid, 2026-10-27: the tinted card "doesn't
-   feel right"): the same clean page, but the video comes first, large, above
-   the title, and the text follows at the reading width. */
-.community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson {
-  display: flex;
-  flex-direction: column;
-}
-.community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson > * { width: 100%; }
-.community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson > .resource-viewer-hero {
-  order: -1;
-  max-width: calc(var(--lesson-reading-measure, 680px) + 16rem);
-  margin: 0 auto 2rem;
-}
+   feel right"): the same clean page with a bigger video. */
+/* Video course: the title, then the video, then the text, all one width
+   with the same margins (Rashid, 2026-10-27: "we should have the text be as
+   wide"; "for a video course, we should always have a title"). The column is
+   wider than an article's so the video stays big. */
+.community-knowledge-page[data-reading][data-lesson-style="video"] { --knowledge-reading-measure: 48rem; }
 .community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-hero .resource-viewer-embed {
   overflow: hidden;
   border-radius: min(var(--pn-radius, 0.875rem), 0.875rem);
@@ -1294,32 +1288,11 @@ html[data-lesson-focus] .member-agent-launcher { display: none; }
 }
 .community-knowledge-page[data-focus] .community-knowledge-header > * { transform: none; }
 
-/* Chapters beside the lesson's video (Rashid, 2026-10-27: "it should show the
-   timestamps on the right side of the video"). On a page wide enough for the
-   side column, the hero is the video plus a chapters column as tall as the
-   video, scrolling inside; the side column then drops its own copy. Narrower,
-   the chapters stay in the Contents box above the text. */
-.lesson-hero-chapters { display: none; }
-@container lesson-page (min-width: 70rem) {
-  .community-knowledge-page[data-reading] .resource-viewer-hero:has(> .lesson-hero-chapters),
-  .community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson > .resource-viewer-hero:has(> .lesson-hero-chapters) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--lesson-outline-width);
-    gap: 1.25rem;
-    align-items: stretch;
-    max-width: calc(var(--lesson-reading-measure, 680px) + 16rem + var(--lesson-outline-width));
-    margin-inline: auto;
-  }
-  .community-knowledge-page[data-reading] .resource-viewer-hero > .lesson-hero-chapters {
-    display: block;
-    position: relative;
-    min-height: 0;
-  }
-  .lesson-hero-chapters-scroll {
-    position: absolute;
-    inset: 0;
-    overflow-y: auto;
-    padding: 0.25rem 0.25rem 0.5rem 0;
-  }
-  .community-knowledge-page[data-reading] .resource-viewer-content:has(.lesson-hero-chapters) .lesson-rail nav[aria-label="Video chapters"] { display: none !important; }
+/* The lesson's video sits at the top of the text column, as wide as the text,
+   so the side column (Chapters, then Contents) starts level with it. */
+.knowledge-resource-reader .resource-viewer-column > .resource-viewer-hero,
+.knowledge-resource-reader:has(.has-lesson-rail) .resource-viewer-column > .resource-viewer-hero {
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
