@@ -514,6 +514,17 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   // It writes the same progress the course outline reads, so the tick shows there at once.
   const hasOwnDoneButton = lessonElements.some((element) => "action" in element && element.action === "mark_done");
   const nextLesson = isEditing && !isPreviewing ? null : props.course?.next ?? null;
+  // The video's height, for the chapters column beside it.
+  const heroRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const hero = heroRef.current;
+    const content = contentRef.current;
+    if (!hero || !content || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => content.style.setProperty("--lesson-hero-height", `${Math.round(hero.getBoundingClientRect().height)}px`));
+    observer.observe(hero);
+    return () => { observer.disconnect(); content.style.removeProperty("--lesson-hero-height"); };
+  }, [embed?.src, embed?.id]);
   const readMinutes = useMemo(() => lessonReadMinutes(resource.body_md), [resource.body_md]);
   const showDoneFooter = Boolean(lessonActivity?.signedIn && lessonStatus !== null && !hasOwnDoneButton && (!isEditing || isPreviewing));
   const lessonScope = useMemo<LessonElementScope | null>(
@@ -802,7 +813,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   };
 
   return (
-    <div className={`resource-viewer-content${embed ? " is-video-lesson" : ""}`}>
+    <div className={`resource-viewer-content${embed ? " is-video-lesson" : ""}`} ref={contentRef}>
       <div className="resource-viewer-header">
         {/* Course · Lesson 2 of 8 · 4 min read, over the title, as in the
             Article mock Rashid picked (2026-10-27). */}
@@ -881,7 +892,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
               2026-10-27: "If we're going to have the video wide, then we should
               have the text be as wide"), with its chapters in the side column. */}
           {embed ? (
-            <div className="resource-viewer-hero">
+            <div className="resource-viewer-hero" ref={heroRef}>
               <div className="resource-viewer-embed" data-resource-media="true">
                 {embed.provider === "youtube" ? (
                   <DeferredYouTubeEmbed
@@ -977,7 +988,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         {hasRail ? (
           <aside className="lesson-rail" aria-label="In this lesson">
             {contents.chapters.length ? (
-              <nav className="lesson-rail-section" aria-label="Video chapters">
+              <nav className="lesson-rail-section lesson-chapters-section" aria-label="Video chapters">
                 <p className="lesson-rail-label">Chapters</p>
                 <LessonChapters chapters={contents.chapters} onPlay={contents.playFrom} />
               </nav>

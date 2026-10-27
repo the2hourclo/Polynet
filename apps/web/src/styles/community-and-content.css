@@ -9119,6 +9119,12 @@ button.chat-reply-quote:hover {
   color: var(--pn-on-accent, var(--bg-card));
 }
 
+/* In progress: the circle half filled from the left, in the accent. */
+.knowledge-resource-item-status.is-started {
+  border-color: var(--accent-brand);
+  background: linear-gradient(90deg, var(--accent-brand) 50%, transparent 50%);
+}
+
 .knowledge-resource-item-status > svg {
   width: 12px;
   height: 12px;
@@ -9847,6 +9853,14 @@ button.chat-reply-quote:hover {
   .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
   .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section { display: block; }
   .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-rail-section + .lesson-rail-section { margin-top: 1.5rem; }
+  /* Chapters are as tall as the video beside them and scroll inside, so
+     Contents starts level with the video's bottom, not below the fold. */
+  .resource-viewer-body.has-lesson-rail .lesson-rail nav.lesson-chapters-section {
+    display: flex;
+    flex-direction: column;
+    max-height: var(--lesson-hero-height, none);
+  }
+  .lesson-rail nav.lesson-chapters-section .lesson-chapter-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   /* With the side column, the title lines up with the text column. */
   .knowledge-resource-reader:has(.has-lesson-rail) .resource-viewer-header {
     max-width: calc(var(--lesson-reading-measure, 680px) + 16.5rem);
@@ -10358,9 +10372,14 @@ button.chat-reply-quote:hover {
 .resource-course-outline {
   position: sticky;
   top: 12px;
-  grid-template-rows: auto minmax(0, 1fr);
+  /* Title, progress, lessons, style switch: only the lessons shrink and scroll
+     (a two-line course title used to squeeze the progress row under the first
+     lesson). */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   max-height: calc(100dvh - 24px);
 }
+
+.resource-course-outline:has(> .resource-course-outline-progress) { grid-template-rows: auto auto minmax(0, 1fr) auto; }
 
 .resource-course-outline-scroll {
   display: grid;

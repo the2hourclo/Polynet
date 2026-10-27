@@ -158,6 +158,8 @@ function ResourceRailItem(props: {
   isActive: boolean;
   // The member finished this lesson (null when progress isn't known).
   isDone: boolean | null;
+  // Opened but not finished: a half-filled circle, so it reads apart from not started.
+  isStarted?: boolean;
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -178,6 +180,7 @@ function ResourceRailItem(props: {
     resource,
     isActive,
     isDone,
+    isStarted = false,
     onSelect,
     onEdit,
     onDelete,
@@ -238,7 +241,7 @@ function ResourceRailItem(props: {
         onClick={onSelect}
       >
         {isDone !== null ? (
-          <span className={`knowledge-resource-item-status${isDone ? " is-done" : ""}`} aria-label={isDone ? "Done" : "Not done"} role="img">
+          <span className={`knowledge-resource-item-status${isDone ? " is-done" : isStarted ? " is-started" : ""}`} aria-label={isDone ? "Done" : isStarted ? "In progress" : "Not started"} role="img">
             {isDone ? <Check aria-hidden="true" /> : null}
           </span>
         ) : null}
@@ -904,6 +907,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
         resource={resource}
         isActive={selectedResource?.id === resource.id}
         isDone={lessonStatusByRef ? lessonStatusByRef[buildCommunityResourceEvidenceRef(resource.id)] === "done" : null}
+        isStarted={lessonStatusByRef?.[buildCommunityResourceEvidenceRef(resource.id)] === "in_progress"}
         onSelect={() => handleSelectResource(resource)}
         onEdit={() => startResourceInlineEdit(resource, "body")}
         onDelete={() => setPendingDeleteResourceId(resource.id)}
