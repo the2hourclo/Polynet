@@ -250,3 +250,21 @@
 .welcome-settings-choice-agent input { margin-top: 3px; accent-color: var(--accent-brand, var(--accent-primary)); }
 .welcome-settings-choice-agent span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
 .welcome-settings-choice-agent small { color: var(--text-secondary); font-size: 12px; }
+
+/* Text blocks and card steps open the lesson editor in place (2026-10-27). */
+.welcome-settings-text-editor { min-width: 0; padding: 2px 0; border-radius: 8px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-default) 70%, transparent); }
+.welcome-settings-text-editor .lesson-editor { padding: 0 8px 8px; }
+.welcome-settings-text-editor .lesson-editor-content { font-size: var(--pn-type-reading, 17px); }
+.welcome-settings-text-empty {
+  display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 6px 8px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-faint, var(--text-secondary)); font: inherit; font-size: var(--pn-type-reading, 17px);
+  line-height: 1.65; text-align: left; cursor: text;
+}
+.welcome-settings-text-empty:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+.welcome-settings-text-empty:focus-visible { outline: 0; box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 55%, transparent); }
+.welcome-settings-text-editor { display: grid; }
+.welcome-settings-text-done {
+  justify-self: end; margin: 0 8px 6px; padding: 4px 12px; border: 1px solid var(--border-default); border-radius: 999px;
+  background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.welcome-settings-text-done:hover { background: color-mix(in srgb, var(--text-primary) 6%, var(--bg-card)); }

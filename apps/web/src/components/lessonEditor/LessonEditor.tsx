@@ -87,7 +87,12 @@ export type LessonEditorProps = {
   onFocus?: () => void;
   /** Buttons, checklists, quizzes and forms work only in lessons; other pages don't offer them. */
   followAlong?: boolean;
+  /** Blocks the page around the editor adds, offered in the "/" menu after the
+   * editor's own (the welcome page's Choice, Form, Lesson and Next page). */
+  pageBlocks?: { label: string; items: LessonEditorPageBlock[] };
 };
+
+export type LessonEditorPageBlock = { key: string; title: string; hint: string; keywords?: string; icon: ReactNode; onPick: () => void };
 
 const isVideoUrl = (url: string) => Boolean(parseEmbedUrl(url));
 
@@ -104,7 +109,7 @@ type SlashItem = {
   key: string;
   title: string;
   hint: string;
-  group: "Text" | "Media" | "Lesson";
+  group: string;
   keywords: string;
   icon: ReactNode;
   run: (editor: Editor, range: Range) => void;
@@ -203,9 +208,13 @@ const SLASH_ITEMS: SlashItem[] = [
 
 const FOLLOW_ALONG_KEYS = new Set(["button", "checklist", "quiz", "form"]);
 
-function filterSlashItems(query: string, followAlong: boolean): SlashItem[] {
+function filterSlashItems(query: string, followAlong: boolean, page: LessonEditorProps["pageBlocks"]): SlashItem[] {
   const q = query.trim().toLowerCase();
-  const offered = followAlong ? SLASH_ITEMS : SLASH_ITEMS.filter((item) => !FOLLOW_ALONG_KEYS.has(item.key));
+  const own = followAlong ? SLASH_ITEMS : SLASH_ITEMS.filter((item) => !FOLLOW_ALONG_KEYS.has(item.key));
+  const offered = page ? [...own, ...page.items.map((block): SlashItem => ({
+    key: `page:${block.key}`, group: page.label, title: block.title, hint: block.hint, keywords: block.keywords ?? "", icon: block.icon,
+    run: (editor, range) => { editor.chain().focus().deleteRange(range).run(); block.onPick(); },
+  }))] : own;
   if (!q) return offered;
   const matches = offered.filter((item) => `${item.title} ${item.keywords}`.toLowerCase().includes(q));
   // "/h2" puts Heading 2 first, whatever else mentions it.
@@ -218,6 +227,7 @@ type SlashBridge = {
   index: number;
   set: (state: SlashState | null) => void;
   followAlong: boolean;
+  pageBlocks?: LessonEditorProps["pageBlocks"];
 };
 
 // "### In Cowork" (and Claude Code, Codex…) starts a platform's steps; members
@@ -263,7 +273,7 @@ function slashExtension(bridge: SlashBridge) {
             const $from = state.doc.resolve(range.from);
             return $from.parent.type.name === "paragraph" || $from.parent.type.name === "heading";
           },
-          items: ({ query }) => filterSlashItems(query, bridge.followAlong),
+          items: ({ query }) => filterSlashItems(query, bridge.followAlong, bridge.pageBlocks),
           command: ({ editor, range, props }) => props.run(editor, range),
           render: () => ({
             onStart: (props) => {
@@ -781,6 +791,7 @@ export default function LessonEditor(props: LessonEditorProps) {
   const bridge = useRef<SlashBridge>({ props: null, index: 0, set: () => undefined, followAlong: true });
   bridge.current.set = setSlash;
   bridge.current.followAlong = props.followAlong ?? true;
+  bridge.current.pageBlocks = props.pageBlocks;
   const editorRef = useRef<Editor | null>(null);
   const openLinkRef = useRef<(() => void) | null>(null);
 
