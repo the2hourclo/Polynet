@@ -1,6 +1,6 @@
 import { BookOpen, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Maximize2, Monitor, PanelTop, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
 import {
-  useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
+  lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
   type DragEvent, type KeyboardEvent, type MutableRefObject, type ReactNode, type TextareaHTMLAttributes,
 } from "react";
 import type { CloudCommunityMemberWorkflowBoard, CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
@@ -17,6 +17,11 @@ import type { CommunityFormDraft } from "../../../../shared/communityForms";
 import { MemberFormRunner } from "./WebCommunityNextStep";
 import { ChoiceIconMark, WelcomeScreenView, welcomeMediaMarkdown } from "./WebCommunityWelcome";
 import "./WebCommunityWelcomeSettings.css";
+import type { LessonEditorProps } from "./lessonEditor/LessonEditor";
+
+// The same editor as lessons (Rashid, 2026-10-27: the welcome page's editing
+// should be "the same exact idea" as Knowledge), loaded when a block is opened.
+const LessonEditor = lazy(() => import("./lessonEditor/LessonEditor"));
 
 const TITLE_MAX = 120;
 
@@ -171,10 +176,9 @@ export function WebCommunityWelcomeSettings(props: Props) {
     setMenu(null);
     if (target?.uid) focusBlock(target.uid); else document.getElementById(`${id}-add`)?.focus();
   };
-  const insert = (blocks: WelcomeBlock[]) => {
-    if (!menu) return;
+  const insert = (blocks: WelcomeBlock[]) => { if (menu) insertAt(menu.target, blocks); };
+  const insertAt = (target: MenuTarget, blocks: WelcomeBlock[]) => {
     const added = blocks.map(withUid);
-    const target = menu.target;
     setLayout((layout) => {
       const at = target.uid ? layout.findIndex((block) => block.uid === target.uid) : -1;
       if (at < 0) return [...layout, ...added];
@@ -226,16 +230,25 @@ export function WebCommunityWelcomeSettings(props: Props) {
     onAddLink={addLink} onChoose={choose} onClose={closeMenu} onBack={() => setMenu({ ...menu, view: "root", active: 0 })}
     autoFocus={autoFocus} onKeys={menuKeys} emptyText={menuEmpty} /> : null;
 
-  const updateText = (uid: string, markdown: string) => {
+  const setText = (uid: string, markdown: string) =>
     setLayout((layout) => layout.map((block) => (block.uid === uid ? { ...block, markdown } : block)));
-    // "/" at the start of an empty line opens the block menu, filtered by what follows: the line with the cursor, not the whole block.
-    const field = document.getElementById(`${id}-block-${uid}`) as HTMLTextAreaElement | null;
-    const caret = field?.selectionStart ?? markdown.length;
-    const start = markdown.lastIndexOf("\n", caret - 1) + 1;
-    const end = markdown.indexOf("\n", caret) < 0 ? markdown.length : markdown.indexOf("\n", caret);
-    const slash = /^\/(\w*)$/.exec(markdown.slice(start, end));
-    if (slash && !full) openMenu({ uid, mode: "replace", start, end }, "root", slash[1]);
-    else if (menu?.target.uid === uid) setMenu(null);
+
+  // The page's own blocks, offered in the text editor's "/" menu: they go in
+  // after the block being written.
+  const pageBlocks = (uid: string): LessonEditorProps["pageBlocks"] => full ? undefined : {
+    label: "Welcome page",
+    items: [
+      ...(draft.layout.filter((block) => block.type === "choice").length < WELCOME_CHOICES_MAX
+        ? [{ key: "choice", title: "Choice", hint: "Cards to pick from, each with its own steps", keywords: "choice cards app pick", icon: <LayoutGrid />,
+          onPick: () => insertAt({ uid, mode: "after" }, [{ type: "choice", prompt: "Which one are you using?", options: [
+            { label: "Option 1", hint: "", markdown: "" }, { label: "Option 2", hint: "", markdown: "" }] }]) }] : []),
+      ...(placed.formKeys.length < WELCOME_FORMS_MAX ? [{ key: "form", title: "Form", hint: "Questions every new member answers", keywords: "form questions",
+        icon: <ClipboardList />, onPick: () => { setEditing(null); openMenu({ uid, mode: "after" }, "form"); } }] : []),
+      ...(placed.lessonIds.length < WELCOME_LESSONS_MAX ? [{ key: "lesson", title: "Lesson", hint: "A lesson they read and mark done", keywords: "lesson course",
+        icon: <BookOpen />, onPick: () => { setEditing(null); openMenu({ uid, mode: "after" }, "lesson"); } }] : []),
+      { key: "next", title: "Next page", hint: "Start a new screen", keywords: "next page break screen", icon: <SplitSquareVertical />,
+        onPick: () => insertAt({ uid, mode: "after" }, [{ type: "next" }, { type: "text", markdown: "" }]) },
+    ],
   };
   const updateChoice = (uid: string, update: (block: Extract<WelcomeBlock, { type: "choice" }>) => Extract<WelcomeBlock, { type: "choice" }>) =>
     setLayout((layout) => layout.map((block) => (block.uid === uid && block.type === "choice" ? { ...update(block), uid } : block)));
@@ -390,29 +403,23 @@ export function WebCommunityWelcomeSettings(props: Props) {
                   </div>
                   <div className="welcome-settings-block-body">
                     {block.type === "text" ? (
-                      editing === block.uid || !block.markdown.trim() ? (
-                        <AutoSizeTextarea id={`${id}-block-${block.uid}`} value={block.markdown} maxLength={WELCOME_TEXT_MAX} rows={1}
-                          aria-label="Text. Type / to add a block." className="welcome-settings-text"
-                          aria-controls={menuHere && menu?.view === "root" ? menuListId : undefined}
-                          aria-activedescendant={menuHere && menu?.view === "root" && menuItems[menu.active] ? menuOptionId(menu.active) : undefined}
-                          placeholder={draft.layout.length === 1 ? "Say hello. Type / to add a video, a form, a lesson or a Next page." : "Type / to add a block"}
-                          onFocus={() => setEditing(block.uid)}
-                          onBlur={() => { if (!menuHere) setEditing((current) => (current === block.uid ? null : current)); }}
-                          onChange={(markdown) => updateText(block.uid, markdown)}
-                          onPaste={(event) => {
-                            // A link pasted on an empty line becomes the video or image it points to.
-                            const pasted = event.clipboardData.getData("text").trim();
-                            if (block.markdown.trim() || !isLink(pasted)) return;
-                            event.preventDefault();
-                            updateText(block.uid, mediaLine(pasted));
-                            setEditing(null);
-                          }}
-                          onKeyDown={(event) => {
-                            if (menuHere && menuKeys(event)) return;
-                            if (event.key === "Backspace" && !block.markdown && draft.layout.length > 1) { event.preventDefault(); remove(block.uid); }
-                            else if (event.key === "Escape") (event.target as HTMLElement).blur();
-                          }} />
-                      ) : <TextView id={`${id}-block-${block.uid}`} markdown={block.markdown} onEdit={() => editText(block.uid)} />
+                      editing === block.uid ? (
+                        <div id={`${id}-block-${block.uid}`} className="welcome-settings-text-editor" tabIndex={-1}>
+                          <Suspense fallback={<TextView id={`${id}-block-${block.uid}-loading`} markdown={block.markdown} onEdit={() => undefined} />}>
+                          <LessonEditor key={block.uid} initialMarkdown={block.markdown} autoFocus followAlong={false}
+                            onChange={(markdown: string) => setText(block.uid, markdown.slice(0, WELCOME_TEXT_MAX))}
+                            onUploadImage={null}
+                            onDone={() => { setEditing(null); focusBlock(block.uid); }} onSaveNow={() => undefined}
+                            pageBlocks={pageBlocks(block.uid)} />
+                          </Suspense>
+                          <button type="button" className="welcome-settings-text-done" onClick={() => { setEditing(null); focusBlock(block.uid); }}>Done</button>
+                        </div>
+                      ) : block.markdown.trim()
+                        ? <TextView id={`${id}-block-${block.uid}`} markdown={block.markdown} onEdit={() => editText(block.uid)} />
+                        : <button type="button" id={`${id}-block-${block.uid}`} className="welcome-settings-text-empty" onClick={() => editText(block.uid)}
+                          onKeyDown={(event) => { if (event.key === "Backspace" && draft.layout.length > 1) { event.preventDefault(); remove(block.uid); } }}>
+                          {draft.layout.length === 1 ? "Say hello. Type / for headings, callouts, code, a choice, a form, a lesson or a Next page." : "Type / to add a block"}
+                        </button>
                     ) : block.type === "choice" ? (
                       <ChoiceEditor id={`${id}-block-${block.uid}`} prompt={block.prompt} options={block.options} agent={Boolean(block.agent)}
                         onAgent={(agent) => updateChoice(block.uid, (current) => ({ ...current, agent: agent || undefined }))}
@@ -497,6 +504,7 @@ function ChoiceEditor(props: {
   onChange: (prompt: string, options: WelcomeChoiceOption[]) => void; onAgent: (agent: boolean) => void;
 }) {
   const [active, setActive] = useState(0);
+  const [editingSteps, setEditingSteps] = useState<number | null>(null);
   const at = Math.min(active, props.options.length - 1);
   const option = props.options[at];
   const setOption = (patch: Partial<WelcomeChoiceOption>) =>
@@ -554,13 +562,25 @@ function ChoiceEditor(props: {
           {option.icon ? <button type="button" className="welcome-settings-link" onClick={() => setOption({ icon: undefined })}>Remove icon</button> : null}
         </div>
       </div>
-      <label className="welcome-settings-choice-field">
+      <div className="welcome-settings-choice-field">
         <span>Steps for this card</span>
-        <AutoSizeTextarea value={option.markdown} maxLength={WELCOME_CHOICE_TEXT_MAX} rows={4} className="welcome-settings-choice-text"
-          placeholder={"1. **Do this first.** A short line.\n2. Paste this:\n```\nwhat they copy\n```"} onChange={(markdown) => setOption({ markdown })} />
-      </label>
+        {editingSteps === at ? (
+          <div className="welcome-settings-text-editor">
+            <Suspense fallback={<TextView id={`${props.id}-steps-loading`} markdown={option.markdown} onEdit={() => undefined} />}>
+              <LessonEditor key={at} initialMarkdown={option.markdown} autoFocus followAlong={false} onUploadImage={null}
+                onChange={(markdown: string) => setOption({ markdown: markdown.slice(0, WELCOME_CHOICE_TEXT_MAX) })}
+                onDone={() => setEditingSteps(null)} onSaveNow={() => undefined} />
+            </Suspense>
+            <button type="button" className="welcome-settings-text-done" onClick={() => setEditingSteps(null)}>Done</button>
+          </div>
+        ) : option.markdown.trim()
+          ? <TextView id={`${props.id}-steps`} markdown={option.markdown} onEdit={() => setEditingSteps(at)} />
+          : <button type="button" className="welcome-settings-text-empty" onClick={() => setEditingSteps(at)}>
+            Write the steps for this card. Type / for numbered steps, callouts and code they copy.
+          </button>}
+      </div>
       <div className="welcome-settings-choice-foot">
-        <small>{option.markdown.length.toLocaleString()} / {WELCOME_CHOICE_TEXT_MAX.toLocaleString()} · Markdown: **bold**, lists, links, and ``` for a box with a Copy button</small>
+        <small>{option.markdown.length.toLocaleString()} / {WELCOME_CHOICE_TEXT_MAX.toLocaleString()} · Type / for steps, callouts and code with a Copy button</small>
         {props.options.length > 1 ? <button type="button" className="welcome-settings-link" onClick={removeOption}>Remove this card</button> : null}
       </div>
     </div> : null}
