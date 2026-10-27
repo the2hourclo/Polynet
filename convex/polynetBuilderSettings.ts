@@ -585,6 +585,9 @@ BUILDER_SETTING_OPERATIONS.push(
 //                  messages, leaving), never an owner's change to someone else;
 //   "plumbing:"    not a choice anyone makes (presence, read markers, counts, sign-in).
 export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
+  // Reads a video's public chapters into a shared cache; nothing the owner sets.
+  // An agent sets a lesson's own chapters by writing "02:15 Title" lines in body_md.
+  "youtubeChapters:loadYouTubeChapters": "plumbing: caches a video's public chapters; agents set a lesson's own by writing timestamp lines in body_md",
   // Other MCP paths already do these.
   "communityClients:createClientProperty": "agent path: community.client.property.define",
   "communityClients:updateClientProperty": "agent path: community.client.property.define (with key)",
