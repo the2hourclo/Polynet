@@ -41,7 +41,9 @@ describe("workflow milestone editor drafts", () => {
     expect(workflowAutomationIssue(draft, [], false)).toBe("Add agent instructions");
     expect(workflowTriggerIssue({ ...draft, trigger: { type: "form_submitted", formKey: "" } }, [], false)).toBe("Choose a published form");
     expect(workflowTriggerIssue({ ...draft, trigger: { type: "form_submitted", formKey: "intake" } }, [], false)).toBeNull();
-    expect(workflowTriggerIssue({ ...draft, trigger: { type: "milestone_elapsed", delayMinutes: 0 } }, [], false)).toContain("duration");
+    expect(workflowTriggerIssue({ ...draft, trigger: { type: "milestone_elapsed", delayMinutes: 0 } }, [], false)).toBeNull();
+    expect(workflowTriggerIssue({ ...draft, trigger: { type: "milestone_elapsed", delayMinutes: 0, nudge: true } }, [], false)).toContain("duration");
+    expect(workflowTriggerIssue({ ...draft, trigger: { type: "milestone_elapsed", delayMinutes: -1 } }, [], false)).toContain("duration");
     expect(workflowTriggerIssue({ ...draft, trigger: { type: "milestone_elapsed", delayMinutes: 1440 } }, [], false)).toBeNull();
     expect(workflowTriggerIssue({ ...draft, trigger: { type: "member_joined" } }, [], false)).toBeNull();
     expect(workflowTriggerIssue(automation, [], true)).toBe("Waiting for channels");

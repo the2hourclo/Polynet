@@ -39,6 +39,7 @@ import {
   normalizeWorkflowMilestoneContext,
   normalizeCommunityMemberWorkflowSourceRef,
   normalizeWorkflowDelayMinutes,
+  normalizeWorkflowStageDelayMinutes,
   workflowTriggerIdentity,
   splitPausedWorkflowAutomations,
   type CommunityMemberWorkflowAction,
@@ -358,7 +359,7 @@ function normalizeAutomations(
         : input.trigger.type === "offer_started" || input.trigger.type === "offer_ended"
         ? { type: input.trigger.type, ...(input.trigger.offerKey ? { offerKey: input.trigger.offerKey } : {}) }
         : input.trigger.type === "milestone_elapsed"
-        ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowDelayMinutes(input.trigger.delayMinutes), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
+        ? { type: "milestone_elapsed", delayMinutes: normalizeWorkflowStageDelayMinutes(input.trigger.delayMinutes, input.trigger.nudge === true), ...(input.trigger.nudge === true ? { nudge: true } : {}) }
         : { type: "member_contributed", ...(input.trigger.channelId !== undefined ? { channelId: input.trigger.channelId } : {}) },
       action,
     };

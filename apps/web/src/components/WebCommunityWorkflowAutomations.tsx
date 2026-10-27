@@ -1,10 +1,11 @@
 import {
   BookOpen, Bot, CalendarDays, ChevronDown, Clock, CreditCard, DoorOpen, FileText, GitBranch, Hourglass, Lock, Mail,
-  MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Webhook, X, type LucideIcon,
+  Flag, MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Webhook, X, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   workflowRuleIsNudge,
+  workflowRuleStartsOnArrival,
   workflowSequenceIssue,
   type CommunityMemberWorkflowAutomation,
   type CommunityMemberWorkflowMilestone,
@@ -24,13 +25,15 @@ import { workflowActionPhrase, workflowConditionPhrase, workflowDurationLabel, w
 // settings on the right. An automation is a rule plus the rules that wait for
 // it, so this is a view over the stage rules the engine already runs.
 
-type Option = { icon: LucideIcon; label: string; hint?: string; type?: string };
+// `arrival` is time in stage with no wait: "Reaches this stage".
+type Option = { icon: LucideIcon; label: string; hint?: string; type?: string; arrival?: boolean };
 
 // Trigger kinds are told apart by icon and group, never by colour: the
 // community's accent marks only what's selected (polynet-ui/airtable-study).
 const TRIGGERS: Array<{ name: string; options: Option[] }> = [
   { name: "Members", options: [
     { icon: DoorOpen, label: "Someone joins", hint: "Only the first stage starts here", type: "member_joined" },
+    { icon: Flag, label: "Reaches this stage", hint: "The moment they arrive", type: "milestone_elapsed", arrival: true },
     { icon: ShoppingBag, label: "Starts an offer", hint: "Joins on it or upgrades to it", type: "offer_started" },
     { icon: CreditCard, label: "Leaves an offer", hint: "Downgrades or their paid time ends", type: "offer_ended" },
     { icon: UserCog, label: "Member record changes", hint: "e.g. Plan becomes Pro", type: "client_property_changed" },
@@ -62,8 +65,12 @@ const ACTIONS: Record<WorkflowActionType, Option & { group: string }> = {
   create_service_channel: { group: "Change things", icon: Lock, label: "Open a private room", hint: "Just them, you and the agent" },
 };
 
-function triggerOption(type: WorkflowTriggerType): Option {
-  for (const group of TRIGGERS) for (const option of group.options) if (option.type === type) return option;
+function optionMatches(option: Option, rule: WorkflowAutomationDraft): boolean {
+  return option.type === rule.trigger.type && !!option.arrival === workflowRuleStartsOnArrival(rule);
+}
+
+function triggerOption(rule: WorkflowAutomationDraft): Option {
+  for (const group of TRIGGERS) for (const option of group.options) if (optionMatches(option, rule)) return option;
   return { icon: GitBranch, label: "After an earlier step" };
 }
 
@@ -152,11 +159,13 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     setRules(stage.key, rules.map((item) => item.key === rule.key ? rule : item));
   };
 
-  const addAutomation = (milestone: CommunityMemberWorkflowMilestone) => {
-    const rule = toWorkflowAutomationDraft({ key: newRuleKey("rule"), trigger: { type: "milestone_elapsed", delayMinutes: 1440 },
+  // From a stage's own + the trigger is already "Reaches this stage", so the
+  // next choice is what happens; New still starts with the trigger picker.
+  const addAutomation = (milestone: CommunityMemberWorkflowMilestone, onArrival = false) => {
+    const rule = toWorkflowAutomationDraft({ key: newRuleKey("rule"), trigger: { type: "milestone_elapsed", delayMinutes: onArrival ? 0 : 1440 },
       action: { key: newRuleKey("action"), type: "prompt_agent", prompt: "" } });
     setRules(milestone.key, [...rulesOf(milestone), rule]);
-    setSelection({ stageKey: milestone.key, ruleKey: rule.key, part: "trigger" });
+    setSelection({ stageKey: milestone.key, ruleKey: rule.key, part: onArrival ? "action" : "trigger" });
     setPicking(true);
   };
   const addAction = (kind: "action" | "wait" | "condition") => {
@@ -254,6 +263,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     const trigger = rule.trigger;
     if (trigger.type === "member_joined") return "Anyone new to the community";
     if (trigger.type === "form_submitted") return props.forms.find((form) => form.key === trigger.formKey)?.name ?? "Choose a form";
+    if (workflowRuleStartsOnArrival(rule)) return "The moment they arrive";
     if (trigger.type === "milestone_elapsed") return trigger.nudge ? `Still here after ${workflowDurationLabel(trigger.delayMinutes)}` : `${workflowDurationLabel(trigger.delayMinutes)} after they arrive`;
     return capitalize(workflowTriggerPhrase(rule, names).replace(/^When (someone |they )?/, ""));
   };
@@ -284,7 +294,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
 
   const earlierFor = (rule: WorkflowAutomationDraft) => rules.slice(0, Math.max(0, rules.indexOf(rule)));
   const newTarget = stage ?? stages[0] ?? null;
-  const selectedTrigger = selected ? triggerOption(selected.trigger.type) : null;
+  const selectedTrigger = selected ? triggerOption(selected) : null;
   const selectedAction = selected ? ACTIONS[selected.action.type] : null;
   const typePick = (option: Option) => {
     const Icon = option.icon;
@@ -311,12 +321,15 @@ export function WebCommunityWorkflowAutomations(props: Props) {
             {milestone.color ? <span className="pn-au-stagedot" aria-hidden="true" /> : null}
             <span className="pn-au-group">While in {milestone.name || `stage ${index + 1}`}{drafts[milestone.key] ? " · unsaved" : ""}</span>
             <span className="pn-au-count" title={count === 1 ? "1 member here" : `${count} members here`}>{count}</span>
+            <button type="button" className="pn-au-iconbtn" disabled={props.isSaving} onClick={() => addAutomation(milestone, true)}
+              aria-label={`Start an automation when someone reaches ${milestone.name}`} title="Start an automation when someone reaches this stage">
+              <Plus size={16} strokeWidth={2} aria-hidden="true" /></button>
             <button type="button" className="pn-au-iconbtn" onClick={() => props.onEditStage(milestone.key)}
               aria-label={`Stage settings for ${milestone.name}`} title="Rename, colour, goal, delete">
               <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" /></button>
           </header>
           {chains.map((item) => {
-            const option = triggerOption(item.root.trigger.type);
+            const option = triggerOption(item.root);
             const Icon = option.icon;
             const first = ACTIONS[item.root.action.type].label;
             const more = item.steps.length - 1;
@@ -352,7 +365,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       </div> : null}
       <div className="pn-au-flow">
         {chain && stage ? <>
-          {(() => { const option = triggerOption(chain.root.trigger.type); return card(chain.root, "trigger", option, "When", option.label, triggerDetail(chain.root)); })()}
+          {(() => { const option = triggerOption(chain.root); return card(chain.root, "trigger", option, "When", option.label, triggerDetail(chain.root)); })()}
           <ol className="pn-au-then">{thenCards}</ol>
           <div className="pn-au-add">
             <button type="button" className="pn-au-btn" onClick={() => addAction("action")}><Plus size={14} aria-hidden="true" /> Add action</button>
@@ -373,9 +386,10 @@ export function WebCommunityWorkflowAutomations(props: Props) {
             const Icon = option.icon;
             const allowed = option.type && (option.type !== "member_joined" || stageIndex === 0);
             return <button key={option.label} type="button" className="pn-au-option" disabled={!allowed}
-              aria-pressed={option.type === selected.trigger.type}
+              aria-pressed={optionMatches(option, selected)}
               title={option.type === "member_joined" && stageIndex !== 0 ? "Only the first stage can start when someone joins" : undefined}
-              onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected), props.catalog?.properties ?? []) : null; if (next) { updateRule(next); setPicking(false); } }}>
+              onClick={() => { const next = option.type ? applyWorkflowTriggerType(selected, option.type as WorkflowTriggerType, earlierFor(selected), props.catalog?.properties ?? []) : null;
+                if (next) { updateRule(option.arrival ? { ...next, trigger: { type: "milestone_elapsed", delayMinutes: 0 } } : next); setPicking(false); } }}>
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span><strong>{option.label}</strong>{option.hint ? <small>{option.hint}</small> : null}</span>{!option.type ? <em>Soon</em> : null}
             </button>;

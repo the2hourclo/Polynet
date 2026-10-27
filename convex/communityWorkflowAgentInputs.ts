@@ -3,6 +3,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { normalizeIdValue } from "./communityCore";
 import { listMemberVisibleLessonPages, readProgressRows } from "./communityResourceProgress";
 import { resolveMemberServiceChannel } from "./communityMemberServiceChannelCore";
+import { workflowAgentSeesAll } from "../shared/communityMemberWorkflow";
 
 // The extra inputs an "Ask the agent" step was given by the owner: progress,
 // chosen client properties, lesson text and the guide channel's last messages.
@@ -14,6 +15,7 @@ const LESSON_CHARS = 3_000;
 const MESSAGE_CHARS = 400;
 const GUIDE_MESSAGES = 20;
 const TOTAL_CHARS = 9_000;
+const ALL_PROPERTIES = 50;
 
 type Membership = Doc<"communityMemberships">;
 
@@ -25,8 +27,10 @@ export async function readWorkflowAgentExtraInputs(ctx: QueryCtx, args: {
   const sees = args.sees ?? [];
   const out: Record<string, unknown> = {};
   const userId = args.membership.userId;
+  // "Everything about this member": progress, the guide channel and every live client property.
+  const all = workflowAgentSeesAll(sees);
 
-  if (sees.includes("progress")) {
+  if (all || sees.includes("progress")) {
     const lessons = await listMemberVisibleLessonPages(ctx, args.communityId);
     const rows = await readProgressRows(ctx, args.communityId, userId);
     const done = new Set(rows.filter((row: any) => row.status === "done").map((row: any) => normalizeIdValue(row.resourceId)));
@@ -40,7 +44,10 @@ export async function readWorkflowAgentExtraInputs(ctx: QueryCtx, args: {
     };
   }
 
-  const propertyKeys = sees.filter((entry) => entry.startsWith("property:")).map((entry) => entry.slice(9));
+  const propertyKeys = all
+    ? (await ctx.db.query("communityClientProperties").withIndex("by_community_key", (q) => q.eq("communityId", args.communityId)).take(ALL_PROPERTIES))
+      .filter((definition) => !definition.archivedAt).map((definition) => definition.key)
+    : sees.filter((entry) => entry.startsWith("property:")).map((entry) => entry.slice(9));
   if (propertyKeys.length) {
     const properties: Record<string, unknown> = {};
     for (const key of propertyKeys) {
@@ -65,7 +72,7 @@ export async function readWorkflowAgentExtraInputs(ctx: QueryCtx, args: {
     });
   }
 
-  if (sees.includes("guide_channel")) {
+  if (all || sees.includes("guide_channel")) {
     const destination: any = await resolveMemberServiceChannel({ ctx, membership: args.membership }).catch(() => null);
     const channelId = destination?.status === "available" ? ctx.db.normalizeId("communityChannels", String(destination.channel_id)) : null;
     if (channelId) {

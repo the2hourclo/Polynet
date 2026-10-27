@@ -60,6 +60,17 @@ export function workflowPropertyDateDueAt(value: unknown, offsetDays: number): n
   return day + WORKFLOW_PROPERTY_DATE_HOUR_UTC * 3_600_000 + offsetDays * 86_400_000;
 }
 
+/** Time in stage: 0 means the moment they reach the stage. A nudge needs a real wait. */
+export function normalizeWorkflowStageDelayMinutes(value: unknown, nudge = false): number {
+  if (value === 0 && !nudge) return 0;
+  return normalizeWorkflowDelayMinutes(value);
+}
+
+/** "Reaches this stage": time in stage with no wait. */
+export function workflowRuleStartsOnArrival(rule: { trigger: CommunityMemberWorkflowTrigger }): boolean {
+  return rule.trigger.type === "milestone_elapsed" && rule.trigger.delayMinutes === 0 && !rule.trigger.nudge;
+}
+
 export function normalizeWorkflowDelayMinutes(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 525600) {
     throw new Error("community_member_workflow_delay_invalid");
@@ -443,6 +454,7 @@ export type WorkflowAgentSee =
   | "facts"            // approved community facts about the member
   | "progress"         // lessons done and courses finished
   | "guide_channel"    // the last messages in the member's guide channel
+  | "all_member_data"  // everything above plus every form and client property
   | `form:${string}`   // the member's latest answers to this form
   | `property:${string}` // one client property's value
   | `lesson:${string}`;  // a lesson page's text
@@ -455,7 +467,7 @@ export function normalizeWorkflowAgentSees(value: unknown): WorkflowAgentSee[] |
   const out: WorkflowAgentSee[] = [];
   for (const raw of value) {
     const entry = String(raw ?? "").trim();
-    if (entry !== "facts" && entry !== "progress" && entry !== "guide_channel" && !SEE_REF.test(entry)) {
+    if (entry !== "facts" && entry !== "progress" && entry !== "guide_channel" && entry !== WORKFLOW_AGENT_SEES_ALL && !SEE_REF.test(entry)) {
       throw new Error("workflow_agent_sees_invalid");
     }
     if (!out.includes(entry as WorkflowAgentSee)) out.push(entry as WorkflowAgentSee);
@@ -463,11 +475,18 @@ export function normalizeWorkflowAgentSees(value: unknown): WorkflowAgentSee[] |
   return out;
 }
 
+/** One switch for everything about the member, so a new form or field is included without a re-pick. */
+export const WORKFLOW_AGENT_SEES_ALL = "all_member_data";
+
+export function workflowAgentSeesAll(sees: readonly string[] | undefined): boolean {
+  return !!sees?.includes(WORKFLOW_AGENT_SEES_ALL);
+}
+
 export function workflowAgentSeesFacts(sees: readonly string[] | undefined): boolean {
-  return !sees || sees.includes("facts");
+  return !sees || sees.includes("facts") || workflowAgentSeesAll(sees);
 }
 
 /** Form keys picked on the step; null means any recent form (today's bundle). */
 export function workflowAgentSeesFormKeys(sees: readonly string[] | undefined): string[] | null {
-  return sees ? sees.filter((entry) => entry.startsWith("form:")).map((entry) => entry.slice(5)) : null;
+  return sees && !workflowAgentSeesAll(sees) ? sees.filter((entry) => entry.startsWith("form:")).map((entry) => entry.slice(5)) : null;
 }

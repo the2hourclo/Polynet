@@ -833,8 +833,9 @@
 .pn-au-panel :is(small, .workflow-field-hint) { color: var(--text-secondary); font-size: 0.75rem; font-weight: 400; line-height: 1.45; }
 .pn-au-panel .workflow-action-choice-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem; }
 .pn-au-panel .workflow-agent-inputs { padding: 0.75rem; border-radius: var(--pn-wf-r-frame); }
-.pn-au-panel .workflow-agent-inputs > .secondary { padding: 0.375rem 0.625rem; border: 1px solid var(--border-default); border-radius: var(--pn-wf-r); background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
+.pn-au-panel .workflow-agent-inputs .secondary { padding: 0.375rem 0.625rem; border: 1px solid var(--border-default); border-radius: var(--pn-wf-r); background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
 .pn-au-panel .workflow-nudge-toggle { flex-direction: row; }
+.pn-au-panel .workflow-agent-input { display: grid; font-weight: 450; }
 
 /* Header: the title on the left, "Test as a new member" on the right. */
 .pn-wf-header-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 1rem; }
