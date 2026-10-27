@@ -2956,6 +2956,16 @@
 [data-community-theme] .lesson-history-footer {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .members-directory-filter button {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .members-directory-filter button span {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .members-view-all.members-view-all-footer {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-small);
+}
 [data-community-theme] .community-top-nav-avatar {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);

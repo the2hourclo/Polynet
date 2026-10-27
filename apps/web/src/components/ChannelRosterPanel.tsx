@@ -27,6 +27,11 @@ import { resolveAuthSubject, type AuthSessionLike } from "../../../../shared/aut
 
 type Page = FunctionReturnType<typeof api.communityChannelParticipants.listChannelRoster>;
 
+// The side panel shows a short list, online people first, and "View all" opens
+// the full directory as a panel from the right (Rashid, 2026-10-27: "if we have
+// too many members we should have an option to view all").
+export const ROSTER_SIDE_PANEL_LIMIT = 10;
+
 // The memory card's one-line agent status, in plain words. A run that failed
 // on AI funding says so, because "Error" alone gives the owner nothing to act on.
 // The stored reason can carry a prefix ("Uncaught Error: founder_inference_…").
@@ -119,6 +124,7 @@ function RosterSurface(props: RosterProps & {
     return () => { if (opener?.isConnected) opener.focus(); };
   }, [props.directory, props.memberDetailOpen]);
   const [search, setSearch] = useState("");
+  const [onlineOnly, setOnlineOnly] = useState(false);
   const searching = Boolean(search.trim());
   const searchResult = useWebMemberDirectorySearch({
     session: scope?.session,
@@ -208,7 +214,7 @@ function RosterSurface(props: RosterProps & {
     return () => { disposed = true; paginationRef.current = null; stop?.(); };
   }, [liveState, scope?.communityId, props.channelId, retry]);
   const { membersViewportRef, loadMoreSentinelRef, handleMembersScroll } = useMemberScrollPagination({
-    membersHasMore: searching ? searchResult.hasMore && !searchResult.paused : !complete,
+    membersHasMore: searching ? searchResult.hasMore && !searchResult.paused : props.directory ? !complete : false,
     isLoadingMembers: searching ? false : !pages.length,
     isLoadingMoreMembers: searching ? searchResult.loading : loadingMore,
     membersLoadError: searching ? searchResult.error : error,
@@ -235,6 +241,10 @@ function RosterSurface(props: RosterProps & {
     : communityPresenceLeaseIsActive({ lastSeenAt: member.last_seen_at, activeUntil: member.active_until ?? undefined }, now) ? "online" : "offline";
   const ready = pages.length > 0;
   const firstPresenceGroup = (["online", "offline", "unknown"] as const).find(group => members.some(member => status(member) === group));
+  // Rows the side panel shows, online first, up to the limit.
+  let sideRowsLeft = props.directory ? Infinity : ROSTER_SIDE_PANEL_LIMIT;
+  const onlineCount = members.filter(member => status(member) === "online").length;
+  const peopleTotal = `${rosterMembers.length}${complete ? "" : "+"}`;
   const settings = <CommunityMemberSettingsDialog {...props.memberSettings}
     member={selectedMember ? { ...selectedMember.profile, id: selectedMember.membership_id!, user_id: selectedMember.user_id, role: selectedMember.role, co_creator: selectedMember.co_creator, created_at: selectedMember.membership_created_at } : null}
     onClose={() => setSelectedMembershipId(null)} />;
@@ -283,6 +293,10 @@ function RosterSurface(props: RosterProps & {
           </div> : !ready || error || !firstPresenceGroup ? <div className="community-context-members-total">
             <button type="button" className="members-view-all" onClick={props.onOpenMembers}>View all</button>
           </div> : null}
+          {props.directory && !searching && ready && !error ? <div className="members-directory-filter" role="group" aria-label="Show members">
+            <button type="button" aria-pressed={!onlineOnly} onClick={() => setOnlineOnly(false)}>All<span>{peopleTotal}</span></button>
+            <button type="button" aria-pressed={onlineOnly} onClick={() => setOnlineOnly(true)}>Online<span>{onlineCount}</span></button>
+          </div> : null}
           {props.directory ? <>{props.admission?.canManage && props.admission.error ? <div role="alert" className="community-context-admission-status">{props.admission.error}</div> : null}
           {props.joinReview ? <CommunityJoinRequestReview {...props.joinReview} /> : null}
           <label className="community-dm-recipient-search community-dm-inbox-search">
@@ -292,13 +306,14 @@ function RosterSurface(props: RosterProps & {
           </> : null}
       {(searching || (!error && ready)) ? <>
           {(["online", "offline", "unknown"] as const).map(group => {
-            const rows = members.filter(member => status(member) === group);
-            if (!rows.length) return null;
-            const heading = <h4 className="community-context-section" title="Online status reflects activity in this community">{searching ? "Community matches" : group === "unknown" ? "Presence unavailable" : group === "online" ? "Online" : "Offline"} — {rows.length}{!searching && !complete ? " loaded" : ""}</h4>;
+            const groupRows = members.filter(member => status(member) === group);
+            if (!groupRows.length || (props.directory && onlineOnly && !searching && group !== "online")) return null;
+            if (sideRowsLeft <= 0) return null;
+            const rows = groupRows.slice(0, sideRowsLeft);
+            sideRowsLeft -= rows.length;
+            const heading = <h4 className="community-context-section" title="Online status reflects activity in this community">{searching ? "Community matches" : group === "unknown" ? "Presence unavailable" : group === "online" ? "Online" : "Offline"} — {groupRows.length}{!searching && !complete ? " loaded" : ""}</h4>;
             return <Fragment key={group}>
-              {!props.directory && group === firstPresenceGroup ? <div className="community-context-presence-heading">
-                {heading}<button type="button" className="members-view-all" onClick={props.onOpenMembers}>View all</button>
-              </div> : heading}
+              {heading}
               {rows.map(member => {
                 const name = member.profile.display_name || "Member";
                 const lastActive = group === "online" ? "Last active: now"
@@ -323,12 +338,15 @@ function RosterSurface(props: RosterProps & {
             </Fragment>;
           })}
           {!searching && !members.length && complete ? <p>No people in this channel.</p> : null}
+          {props.directory && onlineOnly && !searching && complete && !onlineCount ? <p className="community-context-members-status">No one is online right now.</p> : null}
           {searching ? <div className="community-context-members-footer" role="status" ref={loadMoreSentinelRef}>
             {searchResult.loading ? "Searching members…" : searchResult.error ?? `${members.length} matches${searchResult.hasMore ? " so far" : ""}`}
             {!searchResult.loading && searchResult.error ? <button type="button" className="btn-secondary" onClick={searchResult.loadMore}>Retry search</button> : null}
             {!searchResult.loading && !searchResult.error && searchResult.paused ? <><span> Search paused to limit scanning.</span> <button type="button" className="btn-secondary" onClick={searchResult.continueSearch}>Continue search</button></> : null}
-          </div> : <div className="community-context-members-footer" ref={loadMoreSentinelRef}>
-            {complete ? `Showing ${members.length} of ${members.length}` : "Loading more..."}
+          </div> : !props.directory ? members.length ? <button type="button" className="members-view-all members-view-all-footer" onClick={props.onOpenMembers}>
+            View all {peopleTotal} {rosterMembers.length === 1 && complete ? "member" : "members"}
+          </button> : null : <div className="community-context-members-footer" ref={loadMoreSentinelRef}>
+            {complete ? `Showing ${onlineOnly ? onlineCount : members.length} of ${members.length}` : "Loading more..."}
           </div>}
         </> : null}
     </div>
@@ -339,8 +357,8 @@ function RosterSurface(props: RosterProps & {
   // Keep overlays outside that shell, as the directory already does below.
   if (!props.directory || props.page) return <>{content}{selectedMember ? createPortal(settings, document.body) : null}</>;
   // Keep search and pagination mounted while the existing profile inspector is open.
-  return createPortal(<><div className="modal-overlay" style={props.memberDetailOpen ? { display: "none" } : undefined} onMouseDown={props.onCloseMembers}>
-    <section ref={dialogRef} className="modal members-directory-modal" role="dialog" aria-modal="true"
+  return createPortal(<><div className="modal-overlay members-directory-overlay" style={props.memberDetailOpen ? { display: "none" } : undefined} onMouseDown={props.onCloseMembers}>
+    <section ref={dialogRef} className="modal members-directory-modal members-directory-drawer" role="dialog" aria-modal="true"
       aria-labelledby="members-directory-title" onMouseDown={event => event.stopPropagation()}
       onKeyDown={event => {
         if (event.defaultPrevented) return;

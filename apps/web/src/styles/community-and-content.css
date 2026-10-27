@@ -13836,3 +13836,40 @@ button.chat-reply-quote:hover {
 @media (max-width: 900px) {
   .resource-course-style-switch.is-editor .resource-course-style-label { display: none; }
 }
+
+/* Members "View all": the full directory slides in from the right, over the
+   page, instead of opening as a centred box. Search and Online/All sit on top. */
+.modal-overlay.members-directory-overlay { justify-content: flex-end; align-items: stretch; padding: 0; background: rgba(0, 0, 0, 0.28); backdrop-filter: none; }
+.modal.members-directory-modal.members-directory-drawer {
+  width: min(420px, 100vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+  display: flex;
+  flex-direction: column;
+  animation: members-drawer-in 180ms ease-out;
+}
+.members-directory-drawer .members-directory-content { flex: 1; }
+@keyframes members-drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .members-directory-drawer { animation: none; } }
+
+.members-directory-filter { display: flex; gap: 6px; margin: 0 0 10px; }
+.members-directory-filter button {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border-subtle); border-radius: 999px;
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: 13px; padding: 5px 12px; cursor: pointer;
+}
+.members-directory-filter button span { color: var(--text-faint); font-size: 12px; }
+.members-directory-filter button[aria-pressed="true"] { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg-panel); }
+.members-directory-filter button[aria-pressed="true"] span { color: inherit; opacity: 0.75; }
+
+.members-view-all.members-view-all-footer {
+  display: block; width: calc(100% - 16px); margin: 10px 8px 4px; padding: 8px;
+  border: 1px solid var(--border-subtle); border-radius: 8px;
+  font-size: 13px; color: var(--text-secondary); text-align: center;
+}
+.members-view-all.members-view-all-footer:hover { color: var(--text-primary); background: var(--bg-hover, transparent); }
