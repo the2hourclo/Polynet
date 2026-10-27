@@ -95,6 +95,10 @@ describe("community layout v1", () => {
     ]) {
       expect(isCommunityLayoutVideoUrl(url), url).toBe(isSupportedCommunityFunnelVideoUrl(url));
     }
+    // Plus Descript share links, which the gallery plays through the same embed.
+    expect(isCommunityLayoutVideoUrl("https://share.descript.com/view/AbC123xyz")).toBe(true);
+    expect(isCommunityLayoutVideoUrl("https://share.descript.com/embed/AbC123xyz")).toBe(true);
+    expect(isCommunityLayoutVideoUrl("https://share.descript.com/AbC123xyz")).toBe(false);
   });
 
   test("members may pick Classroom or Channels where the owner offers it", () => {

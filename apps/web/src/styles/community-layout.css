@@ -590,10 +590,17 @@
 
 .community-top-scroll .community-top-main,
 .community-top-scroll .community-top-main :has(.community-posts-scroll),
-.community-top-scroll .community-posts-scroll,
-.community-top-scroll .community-aside {
+.community-top-scroll .community-posts-scroll {
   height: auto;
   max-height: none;
+  overflow: visible;
+}
+
+/* The aside stays in view beside the feed as the page scrolls. */
+.community-top-scroll .community-top-body.has-aside > .community-aside {
+  position: sticky;
+  top: 0;
+  align-self: start;
   overflow: visible;
 }
 
