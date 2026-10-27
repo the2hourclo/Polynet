@@ -198,10 +198,9 @@ export function WebCommunityOffersSettings<SessionT>(props: {
   const sharedCount = (data?.channels ?? []).length - privateChannels.length;
   const canAdd = props.isOwner && live.length < (data?.limits.offers ?? 6);
 
-  const toggleAudience = (channelId: string, current: string[], key: string, on: boolean) => {
+  const setAudience = (channelId: string, key: string) => {
     if (!props.session) return;
-    const next = on ? [...current, key] : current.filter((item) => item !== key);
-    void run(`channel:${channelId}`, () => setCloudCommunityChannelOfferAudience({ session: props.session!, communityId: props.communityId, channelId, offerKeys: next }));
+    void run(`channel:${channelId}`, () => setCloudCommunityChannelOfferAudience({ session: props.session!, communityId: props.communityId, channelId, offerKeys: key ? [key] : [] }));
   };
 
   return (
@@ -283,42 +282,43 @@ export function WebCommunityOffersSettings<SessionT>(props: {
 
       <section className="settings-section pn-settings-card" aria-labelledby="settings-offer-channels-title">
         <header className="pn-settings-card-header">
-          <h2 className="settings-section-title" id="settings-offer-channels-title">Who gets each private channel?</h2>
+          <h2 className="settings-section-title" id="settings-offer-channels-title">Private channels</h2>
           <p className="settings-section-desc">
-            Tick an offer and everyone on it, or on a higher one, is added for you and taken out when they leave it.
-            People you add by hand stay.
+            Choose who&rsquo;s in each private channel. For example, set a &ldquo;Consulting calls&rdquo; channel to
+            &ldquo;Everyone on {live[1]?.name ?? "Consulting"}&rdquo;: people join it when they buy that offer and leave it if they cancel.
           </p>
         </header>
         <div className="pn-settings-card-body">
           {data && !privateChannels.length ? (
             <p className="pn-settings-note">
-              {sharedCount ? "Every channel here is open to all members. " : ""}Make a channel invite-only in its settings, then pick who gets it here.
+              {sharedCount ? "Every channel here is open to all members. " : ""}Make a channel invite-only in its settings, then choose who&rsquo;s in it here.
             </p>
           ) : null}
-          {privateChannels.map((channel) => (
-            <div className="pn-settings-row pn-offer-channel" key={channel.id}>
-              <div className="pn-settings-row-text">
-                <span className="pn-offer-name"><Lock size={14} aria-hidden="true" />{channel.name}</span>
-                <span className="pn-settings-help">
-                  {channel.offer_audience.length ? "Added by offer" : "Only people you add by hand"}
-                </span>
+          {privateChannels.map((channel) => {
+            // On a ladder one offer is enough: it lets in everyone on it and above.
+            const chosen = live.find((offer) => channel.offer_audience.includes(offer.key)) ?? null;
+            const selectId = `offer-channel-${channel.id}`;
+            return (
+              <div className="pn-settings-row pn-offer-channel" key={channel.id}>
+                <div className="pn-settings-row-text">
+                  <span className="pn-offer-name"><Lock size={14} aria-hidden="true" />{channel.name}</span>
+                  <span className="pn-settings-help">
+                    {chosen
+                      ? `${audienceLabel(live, chosen)} is added automatically. People you added yourself stay.`
+                      : "Only the people you add yourself."}
+                  </span>
+                </div>
+                <label className="pn-offer-audience" htmlFor={selectId}>
+                  <span className="pn-settings-label">Who&rsquo;s in it</span>
+                  <select id={selectId} className="pn-settings-select" value={chosen?.key ?? ""} disabled={busy !== null || !props.session}
+                    onChange={(event) => setAudience(channel.id, event.target.value)}>
+                    <option value="">Only people I add</option>
+                    {live.map((offer) => <option key={offer.key} value={offer.key}>{audienceLabel(live, offer)}</option>)}
+                  </select>
+                </label>
               </div>
-              <div className="pn-offer-ticks" role="group" aria-label={`Offers that get ${channel.name}`}>
-                {live.map((offer) => {
-                  const on = channel.offer_audience.includes(offer.key);
-                  // A lower offer ticked already lets this one in: say so instead of a second tick.
-                  const viaLower = !on && live.some((lower) => lower.rank < offer.rank && channel.offer_audience.includes(lower.key));
-                  return (
-                    <label key={offer.key} className={`pn-offer-check${on || viaLower ? " is-on" : ""}`}>
-                      <input type="checkbox" checked={on || viaLower} disabled={busy !== null || viaLower}
-                        onChange={(event) => toggleAudience(channel.id, channel.offer_audience, offer.key, event.target.checked)} />
-                      {offer.name}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -375,4 +375,11 @@ function SalesPagePreview(props: { offers: CommunityBuilderOffer[]; communitySlu
       </div>
     </section>
   );
+}
+
+/** "Everyone on Membership (all members)", "Everyone on Consulting or higher", "Everyone on Done for you". */
+function audienceLabel(ladder: CommunityBuilderOffer[], offer: CommunityBuilderOffer): string {
+  if (offer.is_base) return `Everyone on ${offer.name} (all members)`;
+  const higher = ladder.some((other) => other.rank > offer.rank);
+  return `Everyone on ${offer.name}${higher ? " or higher" : ""}`;
 }
