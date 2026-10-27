@@ -5,7 +5,7 @@ import { api } from "./_generated/api";
 import schema from "./schema";
 import { activateCommunityMembershipCore } from "./communityMembershipLifecycle";
 
-const modules = import.meta.glob(["./communityMemberWorkflows.ts", "./communityChannelParticipants.ts", "./_generated/**/*.*s"]);
+const modules = import.meta.glob(["./communityMemberWorkflows.ts", "./communityChannelParticipants.ts", "./communityWorkflowGuideChannels.ts", "./_generated/**/*.*s"]);
 const epoch = 1_800_000_000_000;
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(epoch); });
 afterEach(() => vi.useRealTimers());
@@ -26,7 +26,7 @@ async function setup(automations: (pod: string) => any[]) {
   });
   const owner = t.withIdentity({ subject: "pods-owner" });
   const first = await owner.mutation(api.communityMemberWorkflows.createBuilderWorkflowMilestone, { communityId: f.communityId, expectedRevision: 0, name: "Start" });
-  const save = (rules: any[]) => owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, { communityId: f.communityId, expectedRevision: 1,
+  const save = (rules: any[], expectedRevision = 1) => owner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, { communityId: f.communityId, expectedRevision,
     milestoneKey: first.milestone.key, name: "Start", automations: rules });
   const join = async () => {
     await t.run(ctx => activateCommunityMembershipCore({ ctx, communityId: f.communityId, userId: f.userId, accessSource: "manual_grant", activationReason: "test", nowMs: Date.now() }));
@@ -87,5 +87,21 @@ test("only invite-only channels can be pods", async () => {
   await expect(s.save([{ trigger: { type: "milestone_elapsed", delayMinutes: 0 }, action: { type: "set_pod_member", channelId: String(s.f.openId), active: true } }]))
     .rejects.toThrow("workflow_pod_unavailable");
   await expect(s.save([{ trigger: { type: "pod_member_added", channelId: String(s.f.openId) }, action: { type: "send_email", subject: "Hi", body: "Hello" } }]))
+    .rejects.toThrow("workflow_pod_unavailable");
+});
+
+test("a member's guide channel is not a pod", async () => {
+  const s = await setup(() => []);
+  await s.save([{ trigger: { type: "pod_member_added" }, action: { type: "set_client_property", propertyKey: "pod", value: "joined" } }]);
+  await s.join();
+  // Make the invite-only channel this member's guide channel, then add them to it.
+  await s.t.run(async ctx => {
+    const membership = (await ctx.db.query("communityMemberships").collect()).find(row => row.userId === s.f.userId)!;
+    await ctx.db.patch(membership._id, { serviceChannelId: s.f.podId });
+  });
+  await s.grant(true);
+  await s.t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect((await s.rows()).values).toHaveLength(0);
+  await expect(s.save([{ trigger: { type: "milestone_elapsed", delayMinutes: 0 }, action: { type: "set_pod_member", channelId: String(s.f.podId), active: true } }], 2))
     .rejects.toThrow("workflow_pod_unavailable");
 });

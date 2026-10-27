@@ -15,6 +15,8 @@ export type WorkflowCatalog = {
   tracks?: Array<{ key: string; title: string }> | null;
   /** Settings › Offers; missing until loaded. */
   offers?: Array<{ key: string; name: string }> | null;
+  /** Members' guide channels: invite-only, but not pods. */
+  guideChannelIds?: string[] | null;
 };
 
 type PropertyValue = string | number | boolean | string[] | null;
@@ -244,8 +246,9 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
   const setRecord = (key: string, value?: string | number | boolean) => props.onChange({ ...automation,
     trigger: { type: "client_property_changed", propertyKey: key, ...(value === undefined || value === "" ? {} : { value }) } });
   const isOffer = automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended";
-  // Pods are the invite-only channels; the general channel never is one.
-  const pods = props.channels.filter((channel) => channel.access_mode === "restricted" && !channel.is_general);
+  // Pods are the invite-only channels; the general channel and members' guide channels never are.
+  const pods = props.channels.filter((channel) => channel.access_mode === "restricted" && !channel.is_general
+    && !props.catalog?.guideChannelIds?.includes(channel.id));
   const isPodTrigger = automation.trigger.type === "pod_member_added";
   const podTriggerId = automation.trigger.type === "pod_member_added" ? automation.trigger.channelId : undefined;
   const podName = (podId: string | undefined, any: string) => podId ? pods.find((pod) => pod.id === podId)?.name ?? "Unavailable pod" : any;

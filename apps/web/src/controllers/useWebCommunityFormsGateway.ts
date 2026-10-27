@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { AuthSession } from "../auth";
 import type { CommunityFormDraft } from "../../../../shared/communityForms";
-import { deleteCloudCommunityForm, listDeletedCloudCommunityForms, reorderCloudCommunityForms, restoreCloudCommunityForm, listCloudCommunityForms, saveCloudCommunityForm, publishCloudCommunityForm, listCloudCommunityFormResponses, listCloudCommunityClientProperties, type CloudCommunityClientProperty } from "../../../../shared/cloudCommunityFormsGateway";
+import { deleteCloudCommunityForm, draftCloudCommunityFormWithAgent, loadCloudCommunityFormDraftAgentName, listCloudWorkflowGuideChannelIds, listDeletedCloudCommunityForms, reorderCloudCommunityForms, restoreCloudCommunityForm, listCloudCommunityForms, saveCloudCommunityForm, publishCloudCommunityForm, listCloudCommunityFormResponses, listCloudCommunityClientProperties, type CloudCommunityClientProperty } from "../../../../shared/cloudCommunityFormsGateway";
 import { fetchCloudMemberProgressReport, type CommunityMemberProgressReport } from "../../../../shared/cloudCommunityResourceProgressGateway";
 
 export type CommunityFormsGateway = {
@@ -17,6 +17,11 @@ export type CommunityFormsGateway = {
   reorder?: (keys: string[]) => Promise<unknown>;
   remove?: (key: string) => Promise<unknown>;
   restore?: (key: string) => Promise<unknown>;
+  /** The Builder writes an unsaved form from a short brief. */
+  agentName?: () => Promise<string>;
+  /** Members' guide channels: invite-only, but never offered as pods. */
+  guideChannelIds?: () => Promise<string[]>;
+  draftWithAgent?: (brief: string) => Promise<{ name: string; questions: CommunityFormDraft["questions"] }>;
   /** Client properties a question can fill. */
   clientProperties?: () => Promise<CloudCommunityClientProperty[]>;
 };
@@ -46,6 +51,9 @@ export function useWebCommunityFormsGateway(params: {
       reorder: (keys: string[]) => run(s => reorderCloudCommunityForms(s, communityId, keys)),
       remove: (key: string) => run(s => deleteCloudCommunityForm(s, communityId, key)),
       restore: (key: string) => run(s => restoreCloudCommunityForm(s, communityId, key)),
+      guideChannelIds: () => run(s => listCloudWorkflowGuideChannelIds(s, communityId)),
+      agentName: () => run(s => loadCloudCommunityFormDraftAgentName(s, communityId)),
+      draftWithAgent: (brief: string) => run(s => draftCloudCommunityFormWithAgent(s, communityId, brief)),
       clientProperties: () => run(s => listCloudCommunityClientProperties(s, communityId)) };
   }, [params.activeCommunityId, params.canManageMembers, params.session, params.ensureSession]);
 }

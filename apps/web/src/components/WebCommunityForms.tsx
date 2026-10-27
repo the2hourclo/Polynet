@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
-import { ArrowLeft, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ClipboardList, GripVertical, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ClipboardList, GripVertical, MoreHorizontal, Plus, Sparkles, Trash2 } from "lucide-react";
 import { WorkflowSentence, type WorkflowSentencePart } from "./workflowSubjectPills";
 import { blankCommunityFormQuestion, communityFormIssue, communityFormValidationIssue, COMMUNITY_FORM_MAX_FORMS, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion, type CommunityFormUse, type CommunityFormValidationIssue } from "../../../../shared/communityForms";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
@@ -35,6 +35,7 @@ export function formUseParts(form: CommunityFormDraft, use: CommunityFormUse): W
 const formFills = (form: CommunityFormDraft, properties: Property[]) => [...new Set(form.questions.flatMap(q => q.clientPropertyKey ? [q.clientPropertyKey] : []))]
   .map(key => properties.find(p => p.key === key)?.name ?? key);
 const formStatus = (form: CommunityFormDraft) => form.publishedRevision === form.revision ? "published" : form.publishedRevision ? "edited" : "draft";
+const atLimitFor = (forms: CommunityFormDraft[], deleted: CommunityFormDraft[]) => forms.length + deleted.length >= COMMUNITY_FORM_MAX_FORMS;
 const STATUS_LABEL = { published: "Published", edited: "Unpublished edits", draft: "Draft" } as const;
 
 // Workflows → Forms as a Notion-style table: drag a row to reorder, see where
@@ -53,6 +54,9 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
   const [refresh, setRefresh] = useState(0);
   const dragged = useRef<string | null>(null);
   const [dropOn, setDropOn] = useState<string | null>(null);
+  const [agentName, setAgentName] = useState("the agent");
+  const [drafting, setDrafting] = useState<{ brief: string; busy: boolean; error: string | null } | null>(null);
+  const [drafted, setDrafted] = useState<string | null>(null);
   useEffect(() => {
     let active = true; setLoading(true); setError(false);
     gateway.load().then(rows => { if (active) setForms(rows); }).catch(() => { if (active) setError(true); })
@@ -62,14 +66,49 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
     return () => { active = false; };
   }, [gateway, refresh]);
   useEffect(() => {
+    let active = true;
+    gateway.agentName?.().then(name => { if (active && name) setAgentName(name); }).catch(() => {});
+    return () => { active = false; };
+  }, [gateway]);
+  useEffect(() => {
     if (!menu) return;
     const close = (event: MouseEvent) => { if (!(event.target as HTMLElement).closest(".community-form-menu")) setMenu(null); };
     document.addEventListener("mousedown", close); return () => document.removeEventListener("mousedown", close);
   }, [menu]);
   if (selected) return <CommunityFormEditor key={selected.key} initial={selected} gateway={gateway} leaveGuard={leaveGuard}
-    onBack={() => { setSelected(null); setRefresh(n => n + 1); }} />;
+    draftedBy={drafted === selected.key ? agentName : undefined}
+    onBack={() => { setSelected(null); setDrafted(null); setRefresh(n => n + 1); }} />;
+  const draftWithAgent = async () => {
+    if (!drafting?.brief.trim() || !gateway.draftWithAgent) return;
+    setDrafting({ ...drafting, busy: true, error: null });
+    try {
+      const form = await gateway.draftWithAgent(drafting.brief);
+      const key = crypto.randomUUID();
+      setDrafting(null); setDrafted(key);
+      setSelected({ key, name: form.name, questions: form.questions, revision: 0, publishedRevision: null });
+    } catch (e) {
+      const text = String(e);
+      setDrafting(d => d && { ...d, busy: false, error: text.includes("form_draft_unreadable") || text.includes("form_draft_empty")
+        ? `${agentName} didn't return a usable form. Try again, or say a little more about what it's for.`
+        : `${agentName} couldn't write the form right now. Try again in a minute, or start a blank form.` });
+    }
+  };
+  const draftButton = gateway.draftWithAgent ? <button type="button" className="workflow-secondary-button community-form-agent-button" disabled={atLimitFor(forms, deleted) || Boolean(drafting)} onClick={() => setDrafting({ brief: "", busy: false, error: null })}><Sparkles size={15} aria-hidden="true" /> Draft with {agentName}</button> : null;
+  const draftPanel = drafting ? <form className="community-form-agent" onSubmit={e => { e.preventDefault(); void draftWithAgent(); }}>
+    <label htmlFor="community-form-agent-brief"><Sparkles size={15} aria-hidden="true" /> What's this form for?</label>
+    <p>{agentName} writes the questions and links each answer to a member field. Nothing goes to members until you check it and press Publish.</p>
+    <textarea id="community-form-agent-brief" rows={3} maxLength={2000} autoFocus disabled={drafting.busy} value={drafting.brief}
+      placeholder="A welcome form that asks what kind of business they run, how big it is and what they want to build first"
+      onChange={e => setDrafting({ ...drafting, brief: e.target.value, error: null })}
+      onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void draftWithAgent(); } }} />
+    {drafting.error ? <p className="workflow-error" role="alert">{drafting.error}</p> : null}
+    <div>
+      <button type="button" className="workflow-secondary-button" disabled={drafting.busy} onClick={() => setDrafting(null)}>Cancel</button>
+      <button type="submit" className="pn-wf-primary" disabled={drafting.busy || !drafting.brief.trim()}>{drafting.busy ? `${agentName} is writing…` : "Write the questions"}</button>
+    </div>
+  </form> : null;
   const newForm = () => setSelected({ key: crypto.randomUUID(), name: "Untitled form", questions: [blankCommunityFormQuestion()], revision: 0, publishedRevision: null });
-  const atLimit = forms.length + deleted.length >= COMMUNITY_FORM_MAX_FORMS;
+  const atLimit = atLimitFor(forms, deleted);
   const used = (form: CommunityFormDraft) => (form.usedIn?.length ?? 0) > 0;
   const shown = forms.filter(form => filter === "all" || (filter === "used") === used(form));
   const drop = (target: string) => {
@@ -97,15 +136,16 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
         <h2>Forms</h2>
         <p>Questions members answer when they join or reach a stage. Their answers fill their member record.</p>
       </div>
-      {!loading && !error && forms.length ? <button type="button" className="pn-wf-primary" disabled={atLimit} onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button> : null}
+      {!loading && !error && forms.length ? <div className="community-form-head-actions">{draftButton}<button type="button" className="pn-wf-primary" disabled={atLimit} onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button></div> : null}
     </div>
+    {draftPanel}
     {notice ? <p className="community-form-notice" role="status">{notice} <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss">×</button></p> : null}
     {loading ? <p role="status" className="pn-wf-muted">Loading forms…</p> : error ? <p role="alert">Could not load forms. <button className="workflow-secondary-button" onClick={() => setRefresh(n => n + 1)}>Try again</button></p>
       : !forms.length ? <div className="pn-wf-empty">
         <span className="pn-wf-empty-icon" aria-hidden="true"><ClipboardList size={20} strokeWidth={2} /></span>
         <strong>No forms yet</strong>
         <p>Build a form, then preview it one question at a time.</p>
-        <button type="button" className="pn-wf-primary" onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button>
+        <div className="community-form-head-actions">{draftButton}<button type="button" className="pn-wf-primary" onClick={newForm}><Plus size={16} aria-hidden="true" /> New form</button></div>
       </div>
       : <div className="community-form-table-card">
         <div className="community-form-filters" role="tablist" aria-label="Show forms">
@@ -153,7 +193,7 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
   </div>;
 }
 
-export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { initial: CommunityFormDraft; gateway: CommunityFormsGateway; onBack: () => void; leaveGuard?: LeaveGuard }) {
+export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard, draftedBy }: { initial: CommunityFormDraft; gateway: CommunityFormsGateway; onBack: () => void; leaveGuard?: LeaveGuard; draftedBy?: string }) {
   const [draft, setDraft] = useState(initial);
   const [clientProperties, setClientProperties] = useState<Array<{ key: string; name: string; type: string; options: string[] }>>([]);
   useEffect(() => {
@@ -275,6 +315,7 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard }: { 
     </header>
     {error ? <div role="alert" className="workflow-error">{error.message} <button className="workflow-secondary-button" disabled={publishing || saving} onClick={() => { if (error.operation === "publish") void publish(); else { setError(null); void flush().catch(() => {}); } }}>{error.operation === "publish" ? "Retry publish" : "Retry save"}</button>
       <button className="workflow-secondary-button" disabled={publishing || saving} onClick={async () => { try { const rows = await gateway.load(); const row = rows.find(f => f.key === draft.key); if (alive.current && row) { persisted.current = row; saved.current = contentKey(row); setDraft(row); setRevision(row.revision); setPublished(row.publishedRevision); setIndex(0); setError(null); } else if (alive.current) setError({ ...error, message: "Saved form not found. Your edits are still here." }); } catch { if (alive.current) setError({ ...error, message: "Could not reload the saved form." }); } }}>Discard edits and reload</button></div> : null}
+    {draftedBy && !preview && published === null ? <p className="community-form-notice community-form-drafted" role="status"><Sparkles size={15} aria-hidden="true" /> {draftedBy} drafted these questions. Check each one and what it fills, then Publish. Until then members never see it.</p> : null}
     {preview ? <div className="community-form-preview">
       <p className="community-form-hint">Preview only · Answers are not submitted</p>
       {finished ? <div className="community-form-question"><h2>Preview complete</h2><p>No answers were submitted.</p><button className="workflow-secondary-button" onClick={() => { setFinished(false); setIndex(0); }}>Start again</button></div> : <div className="community-form-question" key={q.key}>

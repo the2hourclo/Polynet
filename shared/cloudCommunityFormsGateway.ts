@@ -68,3 +68,17 @@ export async function publishCloudCommunityForm(session: unknown, communityId: s
   return client.mutation(api.communityForms.publishBuilderForm, { authSubject, communityId: communityId as Id<"communities">,
     key: form.key, expectedRevision: form.revision });
 }
+/** The Builder writes a form from a brief. Returns an unsaved draft for review. */
+export async function draftCloudCommunityFormWithAgent(session: unknown, communityId: string, brief: string): Promise<{ name: string; questions: CommunityFormDraft["questions"] }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.action(api.communityFormDrafts.draftBuilderFormWithAgent, { authSubject, communityId: communityId as Id<"communities">, brief });
+}
+export async function loadCloudCommunityFormDraftAgentName(session: unknown, communityId: string): Promise<string> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.query(api.communityFormDrafts.formDraftAgentName, { authSubject, communityId: communityId as Id<"communities"> });
+}
+/** Members' guide channels, which the pod picker leaves out. */
+export async function listCloudWorkflowGuideChannelIds(session: unknown, communityId: string): Promise<string[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+  return client.query(api.communityWorkflowGuideChannels.listWorkflowGuideChannelIds, { authSubject, communityId: communityId as Id<"communities"> });
+}

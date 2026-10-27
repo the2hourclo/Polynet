@@ -603,6 +603,7 @@ BUILDER_SETTING_OPERATIONS.push(
 //   "plumbing:"    not a choice anyone makes (presence, read markers, counts, sign-in).
 export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   // Other MCP paths already do these.
+  "communityFormDrafts:draftBuilderFormWithAgent": "agent path: an agent writes the questions itself and calls community.form.save; this asks the community agent to write them for the owner, and saves nothing",
   "communityClients:createClientProperty": "agent path: community.client.property.define",
   "communityClients:updateClientProperty": "agent path: community.client.property.define (with key)",
   "communityClients:setClientPropertyValue": "agent path: community.client.value.set",
