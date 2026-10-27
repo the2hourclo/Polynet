@@ -1,11 +1,12 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { visibleCommunityLayoutTabs } from "../../../../shared/communityLayout";
+import { layoutForClassroomChat, visibleCommunityLayoutTabs } from "../../../../shared/communityLayout";
 import { WebMobileTopBar } from "./WebMobileTopBar";
 import { buildWebShellChromeClassNames } from "../controllers/buildWebShellChromeClassNames";
 import { WebDesktopShellHeader } from "./WebDesktopShellHeader";
@@ -124,10 +125,15 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   );
   // What this member sees: their Classroom/Channels pick where the owner
   // offers one, else the owner's layout.
-  const { layout: communityLayout, choice: communityLayoutChoice } = useWebCommunityLayoutChoice(
+  const { layout: chosenCommunityLayout, choice: communityLayoutChoice } = useWebCommunityLayoutChoice(
     props.communityShell.activeCommunity?.id ?? null,
     props.memberSession ?? null,
     publishedCommunityLayout,
+  );
+  // Classroom's Community tab: post cards unless the owner picked a chat.
+  const communityLayout = useMemo(
+    () => layoutForClassroomChat(chosenCommunityLayout, communityTheme.theme?.classroom_chat ?? "posts"),
+    [chosenCommunityLayout, communityTheme.theme?.classroom_chat],
   );
   // Members and About are pages only where the community's layout shows them.
   // Elsewhere their links keep landing on chat, as before layouts existed.

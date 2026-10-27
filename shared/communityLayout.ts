@@ -300,6 +300,23 @@ export function layoutForMemberChoice(
   };
 }
 
+// Classroom's Community tab follows the theme's classroom_chat, whatever the
+// layout record says (Rashid, 2026-10-27: post cards by default, a chat only
+// when the owner picks it in Customize). A layout moved to the top without
+// side blocks gets Classroom's usual ones.
+export function layoutForClassroomChat(
+  layout: CommunityLayoutV1,
+  style: "posts" | "chat",
+): CommunityLayoutV1 {
+  if (layout.navigation.position !== "top") return layout;
+  const chat: CommunityLayoutV1["pages"]["chat"] =
+    style === "posts"
+      ? { presentation: "posts", aside: layout.pages.chat.aside.length ? layout.pages.chat.aside : ["community_card", "upcoming_events"] }
+      : { presentation: "messages", aside: layout.pages.chat.aside };
+  if (chat.presentation === layout.pages.chat.presentation && chat.aside === layout.pages.chat.aside) return layout;
+  return { ...layout, pages: { ...layout.pages, chat } };
+}
+
 export function communityLayoutTabLabel(layout: CommunityLayoutV1, tab: CommunityLayoutTab): string {
   const entry = layout.navigation.tabs.find((candidate) => candidate.tab === tab);
   return entry?.label || COMMUNITY_LAYOUT_TAB_DEFAULT_LABELS[tab];

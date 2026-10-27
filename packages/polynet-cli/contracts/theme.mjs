@@ -71,6 +71,7 @@ export const DEFAULT_COMMUNITY_THEME = {
     rail_color: "polynet",
     sibling_communities: "hide",
     pods_place: "aside",
+    classroom_chat: "posts",
 };
 const COLOR_KEYS = [
     "background", "surface", "text", "muted", "border", "accent", "on_accent", "button", "on_button",
@@ -111,6 +112,7 @@ const ENUMS = {
     rail_color: ["polynet", "blend", "tint", "brand"],
     sibling_communities: ["hide", "show"],
     pods_place: ["aside", "header"],
+    classroom_chat: ["posts", "chat"],
 };
 const RANGES = {
     heading_weight: [300, 900],
