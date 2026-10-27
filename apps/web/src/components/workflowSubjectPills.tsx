@@ -69,7 +69,7 @@ export function workflowActionParts(rule: CommunityMemberWorkflowAutomation, nam
       const pod = { pill: "stage" as const, text: named(names.channels, (item) => item.id === action.channelId, "a pod") };
       return action.active ? ["Add ", member, " to ", pod] : ["Take ", member, " out of ", pod];
     }
-    case "create_service_channel": return ["Open a private room for ", member, ", ", { pill: "owner", text: "You" }, " and ", { pill: "agent", text: "Agent" }];
+    case "create_service_channel": return ["Create a personal pod for ", member];
   }
 }
 

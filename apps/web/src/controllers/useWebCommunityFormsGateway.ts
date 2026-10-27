@@ -19,7 +19,7 @@ export type CommunityFormsGateway = {
   restore?: (key: string) => Promise<unknown>;
   /** The Builder writes an unsaved form from a short brief. */
   agentName?: () => Promise<string>;
-  /** Members' guide channels: invite-only, but never offered as pods. */
+  /** Members' personal pods, which pod pickers list after the group pods. */
   guideChannelIds?: () => Promise<string[]>;
   draftWithAgent?: (brief: string) => Promise<{ name: string; questions: CommunityFormDraft["questions"] }>;
   /** Client properties a question can fill. */

@@ -2,10 +2,10 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireCommunityManager, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 
-// A member's guide channel (their private room with you and the agent) is an
-// invite-only channel too, but it isn't a pod: automations never add people to
-// it or start when someone is added. Nothing on the channel row says which it
-// is; a membership pointing at it as its serviceChannelId does.
+// A member's personal pod (just them, you and the agent) is an invite-only
+// channel like a group pod. Nothing on the channel row says which it is; a
+// membership pointing at it as its serviceChannelId does. Pod pickers list
+// personal pods after the group pods.
 
 const MAX_MEMBERSHIPS_READ = 1000;
 

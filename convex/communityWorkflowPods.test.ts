@@ -90,11 +90,11 @@ test("only invite-only channels can be pods", async () => {
     .rejects.toThrow("workflow_pod_unavailable");
 });
 
-test("a member's guide channel is not a pod", async () => {
+test("a member's personal pod can be a pod step, and creating it doesn't set off 'added to a pod'", async () => {
   const s = await setup(() => []);
   await s.save([{ trigger: { type: "pod_member_added" }, action: { type: "set_client_property", propertyKey: "pod", value: "joined" } }]);
   await s.join();
-  // Make the invite-only channel this member's guide channel, then add them to it.
+  // Make the invite-only channel this member's personal pod, then add them to it.
   await s.t.run(async ctx => {
     const membership = (await ctx.db.query("communityMemberships").collect()).find(row => row.userId === s.f.userId)!;
     await ctx.db.patch(membership._id, { serviceChannelId: s.f.podId });
@@ -102,6 +102,5 @@ test("a member's guide channel is not a pod", async () => {
   await s.grant(true);
   await s.t.finishAllScheduledFunctions(vi.runAllTimers);
   expect((await s.rows()).values).toHaveLength(0);
-  await expect(s.save([{ trigger: { type: "milestone_elapsed", delayMinutes: 0 }, action: { type: "set_pod_member", channelId: String(s.f.podId), active: true } }], 2))
-    .rejects.toThrow("workflow_pod_unavailable");
+  await s.save([{ trigger: { type: "milestone_elapsed", delayMinutes: 0 }, action: { type: "set_pod_member", channelId: String(s.f.podId), active: true } }], 2);
 });

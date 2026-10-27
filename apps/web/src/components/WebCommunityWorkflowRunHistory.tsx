@@ -42,8 +42,8 @@ function took(run: CloudWorkflowRun): string {
 }
 
 const ERRORS: Record<string, string> = {
-  channel_access_missing: "They have no private room yet, so the agent had nowhere to write.",
-  service_channel_missing: "They have no private room yet, so the agent had nowhere to write.",
+  channel_access_missing: "They have no personal pod yet, so the agent had nowhere to write.",
+  service_channel_missing: "They have no personal pod yet, so the agent had nowhere to write.",
   founder_usage_exhausted: "The agent is out of credits.",
   provider_execution_deadline_exceeded: "The agent took too long to answer.",
   agent_loop_unhandled: "The agent ran into an error.",
@@ -101,7 +101,7 @@ export function WebCommunityWorkflowRunHistory(props: Props) {
     const rule = rules.get(automationKey);
     if (rule) return capitalize(workflowActionPhrase(rule, props.names));
     return actionType === "prompt_agent" ? "Agent sent a message" : actionType === "request_form" ? "Sent a form"
-      : actionType === "set_client_property" ? "Updated the member record" : actionType === "send_email" ? "Sent an email" : actionType === "set_pod_member" ? "Changed their pods" : actionType === "create_service_channel" ? "Opened a private room" : "A step";
+      : actionType === "set_client_property" ? "Updated the member record" : actionType === "send_email" ? "Sent an email" : actionType === "set_pod_member" ? "Changed their pods" : actionType === "create_service_channel" ? "Created their personal pod" : "A step";
   };
 
   return <div className="pn-runs">
