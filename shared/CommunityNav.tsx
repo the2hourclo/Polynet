@@ -57,8 +57,9 @@ type CommunityNavProps = {
   /** Guest mode (public funnel): tabs rendered with a lock glyph instead of an indicator dot. */
   lockedTabs?: Partial<Record<CommunityTab, boolean>>;
   channels?: CommunityNavChannel[];
-  /** Other members' guide channels: invite-only, but listed apart from pods. */
-  memberSpaceIds?: string[];
+  /** Personal pods: one member's own pod, made for them by a workflow. Listed
+   *  after the group pods, and folded when there are many. */
+  personalPodIds?: string[];
   isLoadingChannels?: boolean;
   selectedChannelSlug?: string | null;
   channelIndicators?: Record<string, { chat: boolean; mentions: boolean }>;
@@ -103,6 +104,8 @@ function moveChannelIdToIndex(
   next.splice(targetIndex, 0, moved);
   return next;
 }
+
+const PERSONAL_PODS_SHOWN = 3;
 
 const MODAL_FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -175,7 +178,7 @@ export const CommunityNav = memo(function CommunityNav({
   onCopyCommunityJoinLink,
   lockedTabs = {},
   channels = [],
-  memberSpaceIds,
+  personalPodIds,
   isLoadingChannels = false,
   selectedChannelSlug = "general",
   channelIndicators = {},
@@ -193,6 +196,7 @@ export const CommunityNav = memo(function CommunityNav({
 }: CommunityNavProps) {
   const [didCopyJoinLink, setDidCopyJoinLink] = useState(false);
   const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
+  const [showAllPersonalPods, setShowAllPersonalPods] = useState(false);
   const [reorderControlsChannelId, setReorderControlsChannelId] = useState<string | null>(null);
   const [channelName, setChannelName] = useState("");
   const [channelAccessMode, setChannelAccessMode] = useState<"all_members" | "restricted">("all_members");
@@ -221,16 +225,24 @@ export const CommunityNav = memo(function CommunityNav({
     isLoadingAccess || (isLoadingChannels && channels.every((channel) => !channel.id));
   // Pods (Rashid, 2026-10-27): invite-only channels sit in their own group
   // under the shared ones, the same Pods as in Classroom.
-  // Members' own guide channels follow, under Members' spaces.
-  const memberSpaces = new Set(memberSpaceIds ?? []);
-  const isPod = (channel: CommunityNavChannel) => channel.access_mode === "restricted" && !memberSpaces.has(channel.id);
+  // A member's personal pod is a pod too (Rashid, 2026-10-27); with many
+  // members they follow the group pods and fold away so they don't bury them.
+  const personalPods = new Set(personalPodIds ?? []);
+  const isPod = (channel: CommunityNavChannel) => channel.access_mode === "restricted";
+  const isPersonalPod = (channel: CommunityNavChannel) => isPod(channel) && personalPods.has(channel.id);
   const groupedChannels = [
-    ...channels.filter((channel) => channel.access_mode !== "restricted"),
-    ...channels.filter(isPod),
-    ...channels.filter((channel) => memberSpaces.has(channel.id) && channel.access_mode === "restricted"),
+    ...channels.filter((channel) => !isPod(channel)),
+    ...channels.filter((channel) => isPod(channel) && !isPersonalPod(channel)),
+    ...channels.filter(isPersonalPod),
   ];
   const firstPodId = groupedChannels.find(isPod)?.id ?? null;
-  const firstMemberSpaceId = groupedChannels.find((channel) => memberSpaces.has(channel.id) && channel.access_mode === "restricted")?.id ?? null;
+  const personalPodChannels = groupedChannels.filter(isPersonalPod);
+  // Folded personal pods still show when open or unread.
+  const foldedPersonalPods = showAllPersonalPods || personalPodChannels.length <= PERSONAL_PODS_SHOWN
+    ? new Set<string>()
+    : new Set(personalPodChannels.slice(PERSONAL_PODS_SHOWN)
+        .filter((channel) => channel.slug !== selectedChannelSlug && !channelIndicators[channel.slug]?.chat)
+        .map((channel) => channel.id));
   const reorderableChannelIds = groupedChannels
     .filter((channel) => !channel.is_general && Boolean(channel.id))
     .map((channel) => channel.id);
@@ -461,6 +473,7 @@ export const CommunityNav = memo(function CommunityNav({
             showActiveSelection &&
             communityTab === "chat" &&
             (selectedChannelSlug ?? "general") === channel.slug;
+          if (foldedPersonalPods.has(channel.id)) return null;
           const indicator = channelIndicators[channel.slug];
           const sortableBindings = canReorderChannels && !channel.is_general
             ? getChannelItemBindings(channel.id)
@@ -469,9 +482,6 @@ export const CommunityNav = memo(function CommunityNav({
             <Fragment key={channel.id || channel.slug}>
             {channel.id && channel.id === firstPodId ? (
               <div className="community-nav-group-label" role="presentation">Pods</div>
-            ) : null}
-            {channel.id && channel.id === firstMemberSpaceId ? (
-              <div className="community-nav-group-label" role="presentation">Members' spaces</div>
             ) : null}
             <div
               ref={sortableBindings?.ref}
@@ -491,7 +501,7 @@ export const CommunityNav = memo(function CommunityNav({
               >
                 <span className="nav-icon community-channel-icon" aria-hidden="true">
                   {channel.access_mode !== "restricted" ? <Hash size={17} strokeWidth={1.8} />
-                    : memberSpaces.has(channel.id) ? <UserRound size={17} strokeWidth={1.8} />
+                    : personalPods.has(channel.id) ? <UserRound size={17} strokeWidth={1.8} />
                     : <UsersRound size={17} strokeWidth={1.8} />}
                 </span>
                 <span className="nav-item-label">{channel.name}</span>
@@ -554,6 +564,21 @@ export const CommunityNav = memo(function CommunityNav({
             </Fragment>
           );
         })}
+        {!showChannelLoadingSkeleton && personalPodChannels.length > PERSONAL_PODS_SHOWN ? (
+          <button
+            type="button"
+            className="nav-item community-channel-item community-nav-fold"
+            aria-expanded={showAllPersonalPods}
+            onClick={() => setShowAllPersonalPods((value) => !value)}
+          >
+            <span className="nav-icon community-channel-icon" aria-hidden="true">
+              {showAllPersonalPods ? <ChevronUp size={17} strokeWidth={1.8} /> : <ChevronDown size={17} strokeWidth={1.8} />}
+            </span>
+            <span className="nav-item-label">
+              {showAllPersonalPods ? "Fewer personal pods" : `${foldedPersonalPods.size} more personal pods`}
+            </span>
+          </button>
+        ) : null}
         {reorderChannelsError ? (
           <div className="community-channel-reorder-error" role="status">
             {reorderChannelsError}

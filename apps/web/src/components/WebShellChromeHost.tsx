@@ -150,8 +150,12 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const activeCommunityId = props.communityShell.activeCommunity?.id ?? null;
   const [postSearchState, setPostSearchState] = useState<{ communityId: string | null; query: string }>({ communityId: null, query: "" });
   const [podPanelSlot, setPodPanelSlot] = useState<HTMLElement | null>(null);
-  // Members' guide channels are invite-only too, but they aren't pods.
+  // Personal pods: one member's own pod, set up for them by a workflow.
   const podSpaces = usePodSpaces(activeCommunityId, props.memberSession ?? null);
+  const personalPodIds = useMemo(
+    () => [...(podSpaces?.mine ? [podSpaces.mine] : []), ...(podSpaces?.member_spaces ?? [])],
+    [podSpaces],
+  );
   const postSearch = postSearchState.communityId === activeCommunityId ? postSearchState.query : "";
   const setPostSearch = useCallback(
     (query: string) => setPostSearchState({ communityId: activeCommunityId, query }),
@@ -255,7 +259,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       <WebCommunityNavSurface
         communityShell={props.communityShell}
         presentation="desktop"
-        memberSpaceIds={podSpaces?.member_spaces}
+        personalPodIds={personalPodIds}
       />
     )
   ) : null;
@@ -311,12 +315,14 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     if (courseCardsAttribute) root.dataset.courseCards = courseCardsAttribute;
     else delete root.dataset.courseCards;
   }, [courseCardsAttribute]);
-  // Classroom shows invite-only channels as pods instead of topic chips.
-  // Other members' guide channels aren't the viewer's pods; their own comes first.
-  const memberSpaces = new Set(podSpaces?.member_spaces ?? []);
+  // Classroom shows invite-only channels as pods instead of topic chips: the
+  // viewer's own personal pod first, then group pods, then other members'
+  // personal pods (only owners and admins see those), so they don't bury the rest.
+  const otherPersonalPods = new Set(podSpaces?.member_spaces ?? []);
+  const podRank = (id: string) => (id === podSpaces?.mine ? 0 : otherPersonalPods.has(id) ? 2 : 1);
   const podChannels = props.communityShell.communityChannels
-    .filter((channel) => channel.access_mode === "restricted" && !memberSpaces.has(channel.id))
-    .sort((a, b) => Number(b.id === podSpaces?.mine) - Number(a.id === podSpaces?.mine) || a.position - b.position);
+    .filter((channel) => channel.access_mode === "restricted")
+    .sort((a, b) => podRank(a.id) - podRank(b.id) || a.position - b.position);
   // Both layouts show pods: Classroom as a card and a room, Channels as their
   // own group in the channel list. Opening one shows the same pod panel.
   const selectedPodSlug = props.communityShell.communityTab === "chat" ? props.communityShell.selectedCommunityChannelSlug || null : null;
@@ -346,7 +352,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     <WebCommunityNavSurface
       communityShell={props.communityShell}
       presentation="mobile-home"
-      memberSpaceIds={podSpaces?.member_spaces}
+      personalPodIds={personalPodIds}
     />
   ) : isMobileDedicatedRoot ? null : pageSurface);
   const mobileGlobalShellLabel = isMobileCommunityHome

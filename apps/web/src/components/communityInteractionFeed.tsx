@@ -814,9 +814,17 @@ function ProtectedInteractionAttachment({ attachment, onOpenImage }: {
     } catch { if (!abort.signal.aborted) setError("Attachment unavailable. Check your access and try again."); }
     finally { if (!abort.signal.aborted) setBusy(false); }
   };
+  // Images load on their own so they show as pictures, like in open channels;
+  // other files wait for a click.
+  const isImage = /^image\//.test(attachment.mime ?? "");
+  useEffect(() => {
+    if (isImage && scope?.session) void open();
+    // open() reads the current scope; rerun only when the image or session changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isImage, scope?.session, scope?.communityId, attachment.id]);
   return url ? <InteractionAttachments attachments={[{ ...attachment, protected_download: false, url }]} onOpenImage={onOpenImage} />
     : <div><button className="attachment-item" type="button" disabled={busy || !scope?.session} onClick={() => void open()}>
-      <span className="attachment-name">{busy ? "Opening…" : attachment.name}</span></button>{error ? <p role="alert">{error}</p> : null}</div>;
+      <span className="attachment-name">{busy ? (isImage ? "Loading image…" : "Opening…") : attachment.name}</span></button>{error ? <p role="alert">{error}</p> : null}</div>;
 }
 
 export function InteractionAttachments(props: {

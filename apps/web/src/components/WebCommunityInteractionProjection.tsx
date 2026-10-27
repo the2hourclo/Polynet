@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  Lock,
   MessageCircle,
   Users,
   MessageSquare,
@@ -1069,6 +1070,11 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
       ) : null}
       {podMode === "channels" && props.surface !== "members" ? (
         <aside className="community-context-panel channel-roster-panel community-pod-panel-column" aria-label="Pod">
+          {/* The same head row as the member list: it lines up with the chat's
+              header and keeps the cards clear of the top-right buttons. */}
+          <div className="community-context-rail-head community-pod-panel-head">
+            <span><Lock size={13} aria-hidden="true" /> Private pod</span>
+          </div>
           <WebCommunityPodPanel
             podId={props.activeChannel!.id}
             pinnedRoot={props.pinnedRoot}
