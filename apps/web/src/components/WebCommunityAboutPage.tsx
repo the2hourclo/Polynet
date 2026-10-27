@@ -97,9 +97,13 @@ function WebCommunityAboutSalesPage() {
     ? "Saving…"
     : draft.error
       ? draft.error
-      : draft.state?.hasUnpublishedChanges
-        ? "Draft saved. Visitors see the live page until you publish."
-        : "Everything is live.";
+      : draft.pageChanged
+        ? draft.otherChanges
+          ? "Draft saved. Publish also sends your other layout changes (tabs, navigation) live."
+          : "Draft saved. Visitors see the live page until you publish."
+        : draft.otherChanges
+          ? "This page is live. Other layout changes are waiting to publish."
+          : "Everything is live.";
 
   return (
     <div className="community-tab-scroll">
@@ -120,8 +124,8 @@ function WebCommunityAboutSalesPage() {
                   Member count
                 </label>
               ) : null}
-              {draft.state?.hasUnpublishedChanges ? (
-                <button type="button" className="community-sales-edit-button" disabled={draft.busy} onClick={() => void draft.discard()}>
+              {draft.pageChanged ? (
+                <button type="button" className="community-sales-edit-button" disabled={draft.busy} title="Put this page back as it is live" onClick={() => void draft.discard()}>
                   <RotateCcw size={14} aria-hidden="true" /> Discard
                 </button>
               ) : null}
