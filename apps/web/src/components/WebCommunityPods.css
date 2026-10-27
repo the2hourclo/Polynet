@@ -766,3 +766,20 @@
 .community-pod-sheet-backdrop ~ .community-channel-modal-backdrop {
   z-index: 9500;
 }
+
+/* Narrow Channels: the pod panel opens over the whole window (the rails stay
+   visible beside an in-place column otherwise). */
+@media (max-width: 640px) {
+  .community-interaction-projection.people-panel-open > .community-pod-panel-column {
+    position: fixed;
+    inset: 0;
+    z-index: 800;
+    flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--bg-workspace);
+  }
+}
+
+.community-pod-panel-head > span {
+  white-space: nowrap;
+}

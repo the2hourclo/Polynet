@@ -205,25 +205,29 @@ function PodPeopleDialog({ podId, podName, onClose }: { podId: string; podName: 
 }
 
 // A pod's files can only be opened by its people, so images come through the
-// same checked download as in the chat rather than a public URL.
+// same checked download as in the chat rather than a public URL. One download
+// per image is shared by every card that shows it (Pinned, Files & videos).
+const podImageUrls = new Map<string, Promise<string>>();
+
+function podImageUrl(session: unknown, attachmentId: string): Promise<string> {
+  let url = podImageUrls.get(attachmentId);
+  if (!url) {
+    url = downloadCloudCommunityChatAttachment({ session: session as never, attachmentId })
+      .then((bytes) => URL.createObjectURL(bytes));
+    url.catch(() => podImageUrls.delete(attachmentId));
+    podImageUrls.set(attachmentId, url);
+  }
+  return url;
+}
+
 function PodImage({ attachmentId, alt }: { attachmentId: string; alt: string }) {
   const session = useWebCommunityFrame().session;
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!session) return;
-    const abort = new AbortController();
-    let objectUrl: string | null = null;
-    downloadCloudCommunityChatAttachment({ session, attachmentId, signal: abort.signal })
-      .then((bytes) => {
-        if (abort.signal.aborted) return;
-        objectUrl = URL.createObjectURL(bytes);
-        setUrl(objectUrl);
-      })
-      .catch(() => {});
-    return () => {
-      abort.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
+    let alive = true;
+    podImageUrl(session, attachmentId).then((next) => { if (alive) setUrl(next); }).catch(() => {});
+    return () => { alive = false; };
   }, [session, attachmentId]);
   return url ? <img src={url} alt={alt} /> : <span className="community-pod-image-placeholder" aria-hidden="true"><ImageIcon size={18} /></span>;
 }
