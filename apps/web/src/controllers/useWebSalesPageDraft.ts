@@ -8,7 +8,7 @@ import {
   saveCloudCommunityLayoutDraft,
   type CommunityLayoutDraftState,
 } from "../../../../shared/cloudCommunityLayoutGateway";
-import type { CommunityLayoutV1 } from "../../../../shared/communityLayout";
+import { DEFAULT_COMMUNITY_LAYOUT, type CommunityLayoutV1 } from "../../../../shared/communityLayout";
 import { COMMUNITY_LAYOUT_PUBLISHED_EVENT } from "./useWebCommunityLayout";
 
 type AboutPage = CommunityLayoutV1["pages"]["about"];
@@ -79,11 +79,23 @@ export function useWebSalesPageDraft(params: { communityId: string | null; sessi
     return ok;
   };
 
-  const discard = () => run((current) => discardCloudCommunityLayoutDraft({
-    session,
-    communityId: communityId!,
-    expectedDraftRevision: current.draftRevision,
-  }));
+  // Discard puts back only this page's fields (gallery, text, member count) as
+  // they are live; other layout work in the draft (tabs, navigation, style)
+  // stays. With nothing else in the draft it drops the draft entirely.
+  const live = (state?.published ?? DEFAULT_COMMUNITY_LAYOUT).pages.about;
+  const pick = (about: AboutPage) => JSON.stringify([about.media, about.text, about.show_members]);
+  const pageChanged = Boolean(state) && pick(state!.draft.pages.about) !== pick(live);
+  const otherChanges = Boolean(state?.hasUnpublishedChanges) && JSON.stringify({
+    ...state!.draft,
+    pages: { ...state!.draft.pages, about: { ...state!.draft.pages.about, media: live.media, text: live.text, show_members: live.show_members } },
+  }) !== JSON.stringify(state!.published ?? DEFAULT_COMMUNITY_LAYOUT);
+  const discard = () => otherChanges
+    ? saveAbout({ media: live.media, text: live.text, show_members: live.show_members })
+    : run((current) => discardCloudCommunityLayoutDraft({
+      session,
+      communityId: communityId!,
+      expectedDraftRevision: current.draftRevision,
+    }));
 
   const uploadImage = (file: File) => {
     if (!communityId || !session) return Promise.reject(new Error("Sign in again to upload."));
@@ -97,6 +109,10 @@ export function useWebSalesPageDraft(params: { communityId: string | null; sessi
     saveAbout,
     publish,
     discard,
+    // This page's gallery, text or member count differ from what's live.
+    pageChanged,
+    // The draft also holds other layout changes, which Publish sends live too.
+    otherChanges,
     uploadImage,
     reload: () => setReload((n) => n + 1),
   };
