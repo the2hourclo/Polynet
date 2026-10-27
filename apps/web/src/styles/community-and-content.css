@@ -9712,6 +9712,18 @@ button.chat-reply-quote:hover {
 .lesson-done-button.is-done { border-color: transparent; background: var(--accent-brand, var(--bg-button)); color: var(--bg-button-text, #fff); }
 .lesson-done-button.is-done svg { color: currentColor; }
 .lesson-done-button:focus-visible { outline: 2px solid var(--border-active, var(--text-primary)); outline-offset: 2px; }
+/* Mark as done and Next stay in reach while reading: the row sits at the end
+   of the lesson and, until the reader gets there, sticks to the bottom of the
+   window (Rashid, 2026-10-27: "should be visible as we scroll down or up"). */
+.lesson-done-row:has(> button) {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  padding-bottom: 1rem;
+  background: color-mix(in srgb, var(--bg-primary, var(--bg-card, #fff)) 92%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
 /* Next lesson, on the right of Mark as done, in the community's accent. */
 .lesson-next-button {
   display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; margin-left: auto;
