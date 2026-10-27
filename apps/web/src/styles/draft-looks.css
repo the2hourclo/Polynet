@@ -1071,6 +1071,9 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 .community-knowledge-page[data-reading] .resources-panel {
   container-type: inline-size;
   container-name: lesson-page;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
   padding-inline: var(--knowledge-reading-gutter);
 }
 .community-knowledge-page[data-reading] .knowledge-resource-reader {
