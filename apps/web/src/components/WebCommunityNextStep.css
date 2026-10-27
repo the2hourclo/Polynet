@@ -124,3 +124,7 @@
 .community-welcome-connector-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .community-welcome-connector-text strong { font-size:15px; }
 .community-welcome-connector-text small { color:var(--text-secondary); font-size:13px; }
+/* The pill stays clear of the test-run bar (bottom centre) and, on narrow
+   screens, of the Ask AI button (bottom right). */
+:root:has(.test-run-bar) .community-welcome-pill { bottom:76px; }
+@media(max-width:640px) { .community-welcome-pill { bottom:84px; max-width:calc(100vw - 32px); } :root:has(.test-run-bar) .community-welcome-pill { bottom:84px; } }
