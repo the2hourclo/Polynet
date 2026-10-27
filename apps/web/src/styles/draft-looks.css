@@ -1181,43 +1181,42 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
 }
 
-/* The course outline reads more easily (Rashid, 2026-10-26): a wider column
-   and slightly smaller titles that wrap to three lines before they're cut. */
-.community-knowledge-page[data-reading] { --lesson-outline-width: 16rem; }
+/* The course outline reads more easily (Rashid, 2026-10-26, and again
+   2026-10-27: "a little bit bigger and a little bit wider"): an 18rem column
+   and titles at the body size, wrapping to three lines before they're cut. */
+.community-knowledge-page[data-reading] { --lesson-outline-width: 18rem; }
 @container lesson-page (min-width: 58.0625rem) and (max-width: 69.9375rem) {
   .community-knowledge-page[data-reading] .resource-course-workspace { grid-template-columns: var(--lesson-outline-width) minmax(0, 1fr); }
 }
-.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-main { gap: 0.625rem; padding: 0.4375rem 0.625rem; min-height: 2.25rem; }
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-main { gap: 0.75rem; padding: 0.5rem 0.75rem; min-height: 2.5rem; }
 .community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-title {
-  font-size: 0.84375rem;
+  font-size: 0.9375rem;
   line-height: 1.4;
   -webkit-line-clamp: 3;
   line-clamp: 3;
 }
-.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-status { width: 1rem; height: 1rem; }
+.community-knowledge-page[data-reading] .resource-course-outline .resource-course-outline-title { font-size: 1rem; }
+.community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-status { width: 1.125rem; height: 1.125rem; }
 
-/* Lesson style, chosen per course in Edit course (Rashid, 2026-10-26).
-   Article (the default) keeps the clean newsletter page above. Video course
-   reads like a classic course: the lesson area takes a faint tint and the
-   text sits on its own card under the title and video. */
-.community-knowledge-page[data-reading][data-lesson-style="video"] {
-  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+/* Lesson style, chosen per course by its owner (Rashid, 2026-10-26).
+   Article (the default) is the clean newsletter page above. Video course
+   reads like a classic course (Rashid, 2026-10-27: the tinted card "doesn't
+   feel right"): the same clean page, but the video comes first, large, above
+   the title, and the text follows at the reading width. */
+.community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson {
+  display: flex;
+  flex-direction: column;
 }
-.community-knowledge-page[data-reading][data-lesson-style="video"] .knowledge-resource-reader .resource-viewer-column {
-  box-sizing: border-box;
-  padding: 1.75rem 2.25rem 2.25rem;
-  border: 1px solid var(--border-default);
-  border-radius: min(var(--pn-radius, 1rem), 1rem);
-  background: var(--bg-card);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 5%, transparent);
+.community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson > * { width: 100%; }
+.community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson > .resource-viewer-hero {
+  order: -1;
+  max-width: calc(var(--lesson-reading-measure, 680px) + 16rem);
+  margin: 0 auto 2rem;
 }
-.community-knowledge-page[data-reading][data-lesson-style="video"] .knowledge-resource-reader .resource-viewer-column > :first-child {
-  margin-top: 0;
-}
-@media (max-width: 640px) {
-  .community-knowledge-page[data-reading][data-lesson-style="video"] .knowledge-resource-reader .resource-viewer-column {
-    padding: 1.25rem 1rem 1.5rem;
-  }
+.community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-hero .resource-viewer-embed {
+  overflow: hidden;
+  border-radius: min(var(--pn-radius, 0.875rem), 0.875rem);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
 /* A lesson uses the whole page in every look (Rashid, 2026-10-26: "I don't
@@ -1228,3 +1227,54 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   width: 100%;
   max-width: none;
 }
+
+/* Focus mode (Rashid, 2026-10-27): one button in a lesson clears everything
+   but the lesson itself. The page lifts over the community's bars, the
+   outline and Contents step aside, and Esc or the button brings them back. */
+.community-knowledge-page[data-reading][data-focus] {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow-y: auto;
+  background: var(--bg-workspace);
+}
+.community-knowledge-page[data-focus] .resource-course-outline,
+.community-knowledge-page[data-focus] .lesson-rail,
+.community-knowledge-page[data-focus] .lesson-toc-compact,
+.community-knowledge-page[data-focus] .resources-header-actions,
+.community-knowledge-page[data-focus] .resources-back-btn {
+  display: none !important;
+}
+.community-knowledge-page[data-focus] .resource-course-workspace { grid-template-columns: minmax(0, 1fr) !important; }
+.community-knowledge-page[data-focus] .knowledge-resource-reader .resource-viewer-content { padding-right: 0 !important; }
+.community-knowledge-page[data-focus] .resource-viewer-body.has-lesson-rail { display: block !important; }
+.community-knowledge-page[data-focus] .resource-viewer-body.has-lesson-rail > .resource-viewer-column { margin-inline: auto !important; }
+html[data-lesson-focus] .member-agent-launcher { display: none; }
+.community-knowledge-focus-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.community-knowledge-focus-button:hover { background: color-mix(in srgb, var(--text-primary) 6%, var(--bg-card)); }
+.community-knowledge-focus-button svg { width: 1rem; height: 1rem; }
+.community-knowledge-page[data-focus] .community-knowledge-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: auto;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+.community-knowledge-page[data-focus] .community-knowledge-header > * { transform: none; }

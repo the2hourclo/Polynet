@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
@@ -209,23 +210,61 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const readingLessonStyle = activeView === "resources" && resources.state.selectedModuleId
     ? (resources.state.modules.find((module) => module.id === resources.state.selectedModuleId)?.lesson_style === "video" ? "video" : "article")
     : undefined;
+  const reading = Boolean((activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapReading));
+  // Resources · Roadmap · Graph belong to Knowledge's main view; inside a
+  // course, lesson or track they step aside (Rashid, 2026-10-27), and a lesson
+  // offers Focus mode in their place.
+  const insideKnowledge = reading || Boolean(boardOpen && activeTrack && tracks.length > 1);
+  const [focus, setFocus] = useState(false);
+  const focusOn = focus && reading;
+  useEffect(() => {
+    if (!reading) setFocus(false);
+  }, [reading]);
+  useEffect(() => {
+    if (!focusOn) return;
+    const root = document.documentElement;
+    root.dataset.lessonFocus = "on";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) setFocus(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      delete root.dataset.lessonFocus;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [focusOn]);
   return (
     <section
       className="community-knowledge-page"
       aria-label="Knowledge"
-      data-reading={(activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapReading) ? "" : undefined}
+      data-reading={reading ? "" : undefined}
+      data-focus={focusOn ? "" : undefined}
       data-lesson-style={readingLessonStyle}
     >
       <div className="community-knowledge-header">
         <h1>Knowledge</h1>
-        <WebPlatformTabList
-          tabs={tabs}
-          activeTab={activeView}
-          onSelectTab={setView}
-          ariaLabel="Knowledge view"
-          idPrefix="community-knowledge"
-          className="community-knowledge-views"
-        />
+        {reading ? (
+          <button
+            type="button"
+            className="community-knowledge-focus-button"
+            aria-pressed={focusOn}
+            onClick={() => setFocus(!focusOn)}
+            title={focusOn ? "Bring back the course outline and menus (Esc)" : "Hide everything but the lesson"}
+          >
+            {focusOn ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+            <span>{focusOn ? "Exit focus" : "Focus mode"}</span>
+          </button>
+        ) : null}
+        {insideKnowledge ? null : (
+          <WebPlatformTabList
+            tabs={tabs}
+            activeTab={activeView}
+            onSelectTab={setView}
+            ariaLabel="Knowledge view"
+            idPrefix="community-knowledge"
+            className="community-knowledge-views"
+          />
+        )}
       </div>
       <div hidden={activeView !== "resources"} role="tabpanel" id={platformTabPanelId("community-knowledge", "resources")} aria-labelledby={platformTabId("community-knowledge", "resources")}>
         <CommunityResourcesPanel {...resources} courseProgress={courseProgress} lessonActivity={lessonActivity} editRequest={editRequest}

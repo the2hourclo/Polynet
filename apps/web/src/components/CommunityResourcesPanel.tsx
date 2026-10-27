@@ -930,6 +930,39 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
       ) &&
       !actions.resourceEditor.isSaving,
   );
+  // The course's lesson style, for owners only: in the outline, and in the
+  // lesson editor's bar, where Rashid looked for it (2026-10-27). Members see
+  // the style the owner picked.
+  const lessonStyleSwitch = (place: "outline" | "editor") => {
+    if (!canManageResources || !actions.handleSetModuleLessonStyle || !selectedModule || selectedModule.is_virtual) return null;
+    const current = selectedModule.lesson_style === "video" ? "video" : "article";
+    const labelId = `resource-course-style-label-${place}`;
+    return (
+      <div className={`resource-course-style-switch is-${place}`}>
+        <span className="resource-course-style-label" id={labelId}>{place === "editor" ? "Course style" : "Lesson style"}</span>
+        <div className="resource-course-style-options" role="radiogroup" aria-labelledby={labelId}>
+          {([["article", "Article"], ["video", "Video course"]] as const).map(([style, label]) => {
+            const selected = current === style;
+            return (
+              <button
+                key={style}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                className={selected ? "is-selected" : undefined}
+                title={style === "video" ? "Every lesson in this course opens with its video, large, above the title" : "Every lesson in this course reads as a clean page, like a newsletter post"}
+                onClick={() => {
+                  if (!selected) void actions.handleSetModuleLessonStyle?.(selectedModule, style);
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
   const selectedResourceInlineEditor =
     canManageResources && selectedResource
       ? {
@@ -953,6 +986,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           onSave: saveResourceInlineEdit,
           onSaveInPlace: () => actions.resourceEditor.saveInlineEditResource({ keepEditing: true }),
           onUploadImage: actions.resourceEditor.uploadImage ?? null,
+          styleControl: lessonStyleSwitch("editor"),
           onOpenVersions: actions.resourceEditor.listVersions && actions.resourceEditor.restoreVersion
             ? () => setHistoryResourceId(selectedResource.id)
             : null,
@@ -1119,31 +1153,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
               </div>
               {/* Owners switch how this course reads, right where they see it
                   (Rashid, 2026-10-26); Edit course has the same choice. */}
-              {canManageResources && actions.handleSetModuleLessonStyle && !selectedModule.is_virtual ? (
-                <div className="resource-course-style-switch">
-                  <span className="resource-course-style-label" id="resource-course-style-label">Lesson style</span>
-                  <div className="resource-course-style-options" role="radiogroup" aria-labelledby="resource-course-style-label">
-                    {([["article", "Article"], ["video", "Video course"]] as const).map(([style, label]) => {
-                      const selected = (selectedModule.lesson_style === "video" ? "video" : "article") === style;
-                      return (
-                        <button
-                          key={style}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          className={selected ? "is-selected" : undefined}
-                          title={style === "video" ? "Video on top, the lesson text on a card" : "A clean reading page, like a newsletter post"}
-                          onClick={() => {
-                            if (!selected) void actions.handleSetModuleLessonStyle?.(selectedModule, style);
-                          }}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
+              {lessonStyleSwitch("outline")}
             </aside>
             <div className="knowledge-resource-reader">
               {selectedResource ? (

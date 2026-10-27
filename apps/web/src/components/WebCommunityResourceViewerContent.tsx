@@ -151,6 +151,8 @@ export type WebCommunityResourceInlineEditor = {
   /** Saves and keeps editing (autosave). */
   onSaveInPlace?: (() => Promise<boolean>) | null;
   onUploadImage?: ((file: File) => Promise<string>) | null;
+  /** The course's Article / Video course switch, shown while editing. */
+  styleControl?: ReactNode;
   /** Opens the lesson's Version history. */
   onOpenVersions?: (() => void) | null;
   onCancel: () => void;
@@ -722,6 +724,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
                   {isPreviewing ? <PenLine aria-hidden="true" /> : <Eye aria-hidden="true" />}
                   <span className="lesson-editor-header-label">{isPreviewing ? "Edit" : "Preview"}</span>
                 </button>
+                {editor.styleControl ?? null}
                 {editor.onOpenVersions ? (
                   <button
                     className="lesson-editor-header-button"
