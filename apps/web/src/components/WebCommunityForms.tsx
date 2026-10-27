@@ -24,13 +24,17 @@ const errorText = (error: unknown, operation: "save" | "publish") => String(erro
 type LeaveGuard = MutableRefObject<(() => Promise<boolean>) | null>;
 type Property = { key: string; name: string; type: string; options: string[] };
 
-const member: WorkflowSentencePart = { pill: "member", text: "Member" };
-/** "Send [Member] [Your goals] · [First win]" for each place a form is used. */
-export function formUseParts(form: CommunityFormDraft, use: CommunityFormUse): WorkflowSentencePart[] {
-  const formPill: WorkflowSentencePart = { pill: "form", text: form.name || "Untitled form" };
+/** One short line per place a form is used, without repeating the form's name:
+ *  "Sent in [Onboarding]", "Starts a step in [Onboarding]", "[Welcome page] join form". */
+export function formUseParts(_form: CommunityFormDraft, use: CommunityFormUse): WorkflowSentencePart[] {
   if (use.kind === "welcome_page") return [{ pill: "stage", text: "Welcome page" }, " join form"];
-  return [...(use.role === "sends" ? ["Send ", member, " ", formPill] : ["When ", member, " submits ", formPill]),
-    " · ", { pill: "stage", text: use.stageName || "a stage" }, ...(use.paused ? [" (off)"] : [])];
+  return [use.role === "sends" ? "Sent in " : "Starts a step in ", { pill: "stage", text: use.stageName || "a stage" }, ...(use.paused ? [" (off)"] : [])];
+}
+/** "2 automations · Welcome page" */
+export function formUseSummary(uses: CommunityFormUse[]): string {
+  const automations = uses.filter(use => use.kind === "automation").length;
+  return [automations ? `${automations} automation${automations === 1 ? "" : "s"}` : "", uses.some(use => use.kind === "welcome_page") ? "Welcome page" : ""]
+    .filter(Boolean).join(" · ");
 }
 const formFills = (form: CommunityFormDraft, properties: Property[]) => [...new Set(form.questions.flatMap(q => q.clientPropertyKey ? [q.clientPropertyKey] : []))]
   .map(key => properties.find(p => p.key === key)?.name ?? key);
@@ -168,8 +172,10 @@ export function WebCommunityForms({ gateway, leaveGuard }: { gateway: CommunityF
               <td><button type="button" className="community-form-open" onClick={() => setSelected(form)}>
                 <ClipboardList size={15} strokeWidth={2} aria-hidden="true" /><span><strong>{form.name || "Untitled form"}</strong>
                 <small>{form.questions.length} {form.questions.length === 1 ? "question" : "questions"}</small></span></button></td>
-              <td className="community-form-uses">{used(form) ? form.usedIn!.map((use, i) => <span key={i}><WorkflowSentence parts={formUseParts(form, use)} /></span>)
-                : <small>Not used anywhere</small>}</td>
+              <td className="community-form-uses">{used(form) ? <>
+                <strong>{formUseSummary(form.usedIn!)}</strong>
+                {form.usedIn!.map((use, i) => <span key={i}><WorkflowSentence parts={formUseParts(form, use)} /></span>)}
+              </> : <small>Not used anywhere</small>}</td>
               <td className="community-form-fills">{fills.length ? fills.map(name => <span key={name} className="pn-pill pn-pill-field">{name}</span>) : <small>—</small>}</td>
               <td><span className={`pn-wf-badge is-${status}`}>{STATUS_LABEL[status]}</span></td>
               <td className="community-form-menu">
