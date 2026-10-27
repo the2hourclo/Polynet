@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, memo, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Brain,
   Check,
@@ -8,11 +8,11 @@ import {
   Megaphone,
   GripVertical,
   Hash,
-  LockKeyhole,
   Plus,
   Settings,
   UserPlus,
   Users,
+  UsersRound,
   X,
 } from "lucide-react";
 import type { CommunityTab } from "./appShellNavigation";
@@ -215,7 +215,14 @@ export const CommunityNav = memo(function CommunityNav({
   const inviteTitle = didCopyJoinLink ? "Copied invite link" : "Copy invite link";
   const showChannelLoadingSkeleton =
     isLoadingAccess || (isLoadingChannels && channels.every((channel) => !channel.id));
-  const reorderableChannelIds = channels
+  // Pods (Rashid, 2026-10-27): invite-only channels sit in their own group
+  // under the shared ones, the same Pods as in Classroom.
+  const groupedChannels = [
+    ...channels.filter((channel) => channel.access_mode !== "restricted"),
+    ...channels.filter((channel) => channel.access_mode === "restricted"),
+  ];
+  const firstPodId = groupedChannels.find((channel) => channel.access_mode === "restricted")?.id ?? null;
+  const reorderableChannelIds = groupedChannels
     .filter((channel) => !channel.is_general && Boolean(channel.id))
     .map((channel) => channel.id);
   const canReorderChannels = Boolean(
@@ -440,7 +447,7 @@ export const CommunityNav = memo(function CommunityNav({
             <div className="community-channel-loading-row web-skeleton-row" />
             <div className="community-channel-loading-row is-short web-skeleton-row" />
           </div>
-        ) : channels.map((channel) => {
+        ) : groupedChannels.map((channel) => {
           const isSelected =
             showActiveSelection &&
             communityTab === "chat" &&
@@ -450,8 +457,11 @@ export const CommunityNav = memo(function CommunityNav({
             ? getChannelItemBindings(channel.id)
             : null;
           return (
+            <Fragment key={channel.id || channel.slug}>
+            {channel.id && channel.id === firstPodId ? (
+              <div className="community-nav-group-label" role="presentation">Pods</div>
+            ) : null}
             <div
-              key={channel.id || channel.slug}
               ref={sortableBindings?.ref}
               style={sortableBindings?.style}
               className={`community-channel-row${draggingChannelId === channel.id ? " is-dragging" : ""}${sortableBindings ? " reorder-enabled" : ""}`}
@@ -468,7 +478,7 @@ export const CommunityNav = memo(function CommunityNav({
                 title={channel.name}
               >
                 <span className="nav-icon community-channel-icon" aria-hidden="true">
-                  {channel.access_mode === "restricted" ? <LockKeyhole size={17} strokeWidth={1.8} /> : <Hash size={17} strokeWidth={1.8} />}
+                  {channel.access_mode === "restricted" ? <UsersRound size={17} strokeWidth={1.8} /> : <Hash size={17} strokeWidth={1.8} />}
                 </span>
                 <span className="nav-item-label">{channel.name}</span>
                 {lockedTabs.chat ? <NavLockGlyph /> : !isSelected && (indicator?.chat || indicator?.mentions) ? (
@@ -527,6 +537,7 @@ export const CommunityNav = memo(function CommunityNav({
                 </div>
               ) : null}
             </div>
+            </Fragment>
           );
         })}
         {reorderChannelsError ? (

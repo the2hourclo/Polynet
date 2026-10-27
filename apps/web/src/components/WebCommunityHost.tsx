@@ -1,7 +1,9 @@
 import { isCommunityChatBackedTab, type AppView, type CommunityTab } from "../../../../shared/appShellNavigation";
 import { useActiveCommunityLayout } from "../controllers/useWebCommunityLayout";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
-import { WebCommunityPodRoomHead, WebCommunityPodShelf } from "./WebCommunityPods";
+import { createPortal } from "react-dom";
+import { WebCommunityPodRoomHead } from "./WebCommunityPods";
+import { WebCommunityPodPanel } from "./WebCommunityPodPanel";
 import { WebCommunityChatPanel, type WebCommunityChatPanelProps } from "./WebCommunityChatPanel";
 import type { CommunityAdmissionControl } from "./CommunityAutoJoinControl";
 import { WebCommunitySecondaryPanels, type WebCommunitySecondaryPanelsProps } from "./WebCommunitySecondaryPanels";
@@ -18,10 +20,11 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
   const { communityTab, chatPanelProps, secondaryPanelsProps } = props;
   const layout = useActiveCommunityLayout();
   const { pods } = useWebCommunityFrame();
-  // In Classroom an invite-only channel opens as its pod's room: a chat inside
-  // a framed, tinted room with the people along the top, not another feed.
-  const activeChannel = chatPanelProps.interactionProjection?.activeChannel ?? null;
-  const podId = communityTab === "chat" && pods && activeChannel?.access_mode === "restricted"
+  // In Classroom an invite-only channel opens as its pod's room: a full-height
+  // chat with the people along the top, and the pod panel in the right column.
+  const projection = chatPanelProps.interactionProjection;
+  const activeChannel = projection?.activeChannel ?? null;
+  const podId = communityTab === "chat" && pods?.mode === "classroom" && activeChannel?.access_mode === "restricted"
     && pods.pods.some((pod) => pod.id === activeChannel.id) ? activeChannel.id : null;
   const chatPanel = (
     <WebCommunityChatPanel {...chatPanelProps} interactionProjection={chatPanelProps.interactionProjection
@@ -37,19 +40,18 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
     <div className="community-body">
       {isCommunityChatBackedTab(communityTab) ? (
         podId && pods ? (
-          <div className="community-pod-stack">
-            <div className="community-pod-room">
-              <WebCommunityPodRoomHead pods={pods} podId={podId} />
-              {chatPanel}
-            </div>
-            {chatPanelProps.interactionProjection ? (
-              <WebCommunityPodShelf
+          <div className="community-pod-room">
+            <WebCommunityPodRoomHead pods={pods} podId={podId} />
+            {chatPanel}
+            {projection && pods.panelSlot ? createPortal(
+              <WebCommunityPodPanel
                 podId={podId}
-                podName={activeChannel?.name ?? ""}
-                pinnedRoot={chatPanelProps.interactionProjection.pinnedRoot}
-                roots={chatPanelProps.interactionProjection.roots}
-                onOpenPost={chatPanelProps.interactionProjection.onSelectRoot}
-              />
+                pinnedRoot={projection.pinnedRoot}
+                roots={projection.roots}
+                onOpenPost={projection.onSelectRoot}
+                canManage={Boolean(projection.canManageActiveChannel)}
+              />,
+              pods.panelSlot,
             ) : null}
           </div>
         ) : chatPanel

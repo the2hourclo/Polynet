@@ -141,8 +141,11 @@ export function OverflowMenu(props: {
   onDelete?: () => void;
   onPin?: () => void;
   isPinned?: boolean;
+  // Inside an invite-only channel the pin belongs to the pod.
+  pinPlace?: "channel" | "pod";
 }) {
   const [open, setOpen] = useState(false);
+  const pinPlace = props.pinPlace ?? "channel";
   const [placement, setPlacement] = useState<"above" | "below">("below");
   const ref = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -205,8 +208,8 @@ export function OverflowMenu(props: {
               }}
             >
               {props.isPinned
-                ? <><PinOff size={14} aria-hidden="true" /> Unpin from channel</>
-                : <><Pin size={14} aria-hidden="true" /> Pin to channel</>}
+                ? <><PinOff size={14} aria-hidden="true" /> Unpin from {pinPlace}</>
+                : <><Pin size={14} aria-hidden="true" /> Pin to {pinPlace}</>}
             </button>
           ) : null}
           {props.onEdit ? (
@@ -283,6 +286,7 @@ export function MessageActions(props: {
   onDelete?: () => void;
   onPin?: () => void;
   isPinned?: boolean;
+  pinPlace?: "channel" | "pod";
 }) {
   return (
     <div className="community-interaction-msg-actions">
@@ -321,6 +325,7 @@ export function MessageActions(props: {
         onDelete={props.onDelete}
         onPin={props.onPin}
         isPinned={props.isPinned}
+        pinPlace={props.pinPlace}
       />
     </div>
   );
@@ -1130,6 +1135,7 @@ export function CommunityInteractionFeedList(
                                     : undefined
                                 }
                                 isPinned={props.pinnedRoot?.root.id === root.id}
+                                pinPlace={props.activeChannel?.access_mode === "restricted" ? "pod" : "channel"}
                               />
                             )}
                             {root.title ? <div className="community-interaction-title">{root.title}</div> : null}
