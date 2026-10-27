@@ -19,6 +19,7 @@ import { WebCommunityPodsButton } from "./WebCommunityPods";
 // Members' own Settings (their access, mute, leave) reads as Membership.
 const OWNER_TABS: { tab: CommunityTab; label: (shell: WebCommunityShellProps) => string; allowed: (shell: WebCommunityShellProps) => boolean }[] = [
   { tab: "workflows", label: () => "Workflows", allowed: (shell) => shell.canManageMembersActiveCommunity },
+  { tab: "people", label: () => "Members", allowed: (shell) => shell.canManageMembersActiveCommunity },
   { tab: "funnels", label: () => "Funnels", allowed: (shell) => shell.canManageMembersActiveCommunity },
   { tab: "analytics", label: () => "Analytics", allowed: (shell) => shell.canViewActiveCommunityAnalytics },
   { tab: "settings", label: (shell) => (shell.canManageMembersActiveCommunity ? "Settings" : "Membership"), allowed: (shell) => shell.canViewActiveCommunitySettings },
@@ -38,8 +39,11 @@ export function WebCommunityTopNav({
   const community = communityShell.activeCommunity;
   const activeTab = communityShell.communityTab;
   // The agent floats at the bottom right in this layout, so it has no tab.
+  // Owners and admins get the members database (owner tab "Members") instead of
+  // the directory, so the bar never shows two "Members"; the database links to it.
   const tabs = visibleCommunityLayoutTabs(layout).filter(
-    (entry) => entry.tab !== "agent" && (entry.tab !== "members" || communityShell.canViewMembersActiveCommunity),
+    (entry) => entry.tab !== "agent" && (entry.tab !== "members"
+      || (communityShell.canViewMembersActiveCommunity && !communityShell.canManageMembersActiveCommunity)),
   );
   const ownerTabs = communityShell.isLoadingCommunityAccess ? [] : OWNER_TABS.filter((entry) => entry.allowed(communityShell));
   const joinUrl = communityJoinUrl(community?.slug);

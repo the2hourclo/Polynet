@@ -54,6 +54,7 @@ export const COMMUNITY_TABS = [
   "about",
   "settings",
   "workflows",
+  "people",
   "funnels",
   "analytics",
 ] as const;
@@ -82,6 +83,7 @@ export type CommunitySettingsPane = (typeof COMMUNITY_SETTINGS_PANES)[number];
 const COMMUNITY_ROUTE_MANAGED_TAB_SET: ReadonlySet<CommunityTab> = new Set([
   "settings",
   "workflows",
+  "people",
   "funnels",
   "analytics",
 ]);
@@ -104,6 +106,7 @@ export function isCommunityTabAllowedForAccess(
     case "settings":
       return access.canViewSettings;
     case "workflows":
+    case "people":
     case "funnels":
       return access.canManageMembers;
     case "analytics":
@@ -153,6 +156,10 @@ export function parseCommunityTab(
       return "agent";
     case "members":
       return "members";
+    // The owner's members database (the directory every member sees is "members").
+    case "people":
+    case "clients":
+      return "people";
     case "about":
       return "about";
     case "ai_agent":

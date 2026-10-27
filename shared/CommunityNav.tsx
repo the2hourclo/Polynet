@@ -12,6 +12,7 @@ import {
   Plus,
   Settings,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import type { CommunityTab } from "./appShellNavigation";
@@ -630,6 +631,19 @@ export const CommunityNav = memo(function CommunityNav({
                 <GitFork size={18} strokeWidth={1.7} />
               </span>
               Workflows
+            </button>
+          )}
+          {canManageMembersActiveCommunity && (
+            <button
+              className={showActiveSelection && communityTab === "people" ? "nav-item active" : "nav-item"}
+              type="button"
+              onClick={() => onSelectTab("people")}
+              title="Members"
+            >
+              <span className="nav-icon" aria-hidden="true">
+                <Users size={18} strokeWidth={1.7} />
+              </span>
+              Members
             </button>
           )}
           {canManageMembersActiveCommunity && (

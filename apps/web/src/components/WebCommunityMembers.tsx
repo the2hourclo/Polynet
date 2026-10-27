@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowUpDown, Maximize2, Rows3, ArrowUp, Check, ChevronDown, ChevronUp, Download, Flag, MessageSquare, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, StickyNote, Tag, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUpDown, Maximize2, Rows3, ArrowUp, Check, ChevronDown, ChevronUp, Download, Flag, MessageSquare, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, StickyNote, Tag, Users, X } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { COMMUNITY_CLIENT_PROPERTY_TYPES, type CommunityClientPropertyType, type CommunityClientPropertyValue } from "../../../../shared/communityClients";
@@ -25,6 +25,7 @@ import {
   type CloudCommunityClientProperty,
 } from "../../../../shared/cloudCommunityMemberAccessGateway";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
+import { openCommunityTab } from "../controllers/openCommunityTab";
 import { AccessBadge, ClientTimeline, GrantForm, WebCommunityClientAccessPanel } from "./WebCommunityAccess";
 import "./WebCommunityAccess.css";
 import "./WebCommunityMembers.css";
@@ -404,7 +405,12 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
   const [reload, setReload] = useState(0);
   const [loadedAt, setLoadedAt] = useState(Date.now());
   const [activeKey, setActiveKey] = useState("all");
-  const [draft, setDraft] = useState<Draft | null>(null);
+  // Workflows' "View members in this stage" opens here with ?stage=<name>: All, filtered to that stage.
+  const [draft, setDraft] = useState<Draft | null>(() => {
+    const stage = new URLSearchParams(window.location.search).get("stage")?.trim();
+    if (!stage) return null;
+    return { name: "All", columns: COMMUNITY_CLIENT_DEFAULT_COLUMNS, filters: [{ field: "stage", op: "is", value: stage }], match: "all", sort: null, group: null };
+  });
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<null | "filter" | "display" | "more" | "add_property" | "properties" | "rename" | "new_view" | "stuck" | "give" | "sort" | "group" | BulkKind>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -416,6 +422,12 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
     return () => window.removeEventListener("popstate", sync);
   }, []);
   const pushedMember = useRef(false);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("stage")) return;
+    url.searchParams.delete("stage");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
   // Wide screens open the record beside the table (Airtable shape); narrow ones, or "Open full page", get the full page.
   const [wide, setWide] = useState(() => typeof window.matchMedia === "function" && window.matchMedia("(min-width: 75rem)").matches);
   const [fullPage, setFullPage] = useState(false);
@@ -654,6 +666,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
         {panel === "more" ? <Popover onClose={() => setPanel(null)} className="pn-members-menu">
           <button type="button" onClick={() => { downloadCsv(view.name, rows, columns); setPanel(null); }}><Download size={14} />Export this view as CSV</button>
           <button type="button" onClick={() => setPanel("properties")}><Tag size={14} />Manage properties</button>
+          <button type="button" onClick={() => { setPanel(null); openCommunityTab("members"); }}><Users size={14} />Open the member directory</button>
           <button type="button" onClick={() => { setStuckDays(String(page?.stuck_days ?? 7)); setPanel("stuck"); }}><SlidersHorizontal size={14} />Change when someone counts as stuck</button>
           {savedView ? <button type="button" onClick={() => { setViewName(savedView.name); setPanel("rename"); }}>Rename this view</button> : null}
           {savedView && views.length > 1 ? <button type="button" className="is-danger" onClick={() => void act(async () => {

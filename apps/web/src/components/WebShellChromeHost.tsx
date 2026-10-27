@@ -79,6 +79,7 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   "community_agent",
   "community_workflows",
   "community_funnels",
+  "community_people",
   // Your settings take the look of the community you came from, so leaving
   // a community for your own settings doesn't change colours (Rashid).
   "global_settings",

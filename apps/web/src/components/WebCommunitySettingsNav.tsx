@@ -50,6 +50,7 @@ export const GENERAL_ANCHORS: SettingsAnchor[] = [
 export function buildCommunitySettingsNav(params: {
   panes: CommunitySettingsPane[];
   workflowsPath: string | null;
+  peoplePath?: string | null;
   funnelsPath?: string | null;
 }): SettingsNavGroup[] {
   const has = (pane: CommunitySettingsPane) => params.panes.includes(pane);
@@ -88,8 +89,8 @@ export function buildCommunitySettingsNav(params: {
   }
   if (has("access")) {
     const members: SettingsNavItem[] = [];
-    if (params.workflowsPath) {
-      members.push({ kind: "link", id: "clients", label: "Members", icon: <Users {...ICON} />, path: `${params.workflowsPath}?section=clients`, keywords: "members clients people progress plan database views properties message" });
+    if (params.peoplePath) {
+      members.push({ kind: "link", id: "clients", label: "Members", icon: <Users {...ICON} />, path: params.peoplePath, keywords: "members clients people progress plan database views properties message" });
     }
     if (has("creators")) {
       members.push({ kind: "pane", pane: "creators", label: "Creators", icon: <UserPlus {...ICON} />, keywords: "co-creator co-owner collaborator partner team admin" });

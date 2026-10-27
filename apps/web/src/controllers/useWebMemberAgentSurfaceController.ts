@@ -38,7 +38,10 @@ export function useWebMemberAgentSurfaceController(params: {
             ? "chat"
             : params.communityTab === "about" || params.communityTab === "funnels"
               ? "funnel"
-              : params.communityTab,
+              // The members database is an owner page beside Workflows.
+              : params.communityTab === "people"
+                ? "workflows"
+                : params.communityTab,
         }
       : null;
   const isVisible =
