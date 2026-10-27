@@ -67,6 +67,28 @@ key): `200 {"found": false, "access": {"entitled": false}, "checked_at": …}`.
 (given by hand), `free`, `ended`, `none`. `source` is `paid_subscription`,
 `manual_grant`, `free_grant`, `owner` or `null`.
 
+## Continue with Polynet (sign-in)
+
+A service can let members sign in with their Polynet account instead of pasting
+a key. Send the member's browser to:
+
+`<POLYNET_WEB_URL>/connect/polynet?community=<slug>&return_url=<your callback>&state=<your opaque state>`
+
+`return_url` must be on the same site (scheme, host and port) as the
+integration's webhook address. The member signs in if needed and sees what is
+shared (their email and whether their membership is active). On **Allow**,
+their browser comes back to `return_url?code=pnc_…&state=…`; on **Cancel**,
+`return_url?error=access_denied&state=…`. Check `state` yourself.
+
+Redeem the code server to server, once, within five minutes:
+
+`POST /access/v1/communities/<slug>/sign-in/redeem` with
+`{"code": "pnc_…", "return_url": "<the exact same return_url>"}` and the API key.
+
+The answer is the same as a lookup. A used, expired, unknown or mismatched code
+answers `200 {"found": false, …}`. A code only works with the integration whose
+return address it was made for.
+
 ## Webhook
 
 Polynet POSTs JSON to the integration's webhook address whenever what that

@@ -398,6 +398,36 @@ export function newCommunityAccessSigningSecret(): string {
   return `pnws_${randomCommunityAccessToken(40)}`;
 }
 
+// "Continue with Polynet": a one-time code the member's browser carries back to
+// the service, which redeems it server to server with its API key.
+export const COMMUNITY_ACCESS_SIGN_IN_CODE_TTL_MS = 5 * 60_000;
+
+export function newCommunityAccessSignInCode(): string {
+  return `pnc_${randomCommunityAccessToken(40)}`;
+}
+
+export function communityAccessSignInCodeLooksValid(value: unknown): value is string {
+  return typeof value === "string" && /^pnc_[A-Za-z0-9]{40}$/.test(value);
+}
+
+/**
+ * Where a sign-in may send the member back: an address on the same site as the
+ * integration's webhook (so only the service the owner connected can receive a
+ * code), https unless both are on this machine, with no user info or fragment.
+ */
+export function communityAccessReturnUrlFor(value: unknown, webhookUrl: string): string | null {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw || raw.length > COMMUNITY_ACCESS_WEBHOOK_URL_MAX) return null;
+  let url: URL;
+  let hook: URL;
+  try { url = new URL(raw); hook = new URL(webhookUrl); } catch { return null; }
+  if (url.username || url.password || url.hash) return null;
+  if (url.origin !== hook.origin) return null;
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase());
+  if (url.protocol !== "https:" && !(loopback && url.protocol === "http:")) return null;
+  return url.toString();
+}
+
 export function newCommunityAccessMemberId(): string {
   return `pm_${randomCommunityAccessToken(20)}`;
 }

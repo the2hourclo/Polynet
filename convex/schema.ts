@@ -3275,6 +3275,22 @@ export default defineSchema({
     .index("by_api_key_hash", ["apiKeyHash"])
     .index("by_status", ["status"]),
 
+  // "Continue with Polynet": a one-time code a signed-in member hands an access
+  // integration through their browser. Stored hashed, good for five minutes,
+  // once, and only for the integration and return address it was made for.
+  communityAccessSignInCodes: defineTable({
+    communityId: v.id("communities"),
+    integrationId: v.id("communityAccessIntegrations"),
+    userId: v.id("users"),
+    codeHash: v.string(),
+    returnUrl: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  })
+    .index("by_code_hash", ["codeHash"])
+    .index("by_user_createdAt", ["userId", "createdAt"]),
+
   // What an integration was last told about each member, so a change is sent
   // once, in order, and only when something it can see changed.
   communityAccessDeliveryStates: defineTable({
