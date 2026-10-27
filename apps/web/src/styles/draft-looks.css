@@ -1081,7 +1081,10 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 }
 .community-knowledge-page[data-reading] .knowledge-resource-reader .resource-viewer-content {
   padding-inline: 0;
+  grid-template-columns: minmax(0, 1fr);
 }
+/* The lesson never sizes itself past the page (on a phone it ran 16px wide). */
+.community-knowledge-page[data-reading] .knowledge-resource-reader :is(.resource-viewer-body, .resource-viewer-column) { min-width: 0; }
 /* Too narrow for the outline beside a full column: it moves above the lesson
    as a collapsible bar, whatever the window or look. */
 @container (max-width: 58rem) {
