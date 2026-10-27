@@ -13978,3 +13978,9 @@ button.chat-reply-quote:hover {
 .lesson-chapter-label { overflow-wrap: anywhere; }
 .resource-viewer-prose .lesson-chapter-line { cursor: pointer; border-radius: 6px; }
 .resource-viewer-prose .lesson-chapter-line:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+/* The arrow sits above the page it leaves, not beside it. */
+.pn-page-with-back { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.pn-page-with-back > .pn-page-back { align-self: flex-start; margin: 0.75rem 0 0 0.875rem; }
+/* The page's top row keeps clear of the bar's buttons fixed at the top right
+   (the account avatar sat on "Give access" at 1980 wide, 2026-10-27). */
+.pn-page-with-back .pn-members-head { padding-right: var(--web-topbar-right-action-safe-inset, 0px); }
