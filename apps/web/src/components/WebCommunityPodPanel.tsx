@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, ChevronDown, FileText, Image as ImageIcon, Lock, Pin, Play, Plus } from "lucide-react";
+import { createPortal } from "react-dom";
+import { CalendarDays, ChevronDown, FileText, Image as ImageIcon, Lock, Pin, Play, Plus, UserPlus, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import { listCloudCommunityEvents, saveCloudCommunityEvent, type CloudCommunityEvent } from "../../../../shared/cloudCommunityEventsGateway";
 import { downloadCloudCommunityChatAttachment } from "../../../../shared/cloudCommunityChatGateway";
@@ -7,6 +8,8 @@ import { CommunityAgentIcon, useCommunityAgentName } from "../../../../shared/Co
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { bundleText, stripSharedAttachmentSummary } from "./communityInteractionFeed";
+import { ChannelAccessSettings } from "./ChannelAccessSettings";
+import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext";
 import { EventModal, eventDraftPayload, makeDraft, type EventDraft } from "./WebCommunityEventsSection";
 import {
   PodFaces,
@@ -45,7 +48,7 @@ export function WebCommunityPodPanel(props: PodPanelProps) {
   return (
     <div className="community-pod-panel" aria-label={`${pod.name} pod`}>
       {pods.mode === "classroom" ? <PodSwitcher name={pod.name} /> : null}
-      <PodPeopleCard podId={props.podId} />
+      <PodPeopleCard podId={props.podId} podName={pod.name} canManage={props.canManage} />
       <PodPinnedCard pinnedRoot={props.pinnedRoot} onOpenPost={props.onOpenPost} />
       <PodSavedCard podId={props.podId} roots={props.roots} pinnedRoot={props.pinnedRoot} onOpenPost={props.onOpenPost} />
       <PodCallsCard podId={props.podId} podName={pod.name} canManage={props.canManage} />
@@ -93,8 +96,17 @@ function PodSwitcher({ name }: { name: string }) {
   );
 }
 
-function PodPeopleCard({ podId }: { podId: string }) {
-  const people = usePodPeople([podId])[podId];
+// A pod made from "New pod" in the channel list opens with Add people, so the
+// owner picks who's in it straight away (WebCommunityNavSurface marks it).
+export const podsAwaitingPeople = new Set<string>();
+
+function PodPeopleCard({ podId, podName, canManage }: { podId: string; podName: string; canManage: boolean }) {
+  const [addingPeople, setAddingPeople] = useState(false);
+  useEffect(() => {
+    if (canManage && podsAwaitingPeople.delete(podId)) setAddingPeople(true);
+  }, [canManage, podId]);
+  const [peopleRefresh, setPeopleRefresh] = useState(0);
+  const people = usePodPeople([podId], peopleRefresh)[podId];
   const agentName = useCommunityAgentName("the agent");
   const now = Date.now();
   const roleLabel = { owner: "Owner", admin: "Admin", member: "" } as const;
@@ -102,7 +114,11 @@ function PodPeopleCard({ podId }: { podId: string }) {
     <section className="community-aside-card community-pod-panel-card">
       <div className="community-aside-card-header">
         <h2>In this pod</h2>
-        {people ? <span className="community-pod-panel-count">{people.people_count + (people.agent ? 1 : 0)}</span> : null}
+        {canManage ? (
+          <button type="button" className="community-aside-link" onClick={() => setAddingPeople(true)}>
+            <UserPlus size={13} aria-hidden="true" /> Add people
+          </button>
+        ) : people ? <span className="community-pod-panel-count">{people.people_count + (people.agent ? 1 : 0)}</span> : null}
       </div>
       {people ? (
         <ul className="community-pod-people">
@@ -137,7 +153,54 @@ function PodPeopleCard({ podId }: { podId: string }) {
       ) : (
         <PodFaces size="large" />
       )}
+      {addingPeople ? (
+        <PodPeopleDialog
+          podId={podId}
+          podName={podName}
+          onClose={() => {
+            setAddingPeople(false);
+            setPeopleRefresh((value) => value + 1);
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+// Who's in the pod, using the channel's own access settings (the same toggles
+// as the channel ⋯ menu). Changes save as they're made.
+function PodPeopleDialog({ podId, podName, onClose }: { podId: string; podName: string; onClose: () => void }) {
+  const frame = useWebCommunityFrame();
+  const communityId = frame.community?.id ?? null;
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [onClose]);
+  if (!frame.session || !communityId) return null;
+  return createPortal(
+    <div className="community-channel-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="community-channel-modal community-pod-people-dialog" role="dialog" aria-modal="true" aria-labelledby="community-pod-people-title">
+        <div className="community-channel-modal-header">
+          <div>
+            <h2 id="community-pod-people-title">People in {podName}</h2>
+            <p>Tick who can see this pod. Owners and admins are always in.</p>
+          </div>
+          <button type="button" className="community-channel-modal-close" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+        <CommunityChannelSessionContext.Provider value={{ session: frame.session, communityId }}>
+          <ChannelAccessSettings channelId={podId} />
+        </CommunityChannelSessionContext.Provider>
+        <div className="community-channel-modal-actions">
+          <button type="button" className="is-primary" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

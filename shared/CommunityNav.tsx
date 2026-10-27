@@ -236,6 +236,37 @@ export const CommunityNav = memo(function CommunityNav({
     ...channels.filter(isPersonalPod),
   ];
   const firstPodId = groupedChannels.find(isPod)?.id ?? null;
+  // Owners and admins add a channel or a pod from the + beside its group's
+  // label (Rashid, 2026-10-27), not from one shared "Add Channel" row.
+  const canCreateChannels = Boolean(!showChannelLoadingSkeleton && canManageMembersActiveCommunity && onCreateChannel);
+  const openCreate = (accessMode: "all_members" | "restricted", trigger: HTMLButtonElement) => {
+    addChannelTriggerRef.current = trigger;
+    clearCreateChannelError?.();
+    setChannelAccessMode(accessMode);
+    setIsAddChannelOpen(true);
+  };
+  const groupLabel = (label: "Channels" | "Pods") => {
+    const accessMode = label === "Pods" ? "restricted" : "all_members";
+    const full = isAtChannelLimit || (label === "Pods" ? privateFull : sharedFull);
+    const noun = label === "Pods" ? "pod" : "channel";
+    return (
+      <div className={`community-nav-group-label${label === "Channels" ? " is-channels" : ""}`}>
+        <span>{label}</span>
+        {canCreateChannels ? (
+          <button
+            type="button"
+            className="community-nav-group-add"
+            disabled={full}
+            aria-label={`New ${noun}`}
+            title={full ? `${noun === "pod" ? "Pod" : "Channel"} limit reached` : `New ${noun}`}
+            onClick={(event) => openCreate(accessMode, event.currentTarget)}
+          >
+            <Plus size={14} strokeWidth={2} aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
+    );
+  };
   const personalPodChannels = groupedChannels.filter(isPersonalPod);
   // Folded personal pods still show when open or unread.
   const foldedPersonalPods = showAllPersonalPods || personalPodChannels.length <= PERSONAL_PODS_SHOWN
@@ -463,6 +494,7 @@ export const CommunityNav = memo(function CommunityNav({
         aria-label="Channels"
         ref={setChannelListElement}
       >
+        {groupLabel("Channels")}
         {showChannelLoadingSkeleton ? (
           <div className="community-channel-loading" aria-label="Loading channels">
             <div className="community-channel-loading-row web-skeleton-row" />
@@ -480,9 +512,7 @@ export const CommunityNav = memo(function CommunityNav({
             : null;
           return (
             <Fragment key={channel.id || channel.slug}>
-            {channel.id && channel.id === firstPodId ? (
-              <div className="community-nav-group-label" role="presentation">Pods</div>
-            ) : null}
+            {channel.id && channel.id === firstPodId ? groupLabel("Pods") : null}
             <div
               ref={sortableBindings?.ref}
               style={sortableBindings?.style}
@@ -579,35 +609,11 @@ export const CommunityNav = memo(function CommunityNav({
             </span>
           </button>
         ) : null}
+        {canCreateChannels && !firstPodId ? groupLabel("Pods") : null}
         {reorderChannelsError ? (
           <div className="community-channel-reorder-error" role="status">
             {reorderChannelsError}
           </div>
-        ) : null}
-        {!showChannelLoadingSkeleton && canManageMembersActiveCommunity && onCreateChannel ? (
-          <button
-            ref={addChannelTriggerRef}
-            className="nav-item community-channel-add"
-            type="button"
-            disabled={isAtChannelLimit}
-            onClick={() => {
-              clearCreateChannelError?.();
-              setChannelAccessMode(sharedFull ? "restricted" : "all_members");
-              setIsAddChannelOpen(true);
-            }}
-            title={
-              isAtChannelLimit
-                ? `Channel limit reached (${maxActiveChannels})`
-                : "Add Channel"
-            }
-          >
-            <span className="nav-icon" aria-hidden="true">
-              <Plus size={17} strokeWidth={1.8} />
-            </span>
-            <span className="nav-item-label">
-              {isAtChannelLimit ? `${maxActiveChannels} channel limit` : "Add Channel"}
-            </span>
-          </button>
         ) : null}
       </div>
       <div className="community-nav-divider" aria-hidden="true" />
@@ -773,26 +779,28 @@ export const CommunityNav = memo(function CommunityNav({
           >
             <div className="community-channel-modal-header">
               <div>
-                <h2 id="community-channel-modal-title">Add channel</h2>
-                <p>Choose who can access this channel.</p>
+                <h2 id="community-channel-modal-title">{channelAccessMode === "restricted" ? "New pod" : "New channel"}</h2>
+                <p>{channelAccessMode === "restricted"
+                  ? "A private room. Next you pick who's in it; owners and admins always are."
+                  : "Everyone in the community can read and post here."}</p>
               </div>
               <button
                 type="button"
                 className="community-channel-modal-close"
                 onClick={closeAddChannel}
-                aria-label="Close add channel dialog"
+                aria-label={channelAccessMode === "restricted" ? "Close new pod dialog" : "Close new channel dialog"}
                 disabled={isCreatingChannel}
               >
                 <X size={18} />
               </button>
             </div>
             <label className="community-channel-modal-field">
-              <span>Channel name</span>
+              <span>{channelAccessMode === "restricted" ? "Pod name" : "Channel name"}</span>
               <input
                 ref={channelNameInputRef}
                 value={channelName}
                 maxLength={48}
-                placeholder="e.g. Product feedback"
+                placeholder={channelAccessMode === "restricted" ? "e.g. Agency owners" : "e.g. Product feedback"}
                 onChange={(event) => {
                   setChannelName(event.target.value);
                   clearCreateChannelError?.();
@@ -800,15 +808,6 @@ export const CommunityNav = memo(function CommunityNav({
                 disabled={isCreatingChannel}
               />
             </label>
-            <label className="community-channel-modal-field">
-              <span>Access</span>
-              <select value={channelAccessMode} disabled={isCreatingChannel}
-                onChange={event => { setChannelAccessMode(event.target.value as "all_members" | "restricted"); clearCreateChannelError?.(); }}>
-                <option value="all_members" disabled={sharedFull}>All community members{sharedFull ? " (10-channel limit reached)" : ""}</option>
-                <option value="restricted" disabled={privateFull}>Invite-only{privateFull ? " (100-channel limit reached)" : ""}</option>
-              </select>
-            </label>
-            {channelAccessMode === "restricted" ? <p>Only owners/admins and people you add in channel settings can enter.</p> : null}
             {createChannelError ? (
               <div className="community-channel-modal-error" role="alert">
                 {createChannelError}
@@ -823,7 +822,7 @@ export const CommunityNav = memo(function CommunityNav({
                 className="is-primary"
                 disabled={isCreatingChannel || !channelName.trim() || selectedCapacityFull}
               >
-                {isCreatingChannel ? "Adding…" : "Add channel"}
+                {isCreatingChannel ? "Creating…" : channelAccessMode === "restricted" ? "Create pod" : "Create channel"}
               </button>
             </div>
           </form>
