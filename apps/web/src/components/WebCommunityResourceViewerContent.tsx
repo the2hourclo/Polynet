@@ -31,7 +31,7 @@ import { markCommunityLessonElementBlocks } from "../../../../shared/communityLe
 import type { WebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { WebLessonElement, type WebLessonFormAccess } from "./WebLessonElement";
 import { DeferredYouTubeEmbed } from "./DeferredYouTubeEmbed";
-import { Check, Eye, FileText, History, ListOrdered, PenLine, PlayCircle } from "lucide-react";
+import { ArrowRight, Check, Eye, FileText, History, ListOrdered, PenLine, PlayCircle } from "lucide-react";
 import { buildPlatformSwitcherStyle } from "../../../../shared/platformSwitcherUi";
 import {
   isLessonFileLink,
@@ -119,7 +119,22 @@ type WebCommunityResourceViewerContentProps = {
   lessonActivity?: WebLessonActivity | null;
   /** Replaces the lesson's own Mark as done row (a page with its own Mark done / Next). */
   actions?: ReactNode;
+  /** The lesson's place in its course: the line over the title and the Next button. */
+  course?: WebLessonCoursePlace | null;
 };
+
+export type WebLessonCoursePlace = {
+  name: string;
+  position: number;
+  total: number;
+  next: { title: string; open: () => void } | null;
+};
+
+/** About 230 words a minute, as Medium counts it. */
+function lessonReadMinutes(body: string | null): number {
+  const words = (body ?? "").replace(/```[\s\S]*?```/g, " ").split(/\s+/).filter(Boolean).length;
+  return words < 40 ? 0 : Math.max(1, Math.round(words / 230));
+}
 
 /** What a lesson's buttons, checklists, quizzes and forms need from the page. */
 export type WebLessonActivity = {
@@ -498,6 +513,8 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   // Every lesson ends with Mark as done, unless its body has its own button for it.
   // It writes the same progress the course outline reads, so the tick shows there at once.
   const hasOwnDoneButton = lessonElements.some((element) => "action" in element && element.action === "mark_done");
+  const nextLesson = isEditing && !isPreviewing ? null : props.course?.next ?? null;
+  const readMinutes = useMemo(() => lessonReadMinutes(resource.body_md), [resource.body_md]);
   const showDoneFooter = Boolean(lessonActivity?.signedIn && lessonStatus !== null && !hasOwnDoneButton && (!isEditing || isPreviewing));
   const lessonScope = useMemo<LessonElementScope | null>(
     () => lessonActivity ? { byId: new Map(lessonElements.map((element) => [element.id, element])), activity: lessonActivity,
@@ -787,6 +804,15 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   return (
     <div className={`resource-viewer-content${embed ? " is-video-lesson" : ""}`}>
       <div className="resource-viewer-header">
+        {/* Course · Lesson 2 of 8 · 4 min read, over the title, as in the
+            Article mock Rashid picked (2026-10-27). */}
+        {props.course && !isEditing ? (
+          <p className="lesson-kicker">
+            <span>{props.course.name}</span>
+            <span>Lesson {props.course.position} of {props.course.total}</span>
+            {readMinutes ? <span>{readMinutes} min read</span> : null}
+          </p>
+        ) : null}
         <div className="resource-viewer-title-row">
           <h1 className="resource-viewer-title">
             {renderTitleContent()}
@@ -849,37 +875,29 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
         {isEditing && bodyProblem ? <div className="auth-error resource-viewer-edit-error" role="alert">{bodyProblem}</div> : null}
         {isEditing && editor?.error ? <div className="auth-error resource-viewer-edit-error">{editor.error}</div> : null}
       </div>
-      {/* A video lesson shows its video wide, right under the title. */}
-      {embed ? (
-        <div className="resource-viewer-hero">
-          <div className="resource-viewer-embed" data-resource-media="true">
-            {embed.provider === "youtube" ? (
-              <DeferredYouTubeEmbed
-                key={embed.id}
-                embed={embed}
-                title={`${resource.title} video`}
-              />
-            ) : (
-              <StableMediaEmbedFrame
-                src={embed.src}
-                title={`${resource.title} video`}
-              />
-            )}
-          </div>
-          {/* On a wide page the chapters sit right beside the video, like YouTube's. */}
-          {contents.chapters.length ? (
-            <nav className="lesson-hero-chapters" aria-label="Video chapters">
-              <div className="lesson-hero-chapters-scroll">
-                <p className="lesson-rail-label">Chapters</p>
-                <LessonChapters chapters={contents.chapters} onPlay={contents.playFrom} />
-              </div>
-            </nav>
-          ) : null}
-        </div>
-      ) : null}
-
       <div className={`resource-viewer-body${hasRail ? " has-lesson-rail" : ""}`}>
         <div className="resource-viewer-column">
+          {/* The lesson's video, under the title and as wide as the text (Rashid,
+              2026-10-27: "If we're going to have the video wide, then we should
+              have the text be as wide"), with its chapters in the side column. */}
+          {embed ? (
+            <div className="resource-viewer-hero">
+              <div className="resource-viewer-embed" data-resource-media="true">
+                {embed.provider === "youtube" ? (
+                  <DeferredYouTubeEmbed
+                    key={embed.id}
+                    embed={embed}
+                    title={`${resource.title} video`}
+                  />
+                ) : (
+                  <StableMediaEmbedFrame
+                    src={embed.src}
+                    title={`${resource.title} video`}
+                  />
+                )}
+              </div>
+            </div>
+          ) : null}
           {platforms.length > 1 && activePlatform ? (
             <div className="lesson-platform-row">
               <span>I build in</span>
@@ -916,9 +934,9 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
 
           {props.actions !== undefined ? (
             props.actions ? <div className="lesson-done-row">{props.actions}</div> : null
-          ) : showDoneFooter && lessonActivity ? (
+          ) : (showDoneFooter && lessonActivity) || nextLesson ? (
             <div className="lesson-done-row">
-              <button
+              {showDoneFooter && lessonActivity ? <button
                 type="button"
                 className={`lesson-done-button${lessonStatus === "done" ? " is-done" : ""}`}
                 aria-pressed={lessonStatus === "done"}
@@ -926,7 +944,21 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
               >
                 <Check aria-hidden="true" />
                 <span>{lessonStatus === "done" ? "Done" : "Mark as done"}</span>
-              </button>
+              </button> : null}
+              {nextLesson ? (
+                <button
+                  type="button"
+                  className="lesson-next-button"
+                  onClick={(event) => {
+                    const top = event.currentTarget.closest(".resource-viewer-content");
+                    nextLesson.open();
+                    window.requestAnimationFrame(() => top?.scrollIntoView({ block: "start" }));
+                  }}
+                >
+                  <span>Next: {nextLesson.title}</span>
+                  <ArrowRight aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
           ) : null}
 
