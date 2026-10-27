@@ -186,7 +186,9 @@ function lessonYouTubeId(root: HTMLElement): string | null {
 
 /** Plays the lesson's YouTube video from `seconds`, scrolling it into view. */
 function seekLessonVideo(root: HTMLElement | null, seconds: number) {
-  const frame = root?.querySelector<HTMLIFrameElement>(YOUTUBE_FRAME_SELECTOR);
+  // The video can be the lesson's own, shown wide above the body, or one in it.
+  const scope = root?.closest<HTMLElement>(".resource-viewer-content") ?? root;
+  const frame = scope?.querySelector<HTMLIFrameElement>(YOUTUBE_FRAME_SELECTOR);
   if (!frame) return;
   frame.scrollIntoView({ behavior: "smooth", block: "center" });
   const url = new URL(frame.src);
@@ -216,7 +218,7 @@ function isStandaloneBoldLine(node: HTMLElement): boolean {
   return text.length > 0 && text.length <= 90 && text === only.textContent?.trim();
 }
 
-function useLessonContents(root: { current: HTMLElement | null }, mode: "read" | "edit", renderKey: unknown, session: unknown) {
+function useLessonContents(root: { current: HTMLElement | null }, mode: "read" | "edit", renderKey: unknown, session: unknown, heroVideoId: string | null) {
   const [toc, setToc] = useState<LessonTocEntry[]>([]);
   const [files, setFiles] = useState<LessonFileLink[]>([]);
   const [writtenChapters, setChapters] = useState<LessonChapter[]>([]);
@@ -269,7 +271,7 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
       setFiles((current) => (JSON.stringify(current) === JSON.stringify(nextFiles) ? current : nextFiles));
       // Chapters: timestamp lines, once the lesson has a YouTube video to play.
       const nextChapters: LessonChapter[] = [];
-      const shownVideo = mode === "read" ? lessonYouTubeId(element) : null;
+      const shownVideo = mode === "read" ? heroVideoId ?? lessonYouTubeId(element) : null;
       setVideoId(shownVideo);
       if (shownVideo) {
         element.querySelectorAll<HTMLElement>("p, li").forEach((node) => {
@@ -303,7 +305,7 @@ function useLessonContents(root: { current: HTMLElement | null }, mode: "read" |
       element.removeEventListener("click", onChapterClick);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, [root, mode, renderKey]);
+  }, [root, mode, renderKey, heroVideoId]);
   // The section being read is the last heading that has scrolled past the top third.
   useEffect(() => {
     if (!toc.length) return;
@@ -528,7 +530,8 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
 
   const readingRef = useRef<HTMLDivElement | null>(null);
   const frameSession = useWebCommunityFrame().session;
-  const contents = useLessonContents(readingRef, isEditing && !isPreviewing ? "edit" : "read", renderedBodyMarkdown, frameSession);
+  const contents = useLessonContents(readingRef, isEditing && !isPreviewing ? "edit" : "read", renderedBodyMarkdown, frameSession,
+    embed?.provider === "youtube" ? embed.id : null);
   const [compactTocOpen, setCompactTocOpen] = useState(false);
   const hasRail = contents.toc.length > 0 || contents.files.length > 0 || contents.chapters.length > 0;
 
