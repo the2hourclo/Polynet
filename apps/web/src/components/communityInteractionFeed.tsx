@@ -1137,9 +1137,16 @@ export function CommunityInteractionFeedList(
                                 }
                                 onPin={
                                   props.canManagePinnedRoot && props.onSetPinnedRoot
-                                    ? () => props.onSetPinnedRoot?.(
-                                        props.pinnedRoot?.root.id === root.id ? null : root.id,
-                                      )
+                                    ? () => {
+                                        if (props.pinnedRoot?.root.id === root.id) {
+                                          void props.onSetPinnedRoot?.(null);
+                                          return;
+                                        }
+                                        // One pin per channel or pod: say so before replacing it.
+                                        const place = props.activeChannel?.access_mode === "restricted" ? "pod" : "channel";
+                                        if (props.pinnedRoot && !window.confirm(`This ${place} already has a pinned message. Pin this one instead?`)) return;
+                                        void props.onSetPinnedRoot?.(root.id);
+                                      }
                                     : undefined
                                 }
                                 isPinned={props.pinnedRoot?.root.id === root.id}
