@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { communityThemeWithBothSchemes } from "../../../../shared/communityThemePalettes";
 import { useMemberPickEverywhere } from "./communityLookPreference";
+import { clearCommunityBootLook, forgetCommunityBootLook, rememberCommunityBootLook } from "./communityBootLook";
 import {
   compileCommunityThemeCss,
   communityThemeFontStylesheetUrl,
@@ -68,7 +69,11 @@ function removeHeadElement(id: string) {
  */
 export function useWebCommunityThemeStyle(
   communityId: string | null,
-  options: { draftSession?: unknown } = {},
+  options: {
+    draftSession?: unknown;
+    /** Kept with the colours, so the next visit's loading screen names the community. */
+    identity?: { slug: string; name: string; logoUrl: string | null } | null;
+  } = {},
 ): { attribute: string | null; theme: CommunityThemeV1 | null; previewingDraft: boolean; followsMemberMode: boolean } {
   const [loaded, setLoaded] = useState<{ communityId: string; theme: CommunityThemeV1 | null; draft: boolean } | null>(null);
   const draftSession = options.draftSession ?? null;
@@ -136,6 +141,9 @@ export function useWebCommunityThemeStyle(
   const theme = preview && preview.communityId === communityId ? preview.theme : current?.theme ?? null;
 
   const pickEverywhere = useMemberPickEverywhere();
+  const identity = options.identity ?? null;
+  const identitySlug = identity?.slug ?? null;
+  const previewingDraft = Boolean(current?.draft);
   useEffect(() => {
     if (!communityId || !theme) return;
     const style = upsertHeadElement<HTMLStyleElement>(STYLE_ELEMENT_ID, "style");
@@ -143,18 +151,44 @@ export function useWebCommunityThemeStyle(
     // look: they see its twin. The Customize preview shows exactly the version
     // being edited.
     const shown = IS_APPEARANCE_PREVIEW_FRAME || !pickEverywhere ? theme : communityThemeWithBothSchemes(theme);
-    style.textContent = compileCommunityThemeCss(shown, `[data-community-theme="${CSS.escape(communityId)}"]`);
+    const css = compileCommunityThemeCss(shown, `[data-community-theme="${CSS.escape(communityId)}"]`);
+    style.textContent = css;
     const fontUrl = communityThemeFontStylesheetUrl(theme);
     if (fontUrl) {
       const link = upsertHeadElement<HTMLLinkElement>(FONT_ELEMENT_ID, "link");
       link.rel = "stylesheet";
       link.href = fontUrl;
     }
+    // The real colours are on: the boot colours come off, and the look as
+    // shown is kept for the next visit's loading screen (not for previews).
+    let frame = 0;
+    let tries = 0;
+    const keep = () => {
+      const surface = document.querySelector<HTMLElement>(`[data-community-theme="${CSS.escape(communityId)}"]`);
+      if (!surface) {
+        if (tries++ < 120) frame = window.requestAnimationFrame(keep);
+        else clearCommunityBootLook();
+        return;
+      }
+      clearCommunityBootLook();
+      if (identity && !IS_APPEARANCE_PREVIEW_FRAME && !previewingDraft) {
+        rememberCommunityBootLook({ ...identity, surface, compiledCss: css });
+      }
+    };
+    keep();
     return () => {
+      window.cancelAnimationFrame(frame);
       removeHeadElement(STYLE_ELEMENT_ID);
       removeHeadElement(FONT_ELEMENT_ID);
     };
-  }, [communityId, theme, pickEverywhere]);
+  }, [communityId, theme, pickEverywhere, identitySlug]);
+  // A community without a theme opens in Polynet's look next time.
+  const loadedWithoutTheme = Boolean(communityId && current && !current.theme && !preview);
+  useEffect(() => {
+    if (!loadedWithoutTheme) return;
+    clearCommunityBootLook();
+    if (identitySlug) forgetCommunityBootLook(identitySlug);
+  }, [loadedWithoutTheme, identitySlug]);
 
   return {
     attribute: communityId && theme ? communityId : null,

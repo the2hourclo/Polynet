@@ -1,4 +1,4 @@
-import { Play, RefreshCw } from "lucide-react";
+import { ArrowLeft, Play, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { WORKFLOW_SECTIONS, workflowSectionFromSearch, workflowSectionUrl, type WorkflowSection } from "../../../../shared/workflowSection";
@@ -36,6 +36,7 @@ import { WebCommunityWorkflowRunHistory } from "./WebCommunityWorkflowRunHistory
 import type { AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 import "./WebCommunityWorkflowsPage.css";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 export type WebCommunityWorkflowsSectionProps = {
   forms?: CommunityFormsGateway;
@@ -160,10 +161,19 @@ export function WebCommunityWorkflowsSection(
       (caught) => setTestError(testRunErrorMessage(caught)));
   };
   const milestones = props.board?.milestones ?? [];
+  // In Channels this page (Members included, which Settings links to) has a
+  // way back to the community, like Settings' own menu; Classroom has its
+  // owner bar (Rashid, 2026-10-27).
+  const frame = useWebCommunityFrame();
+  const back = frame.layout.navigation.position !== "top" && frame.community
+    ? { label: frame.community.name, onBack: () => frame.onSelectTab(frame.layout.navigation.home === "agent" ? "chat" : frame.layout.navigation.home) }
+    : null;
   // Page header and underlined section tabs, after Substack's dashboard.
   return <div className="workflow-page workflow-sections pn-wf">
     <header className="pn-wf-header pn-wf-header-row">
       <div>
+        {back ? <button type="button" className="pn-wf-back" onClick={back.onBack}>
+          <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" /><span>{back.label}</span></button> : null}
         <h1>Workflows</h1>
         <p>What happens to members automatically, from joining to their first win.</p>
       </div>

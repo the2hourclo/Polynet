@@ -904,6 +904,9 @@
 [data-community-theme] .pn-wf-tabs > button[aria-selected="true"]::after {
   border-radius: calc(1px * var(--pn-radius-scale, 1));
 }
+[data-community-theme] .pn-wf-back {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .workflow-secondary-button {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
@@ -1427,6 +1430,12 @@
 }
 [data-community-theme] .mobile-community-selector-section-label {
   font-size: var(--pn-type-micro);
+}
+[data-community-theme] .web-route-access-hold-community img {
+  border-radius: calc(14px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .web-route-access-hold-community p {
+  font-size: var(--pn-type-ui);
 }
 [data-community-theme] .community-avatar-frame-fallback {
   font-size: var(--pn-type-label);

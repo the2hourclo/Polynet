@@ -946,3 +946,24 @@
 .pn-au-panel .workflow-condition-join { align-self: flex-start; width: auto; color: var(--text-secondary); font-size: 0.8125rem; font-weight: 600; }
 .pn-au-panel select.workflow-condition-join { width: auto; padding: 0.25rem 1.75rem 0.25rem 0.5rem; }
 .pn-au-panel .workflow-condition-row:not(:has(.workflow-condition-remove)) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+/* The way back to the community (Channels), as in Settings' menu. */
+.pn-wf-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  height: 2rem;
+  margin: 0 0 0.5rem -0.625rem;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.pn-wf-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-wf-back:hover { background: var(--hover-overlay); color: var(--text-primary); }
+.pn-wf-back:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
