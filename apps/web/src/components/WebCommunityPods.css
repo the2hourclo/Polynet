@@ -671,3 +671,18 @@
 .community-pod-panel-card .community-interaction-loading {
   margin: 8px 16px 16px;
 }
+
+/* Channels: the head row matches the member list's, so the cards start below
+   the top-right buttons and line up with the chat's header. */
+.community-pod-panel-head > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.community-pod-panel-head svg {
+  color: var(--accent-brand);
+}
