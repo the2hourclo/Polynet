@@ -1293,3 +1293,33 @@ html[data-lesson-focus] .member-agent-launcher { display: none; }
   border: 0 !important;
 }
 .community-knowledge-page[data-focus] .community-knowledge-header > * { transform: none; }
+
+/* Chapters beside the lesson's video (Rashid, 2026-10-27: "it should show the
+   timestamps on the right side of the video"). On a page wide enough for the
+   side column, the hero is the video plus a chapters column as tall as the
+   video, scrolling inside; the side column then drops its own copy. Narrower,
+   the chapters stay in the Contents box above the text. */
+.lesson-hero-chapters { display: none; }
+@container lesson-page (min-width: 70rem) {
+  .community-knowledge-page[data-reading] .resource-viewer-hero:has(> .lesson-hero-chapters),
+  .community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-content.is-video-lesson > .resource-viewer-hero:has(> .lesson-hero-chapters) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--lesson-outline-width);
+    gap: 1.25rem;
+    align-items: stretch;
+    max-width: calc(var(--lesson-reading-measure, 680px) + 16rem + var(--lesson-outline-width));
+    margin-inline: auto;
+  }
+  .community-knowledge-page[data-reading] .resource-viewer-hero > .lesson-hero-chapters {
+    display: block;
+    position: relative;
+    min-height: 0;
+  }
+  .lesson-hero-chapters-scroll {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 0.25rem 0.25rem 0.5rem 0;
+  }
+  .community-knowledge-page[data-reading] .resource-viewer-content:has(.lesson-hero-chapters) .lesson-rail nav[aria-label="Video chapters"] { display: none !important; }
+}
