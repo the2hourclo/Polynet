@@ -13,7 +13,9 @@ import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext
 import { EventModal, eventDraftPayload, makeDraft, type EventDraft } from "./WebCommunityEventsSection";
 import {
   PodFaces,
+  NewPodButton,
   PodList,
+  podsAwaitingPeople,
   isOnline,
   personName,
   shelfMeta,
@@ -65,6 +67,8 @@ function PodSwitcher({ name }: { name: string }) {
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => {
+      // A dialog opened from the list (New pod) sits outside it on the page.
+      if ((event.target as Element).closest?.(".community-channel-modal-backdrop")) return;
       if (!ref.current?.contains(event.target as Node)) setOpen(false);
     };
     const escape = (event: KeyboardEvent) => {
@@ -88,17 +92,13 @@ function PodSwitcher({ name }: { name: string }) {
       </button>
       {open ? (
         <div className="community-pods-popover" role="dialog" aria-label="Your pods">
-          <div className="community-pods-popover-head"><strong>Your pods</strong></div>
+          <div className="community-pods-popover-head"><strong>Your pods</strong><NewPodButton pods={pods} /></div>
           <PodList pods={pods} onPicked={() => setOpen(false)} />
         </div>
       ) : null}
     </div>
   );
 }
-
-// A pod made from "New pod" in the channel list opens with Add people, so the
-// owner picks who's in it straight away (WebCommunityNavSurface marks it).
-export const podsAwaitingPeople = new Set<string>();
 
 function PodPeopleCard({ podId, podName, canManage }: { podId: string; podName: string; canManage: boolean }) {
   const [addingPeople, setAddingPeople] = useState(false);
