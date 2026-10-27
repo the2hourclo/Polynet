@@ -37,6 +37,9 @@ test("chapters are read from the video's description the way YouTube reads them"
 test("the lesson asks the server for the video's chapters when none are written", () => {
   const source = readFileSync(new URL("../apps/web/src/components/WebCommunityResourceViewerContent.tsx", import.meta.url), "utf8");
   expect(source).toContain("loadCloudYouTubeChapters(session, videoId)");
+  // The lesson's own video, shown wide above the body, counts too.
+  expect(source).toContain('embed?.provider === "youtube" ? embed.id : null');
+  expect(source).toContain('root?.closest<HTMLElement>(".resource-viewer-content")');
   const server = readFileSync(new URL("../convex/youtubeChapters.ts", import.meta.url), "utf8");
   expect(server).toContain("process.env.YOUTUBE_API_KEY");
   expect(server).toContain("export const loadYouTubeChapters = action(");
