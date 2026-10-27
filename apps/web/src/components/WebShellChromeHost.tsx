@@ -150,6 +150,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const activeCommunityId = props.communityShell.activeCommunity?.id ?? null;
   const [postSearchState, setPostSearchState] = useState<{ communityId: string | null; query: string }>({ communityId: null, query: "" });
   const [podPanelSlot, setPodPanelSlot] = useState<HTMLElement | null>(null);
+  // Members' guide channels are invite-only too, but they aren't pods.
+  const podSpaces = usePodSpaces(activeCommunityId, props.memberSession ?? null);
   const postSearch = postSearchState.communityId === activeCommunityId ? postSearchState.query : "";
   const setPostSearch = useCallback(
     (query: string) => setPostSearchState({ communityId: activeCommunityId, query }),
@@ -253,6 +255,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       <WebCommunityNavSurface
         communityShell={props.communityShell}
         presentation="desktop"
+        memberSpaceIds={podSpaces?.member_spaces}
       />
     )
   ) : null;
@@ -310,7 +313,6 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   }, [courseCardsAttribute]);
   // Classroom shows invite-only channels as pods instead of topic chips.
   // Other members' guide channels aren't the viewer's pods; their own comes first.
-  const podSpaces = usePodSpaces(props.communityShell.activeCommunity?.id ?? null, props.memberSession ?? null);
   const memberSpaces = new Set(podSpaces?.member_spaces ?? []);
   const podChannels = props.communityShell.communityChannels
     .filter((channel) => channel.access_mode === "restricted" && !memberSpaces.has(channel.id))
@@ -344,6 +346,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     <WebCommunityNavSurface
       communityShell={props.communityShell}
       presentation="mobile-home"
+      memberSpaceIds={podSpaces?.member_spaces}
     />
   ) : isMobileDedicatedRoot ? null : pageSurface);
   const mobileGlobalShellLabel = isMobileCommunityHome
