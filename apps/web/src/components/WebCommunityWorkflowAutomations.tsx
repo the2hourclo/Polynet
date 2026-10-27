@@ -2,7 +2,7 @@ import {
   BookOpen, Bot, CalendarDays, ChevronDown, Clock, CreditCard, DoorOpen, FileText, GitBranch, Hourglass, Lock, Mail,
   Flag, MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Users, Webhook, X, type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { openCommunityTab } from "../controllers/openCommunityTab";
 import {
   workflowRuleIsNudge,
@@ -18,7 +18,8 @@ import {
   workflowAutomationIssue, workflowDraftAutomations,
   type WorkflowActionType, type WorkflowAutomationDraft, type WorkflowTriggerType, workflowStageDrafts,
 } from "./workflowMilestoneDraft";
-import { workflowActionPhrase, workflowConditionPhrase, workflowDurationLabel, workflowTriggerPhrase, type WorkflowStepNames } from "./workflowStepSentences";
+import { WorkflowSentence, workflowActionParts, workflowSentenceText, workflowTriggerParts } from "./workflowSubjectPills";
+import { workflowActionPhrase, workflowConditionPhrase, workflowDurationLabel, type WorkflowStepNames } from "./workflowStepSentences";
 
 // Workflows → Automations, laid out like Airtable Automations: the list of
 // automations on the left (one section per stage), the selected automation as
@@ -245,7 +246,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     }
   };
 
-  const card = (rule: WorkflowAutomationDraft, part: Selection["part"], option: Option, kind: string, value: string, detail?: string) => {
+  const card = (rule: WorkflowAutomationDraft, part: Selection["part"], option: Option, kind: string, value: ReactNode, detail?: string) => {
     const Icon = option.icon;
     const pressed = selection?.ruleKey === rule.key && selection.part === part;
     return <button type="button" className="pn-au-step" aria-pressed={pressed}
@@ -262,14 +263,6 @@ export function WebCommunityWorkflowAutomations(props: Props) {
     if (action.type === "create_service_channel") return "Just them, you and the agent";
     return capitalize(workflowActionPhrase(rule, names).replace(/^set /, ""));
   };
-  const triggerDetail = (rule: WorkflowAutomationDraft): string => {
-    const trigger = rule.trigger;
-    if (trigger.type === "member_joined") return "Anyone new to the community";
-    if (trigger.type === "form_submitted") return props.forms.find((form) => form.key === trigger.formKey)?.name ?? "Choose a form";
-    if (workflowRuleStartsOnArrival(rule)) return "The moment they arrive";
-    if (trigger.type === "milestone_elapsed") return trigger.nudge ? `Still here after ${workflowDurationLabel(trigger.delayMinutes)}` : `${workflowDurationLabel(trigger.delayMinutes)} after they arrive`;
-    return capitalize(workflowTriggerPhrase(rule, names).replace(/^When (someone |they )?/, ""));
-  };
   let number = 0;
   const thenCards = chain ? chain.steps.flatMap((rule, index) => {
     const out = [];
@@ -280,7 +273,8 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       : card(rule, "condition", { icon: GitBranch, label: "Only if" }, `${++number} · Only if`, capitalize(workflowConditionPhrase(rule.condition, names).replace(/^if /, "")),
         otherwiseOf(rule) ? "Members who don't match take the Otherwise path" : "Otherwise the steps after it are skipped"));
     const option = ACTIONS[rule.action.type];
-    out.push(card(rule, "action", option, `${++number} · Then`, option.label, actionDetail(rule)));
+    out.push(card(rule, "action", option, `${++number} · Then`, <WorkflowSentence parts={workflowActionParts(rule, names)} />,
+      rule.action.type === "set_client_property" || rule.action.type === "set_pod_member" ? option.label : actionDetail(rule)));
     return out.map((element, inner) => <li key={`${rule.key}-${inner}-${index}`}>{element}</li>);
   }) : [];
   const stepNumber = (() => {
@@ -342,7 +336,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
               aria-current={chain?.root.key === item.root.key}
               onClick={() => { setPicking(false); setSelection({ stageKey: milestone.key, ruleKey: item.root.key, part: "trigger" }); }}>
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
-              <span className="pn-au-item-text"><span>{capitalize(workflowTriggerPhrase(item.root, names).replace(/^When /, ""))}</span>
+              <span className="pn-au-item-text"><span title={workflowSentenceText(workflowTriggerParts(item.root, names, milestone.name))}><WorkflowSentence parts={workflowTriggerParts(item.root, names, milestone.name)} /></span>
                 <small>{item.root.paused ? "Off · " : ""}{first}{more ? ` + ${more} more` : ""}</small></span>
             </button>;
           })}
@@ -355,7 +349,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
 
     <main className="pn-au-main" aria-label="Selected automation">
       {chain && stage ? <header className="pn-au-head">
-        <div><h2>{capitalize(workflowTriggerPhrase(chain.root, names))}</h2>
+        <div><h2>When <WorkflowSentence parts={workflowTriggerParts(chain.root, names, stage.name)} /></h2>
           <p className={stage.color ? `pn-stage-color-${stage.color}` : undefined}>{stage.color ? <span className="pn-au-stagedot" aria-hidden="true" /> : null}While in {stage.name} · {chain.steps.length === 1 ? "1 step" : `${chain.steps.length} steps`}</p></div>
         <button type="button" role="switch" aria-checked={!chainIsOff} className={`pn-au-switch${chainIsOff ? "" : " is-on"}`} disabled={props.isSaving}
           title={chainIsOff ? "Off: it won't run for anyone" : "On: it runs for members in this stage"} onClick={() => setChainOff(!chainIsOff)}>
@@ -370,7 +364,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
       </div> : null}
       <div className="pn-au-flow">
         {chain && stage ? <>
-          {(() => { const option = triggerOption(chain.root); return card(chain.root, "trigger", option, "When", option.label, triggerDetail(chain.root)); })()}
+          {(() => { const option = triggerOption(chain.root); return card(chain.root, "trigger", option, "When", <WorkflowSentence parts={workflowTriggerParts(chain.root, names, stage.name)} />, option.label); })()}
           <ol className="pn-au-then">{thenCards}</ol>
           <div className="pn-au-add">
             <button type="button" className="pn-au-btn" onClick={() => addAction("action")}><Plus size={14} aria-hidden="true" /> Add action</button>
