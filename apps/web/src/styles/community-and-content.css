@@ -9694,7 +9694,7 @@ button.chat-reply-quote:hover {
 .knowledge-resource-reader .resource-viewer-content.is-video-lesson .resource-viewer-hero { margin-top: 1rem; }
 
 /* Mark as done: the last thing in a lesson, the same tick the outline shows. */
-.lesson-done-row { display: flex; margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-default); }
+.lesson-done-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-default); }
 .lesson-done-button {
   display: inline-flex; align-items: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem;
   border: 1px solid var(--border-default); border-radius: 0.5rem; background: var(--bg-card); color: var(--text-primary);
@@ -9705,6 +9705,23 @@ button.chat-reply-quote:hover {
 .lesson-done-button.is-done { border-color: transparent; background: var(--accent-brand, var(--bg-button)); color: var(--bg-button-text, #fff); }
 .lesson-done-button.is-done svg { color: currentColor; }
 .lesson-done-button:focus-visible { outline: 2px solid var(--border-active, var(--text-primary)); outline-offset: 2px; }
+/* Next lesson, on the right of Mark as done, in the community's accent. */
+.lesson-next-button {
+  display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; margin-left: auto;
+  height: 2.5rem; padding: 0 1rem; border: 1px solid transparent; border-radius: 8px;
+  background: var(--accent-brand, var(--bg-button)); color: var(--bg-button-text, #fff);
+  font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.lesson-next-button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-next-button svg { flex: none; width: 1rem; height: 1rem; }
+.lesson-next-button:hover { filter: brightness(1.06); }
+.lesson-next-button:focus-visible { outline: 2px solid var(--border-active, var(--text-primary)); outline-offset: 2px; }
+/* Course · Lesson 2 of 8 · 4 min read, the quiet line over a lesson's title. */
+.lesson-kicker {
+  display: flex; flex-wrap: wrap; gap: 0 0.5rem; margin: 0 0 0.5rem;
+  color: var(--text-muted); font-size: 0.8125rem; line-height: 1.4;
+}
+.lesson-kicker span + span::before { content: "·"; margin-right: 0.5rem; }
 .knowledge-resource-reader .resource-viewer-prose { line-height: 1.7; }
 .knowledge-resource-reader .resource-viewer-prose h4.md-header {
   margin-block: 1.75em 0.5em;
@@ -13881,8 +13898,8 @@ button.chat-reply-quote:hover {
    and lightens on a dark one, in every community theme. Inline code is red
    on grey, as in Notion. */
 .resource-viewer-prose {
-  --lesson-code-bg: color-mix(in srgb, var(--text-primary) 5%, var(--bg-card, transparent));
-  --lesson-code-line: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --lesson-code-bg: color-mix(in srgb, var(--text-primary) 9%, var(--bg-card, var(--bg-primary, transparent)));
+  --lesson-code-line: color-mix(in srgb, var(--text-primary) 15%, transparent);
   --lesson-code-text: color-mix(in srgb, var(--text-primary) 88%, transparent);
   --lesson-code-muted: color-mix(in srgb, var(--text-primary) 50%, transparent);
   --lesson-code-blue: color-mix(in srgb, #2f7fd8 78%, var(--text-primary) 22%);
@@ -13951,6 +13968,33 @@ button.chat-reply-quote:hover {
 .resource-viewer-prose .md-code-block .hljs-subst { color: var(--lesson-code-purple); }
 .resource-viewer-prose .code-block-variant-terminal .md-code-block .hljs-built_in,
 .resource-viewer-prose .code-block-variant-terminal .md-code-block .hljs-keyword { color: var(--lesson-code-blue); }
+
+/* Copy-ready blocks (```prompt / ```copy, e.g. the welcome page's setup steps)
+   wear the same card as code: a clearly shaded box (darker on a light page,
+   lighter on a dark one) with its label and Copy icon inside at the top right
+   (Rashid, 2026-10-27). */
+.resource-viewer-prose .md-artifact-block {
+  margin: 1.1em 0;
+  border: 1px solid var(--lesson-code-line);
+  border-radius: calc(10px * var(--pn-radius-scale, 1));
+  background: var(--lesson-code-bg);
+  overflow: hidden;
+}
+.resource-viewer-prose .md-artifact-toolbar { margin: 0; padding: 8px 10px 0 16px; }
+.resource-viewer-prose .md-artifact-label { color: var(--lesson-code-muted); font-family: inherit; font-size: 12px; letter-spacing: 0; }
+.resource-viewer-prose .md-artifact-action { font-family: inherit; font-size: 12px; color: var(--lesson-code-muted); }
+.resource-viewer-prose .md-artifact-action.md-artifact-copy {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px;
+  border: 1px solid var(--lesson-code-line);
+  background: color-mix(in srgb, var(--bg-card, transparent) 70%, transparent);
+}
+.resource-viewer-prose .md-artifact-action:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
+.resource-viewer-prose .md-artifact-action.is-copied { color: var(--lesson-code-blue); border-color: currentColor; }
+.resource-viewer-prose .md-artifact-content {
+  border: 0; border-radius: 0; background: transparent;
+  padding: 8px 16px 16px; font-size: 13.5px; line-height: 1.65;
+  color: var(--lesson-code-text); white-space: pre-wrap; overflow-wrap: anywhere;
+}
 
 /* "← community" above an owner page (Members); same look as the Workflows one. */
 .pn-page-back {

@@ -2555,6 +2555,9 @@
   border-radius: calc(11px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .lesson-next-button {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .resources-preview-mode-label {
   font-size: var(--pn-type-meta);
 }
@@ -2983,6 +2986,15 @@
   font-size: var(--pn-type-label);
 }
 [data-community-theme] .resource-viewer-prose .code-block-wrapper .md-code-block {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .resource-viewer-prose .md-artifact-label {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .resource-viewer-prose .md-artifact-action {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .resource-viewer-prose .md-artifact-content {
   font-size: var(--pn-type-ui);
 }
 [data-community-theme] .pn-page-back {

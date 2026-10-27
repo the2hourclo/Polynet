@@ -19,6 +19,7 @@ import type {
 } from "./communityResourcesContracts";
 import {
   WebCommunityResourceViewerContent,
+  type WebLessonCoursePlace,
   type WebCommunityResourceInlineEditorField,
   type WebLessonActivity,
 } from "./WebCommunityResourceViewerContent";
@@ -743,6 +744,22 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     }
   };
 
+  // Where the open lesson sits in its course, for the line over its title
+  // and the Next button under it.
+  const selectedLessonPlace = useMemo<WebLessonCoursePlace | null>(() => {
+    const lessons = selectedModuleSection?.lessonResources ?? [];
+    const index = selectedResource ? lessons.findIndex((resource) => resource.id === selectedResource.id) : -1;
+    if (!selectedModule || index < 0) return null;
+    const next = lessons[index + 1] ?? null;
+    return {
+      name: selectedModule.name,
+      position: index + 1,
+      total: lessons.length,
+      next: next ? { title: next.title, open: () => handleSelectResource(next) } : null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModule, selectedModuleSection, selectedResource]);
+
   // Undo after Done: the lesson as it stood when editing began. Autosave keeps
   // saving while the owner types, so once editing ends the saved lesson is
   // compared with this, and if it changed a toast offers to put it back.
@@ -1162,6 +1179,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   editor={selectedResourceInlineEditor}
                   communityEmbeds={communityEmbeds}
                   lessonActivity={props.lessonActivity ?? null}
+                  course={selectedLessonPlace}
                 />
               ) : (
                 <div className="community-panel-state-shell">

@@ -299,11 +299,16 @@ function ArtifactBlock({
       <div className="md-artifact-toolbar">
         <span className="md-artifact-label">{label}</span>
         <div className="md-artifact-actions">
-          <button className="md-artifact-action" type="button" onClick={() => void handleCopy()}>
-            {copied ? "Copied" : "Copy"}
-          </button>
-          <button className="md-artifact-action" type="button" onClick={handleDownload}>
+          <button className="md-artifact-action md-artifact-download" type="button" onClick={handleDownload}>
             .{extension}
+          </button>
+          <button className={`md-artifact-action md-artifact-copy${copied ? " is-copied" : ""}`} type="button" onClick={() => void handleCopy()} aria-live="polite">
+            {copied ? (
+              <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+            )}
+            {copied ? "Copied" : "Copy"}
           </button>
         </div>
       </div>
