@@ -83,11 +83,6 @@ export type CommunityThemeV1 = {
   // others take after Substack ("quiet" admin, "reader" reading view,
   // "publication" site with a masthead). Classroom ignores it.
   channels_look: "current" | "quiet" | "reader" | "publication";
-  // How chat messages sit on the page: "centered" keeps the look's reading
-  // column (joins and dates centred); "wide" runs every message full width
-  // from the left edge, with notices, dates and the message box lined up on
-  // the left too. Members can pick their own in the Display menu.
-  chat_view: "centered" | "wide";
   // The far-left community rail while this community is open: its icon size,
   // and "polynet" (Polynet's own rail), "blend" (the page colour), "tint" (a
   // wash of the accent) or "brand" (solid accent).
@@ -186,7 +181,6 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   course_cover_fit: "crop",
   banner_name: "show",
   channels_look: "current",
-  chat_view: "centered",
   rail_size: "standard",
   rail_color: "polynet",
   sibling_communities: "hide",
@@ -230,7 +224,6 @@ const ENUMS = {
   course_cover_fit: ["crop", "whole"],
   banner_name: ["show", "hide"],
   channels_look: ["current", "quiet", "reader", "publication"],
-  chat_view: ["centered", "wide"],
   rail_size: ["standard", "large"],
   rail_color: ["polynet", "blend", "tint", "brand"],
   sibling_communities: ["hide", "show"],
@@ -244,9 +237,14 @@ const RANGES = {
   border_width: [0, 3],
 } as const;
 
+// Settings that no longer exist. Saved themes may still carry them, so they
+// load without a problem and are dropped. chat_view: every Channels chat is
+// Wide now (Rashid, 2026-10-27).
+const RETIRED_KEYS = ["chat_view"];
+
 const KNOWN_KEYS = new Set<string>([
   "version", "schemes", "font_body", "font_heading", "font_mono", "course_card_panel_color",
-  ...Object.keys(ENUMS), ...Object.keys(RANGES),
+  ...Object.keys(ENUMS), ...Object.keys(RANGES), ...RETIRED_KEYS,
 ]);
 
 // ---------------------------------------------------------------------------

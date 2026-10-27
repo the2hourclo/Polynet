@@ -8,13 +8,12 @@ import { DEFAULT_COMMUNITY_THEME, type CommunityThemeV1 } from "../../../../shar
 // the theme's draft, preview and publish. Anyone can try another one from the
 // Display menu at the top right (owners and admins only); that pick is this browser's only
 // (localStorage) until "Community default" clears it. The address overrides
-// both for screenshots: ?feel=, ?rail_size=, ?rail_color=, ?chat_view=.
+// both for screenshots: ?feel=, ?rail_size=, ?rail_color=.
 
 export type ChannelsFeel = CommunityThemeV1["channels_look"];
 export type RailSize = CommunityThemeV1["rail_size"];
 export type RailColor = CommunityThemeV1["rail_color"];
-export type ChatView = CommunityThemeV1["chat_view"];
-export type DraftLook = { feel: ChannelsFeel; railSize: RailSize; railColor: RailColor; chatView: ChatView };
+export type DraftLook = { feel: ChannelsFeel; railSize: RailSize; railColor: RailColor };
 
 export const CHANNELS_FEELS: { key: ChannelsFeel; label: string; description: string }[] = [
   { key: "current", label: "Current", description: "Today's Channels look" },
@@ -35,19 +34,10 @@ export const RAIL_COLORS: { key: RailColor; label: string; description: string }
   { key: "brand", label: "Brand", description: "Solid brand colour" },
 ];
 
-// Rashid (2026-10-26): a chat that runs full width from the left edge, as an
-// option beside today's centred column. Unlike the draft looks, every member
-// can pick it for themselves; the owner's choice in Customize is the default.
-export const CHAT_VIEWS: { key: ChatView; label: string; description: string }[] = [
-  { key: "centered", label: "Centred", description: "Messages in a reading column" },
-  { key: "wide", label: "Wide", description: "Full width, lined up on the left" },
-];
-
 const FIELDS = [
   { field: "feel", param: "feel", storage: "polynet.channelsFeel", values: CHANNELS_FEELS },
   { field: "railSize", param: "rail_size", storage: "polynet.railSize", values: RAIL_SIZES },
   { field: "railColor", param: "rail_color", storage: "polynet.railColor", values: RAIL_COLORS },
-  { field: "chatView", param: "chat_view", storage: "polynet.chatView", values: CHAT_VIEWS },
 ] as const;
 const EVENT = "polynet:draft-look";
 
@@ -82,14 +72,12 @@ function readPicks(): Partial<DraftLook> {
   return picks as Partial<DraftLook>;
 }
 
-/** Saves this browser's pick; null clears the draft-look picks back to the
- *  community's default, and a field set to null clears just that one. */
-export function chooseDraftLook(change: { [K in keyof DraftLook]?: DraftLook[K] | null } | null) {
+/** Saves this browser's pick; null clears every pick back to the community's default. */
+export function chooseDraftLook(change: Partial<DraftLook> | null) {
   for (const entry of FIELDS) {
     try {
-      const value = change === null ? (entry.field === "chatView" ? undefined : null) : change[entry.field];
-      if (value === null) window.localStorage.removeItem(entry.storage);
-      else if (value) window.localStorage.setItem(entry.storage, value);
+      if (change === null) window.localStorage.removeItem(entry.storage);
+      else if (change[entry.field]) window.localStorage.setItem(entry.storage, change[entry.field]!);
     } catch {
       // The pick lasts until reload.
     }
@@ -103,14 +91,13 @@ export function communityDraftLook(theme: CommunityThemeV1 | null): DraftLook {
     feel: look.channels_look ?? "current",
     railSize: look.rail_size ?? "standard",
     railColor: look.rail_color ?? "polynet",
-    chatView: look.chat_view ?? "centered",
   };
 }
 
 /** The look in force: the address, then this browser's pick, then the community's default.
  *  Only the owner's team can try other looks (Rashid, 2026-10-26), so a member's
  *  old pick from before that is ignored. */
-export function useDraftLook(theme: CommunityThemeV1 | null, options: { canPick?: boolean } = {}): { look: DraftLook; picked: boolean; chatViewPicked: boolean } {
+export function useDraftLook(theme: CommunityThemeV1 | null, options: { canPick?: boolean } = {}): { look: DraftLook; picked: boolean } {
   const canPick = options.canPick ?? true;
   const [picks, setPicks] = useState<Partial<DraftLook>>(() => (typeof window === "undefined" ? {} : readPicks()));
   useEffect(() => {
@@ -119,12 +106,8 @@ export function useDraftLook(theme: CommunityThemeV1 | null, options: { canPick?
     return () => window.removeEventListener(EVENT, onChange);
   }, []);
   const base = communityDraftLook(theme);
-  return useMemo(() => {
-    const { chatView, ...lookPicks } = picks;
-    return {
-      look: { ...base, ...(canPick ? lookPicks : {}), ...(chatView ? { chatView } : {}), ...URL_OVERRIDE },
-      picked: canPick && Object.keys(lookPicks).length > 0,
-      chatViewPicked: Boolean(chatView) && chatView !== base.chatView,
-    };
-  }, [base.feel, base.railSize, base.railColor, base.chatView, picks, canPick]);
+  return useMemo(() => ({
+    look: { ...base, ...(canPick ? picks : {}), ...URL_OVERRIDE },
+    picked: canPick && Object.keys(picks).length > 0,
+  }), [base.feel, base.railSize, base.railColor, picks, canPick]);
 }
