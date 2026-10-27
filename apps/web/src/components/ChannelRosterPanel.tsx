@@ -19,6 +19,7 @@ import { communityPresenceLeaseIsActive, COMMUNITY_PRESENCE_HEARTBEAT_INTERVAL_M
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { formatRelativeTimeFromIso } from "../../../../shared/contentFormatting";
 import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext";
+import { useCommunityThemeScope } from "./useCommunityThemeScope";
 import { CommunityPresenceFacepile } from "./CommunityPresenceFacepile";
 import { CommunityMemoryGraphPreview } from "./CommunityMemoryGraphPreview";
 import type { CommunityPresenceSummary } from "../../../../shared/communityTypes";
@@ -114,6 +115,7 @@ function RosterSurface(props: RosterProps & {
 }) {
   const scope = useContext(CommunityChannelSessionContext);
   const agentName = useCommunityAgentProfile()?.name || "Community agent";
+  const themeScope = useCommunityThemeScope();
   const dialogRef = useRef<HTMLElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -244,7 +246,8 @@ function RosterSurface(props: RosterProps & {
   // Rows the side panel shows, online first, up to the limit.
   let sideRowsLeft = props.directory ? Infinity : ROSTER_SIDE_PANEL_LIMIT;
   const onlineCount = members.filter(member => status(member) === "online").length;
-  const peopleTotal = `${rosterMembers.length}${complete ? "" : "+"}`;
+  // The roster loads a page at a time, so a count shows only once it's whole.
+  const peopleTotal = complete ? String(rosterMembers.length) : "";
   const settings = <CommunityMemberSettingsDialog {...props.memberSettings}
     member={selectedMember ? { ...selectedMember.profile, id: selectedMember.membership_id!, user_id: selectedMember.user_id, role: selectedMember.role, co_creator: selectedMember.co_creator, created_at: selectedMember.membership_created_at } : null}
     onClose={() => setSelectedMembershipId(null)} />;
@@ -294,7 +297,7 @@ function RosterSurface(props: RosterProps & {
             <button type="button" className="members-view-all" onClick={props.onOpenMembers}>View all</button>
           </div> : null}
           {props.directory && !searching && ready && !error ? <div className="members-directory-filter" role="group" aria-label="Show members">
-            <button type="button" aria-pressed={!onlineOnly} onClick={() => setOnlineOnly(false)}>All<span>{peopleTotal}</span></button>
+            <button type="button" aria-pressed={!onlineOnly} onClick={() => setOnlineOnly(false)}>All{peopleTotal ? <span>{peopleTotal}</span> : null}</button>
             <button type="button" aria-pressed={onlineOnly} onClick={() => setOnlineOnly(true)}>Online<span>{onlineCount}</span></button>
           </div> : null}
           {props.directory ? <>{props.admission?.canManage && props.admission.error ? <div role="alert" className="community-context-admission-status">{props.admission.error}</div> : null}
@@ -344,7 +347,7 @@ function RosterSurface(props: RosterProps & {
             {!searchResult.loading && searchResult.error ? <button type="button" className="btn-secondary" onClick={searchResult.loadMore}>Retry search</button> : null}
             {!searchResult.loading && !searchResult.error && searchResult.paused ? <><span> Search paused to limit scanning.</span> <button type="button" className="btn-secondary" onClick={searchResult.continueSearch}>Continue search</button></> : null}
           </div> : !props.directory ? members.length ? <button type="button" className="members-view-all members-view-all-footer" onClick={props.onOpenMembers}>
-            View all {peopleTotal} {rosterMembers.length === 1 && complete ? "member" : "members"}
+            {peopleTotal ? `View all ${peopleTotal} ${rosterMembers.length === 1 ? "member" : "members"}` : "View all members"}
           </button> : null : <div className="community-context-members-footer" ref={loadMoreSentinelRef}>
             {complete ? `Showing ${onlineOnly ? onlineCount : members.length} of ${members.length}` : "Loading more..."}
           </div>}
@@ -356,8 +359,9 @@ function RosterSurface(props: RosterProps & {
   // The chat shell isolates its stacking context beneath the community rail.
   // Keep overlays outside that shell, as the directory already does below.
   if (!props.directory || props.page) return <>{content}{selectedMember ? createPortal(settings, document.body) : null}</>;
+  // The drawer is portaled out of the page, so it carries the community's look along.
   // Keep search and pagination mounted while the existing profile inspector is open.
-  return createPortal(<><div className="modal-overlay members-directory-overlay" style={props.memberDetailOpen ? { display: "none" } : undefined} onMouseDown={props.onCloseMembers}>
+  return <>{themeScope.marker}{createPortal(themeScope.scope(<><div className="modal-overlay members-directory-overlay" style={props.memberDetailOpen ? { display: "none" } : undefined} onMouseDown={props.onCloseMembers}>
     <section ref={dialogRef} className="modal members-directory-modal members-directory-drawer" role="dialog" aria-modal="true"
       aria-labelledby="members-directory-title" onMouseDown={event => event.stopPropagation()}
       onKeyDown={event => {
@@ -378,5 +382,5 @@ function RosterSurface(props: RosterProps & {
   </div><div ref={settingsRef} onKeyDown={event => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setSelectedMembershipId(null); searchRef.current?.focus(); }
     trapTab(event, settingsRef.current);
-  }}>{settings}</div></>, document.body);
+  }}>{settings}</div></>), document.body)}</>;
 }

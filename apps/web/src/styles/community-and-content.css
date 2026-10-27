@@ -13951,3 +13951,14 @@ button.chat-reply-quote:hover {
 .resource-viewer-prose .md-code-block .hljs-subst { color: var(--lesson-code-purple); }
 .resource-viewer-prose .code-block-variant-terminal .md-code-block .hljs-built_in,
 .resource-viewer-prose .code-block-variant-terminal .md-code-block .hljs-keyword { color: var(--lesson-code-blue); }
+
+/* "← community" above an owner page (Members); same look as the Workflows one. */
+.pn-page-back {
+  display: inline-flex; align-items: center; gap: 0.5rem; max-width: 100%;
+  height: 2rem; margin: 0 0 0.5rem -0.625rem; padding: 0 0.625rem;
+  border: 0; border-radius: 8px; background: transparent;
+  color: var(--text-secondary); font: inherit; font-size: 0.875rem; cursor: pointer;
+}
+.pn-page-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-page-back:hover { background: var(--hover-overlay); color: var(--text-primary); }
+.pn-page-back:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
