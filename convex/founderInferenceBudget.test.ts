@@ -51,3 +51,18 @@ test("Luna 6 fails closed on missing reservation for both funding modes; legacy 
   expect(() => assertPaidLuna6ProviderHeadroom({ session: { ...session, modelId: "gpt-5.6-luna" }, usage, maxOutputTokens: 2048 }))
     .not.toThrow();
 });
+
+test("the local Claude Code bridge isn't held to Luna 6's paid headroom", () => {
+  const saved = process.env.POLYNET_COMMUNITY_INFERENCE_PROVIDER;
+  const usage = createFounderInferenceUsageTotals("gpt-6-luna");
+  const tiny = { ...session, reservedCostMicros: 1 };
+  try {
+    expect(() => assertPaidLuna6ProviderHeadroom({ session: tiny, usage, maxOutputTokens: 2048 }))
+      .toThrow(FOUNDER_INFERENCE_RUN_BUDGET_EXHAUSTED);
+    process.env.POLYNET_COMMUNITY_INFERENCE_PROVIDER = "claude_code_local";
+    expect(() => assertPaidLuna6ProviderHeadroom({ session: tiny, usage, maxOutputTokens: 2048 })).not.toThrow();
+  } finally {
+    if (saved === undefined) delete process.env.POLYNET_COMMUNITY_INFERENCE_PROVIDER;
+    else process.env.POLYNET_COMMUNITY_INFERENCE_PROVIDER = saved;
+  }
+});

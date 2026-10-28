@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { communityEventDisplayEnd, communityEventPhase, DEFAULT_COMMUNITY_EVENT_DURATION_MS } from "../../../../shared/communityEventLifecycle";
 import { useCommunityEventClock } from "../../../../shared/useCommunityEventClock";
 import {
@@ -13,6 +14,8 @@ import type {
   CommunityEventsCapabilities,
   CommunityEventsState,
 } from "./communityEventsContracts";
+import type { CloudCommunityEventSavePayload } from "../../../../shared/cloudCommunityEventsGateway";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 type WebCommunityEventsSectionProps = {
   capabilities: CommunityEventsCapabilities;
@@ -20,7 +23,7 @@ type WebCommunityEventsSectionProps = {
   actions: CommunityEventsActions;
 };
 
-type EventDraft = {
+export type EventDraft = {
   title: string;
   description_md: string;
   starts_at: string;
@@ -31,6 +34,8 @@ type EventDraft = {
   url: string;
   recurrence_frequency: "none" | "daily" | "weekly" | "monthly";
   recurrence_until: string;
+  /** The pod this is a call for; "" for everyone. */
+  channel_id: string;
 };
 
 type EventDayGroup = {
@@ -157,7 +162,7 @@ function formatRecurrenceLabel(event: CommunityEvent): string | null {
   return `Repeats ${event.recurrence_frequency}${until}`;
 }
 
-function makeDraft(dayKey: string | null): EventDraft {
+export function makeDraft(dayKey: string | null, channelId = ""): EventDraft {
   const timezone = getCommunityEventViewerTimeZone();
   const base = dayKey ? new Date(`${dayKey}T12:00:00`) : new Date(Date.now() + DAY_MS);
   return {
@@ -171,10 +176,11 @@ function makeDraft(dayKey: string | null): EventDraft {
     url: "",
     recurrence_frequency: "none",
     recurrence_until: "",
+    channel_id: channelId,
   };
 }
 
-function makeDraftFromEvent(event: CommunityEvent): EventDraft {
+export function makeDraftFromEvent(event: CommunityEvent): EventDraft {
   const timezone = normalizeCommunityEventTimeZone(event.timezone);
   return {
     title: event.title,
@@ -189,6 +195,46 @@ function makeDraftFromEvent(event: CommunityEvent): EventDraft {
     recurrence_until: event.recurrence_until
       ? toCommunityEventDateTimeInputValue(new Date(event.recurrence_until), timezone)
       : "",
+    channel_id: event.channel_id ?? "",
+  };
+}
+
+/** The save payload for a draft, or what's wrong with it. */
+export function eventDraftPayload(draft: EventDraft): { payload: CloudCommunityEventSavePayload } | { error: string } {
+  const title = draft.title.trim();
+  if (!title) return { error: "Title is required." };
+  const timezone = normalizeCommunityEventTimeZone(draft.timezone);
+  const startsAt = communityEventDateTimeInputToIso(draft.starts_at, timezone);
+  if (!startsAt) {
+    return { error: draft.starts_at ? "Start time is invalid in the selected timezone." : "Start time is required." };
+  }
+  const endsAt = draft.ends_at ? communityEventDateTimeInputToIso(draft.ends_at, timezone) : null;
+  if (draft.ends_at && !endsAt) return { error: "End time is invalid." };
+  const recurrenceUntil =
+    draft.recurrence_frequency === "none"
+      ? null
+      : draft.recurrence_until
+        ? communityEventDateTimeInputToIso(draft.recurrence_until, timezone)
+        : null;
+  if (draft.recurrence_frequency !== "none" && draft.recurrence_until && !recurrenceUntil) {
+    return { error: "Repeat end date is invalid." };
+  }
+  return {
+    payload: {
+      title,
+      description_md: draft.description_md.trim() || null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      timezone,
+      location_type: draft.location_type,
+      location_label: draft.location_label.trim() || null,
+      url: draft.url.trim() || null,
+      visibility: "members",
+      channel_id: draft.channel_id || null,
+      recurrence_frequency: draft.recurrence_frequency,
+      recurrence_interval: 1,
+      recurrence_until: recurrenceUntil,
+    },
   };
 }
 
@@ -215,11 +261,13 @@ function isRecurringCommunityEvent(event: CommunityEvent | null): boolean {
   return !!event && event.recurrence_frequency !== "none";
 }
 
-function EventModal(props: {
+export function EventModal(props: {
   draft: EventDraft;
   isSaving: boolean;
   error: string | null;
   title: string;
+  /** Pods the call can be for; left out, there's no choice to make. */
+  pods?: Array<{ id: string; name: string }>;
   onChange: (draft: EventDraft) => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -231,7 +279,8 @@ function EventModal(props: {
     onSubmit();
   };
 
-  return (
+  // On the body, so nothing in the page (a pod's composer, say) paints over it.
+  return createPortal(
     <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
       <form
         className="modal community-event-modal"
@@ -327,6 +376,15 @@ function EventModal(props: {
               placeholder="https://..."
             />
           </label>
+          {props.pods && props.pods.length > 0 ? (
+            <label>
+              <span>Who's invited</span>
+              <select value={draft.channel_id} onChange={(event) => onChange({ ...draft, channel_id: event.target.value })}>
+                <option value="">Everyone in the community</option>
+                {props.pods.map((pod) => <option key={pod.id} value={pod.id}>Only the {pod.name} pod</option>)}
+              </select>
+            </label>
+          ) : null}
           <div className="community-event-form-grid">
             <label>
               <span>Repeats</span>
@@ -367,12 +425,15 @@ function EventModal(props: {
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 export function WebCommunityEventsSection(props: WebCommunityEventsSectionProps) {
   const { capabilities, state, actions } = props;
+  // An owner can make any event one pod's own call.
+  const pods = useWebCommunityFrame().pods?.pods.map((pod) => ({ id: pod.id, name: pod.name })) ?? [];
   const [draft, setDraft] = useState<EventDraft | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -457,53 +518,15 @@ export function WebCommunityEventsSection(props: WebCommunityEventsSectionProps)
 
   const submitDraft = async () => {
     if (!draft) return;
-    const title = draft.title.trim();
-    if (!title) {
-      setLocalError("Title is required.");
-      return;
-    }
-    const timezone = normalizeCommunityEventTimeZone(draft.timezone);
-    const startsAt = communityEventDateTimeInputToIso(draft.starts_at, timezone);
-    if (!startsAt) {
-      setLocalError(
-        draft.starts_at
-          ? "Start time is invalid in the selected timezone."
-          : "Start time is required.",
-      );
-      return;
-    }
-    const endsAt = draft.ends_at ? communityEventDateTimeInputToIso(draft.ends_at, timezone) : null;
-    if (draft.ends_at && !endsAt) {
-      setLocalError("End time is invalid.");
-      return;
-    }
-    const recurrenceUntil =
-      draft.recurrence_frequency === "none"
-        ? null
-        : draft.recurrence_until
-          ? communityEventDateTimeInputToIso(draft.recurrence_until, timezone)
-          : null;
-    if (draft.recurrence_frequency !== "none" && draft.recurrence_until && !recurrenceUntil) {
-      setLocalError("Repeat end date is invalid.");
+    const checked = eventDraftPayload(draft);
+    if ("error" in checked) {
+      setLocalError(checked.error);
       return;
     }
     setIsSaving(true);
     const didSave = await actions.saveEvent(
       editingEventId,
-      {
-        title,
-        description_md: draft.description_md.trim() || null,
-        starts_at: startsAt,
-        ends_at: endsAt,
-        timezone,
-        location_type: draft.location_type,
-        location_label: draft.location_label.trim() || null,
-        url: draft.url.trim() || null,
-        visibility: "members",
-        recurrence_frequency: draft.recurrence_frequency,
-        recurrence_interval: 1,
-        recurrence_until: recurrenceUntil,
-      },
+      checked.payload,
       currentRange,
     );
     setIsSaving(false);
@@ -569,16 +592,9 @@ export function WebCommunityEventsSection(props: WebCommunityEventsSectionProps)
         {showInitialEventsLoading ? (
           <div className="community-events-state" role="status">Loading events…</div>
         ) : eventDayGroups.length === 0 && state.eventsError ? null : eventDayGroups.length === 0 ? (
+          // One "New event" button is enough: the header already has it.
           <div className="community-events-state">
-            <div>No events in {formatMonthLabel(monthDate)}.</div>
-            {capabilities.hasActiveCommunity && capabilities.canManageEvents ? (
-              <button
-                type="button"
-                onClick={() => openNewEvent(getDefaultEventDayForMonth(monthDate))}
-              >
-                New event
-              </button>
-            ) : null}
+            <div>Nothing scheduled in {formatMonthLabel(monthDate)}.</div>
           </div>
         ) : (
           <div className="community-events-list">
@@ -680,6 +696,7 @@ export function WebCommunityEventsSection(props: WebCommunityEventsSectionProps)
       {draft ? (
         <EventModal
           draft={draft}
+          pods={pods}
           isSaving={isSaving}
           error={localError}
           title={eventModalTitle}

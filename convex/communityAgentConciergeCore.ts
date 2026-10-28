@@ -40,6 +40,7 @@ export type ConciergeMentionRow = {
 type InteractionRootRow = {
   _id: any;
   communityId: any;
+  channelId?: any;
   actorType: "human" | "personal_agent" | "community_agent" | "system";
   actorUserId?: any;
   actorAgentKey?: string;
@@ -382,7 +383,25 @@ async function resolveTriggerKind(args: {
   ) {
     return "direct_reply";
   }
+  // A member's guide channel is a conversation with the agent: anything the
+  // member posts there is for it, no @mention needed.
+  if (await isPostInOwnGuideChannel(args.ctx, args.source)) return "direct_reply";
   return null;
+}
+
+async function isPostInOwnGuideChannel(
+  ctx: any,
+  source: Awaited<ReturnType<typeof resolveInvocationSource>>,
+): Promise<boolean> {
+  const channelId = source.root?.channelId;
+  if (source.actorType !== "human" || !channelId || !source.requesterUserId) return false;
+  const memberships = await ctx.db
+    .query("communityMemberships")
+    .withIndex("by_community_user", (q: any) =>
+      q.eq("communityId", source.root!.communityId).eq("userId", source.requesterUserId))
+    .collect();
+  return memberships.some((membership: any) =>
+    membership.active !== false && normalizeIdValue(membership.serviceChannelId) === normalizeIdValue(channelId));
 }
 
 export async function intakeCommunityAgentTurn(args: {

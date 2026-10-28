@@ -159,6 +159,8 @@ export type CommunityResourceSemanticReadSource = {
   offset: number;
   totalChars: number;
   truncated: boolean;
+  // A long page's sections (shared/communityLessonSections.ts), to read one at a time by offset.
+  sections?: Array<{ index: number; heading: string | null; offset: number; chars: number }> | null;
   lesson?: CommunityLessonFields | null;
   lessonBody?: CommunityLessonProjection | null;
 };
@@ -589,7 +591,14 @@ export function validatePolynetSemanticRepositoryOperationInput(args: {
     // legacy local-path reader. Reuse fixed document/directory input rules.
     if (repositoryPath.localPath === "/members/me/forms/" || /^\/members\/me\/forms\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
         repositoryPath.localPath === "/members/me/progress.json" ||
-        repositoryPath.localPath === "/builder/progress/" || /^\/builder\/progress\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath)) {
+        repositoryPath.localPath === "/builder/progress/" || /^\/builder\/progress\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
+        repositoryPath.localPath === "/builder/clients/" || /^\/builder\/clients\/[A-Za-z0-9]+\.json$/.test(repositoryPath.localPath) ||
+        /^\/builder\/clients\/views\/[a-z0-9_]{1,40}\/$/.test(repositoryPath.localPath) ||
+        repositoryPath.localPath === "/builder/theme.json" || repositoryPath.localPath === "/builder/layout.json" ||
+        repositoryPath.localPath === "/builder/design-guide.md" || repositoryPath.localPath === "/builder/design-review.md" ||
+        repositoryPath.localPath === "/builder/brand.json" || repositoryPath.localPath === "/builder/settings.json" ||
+        repositoryPath.localPath === "/builder/tracks.json" || repositoryPath.localPath === "/builder/offers.json" || repositoryPath.localPath === "/builder/workflow-runs.json" ||
+        repositoryPath.localPath === "/builder/events.json" || repositoryPath.localPath === "/builder/test-runs.json") {
       const isDirectory = repositoryPath.localPath.endsWith("/");
       const validated = validateCommunitySemanticOperationInput({ ...args,
         path: isDirectory ? POLYNET_JOIN_REQUESTS_DIRECTORY_PATH : "/community.md" });
@@ -1249,6 +1258,7 @@ export function readCommunitySemanticResourceDocument(args: {
       ref,
       total_chars: totalChars,
       next_offset: truncated ? offset + body.length : null,
+      ...(args.source.sections?.length ? { sections: args.source.sections } : null),
       ...(args.source.lesson
         ? { lesson: { ...args.source.lesson, ...(args.source.lessonBody ?? null) } }
         : null),

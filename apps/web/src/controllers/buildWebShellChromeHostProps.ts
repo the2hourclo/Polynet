@@ -10,11 +10,13 @@ import {
 import type { WebShellChromeHostProps } from "../components/WebShellChromeHost";
 import type { MobileMemberFace, MobileOverlay } from "../components/webShellChromeShared";
 import type { CommunityShellCommunity } from "../../../../shared/communityTypes";
+import type { AppTheme } from "../../../../shared/theme";
 
 type CommunityLike = CommunityShellCommunity;
 
 export function buildWebShellChromeHostProps(params: {
   onOpenCommunityMembers: () => void;
+  viewerFace?: WebShellChromeHostProps["communityShell"]["viewerFace"];
   memberNextStep?: ReactNode;
   showMobileAppShell: boolean;
   showMobileSettingsShell: boolean;
@@ -76,6 +78,7 @@ export function buildWebShellChromeHostProps(params: {
   onCopyCommunityJoinLink: WebShellChromeHostProps["communityShell"]["onCopyCommunityJoinLink"];
   canOpenDirectMessages: boolean;
   directMessagesUnreadCount: number;
+  communityActivityEvents?: WebShellChromeHostProps["communityShell"]["communityActivityEvents"];
   handleOpenDiscover: () => void;
   openMobileCreateCommunity: () => void;
   openCommunityCreateFlow: () => void;
@@ -100,6 +103,12 @@ export function buildWebShellChromeHostProps(params: {
   setSettingsPage: (page: WebShellChromeHostProps["settingsSidebar"]["onSelectPage"] extends (page: infer T) => void ? T : never) => void;
   hasLeftPanel: boolean;
   isGlobalSettings: boolean;
+  themeDraftSession?: unknown;
+  memberSession?: unknown;
+  onCommunityLayoutPositionChange?: WebShellChromeHostProps["onCommunityLayoutPositionChange"];
+  onOpenCommunityAgent?: WebShellChromeHostProps["onOpenCommunityAgent"];
+  appTheme: AppTheme;
+  setAppTheme: (theme: AppTheme) => void;
 }): Omit<WebShellChromeHostProps, "mainSurface" | "globalOverlays"> {
   const isMobileCommunityHome =
     params.showMobileAppShell &&
@@ -245,6 +254,8 @@ export function buildWebShellChromeHostProps(params: {
       memberNextStep: params.memberNextStep,
       canOpenDirectMessages: params.canOpenDirectMessages,
       directMessagesUnreadCount: params.directMessagesUnreadCount,
+      directMessagesButton: params.directMessagesButton,
+      communityActivityEvents: params.communityActivityEvents,
       onOpenDiscover: () => {
         if (params.showMobileGlobalShell) params.prepareMobileGlobalNavigation();
         params.handleOpenDiscover();
@@ -279,6 +290,7 @@ export function buildWebShellChromeHostProps(params: {
         if (params.showMobileGlobalShell) params.prepareMobileGlobalNavigation();
         params.handleOpenGlobalSettings();
       },
+      viewerFace: params.viewerFace ?? null,
     },
     settingsSidebar: {
       showMobileSettingsShell: params.showMobileSettingsShell,
@@ -288,5 +300,11 @@ export function buildWebShellChromeHostProps(params: {
     },
     hasLeftPanel: params.hasLeftPanel,
     isGlobalSettings: params.isGlobalSettings,
+    themeDraftSession: params.themeDraftSession ?? null,
+    memberSession: params.memberSession ?? null,
+    onCommunityLayoutPositionChange: params.onCommunityLayoutPositionChange,
+    onOpenCommunityAgent: params.onOpenCommunityAgent,
+    appTheme: params.appTheme,
+    onChooseAppTheme: params.setAppTheme,
   };
 }

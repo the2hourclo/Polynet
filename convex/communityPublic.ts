@@ -1,4 +1,6 @@
 import { mutation, query } from "./_generated/server";
+import { requireNotTestMemberOutsideCommunity } from "./communityTestMemberCore";
+import { normalizeCommunityReferralRef } from "../shared/communityClients";
 import { v } from "convex/values";
 import {
   type CommunityLike,
@@ -7,6 +9,7 @@ import {
   type CommunityResourceModuleLike,
   type PublicPlanSummaryLike,
   communityMembershipRowIsActive,
+  communityMembershipIsCoCreator,
   communityUserIsBlocked,
   communityResourceIsLiveModulePage,
   communityResourceModuleIsLive,
@@ -38,6 +41,7 @@ import {
 } from "./communityJoinRequestCore";
 import { findAuthenticatedActorState } from "./authActor";
 import { resolveCommunityFunnelConfigByCommunityId } from "./communityFunnel";
+import { readPublishedCommunityLayout } from "./communityLayouts";
 import { readCommunityExternalFunnelUrl } from "../shared/communityExternalFunnel";
 import { enqueueCommunityAccessGrantedEmailInternal } from "./emailEvents";
 import {
@@ -318,10 +322,12 @@ export const resolvePublicFunnelBySlug = query({
     const funnel = await resolveCommunityFunnelConfigByCommunityId(ctx, community._id);
     const owner = community.ownerId ? await ctx.db.get(community.ownerId) : null;
     const host = owner ? await resolvePublicProfileFaceFields(ctx, owner._id) : null;
+    const layout = await readPublishedCommunityLayout(ctx, community._id);
 
     return {
       ok: true,
       community: {
+        id: String(community._id),
         slug: community.slug,
         name: community.name,
         host,
@@ -341,6 +347,11 @@ export const resolvePublicFunnelBySlug = query({
           ? readCommunityExternalFunnelUrl(community.externalFunnelUrl)
           : null,
         funnel,
+        // "funnel": the community's About page is its public page.
+        about_presentation: layout?.pages.about.presentation ?? "page",
+        about_media: layout?.pages.about.media ?? [],
+        about_text: layout?.pages.about.text ?? "",
+        about_show_members: layout?.pages.about.show_members ?? true,
       },
       active_plan: activePlan,
     };
@@ -589,6 +600,63 @@ export const listPublicDiscoverCommunities = query({
   },
 });
 
+// The same owner's other public communities, for the "More from this creator"
+// block inside each community, so one community can send members to the next.
+export const listSiblingCommunities = query({
+  args: { communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    const current = (await ctx.db.get(args.communityId)) as CommunityLike | null;
+    if (!current || !communityIsActive(current)) return { communities: [] };
+    const owned = (await ctx.db.query("communities")
+      .withIndex("by_owner", (q) => q.eq("ownerId", current.ownerId))
+      .take(50)) as CommunityLike[];
+    const communities = [];
+    for (const community of owned) {
+      if (community._id === current._id || community.visibility !== "published" || !communityIsActive(community)) continue;
+      if (!(await resolveCommunityBuilderAccess({ ctx, community })).operational) continue;
+      const branding = await resolveCommunityBrandingFields(ctx, community);
+      communities.push({
+        id: String(community._id),
+        slug: community.slug,
+        name: community.name,
+        one_liner: community.oneLiner ?? null,
+        avatar_url: branding.avatar_url,
+      });
+      if (communities.length >= 6) break;
+    }
+    return { communities };
+  },
+});
+
+// The people who make a community: its owner, then the co-creators the owner
+// added, in the order they were added. Public like the community's own page.
+export const listCommunityCreators = query({
+  args: { communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    const community = (await ctx.db.get(args.communityId)) as CommunityLike | null;
+    if (!community || !communityIsActive(community)) return { creators: [] };
+    const userIdCache = new Map<string, string | null>();
+    const describe = async (userRowId: any, role: "owner" | "co_creator") => {
+      const user = (await ctx.db.get(userRowId)) as { handle?: string } | null;
+      return {
+        user_id: (await resolvePublicUserId(ctx, userRowId, userIdCache)) ?? String(userRowId),
+        role,
+        handle: user?.handle ?? null,
+        ...(await resolveUserProfileDisplayProjection(ctx, userRowId)),
+      };
+    };
+    const rows = (await ctx.db.query("communityMemberships")
+      .withIndex("by_community_coCreator", (q) => q.eq("communityId", args.communityId).eq("coCreator", true))
+      .take(50)) as CommunityMembershipLike[];
+    const coCreators = rows
+      .filter((row) => communityMembershipIsCoCreator(row) && communityMembershipRowIsActive(row) && String(row.userId) !== String(community.ownerId))
+      .sort((a, b) => a.updatedAt - b.updatedAt);
+    const creators = [await describe(community.ownerId, "owner")];
+    for (const row of coCreators) creators.push(await describe(row.userId, "co_creator"));
+    return { creators };
+  },
+});
+
 /* Cached production clients still call this operation. The current web app
    uses communityAccessQueries:getMyCommunityAccessBySlug as its sole
    admission projection; remove this compatibility shim only after the pinned
@@ -656,6 +724,7 @@ async function joinPublicCommunityInternal(args: {
   reapply_at?: string | null;
 }> {
   await requireAccountSetupCompleteForUser(args.ctx, args.userId);
+  await requireNotTestMemberOutsideCommunity(args.ctx, args.userId, args.community._id);
 
   if (!communityIsActive(args.community)) {
     throw new Error("community_archived");
@@ -801,9 +870,19 @@ async function joinPublicCommunityInternal(args: {
   };
 }
 
+// First touch wins: a later link never rewrites who sent the member.
+async function recordCommunityReferral(ctx: any, communityId: any, userId: any, rawRef: unknown, nowMs: number) {
+  const ref = normalizeCommunityReferralRef(rawRef);
+  if (!ref) return;
+  const existing = await ctx.db.query("communityReferrals")
+    .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", userId)).first();
+  if (!existing) await ctx.db.insert("communityReferrals", { communityId, userId, ref, capturedAt: nowMs });
+}
+
 export const joinPublicCommunityBySlug = mutation({
   args: {
     communitySlug: v.string(),
+    ref: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await resolveUserIdForAuthenticatedRequest({ ctx });
@@ -814,6 +893,7 @@ export const joinPublicCommunityBySlug = mutation({
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .first()) as CommunityLike | null;
     if (!community) throw new Error("community_not_found");
+    await recordCommunityReferral(ctx, community._id, userId, args.ref, nowMs);
     return await joinPublicCommunityInternal({
       ctx,
       community,
@@ -826,12 +906,14 @@ export const joinPublicCommunityBySlug = mutation({
 export const joinPublicCommunity = mutation({
   args: {
     communityId: v.id("communities"),
+    ref: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await resolveUserIdForAuthenticatedRequest({ ctx });
     const nowMs = Date.now();
     const community = (await ctx.db.get(args.communityId)) as CommunityLike | null;
     if (!community) throw new Error("community_not_found");
+    await recordCommunityReferral(ctx, community._id, userId, args.ref, nowMs);
     return await joinPublicCommunityInternal({
       ctx,
       community,

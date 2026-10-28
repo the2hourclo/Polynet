@@ -62,5 +62,15 @@ crons.interval(
 
 crons.interval("advance due workflow milestones", { minutes: 1 },
   internal.communityMemberWorkflows.processDueMilestoneTimersInternal, {});
+crons.interval("run workflow date triggers", { minutes: 15 },
+  internal.communityMemberWorkflows.processDuePropertyDateTriggersInternal, {});
+
+// Access integrations: retry access webhooks whose schedule was missed, end
+// owner grants whose end job did not run, and walk members once a day so a
+// missed write still reaches the outside service.
+crons.interval("recover access webhook deliveries", { minutes: 5 },
+  (internal as any).communityAccess.recoverDueAccessEventsInternal, { limit: 25 });
+crons.interval("sweep community access", { minutes: 15 },
+  (internal as any).communityAccess.sweepCommunityAccessInternal, {});
 
 export default crons;
