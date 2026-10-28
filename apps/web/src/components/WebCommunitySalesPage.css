@@ -75,6 +75,31 @@
   height: 100%;
 }
 
+/* A picture slide shows the whole picture at its own shape (the component
+   sets aspect-ratio once it loads); a blurred copy fills any room left. */
+.community-sales-gallery .community-sales-media.is-picture {
+  position: relative;
+  max-height: 72vh;
+  margin: 0 auto;
+  transition: aspect-ratio 160ms ease;
+}
+
+.community-sales-gallery .community-sales-media.is-picture > img {
+  position: relative;
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+.community-sales-gallery .community-sales-media.is-picture > .community-sales-media-backdrop {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  filter: blur(28px) saturate(1.1);
+  opacity: 0.55;
+  transform: scale(1.15);
+}
+
 .community-sales-gallery-arrow {
   position: absolute;
   top: 50%;

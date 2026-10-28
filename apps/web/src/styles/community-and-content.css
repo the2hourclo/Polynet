@@ -2290,6 +2290,16 @@
   padding-right: var(--web-topbar-right-action-safe-inset);
 }
 
+/* Beside a channel the bar's buttons (Messages, bell, Display, gear, your
+   picture) float over this row, so a longer name was cut to "Classroom …".
+   The sidebar already names the community; the row stays as their clearance.
+   On a phone the people page keeps its name beside its back arrow. */
+@media (min-width: 641px) {
+  .app-root:has(.app-topbar .topbar-right-island) .channel-roster-panel:not([data-channels-feel] *) .community-context-rail-name {
+    visibility: hidden;
+  }
+}
+
 .community-interaction-bootstrap-context {
   display: grid;
   gap: 12px;
