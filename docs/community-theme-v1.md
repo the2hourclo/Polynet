@@ -73,7 +73,7 @@ look; both follow the member's own Light/Dark choice.
 | `rail_size` | Draft. `standard`, `large` (bigger community icons in the far-left rail while this community is open) |
 | `sibling_communities` | `hide` (default), `show` (lists the owner's other communities, "More from this creator", at the foot of the chat's members panel) |
 | `classroom_chat` | `posts` (default: Classroom's Community tab is the post cards, with the Pods card and side blocks) or `chat` (a chat timeline instead). Channels always shows the Wide chat |
-| `pods_place` | `aside` (default: a "Your pods" card at the top of Classroom's right column), `header` (a stack of faces in the Classroom header that opens the pods list), `tab` (a Pods tab right after Community that opens a page of the member's pods) |
+| `pods_place` | `aside` (a "Your pods" card at the top of Classroom's right column), `header` (a stack of faces in the Classroom header that opens the pods list), `tab` (default: a Pods tab right after Community that opens a page of the member's pods) |
 | `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
 
 Ready-made course card looks (Classroom, the default, plus Classic, Lifted,

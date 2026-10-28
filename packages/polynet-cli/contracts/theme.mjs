@@ -70,7 +70,7 @@ export const DEFAULT_COMMUNITY_THEME = {
     rail_size: "standard",
     rail_color: "polynet",
     sibling_communities: "hide",
-    pods_place: "aside",
+    pods_place: "tab",
     classroom_chat: "posts",
 };
 const COLOR_KEYS = [
