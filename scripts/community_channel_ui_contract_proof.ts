@@ -30,8 +30,9 @@ const nav = read(navPath);
 [
   '"Add Channel"',
   "canManageMembersActiveCommunity && onCreateChannel",
-  "Choose who can access this channel.",
-  "Invite-only",
+  // The + beside CHANNELS or PODS picks the access; the dialog says which.
+  "openCreate(accessMode, event.currentTarget)",
+  "New pod",
   "channelAccessMode",
   'className="community-channel-loading-row web-skeleton-row"',
   'className="community-channel-loading-row is-short web-skeleton-row"',
@@ -87,13 +88,14 @@ const header = read(headerPath);
 [
   "community-channel-header",
   'aria-haspopup="menu"',
-  'aria-label={`Channel options for ${channel.name}`}',
+  'aria-label={`${Noun} options for ${channel.name}`}',
   "canOpenChannelMenu",
   "community-channel-header-menu-system-note",
   "Default channel",
   "Can’t be renamed or deleted",
-  "Rename channel",
-  "Delete channel",
+  // Invite-only channels read as pods: "Rename pod", "Delete pod".
+  "`Rename ${noun}`",
+  "Delete {noun}",
   "!channel.is_general",
   "Existing messages will be retained.",
   "MODAL_FOCUSABLE_SELECTOR",
@@ -291,8 +293,8 @@ assertNotMatches(
 const interactionFeedPath = "apps/web/src/components/communityInteractionFeed.tsx";
 const interactionFeed = read(interactionFeedPath);
 [
-  "Pin to channel",
-  "Unpin from channel",
+  "Pin to {pinPlace}",
+  "Unpin from {pinPlace}",
   "props.canManagePinnedRoot",
 ].forEach((required) => assertIncludes(interactionFeedPath, interactionFeed, required));
 

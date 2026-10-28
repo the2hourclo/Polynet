@@ -73,6 +73,11 @@ export function WebCommunityChannelHeader({
   onDeleteChannel,
 }: WebCommunityChannelHeaderProps) {
   const sessionScope = useContext(CommunityChannelSessionContext);
+  // Invite-only channels are pods (Rashid, 2026-10-28): their menu and
+  // settings say "pod", not "channel".
+  const isPod = channel.access_mode === "restricted";
+  const noun = isPod ? "pod" : "channel";
+  const Noun = isPod ? "Pod" : "Channel";
   const renameTitleId = useId();
   const deleteTitleId = useId();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -217,7 +222,7 @@ export function WebCommunityChannelHeader({
                   ref={menuTriggerRef}
                   className="community-channel-header-menu-trigger"
                   type="button"
-                  aria-label={`Channel options for ${channel.name}`}
+                  aria-label={`${Noun} options for ${channel.name}`}
                   aria-haspopup="menu"
                   aria-expanded={isMenuOpen}
                   disabled={Boolean(managingChannelId)}
@@ -229,7 +234,7 @@ export function WebCommunityChannelHeader({
                   <div
                     className="community-channel-header-menu"
                     role="menu"
-                    aria-label={`Channel options for ${channel.name}`}
+                    aria-label={`${Noun} options for ${channel.name}`}
                   >
                     {channel.is_general ? (
                       <div
@@ -247,7 +252,7 @@ export function WebCommunityChannelHeader({
                       <>
                         <button type="button" role="menuitem" onClick={() => openManagement("rename")}>
                           <Pencil size={15} aria-hidden="true" />
-                          {sessionScope ? "Channel settings" : "Rename channel"}
+                          {sessionScope ? `${Noun} settings` : `Rename ${noun}`}
                         </button>
                         <button
                           className="is-danger"
@@ -256,7 +261,7 @@ export function WebCommunityChannelHeader({
                           onClick={() => openManagement("delete")}
                         >
                           <Trash2 size={15} aria-hidden="true" />
-                          Delete channel
+                          Delete {noun}
                         </button>
                       </>
                     )}
@@ -290,21 +295,23 @@ export function WebCommunityChannelHeader({
             >
               <div className="community-channel-modal-header">
                 <div>
-                  <h2 id={renameTitleId}>{sessionScope ? "Channel settings" : "Rename channel"}</h2>
-                  <p>The channel URL will stay the same so existing links keep working.</p>
+                  <h2 id={renameTitleId}>{sessionScope ? `${Noun} settings` : `Rename ${noun}`}</h2>
+                  <p>{isPod
+                    ? "Name the pod and choose who's in it. The pinned post and calls are in the pod's panel."
+                    : "The channel URL will stay the same so existing links keep working."}</p>
                 </div>
                 <button
                   type="button"
                   className="community-channel-modal-close"
                   onClick={() => closeManagement()}
-                  aria-label="Close channel settings"
+                  aria-label={`Close ${noun} settings`}
                   disabled={Boolean(managingChannelId)}
                 >
                   <X size={18} aria-hidden="true" />
                 </button>
               </div>
               <label className="community-channel-modal-field">
-                <span>Channel name</span>
+                <span>{Noun} name</span>
                 <input
                   ref={renameInputRef}
                   value={renamedChannelName}
@@ -352,14 +359,16 @@ export function WebCommunityChannelHeader({
             >
               <div className="community-channel-modal-header">
                 <div>
-                  <h2 id={deleteTitleId}>Delete #{channel.name}?</h2>
-                  <p>Members will no longer see this channel. Existing messages will be retained.</p>
+                  <h2 id={deleteTitleId}>{isPod ? `Delete the ${channel.name} pod?` : `Delete #${channel.name}?`}</h2>
+                  <p>{isPod
+                    ? "The people in it lose this room. Its messages are kept."
+                    : "Members will no longer see this channel. Existing messages will be retained."}</p>
                 </div>
                 <button
                   type="button"
                   className="community-channel-modal-close"
                   onClick={() => closeManagement()}
-                  aria-label="Close delete channel dialog"
+                  aria-label={`Close delete ${noun} dialog`}
                   disabled={Boolean(managingChannelId)}
                 >
                   <X size={18} aria-hidden="true" />
@@ -385,7 +394,7 @@ export function WebCommunityChannelHeader({
                   onClick={() => void handleDeleteChannel()}
                   disabled={Boolean(managingChannelId)}
                 >
-                  {managingChannelId ? "Deleting…" : "Delete channel"}
+                  {managingChannelId ? "Deleting…" : `Delete ${noun}`}
                 </button>
               </div>
             </div>
