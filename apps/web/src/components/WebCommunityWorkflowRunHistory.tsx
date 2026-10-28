@@ -8,7 +8,8 @@ import {
   type CloudWorkflowRunHistoryFilter,
 } from "../../../../shared/cloudCommunityWorkflowRunHistoryGateway";
 import type { WebCommunityTestRunContext } from "./WebCommunityTestRun";
-import { workflowActionPhrase, workflowTriggerPhrase, type WorkflowStepNames } from "./workflowStepSentences";
+import { type WorkflowStepNames } from "./workflowStepSentences";
+import { WorkflowSentence, workflowActionParts, workflowTriggerParts } from "./workflowSubjectPills";
 
 // Workflows → Run history, after Airtable's: every automation run, newest
 // first, with All / Failed / Tests. A row opens its steps. Tests are the runs
@@ -20,7 +21,6 @@ const STEP_ICONS: Record<string, LucideIcon> = {
 };
 const STATUS_WORDS = { done: "Done", failed: "Failed", running: "Running", waiting: "Waiting" } as const;
 
-function capitalize(text: string): string { return text.charAt(0).toUpperCase() + text.slice(1); }
 
 function when(at: number): string {
   const date = new Date(at);
@@ -93,13 +93,14 @@ export function WebCommunityWorkflowRunHistory(props: Props) {
     for (const milestone of props.milestones) for (const rule of [...milestone.automations, ...(milestone.pausedAutomations ?? [])]) byKey.set(rule.key, rule);
     return byKey;
   }, [props.milestones]);
+  // The same coloured sentence the automation reads as in Automations.
   const automationName = (run: CloudWorkflowRun) => {
     const rule = rules.get(run.automation_key);
-    return rule ? capitalize(workflowTriggerPhrase(rule, props.names).replace(/^When /, "")) : "An automation that was changed";
+    return rule ? <WorkflowSentence parts={workflowTriggerParts(rule, props.names, run.milestone_name)} /> : "A changed or deleted automation";
   };
   const stepName = (automationKey: string, actionType: string) => {
     const rule = rules.get(automationKey);
-    if (rule) return capitalize(workflowActionPhrase(rule, props.names));
+    if (rule) return <WorkflowSentence parts={workflowActionParts(rule, props.names)} />;
     return actionType === "prompt_agent" ? "Agent sent a message" : actionType === "request_form" ? "Sent a form"
       : actionType === "set_client_property" ? "Updated the member record" : actionType === "send_email" ? "Sent an email" : actionType === "set_pod_member" ? "Changed their pods" : actionType === "create_service_channel" ? "Created their personal pod" : "A step";
   };

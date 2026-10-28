@@ -58,7 +58,7 @@ function ActivityTime({ value }: { value: string }) {
 export function WebCommunityWorkflowMemberDossierModal(props: {
   formResponses?: ReactNode;
   courseProgress?: ReactNode;
-  /** Plan, what they can use and until when (Workflows → Clients shows the same). */
+  /** Plan, what they can use and until when (Members shows the same). */
   access?: ReactNode;
   isOpen: boolean;
   dossier: CloudCommunityMemberSuccessDossier | null;
@@ -336,7 +336,7 @@ export function WebCommunityWorkflowMemberDossierModal(props: {
                               const result = await props.onRetryAction(dossier, action.automation_key);
                               if (result.status === "action_failed") refocusAction.current = null;
                               if (generation === approvalGeneration.current && result.status === "action_failed")
-                                setActionRetryError({ key: action.automation_key, message: "It failed again. Check this property's type and options in Clients, then run it again." });
+                                setActionRetryError({ key: action.automation_key, message: "It failed again. Check this property's type and options in Members, then run it again." });
                             } catch (error) {
                               refocusAction.current = null;
                               if (generation === approvalGeneration.current) {

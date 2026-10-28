@@ -17,7 +17,7 @@ const errorText = (error: unknown, operation: "save" | "publish") => String(erro
   : String(error).includes("form_property_type_mismatch")
   ? "A question fills a property that can't hold its kind of answer. Pick another property under Fills."
   : String(error).includes("client_property_not_found")
-  ? "A question fills a client property that no longer exists. Pick another property under Fills."
+  ? "A question fills a member property that no longer exists. Pick another property under Fills."
   : operation === "publish" ? "Could not confirm publication. Your draft is saved. Retry publishing to confirm it safely."
   : "Could not save. Your edits are still here. Try again.";
 
@@ -383,7 +383,7 @@ export function CommunityFormEditor({ initial, gateway, onBack, leaveGuard, draf
         <label>Answer type<select disabled={publishing} aria-label="Answer type" value={q.type} onChange={e => { const type = e.target.value as CommunityFormQuestion["type"]; patch({ type, options: type.endsWith("choice") && q.options.length < 2 ? ["", ""] : q.options }); }}>
           {(Object.keys(TYPE_LABEL) as CommunityFormQuestion["type"][]).map(type => <option key={type} value={type}>{TYPE_LABEL[type]}</option>)}
         </select></label>
-        {clientProperties.length || q.clientPropertyKey ? <label title="The answer fills this property on the member's record">Fills on their record<select disabled={publishing} aria-label="Client property this answer fills" value={q.clientPropertyKey ?? ""}
+        {clientProperties.length || q.clientPropertyKey ? <label title="The answer fills this property on the member's record">Fills on their record<select disabled={publishing} aria-label="Member property this answer fills" value={q.clientPropertyKey ?? ""}
           onChange={e => { const { clientPropertyKey: _old, ...rest } = q; setValidation(null); setDraft(d => ({ ...d, questions: d.questions.map(item => item.key === q.key ? (e.target.value ? { ...rest, clientPropertyKey: e.target.value } : rest) : item) })); }}>
           <option value="">Nothing</option>
           {clientProperties.filter(p => clientPropertyFits(p.type, q.type) || p.key === q.clientPropertyKey).map(p => <option key={p.key} value={p.key}>{p.name}</option>)}
