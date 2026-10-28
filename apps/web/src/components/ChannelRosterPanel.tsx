@@ -279,7 +279,7 @@ function RosterSurface(props: RosterProps & {
       {rebuilding ? <p role="status">Updating members…</p> : null}
       {error ? <p role="status">Channel roster unavailable. <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></p>
         : !ready ? <p role="status">Loading channel roster…</p> : <>
-          {!props.directory ? <><h3 className="community-context-section">Agents — {pages[0].agents.length}</h3>
+          {!props.directory ? <><h3 className="community-context-section">Agents · {pages[0].agents.length}</h3>
           {pages[0].agents.length ? <div className="community-context-agent-list">
             {pages[0].agents.map(agent => <div className="community-context-member" key={agent.key}>
               <ActorAvatar seed={agent.key} label={agentName} className="community-context-member-avatar"

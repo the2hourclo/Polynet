@@ -8,10 +8,10 @@ import {
   type CommunityLike,
   type CommunityMembershipLike,
   communityUserIsBlocked,
-  countCanonicalCommunityMembersFromRows,
+  countPeopleFacingMembers,
+  listActiveTestMemberUserIds,
   listCanonicalCommunityMemberMembershipRows,
   pickMostRelevantCommunityMembership,
-  readCommunityActiveMemberCount,
   resolveCommunityMembershipEntitlementState,
   resolvePublicUserId,
 } from "./communityCore";
@@ -266,18 +266,14 @@ export async function resolveMemberCommunityPresenceSummary(
     onlineUserIds.push(publicUserId);
   }
 
-  const durableMemberCount = readCommunityActiveMemberCount(community);
-  const memberCount =
-    durableMemberCount
-    ?? countCanonicalCommunityMembersFromRows(
-      (
-        await listCanonicalCommunityMemberMembershipRows({
-          ctx,
-          communityId: community._id,
-          community,
-        })
-      ).rows,
-    );
+  // Same people-facing count as the public stats: owner and test members excluded.
+  const { rows: activeMemberships } = await listCanonicalCommunityMemberMembershipRows({
+    ctx,
+    communityId: community._id,
+    community,
+  });
+  const testUserIds = await listActiveTestMemberUserIds(ctx, community._id);
+  const memberCount = countPeopleFacingMembers(activeMemberships, testUserIds);
   return {
     memberCount,
     onlineCount: onlineUserEntries.length,
