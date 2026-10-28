@@ -6,7 +6,7 @@
 /* Drawn here rather than left to the browser: in dark themes the native dot
    showed the same grey checked or not (2026-10-28). */
 .pn-offer-choice input { appearance: none; -webkit-appearance: none; flex: none; width: 16px; height: 16px; margin: 2px 0 0; border: 1.5px solid var(--text-muted); border-radius: 50%; background: transparent; cursor: pointer; }
-.pn-offer-choice input:checked { border-color: var(--pn-button, var(--accent-brand)); background: radial-gradient(circle, var(--pn-button, var(--accent-brand)) 0 3.5px, transparent 4px); }
+.pn-offer-choice input:checked, .pn-offer-choice.is-selected input { border-color: var(--pn-button, var(--accent-brand)); background: radial-gradient(circle, var(--pn-button, var(--accent-brand)) 0 3.5px, transparent 4px); }
 .pn-offer-choice input:focus-visible { outline: 2px solid var(--pn-button, var(--accent-brand)); outline-offset: 2px; }
 .pn-offer-choice-body { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
 .pn-offer-choice-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
