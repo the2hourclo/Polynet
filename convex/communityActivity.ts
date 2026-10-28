@@ -2,6 +2,7 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import {
   listActiveTestMemberUserIds,
+  listCanonicalCommunityMemberMembershipRows,
   normalizeIdValue,
   requireCommunityChatAccess,
   resolvePublicUserId,
@@ -139,7 +140,7 @@ export const listCommunityActivityEvents = query({
       userId: args.userId,
       authSubject: args.authSubject ?? null,
     });
-    await requireCommunityChatAccess({
+    const { community } = await requireCommunityChatAccess({
       ctx,
       communityId: args.communityId,
       userId,
@@ -172,9 +173,19 @@ export const listCommunityActivityEvents = query({
           .take(safeLimit)) as CommunityActivityEventRow[];
     // Test members' joins stay out of chat (they still show in Test runs).
     const testUserIds = await listActiveTestMemberUserIds(ctx, args.communityId, { includeEnded: true });
-    const visibleRows = testUserIds.size
-      ? rows.filter((row) => !(row.type === "member_joined" && row.actorUserId && testUserIds.has(String(row.actorUserId))))
-      : rows;
+    // So do joins from people who have since left or been removed.
+    const activeUserIds = rows.some((row) => row.type === "member_joined")
+      ? new Set<string>([
+          String(community.ownerId),
+          ...(await listCanonicalCommunityMemberMembershipRows({ ctx, communityId: args.communityId, community }))
+            .rows.map((row) => String(row.userId)),
+        ])
+      : null;
+    const visibleRows = rows.filter((row) => {
+      if (row.type !== "member_joined" || !row.actorUserId) return true;
+      const actor = String(row.actorUserId);
+      return !testUserIds.has(actor) && (activeUserIds?.has(actor) ?? true);
+    });
     const userIdCache = new Map<string, string | null>();
     const mapped = await Promise.all(visibleRows.map((row) => mapCommunityActivityEventRow(ctx, row, userIdCache)));
     return mapped.reverse();
