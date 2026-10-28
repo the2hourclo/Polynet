@@ -87,3 +87,9 @@
 .app-root:not(.mobile-shell) .community-knowledge-page[data-reading] .community-knowledge-header {
   padding-right: max(64px, var(--web-topbar-right-action-safe-inset, 0px));
 }
+/* Phone app, inside a course: "All courses" and "View as member" share one
+   row, so the lesson title sits near the top instead of halfway down. */
+.app-root.mobile-shell .community-knowledge-page .resources-panel > .feed-header-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.app-root.mobile-shell .community-knowledge-page .resources-panel > .feed-header-row .resources-header-actions { width: auto; margin-left: auto; }
+/* The owner's Lesson style switch folds away with the course outline. */
+.resource-course-outline:not(.is-open) .resource-course-style-switch.is-outline { display: none; }
