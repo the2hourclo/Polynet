@@ -1130,7 +1130,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   {selectedModule.name}
                 </span>
                 <span className="resource-course-outline-count">
-                  {state.resourceRead.hasData ? lessonCountLabel(selectedModuleSection?.lessonResources.length ?? 0) : <span aria-label="Loading lesson count">—</span>}
+                  {state.resourceRead.hasData ? lessonCountLabel(selectedModuleSection?.lessonResources.length ?? 0) : <span aria-label="Lesson count not loaded">—</span>}
                   <ChevronDown aria-hidden="true" />
                 </span>
               </button>
