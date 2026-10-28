@@ -101,6 +101,12 @@ async function deleteTestMemberData(ctx: any, row: TestMemberRow, nowMs: number)
     .withIndex("by_community_user", (q: any) => q.eq("communityId", communityId).eq("userId", userId)).take(CLEANUP_BATCH));
   await deleteAll(ctx, await ctx.db.query("memberFacts")
     .withIndex("by_user_community", (q: any) => q.eq("userId", userId).eq("communityId", communityId)).take(CLEANUP_BATCH));
+  // Pod seats (their personal pod is archived above, shared pods too) stop counting them.
+  for (const seat of await ctx.db.query("communityChannelParticipants")
+    .withIndex("by_community_principal_status", (q: any) => q.eq("communityId", communityId).eq("principalKey", `user:${userId}`).eq("status", "active"))
+    .take(CLEANUP_BATCH)) {
+    await ctx.db.patch(seat._id, { status: "revoked", updatedAt: nowMs });
+  }
   await deleteCommunityReadCursorsForUserCommunity(ctx, communityId, userId);
   await deleteCommunityPresenceForUser({ ctx, communityId, userId });
   await deleteCommunityJoinRequestByPair({ ctx, communityId, userId });

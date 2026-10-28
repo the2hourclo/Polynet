@@ -128,3 +128,10 @@
    screens, of the Ask AI button (bottom right). */
 :root:has(.test-run-bar) .community-welcome-pill { bottom:76px; }
 @media(max-width:640px) { .community-welcome-pill { bottom:84px; max-width:calc(100vw - 32px); } :root:has(.test-run-bar) .community-welcome-pill { bottom:84px; } }
+
+/* Phone: the full-page welcome fills the shell (no dark band under it) and
+   starts below the floating top bar (stress test 2026-10-28). */
+.app-root.mobile-shell .mobile-global-shell-surface > .community-welcome { height:100%; min-height:0; padding-top:calc(var(--mobile-topbar-clearance) + 12px); }
+/* Next / Mark done on a welcome screen are the page's main action: community button colours, not the white settings Save. */
+.community-welcome :is(.community-welcome-next, .community-welcome-lesson) .platform-save-button { background:var(--bg-button, var(--accent-brand)); color:var(--bg-button-text, #fff); border-color:transparent; }
+.community-welcome :is(.community-welcome-next, .community-welcome-lesson) .platform-save-button:hover:not(:disabled) { background:color-mix(in srgb, var(--bg-button, var(--accent-brand)) 88%, #000); }

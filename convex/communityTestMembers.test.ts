@@ -108,7 +108,16 @@ test("an owner goes through their community as a test member, then ends it", asy
   const adminView = await t.withIdentity({ subject: STRANGER }).query(api.communityTestMembers.listTestMembers, { communityId: f.communityId });
   expect(adminView.test_members[0]).toMatchObject({ mine: false, auth_subject: null });
 
+  // A pod seat the run picked up is given back when it ends.
+  const seatId = await t.run(async (ctx) => {
+    const row = (await ctx.db.query("communityTestMembers").first())!;
+    const channelId = await ctx.db.insert("communityChannels", { communityId: f.communityId, slug: "pod", name: "Pod",
+      accessMode: "restricted", postingPolicy: "members", status: "active", position: 1, createdByUserId: row.ownerUserId, createdAt: nowMs, updatedAt: nowMs } as any);
+    return ctx.db.insert("communityChannelParticipants", { communityId: f.communityId, channelId,
+      principalKey: `user:${row.userId}`, status: "active", createdByUserId: row.ownerUserId, createdAt: nowMs, updatedAt: nowMs });
+  });
   await owner.mutation(api.communityTestMembers.endTestMember, { communityId: f.communityId, testMemberId: started.id as any });
+  expect((await t.run(async (ctx) => ctx.db.get(seatId)))?.status).toBe("revoked");
   await expect(owner.query(api.communityTestMembers.getMyTestRun, asTest)).rejects.toThrow("test_member_ended");
   const left = await t.run(async (ctx) => ({
     memberships: (await ctx.db.query("communityMemberships").withIndex("by_community", (q) => q.eq("communityId", f.communityId)).collect()).length,
