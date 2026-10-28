@@ -1,0 +1,20 @@
+head: 77eedb10 (claude/local-combined); Convex functions ready 18:01:24 local; web 200
+guard on: /api/auth/* + six session mutations only; ?layout= / ?feel= overrides only, no saved setting touched; Join never clicked
+
+  offers ["Membership","Membership + Plugin Access"]
+  paid selected: [{"label":"Membership","selected":false,"checked":false,"dotCls":null,"dotAfter":null},{"label":"Membership + Plugin Access","selected":true,"checked":false,"dotCls":null,"dotAfter":null}] | non-GET on selection: []
+saved join-after2-paid-1440.png
+  feel-publication-1440-events.png: {"feel":"publication","bars":[{"cls":"app-topbar","bottom":48,"borderBottom":"0px none rgb(252, 248, 240)","shadow":"none"},{"cls":"topbar-right topbar-right-island","bottom":45,"borderBottom":"0px none rgb(252, 248, 240)","shadow":"none"},{"cls":"icon-button direct-messages-topbar-button","bottom":49,"borderBottom":"0px none rgb(91, 100, 93)","shadow":"none"}]}
+saved feel-publication-1440-events.png
+  feel-publication-1440-knowledge.png: {"feel":"publication","bars":[{"cls":"app-topbar","bottom":48,"borderBottom":"0px none rgb(252, 248, 240)","shadow":"none"},{"cls":"topbar-right topbar-right-island","bottom":45,"borderBottom":"0px none rgb(252, 248, 240)","shadow":"none"},{"cls":"icon-button direct-messages-topbar-button","bottom":49,"borderBottom":"0px none rgb(91, 100, 93)","shadow":"none"}]}
+saved feel-publication-1440-knowledge.png
+  feel-publication-1440-settings.png: {"feel":"publication","bars":[{"cls":"app-topbar","bottom":48,"borderBottom":"0px none rgb(252, 248, 240)","shadow":"none"},{"cls":"topbar-right topbar-right-island","bottom":45,"borderBottom":"0px none rgb(252, 248, 240)","shadow":"none"},{"cls":"icon-button direct-messages-topbar-button","bottom":49,"borderBottom":"0px none rgb(91, 100, 93)","shadow":"none"}]}
+saved feel-publication-1440-settings.png
+SKIPPED feel-framed-1440-settings.png: ?feel= accepts only current|quiet|reader|publication (apps/web/src/controllers/useDraftLook.ts:18-23, :48-60); an invalid value is ignored. "framed" is an Edges (light) theme value (shared/communityTheme.ts:110), which has no URL override, so it can only be seen by changing Settings.
+ALLOWED {"auth:bootstrapActor":4,"businessAnalytics:identifyBusinessVisitor":4,"profiles:resolveOnboardingProfileDetail":40,"communityCommerce:redeemPendingPurchaseClaims":9,"communityPublic:heartbeatCommunityPresence":4,"communityAttention:markCommunitySurfaceSeen":2}
+BLOCKED {"communityPublic:recordPublicFunnelVisitBySlug":2}
+OTHER []
+LEAKS []
+
+CHECK join-after2-paid-1440.png: NOT as expected. The paid card has .is-selected (brand border shows), but its radio dot is EMPTY. Pixel centre of both radios = card background (sum 81). The DOM reports input[type=radio].checked === false for both offers after the click. 77eedb1's fill rule is `.pn-offer-choice input:checked {...}` (WebCommunityOfferChooser.css:9), so it never fires: the selection lives in the .is-selected class, not on the input. Fix idea: key the dot on `.pn-offer-choice.is-selected input`, or make the input controlled `checked={selected}`.
+CHECK feel-publication-1440-*: data-channels-feel="publication" on all three. A line runs under the top bar at y~65 across the content panel. Settings shows the "Saved" pill clear of the top-right icons.
