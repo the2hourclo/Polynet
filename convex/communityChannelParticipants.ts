@@ -172,6 +172,7 @@ export const listMemberAccess = query({
         profile: await resolveUserProfileDisplayProjection(ctx, membership.userId) };
     }));
     return { ...result, page, access_mode: channel.accessMode,
+      pod_visibility: channel.accessMode === "restricted" ? (channel as { podVisibility?: string }).podVisibility ?? "private" : null,
       community_agent_enabled: (await getCommunityChannelCapabilities({ ctx, channel, actor: agent })).canRead };
   },
 });

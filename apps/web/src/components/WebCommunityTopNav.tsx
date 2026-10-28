@@ -6,7 +6,7 @@ import { UserAvatar } from "../../../../shared/UserAvatar";
 import { communityJoinUrl, useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
 import { WebCommunityNotificationsMenu } from "./WebCommunityNotificationsMenu";
-import { WebCommunityPodsButton } from "./WebCommunityPods";
+import { useOpenPods, WebCommunityPodsButton } from "./WebCommunityPods";
 
 // The community's navigation as a tab bar across the top, for layouts with
 // navigation.position "top". Same tabs, channels, indicators and owner tools
@@ -54,7 +54,8 @@ export function WebCommunityTopNav({
   const inPod = Boolean(pods?.selectedSlug && pods.pods.some((pod) => pod.slug === pods.selectedSlug));
   // "tab" placement: Pods is its own tab after Community, lit on the Pods page
   // and inside a pod, and the header has no pods button.
-  const podsTab = Boolean(pods && pods.place === "tab" && (pods.pods.length > 0 || pods.createPod));
+  const openPods = useOpenPods();
+  const podsTab = Boolean(pods && pods.place === "tab" && (pods.pods.length > 0 || pods.createPod || openPods.length > 0));
   const inPodsTab = Boolean(podsTab && (pods?.home || inPod));
   const showChips = activeTab === "chat" && topics.length > 1 && !inPod && !pods?.home;
   const mentionChannels = channels.filter((channel) => communityShell.communityChannelIndicators[channel.slug]?.mentions);

@@ -40,6 +40,7 @@ function mapCommunityChannel(channel: CommunityChannelLike) {
     name: channel.name,
     position: channel.position,
     access_mode: channel.accessMode,
+    pod_visibility: channel.accessMode === "restricted" ? (channel as { podVisibility?: string }).podVisibility ?? "private" : null,
   };
 }
 

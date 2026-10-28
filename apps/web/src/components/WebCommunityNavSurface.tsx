@@ -1,7 +1,8 @@
 import { CommunityNav } from "../../../../shared/CommunityNav";
 import { webDestinationHasCommunityNavSelection } from "../../../../shared/webAppRouteState";
 import type { WebCommunityShellProps } from "./webShellChromeShared";
-import { podsAwaitingPeople } from "./WebCommunityPods";
+import { podsAwaitingPeople, useOpenPods } from "./WebCommunityPods";
+import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 type WebCommunityNavSurfaceProps = {
   communityShell: WebCommunityShellProps;
@@ -18,6 +19,9 @@ export function WebCommunityNavSurface({
   hiddenPodIds,
 }: WebCommunityNavSurfaceProps) {
   const isMobileHome = presentation === "mobile-home";
+  // Open pods the member can join open the Pods page, as in Classroom.
+  const { pods } = useWebCommunityFrame();
+  const openPods = useOpenPods();
   const hasDestinationSelection =
     !isMobileHome &&
     webDestinationHasCommunityNavSelection(communityShell.destination);
@@ -33,6 +37,8 @@ export function WebCommunityNavSurface({
       tabIndicators={communityShell.communityTabIndicators}
       channels={hiddenPodIds?.length ? communityShell.communityChannels.filter((channel) => !hiddenPodIds.includes(channel.id) || channel.slug === communityShell.selectedCommunityChannelSlug) : communityShell.communityChannels}
       personalPodIds={personalPodIds}
+      openPodCount={openPods.length}
+      onBrowseOpenPods={pods ? () => pods.setHome(true) : undefined}
       isLoadingChannels={communityShell.isLoadingCommunityChannels}
       selectedChannelSlug={isMobileHome ? null : communityShell.selectedCommunityChannelSlug}
       channelIndicators={communityShell.communityChannelIndicators}

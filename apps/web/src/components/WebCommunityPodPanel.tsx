@@ -1,5 +1,6 @@
 import { toastInPage } from "./confirmInPage";
-import { useContext, useEffect, useRef, useState } from "react";
+import { renameCloudCommunityChannel } from "../../../../shared/cloudCommunityChannelsGateway";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, FileText, Image as ImageIcon, Lock, Pin, Play, Plus, UserPlus, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
@@ -20,6 +21,7 @@ import {
   isOnline,
   personName,
   shelfMeta,
+  setOpenPodMembership,
   usePodPeople,
   usePodShelf,
   type ShelfItem,
@@ -53,7 +55,15 @@ export function WebCommunityPodPanel(props: PodPanelProps) {
   return (
     <div className="community-pod-panel" aria-label={`${pod.name} pod`}>
       {pods.mode === "classroom" ? <PodSwitcher name={pod.name} /> : null}
-      <PodPeopleCard podId={props.podId} podName={pod.name} canManage={props.canManage} />
+      <PodPeopleCard podId={props.podId} podName={pod.name} canManage={props.canManage}
+        onLeave={pod.pod_visibility === "open" && !props.canManage ? () => {
+          void setOpenPodMembership(frame.session, frame.community?.id ?? "", pod.id, false).then((ok) => {
+            if (!ok) return;
+            toastInPage(`You left ${pod.name}`);
+            if (pods.place === "tab") pods.setHome(true);
+            else pods.onLeave();
+          });
+        } : undefined} />
       <PodPinnedCard pinnedRoot={props.pinnedRoot} onOpenPost={props.onOpenPost} onUnpin={props.onUnpin} />
       <PodSavedCard podId={props.podId} roots={props.roots} pinnedRoot={props.pinnedRoot} onOpenPost={props.onOpenPost} />
       <PodCallsCard podId={props.podId} podName={pod.name} canManage={props.canManage} />
@@ -103,7 +113,7 @@ function PodSwitcher({ name }: { name: string }) {
   );
 }
 
-function PodPeopleCard({ podId, podName, canManage }: { podId: string; podName: string; canManage: boolean }) {
+function PodPeopleCard({ podId, podName, canManage, onLeave }: { podId: string; podName: string; canManage: boolean; onLeave?: () => void }) {
   const [addingPeople, setAddingPeople] = useState(false);
   useEffect(() => {
     if (canManage && podsAwaitingPeople.delete(podId)) setAddingPeople(true);
@@ -121,6 +131,8 @@ function PodPeopleCard({ podId, podName, canManage }: { podId: string; podName: 
           <button type="button" className="community-aside-link" onClick={() => setAddingPeople(true)}>
             <UserPlus size={13} aria-hidden="true" /> Add people
           </button>
+        ) : onLeave ? (
+          <button type="button" className="community-aside-link" onClick={onLeave}>Leave pod</button>
         ) : people ? <span className="community-pod-panel-count">{people.people_count + (people.agent ? 1 : 0)}</span> : null}
       </div>
       {people ? (
@@ -172,9 +184,15 @@ function PodPeopleCard({ podId, podName, canManage }: { podId: string; podName: 
 
 // Who's in the pod, using the channel's own access settings (the same toggles
 // as the channel ⋯ menu). Changes save as they're made.
+/** Pod settings: the same screen as the chat header's ⋯ › Pod settings, in
+ *  Classroom and Channels alike (Rashid, 2026-10-28): the name, who can see
+ *  it (private, open, or a channel) and who's in it. */
 function PodPeopleDialog({ podId, podName, onClose }: { podId: string; podName: string; onClose: () => void }) {
   const frame = useWebCommunityFrame();
   const communityId = frame.community?.id ?? null;
+  const [name, setName] = useState(podName);
+  const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -183,25 +201,48 @@ function PodPeopleDialog({ podId, podName, onClose }: { podId: string; podName: 
     return () => window.removeEventListener("keydown", escape);
   }, [onClose]);
   if (!frame.session || !communityId) return null;
+  const trimmed = name.trim().replace(/\s+/g, " ");
+  const saveName = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!trimmed || trimmed === podName || saving || !frame.session) return;
+    setSaving(true);
+    setNameError(null);
+    try {
+      await renameCloudCommunityChannel({ session: frame.session, communityId, channelId: podId, name: trimmed });
+      toastInPage("Pod renamed");
+    } catch {
+      setNameError("Couldn't rename the pod. Try another name.");
+    } finally {
+      setSaving(false);
+    }
+  };
   return createPortal(
     <div className="community-channel-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="community-channel-modal community-pod-people-dialog" role="dialog" aria-modal="true" aria-labelledby="community-pod-people-title">
+      <form className="community-channel-modal community-pod-people-dialog" role="dialog" aria-modal="true" aria-labelledby="community-pod-people-title" onSubmit={(event) => void saveName(event)}>
         <div className="community-channel-modal-header">
           <div>
-            <h2 id="community-pod-people-title">People in {podName}</h2>
-            <p>Tick who can see this pod. Owners and admins are always in.</p>
+            <h2 id="community-pod-people-title">Pod settings</h2>
+            <p>Name the pod and choose who's in it. The pinned post and calls are in the pod's panel.</p>
           </div>
-          <button type="button" className="community-channel-modal-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="community-channel-modal-close" onClick={onClose} aria-label="Close pod settings">
             <X size={18} />
           </button>
         </div>
+        <label className="community-channel-modal-field">
+          <span>Pod name</span>
+          <input value={name} maxLength={48} disabled={saving} onChange={(event) => { setName(event.target.value); setNameError(null); }} />
+        </label>
+        {nameError ? <div className="community-channel-modal-error" role="alert">{nameError}</div> : null}
         <CommunityChannelSessionContext.Provider value={{ session: frame.session, communityId }}>
           <ChannelAccessSettings channelId={podId} />
         </CommunityChannelSessionContext.Provider>
         <div className="community-channel-modal-actions">
-          <button type="button" className="is-primary" onClick={onClose}>Done</button>
+          <button type="button" onClick={onClose}>Close</button>
+          <button type="submit" className="is-primary" disabled={saving || !trimmed || trimmed === podName}>
+            {saving ? "Saving…" : "Save name"}
+          </button>
         </div>
-      </div>
+      </form>
     </div>,
     document.body,
   );

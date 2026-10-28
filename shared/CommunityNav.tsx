@@ -14,6 +14,7 @@ import {
   Users,
   UserRound,
   UsersRound,
+  DoorOpen,
   X,
 } from "lucide-react";
 import type { CommunityTab } from "./appShellNavigation";
@@ -37,6 +38,8 @@ type CommunityNavChannel = {
   is_general: boolean;
   position: number;
   access_mode?: "all_members" | "restricted";
+  // Pods only: "open" means every member can find and join it.
+  pod_visibility?: "private" | "open" | null;
 };
 
 type CommunityNavProps = {
@@ -60,6 +63,9 @@ type CommunityNavProps = {
   /** Personal pods: one member's own pod, made for them by a workflow. Listed
    *  after the group pods, and folded when there are many. */
   personalPodIds?: string[];
+  /** Open pods the member isn't in yet; the Pods group links to them. */
+  openPodCount?: number;
+  onBrowseOpenPods?: () => void;
   isLoadingChannels?: boolean;
   selectedChannelSlug?: string | null;
   channelIndicators?: Record<string, { chat: boolean; mentions: boolean }>;
@@ -179,6 +185,8 @@ export const CommunityNav = memo(function CommunityNav({
   lockedTabs = {},
   channels = [],
   personalPodIds,
+  openPodCount = 0,
+  onBrowseOpenPods,
   isLoadingChannels = false,
   selectedChannelSlug = "general",
   channelIndicators = {},
@@ -535,6 +543,7 @@ export const CommunityNav = memo(function CommunityNav({
                     : <UsersRound size={17} strokeWidth={1.8} />}
                 </span>
                 <span className="nav-item-label">{channel.name}</span>
+                {channel.pod_visibility === "open" ? <span className="community-nav-open-tag">Open</span> : null}
                 {lockedTabs.chat ? <NavLockGlyph /> : !isSelected && (indicator?.chat || indicator?.mentions) ? (
                   <span className={`nav-item-dot${indicator.mentions ? " is-mention" : ""}`} aria-hidden="true" />
                 ) : null}
@@ -609,7 +618,13 @@ export const CommunityNav = memo(function CommunityNav({
             </span>
           </button>
         ) : null}
-        {canCreateChannels && !firstPodId ? groupLabel("Pods") : null}
+        {(canCreateChannels || (openPodCount > 0 && onBrowseOpenPods)) && !firstPodId ? groupLabel("Pods") : null}
+        {!showChannelLoadingSkeleton && openPodCount > 0 && onBrowseOpenPods ? (
+          <button type="button" className="nav-item community-channel-item community-nav-open-pods" onClick={onBrowseOpenPods}>
+            <span className="nav-icon community-channel-icon" aria-hidden="true"><DoorOpen size={17} strokeWidth={1.8} /></span>
+            <span className="nav-item-label">{openPodCount === 1 ? "1 open pod to join" : `${openPodCount} open pods to join`}</span>
+          </button>
+        ) : null}
         {reorderChannelsError ? (
           <div className="community-channel-reorder-error" role="status">
             {reorderChannelsError}

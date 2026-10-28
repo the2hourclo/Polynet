@@ -1247,6 +1247,9 @@ export default defineSchema({
     /** Who gets this channel by offer (communityOffers keys). Members on one of these
      *  offers, or on a higher one that includes it, are added and removed automatically. */
     offerAudience: v.optional(v.array(v.string())),
+    /** Pods (restricted channels) only: "open" lists the pod for every member
+     *  to join themselves; unset or "private" keeps it hidden from non-members. */
+    podVisibility: v.optional(v.union(v.literal("private"), v.literal("open"))),
     createdByUserId: v.optional(v.id("users")),
     createdAt: v.number(),
     updatedAt: v.number(),
