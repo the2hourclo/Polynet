@@ -524,6 +524,13 @@
   transition: transform 120ms ease, filter 120ms ease;
 }
 
+/* Owner pages (Workflows, Members, Settings, Funnels) are tables and forms
+   right to the bottom edge, where the button covered rows (2026-10-28 review
+   U1). The agent stays one click away from every member-facing page. */
+body:has(:is(.workflow-page, .community-settings-panel, .pn-funnels)) .member-agent-launcher {
+  display: none;
+}
+
 .member-agent-launcher:hover {
   filter: brightness(1.06);
   transform: translateY(-1px);

@@ -902,17 +902,7 @@
 .pn-au-panel .workflow-step-extra-add:hover:not(:disabled) { background: var(--hover-overlay); }
 .pn-runs { box-sizing: border-box; width: 100%; }
 
-/* Stage colours (owner-picked, after Airtable's section colours): a dot on the
-   stage heading and a thin edge on its automations. One muted hue per stage. */
-.pn-stage-color-grey { --stage-color: #8a8f98; }
-.pn-stage-color-green { --stage-color: #3f9d6b; }
-.pn-stage-color-teal { --stage-color: #2f9a9a; }
-.pn-stage-color-blue { --stage-color: #4a7fd6; }
-.pn-stage-color-purple { --stage-color: #8b67d1; }
-.pn-stage-color-pink { --stage-color: #cf5f99; }
-.pn-stage-color-red { --stage-color: #d35858; }
-.pn-stage-color-orange { --stage-color: #d9833a; }
-.pn-stage-color-yellow { --stage-color: #c9a227; }
+/* Stage colours live in workflowStageColors.css (Members uses them too). */
 .pn-au-stagedot { flex: none; display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--stage-color); }
 .pn-au-head p .pn-au-stagedot { margin-right: 0.375rem; vertical-align: 0.0625rem; }
 .pn-au-section[class*="pn-stage-color-"] .pn-au-item { box-shadow: inset 2px 0 0 var(--stage-color); }
