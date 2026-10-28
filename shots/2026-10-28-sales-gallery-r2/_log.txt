@@ -1,0 +1,49 @@
+== BEFORE on 26bac8c5 Regenerate community theme map after cd5bafa (rerun: skip video poster) ==
+  about-before-1440.png: picture slide after 1 next: ["From The 2-Hour Lean Workflow: meetings, rework and open loops turned into one Next Up, Active, Done board"]
+  about-before-1440.png: image {"natural":[1600,500],"shown":[628,353],"fit":"cover"}
+saved about-before-1440.png
+  about-before-390.png: picture slide after 1 next: ["From The 2-Hour Lean Workflow: meetings, rework and open loops turned into one Next Up, Active, Done board"]
+  about-before-390.png: image {"natural":[1600,500],"shown":[324,182],"fit":"cover"}
+saved about-before-390.png
+  #general current: "no"
+  side panel top text: ["Classroom Demo | Creator | Rashid"]
+saved general-sidepanel-before-1440.png
+[before] ALLOWED {"auth:bootstrapActor":6,"businessAnalytics:identifyBusinessVisitor":6,"profiles:resolveOnboardingProfileDetail":50,"communityCommerce:redeemPendingPurchaseClaims":13,"communityPublic:heartbeatCommunityPresence":6,"communityAttention:markCommunitySurfaceSeen":3} | BLOCKED {"communityAttention:acknowledgeCommunityChatRead":2} | OTHER 7 | LEAKS []
+
+== AFTER on 71de7630 Merge commit '45a2aa2' into claude/local-combined ==
+  about-after-1440.png: picture slide after 1 next: ["From The 2-Hour Lean Workflow: meetings, rework and open loops turned into one Next Up, Active, Done board"]
+  about-after-1440.png: image {"natural":[1600,500],"shown":[628,269],"fit":"contain"}
+saved about-after-1440.png
+  about-after-390.png: picture slide after 1 next: ["From The 2-Hour Lean Workflow: meetings, rework and open loops turned into one Next Up, Active, Done board"]
+  about-after-390.png: image {"natural":[1600,500],"shown":[324,139],"fit":"contain"}
+saved about-after-390.png
+  #general current: "no"
+  side panel top text: ["Creator | Rashid | MEMORY · 24+"]
+saved general-sidepanel-after-1440.png
+[after] ALLOWED {"auth:bootstrapActor":6,"businessAnalytics:identifyBusinessVisitor":6,"profiles:resolveOnboardingProfileDetail":47,"communityCommerce:redeemPendingPurchaseClaims":14,"communityPublic:heartbeatCommunityPresence":5,"communityAttention:markCommunitySurfaceSeen":2} | BLOCKED {"communityAttention:acknowledgeCommunityChatRead":1} | OTHER 7 | LEAKS []
+
+== AFTER (retaken) on 5ef586e4 Merge commit '73e7963' into claude/local-combined; replaces the after shots first taken on 71de7630 ==
+  about-after-1440.png: picture slide after 1 next: ["From The 2-Hour Lean Workflow: meetings, rework and open loops turned into one Next Up, Active, Done board"]
+  about-after-1440.png: image {"natural":[1600,500],"shown":[628,269],"fit":"contain"}
+saved about-after-1440.png
+  about-after-390.png: picture slide after 1 next: ["From The 2-Hour Lean Workflow: meetings, rework and open loops turned into one Next Up, Active, Done board"]
+  about-after-390.png: image {"natural":[1600,500],"shown":[324,139],"fit":"contain"}
+saved about-after-390.png
+  #general current: "no"
+  side panel top text: ["Creator | Rashid | MEMORY · 24+"]
+saved general-sidepanel-after-1440.png
+[after] ALLOWED {"auth:bootstrapActor":6,"businessAnalytics:identifyBusinessVisitor":6,"profiles:resolveOnboardingProfileDetail":54,"communityCommerce:redeemPendingPurchaseClaims":15,"communityPublic:heartbeatCommunityPresence":6,"communityAttention:markCommunitySurfaceSeen":3} | BLOCKED {"communityAttention:acknowledgeCommunityChatRead":1} | OTHER 7 | LEAKS []
+
+== EXTRAS on 5ef586e4 Merge commit '73e7963' into claude/local-combined ==
+  sidecard shows: "6\nmembers"
+saved classroom-1440-sidecard.png
+  classroom: scrolled gallery to y=350
+  classroom-390 track first texts (top px): ["19:Knowledge","41:All tracks","98:Build your AI Employee","144:0 of 30 done"]
+saved classroom-390-track-r3.png
+  classroom-390 lesson: {"allCourses":120,"viewAsMember":120,"lessonStyleVisible":false}
+saved classroom-390-lesson-r3.png
+  channels: scrolled gallery to y=350
+  channels-390 track first texts (top px): ["19:Knowledge","41:All tracks","98:Build your AI Employee","144:0 of 30 done"]
+saved channels-390-track-r3.png
+[extras] ALLOWED {"auth:bootstrapActor":7,"businessAnalytics:identifyBusinessVisitor":7,"profiles:resolveOnboardingProfileDetail":64,"communityCommerce:redeemPendingPurchaseClaims":18,"communityPublic:heartbeatCommunityPresence":7,"communityAttention:markCommunitySurfaceSeen":6} | BLOCKED {"youtubeChapters:loadYouTubeChapters":1} | OTHER 8 | LEAKS []
+
