@@ -54,7 +54,7 @@ const VIEWPORT_MARGIN = 12;
 
 // Members get Light/Dark and Classroom/Channels; the draft look and left-rail
 // choices are the owner's tools for comparing looks (Rashid, 2026-10-26).
-export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look: { look: DraftLook; picked: boolean }; canTryLooks: boolean }) {
+export function WebCommunityDisplayMenu(props: { placement: "top" | "bar" | "mobile"; look: { look: DraftLook; picked: boolean }; canTryLooks: boolean }) {
   const { community, layoutChoice, displayMode } = useWebCommunityFrame();
   const draftLook = props.look.look;
   const channelsFeel = draftLook.feel;
@@ -282,7 +282,9 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look:
         type="button"
         className={props.placement === "top"
           ? `community-top-nav-icon${open ? " is-open" : ""}`
-          : `icon-button community-display-bar-button${open ? " active" : ""}`}
+          : props.placement === "mobile"
+            ? `mobile-topbar-icon mobile-topbar-display${open ? " is-open" : ""}`
+            : `icon-button community-display-bar-button${open ? " active" : ""}`}
         aria-label="Display"
         title="Display"
         aria-haspopup="menu"

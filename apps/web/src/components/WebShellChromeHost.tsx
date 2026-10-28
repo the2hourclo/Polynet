@@ -247,6 +247,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       <WebMobileTopBar
         {...props.mobileTopBarProps}
         hasCommunityRail={showMobileGlobalShell}
+        displayMenu={!welcome ? <WebCommunityDisplayMenu placement="mobile" look={draftLookState} canTryLooks={false} /> : null}
       />
     )
   ) : (
