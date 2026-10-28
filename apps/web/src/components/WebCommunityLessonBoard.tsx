@@ -696,7 +696,8 @@ function WebCommunityLessonStep(props: {
   const topRef = useRef<HTMLDivElement | null>(null);
   // A new lesson starts at its top, without jumping when it's already in view.
   useEffect(() => {
-    const top = topRef.current;
+    // The whole Knowledge page, so the back link above the outline shows too.
+    const top = topRef.current?.closest<HTMLElement>(".community-knowledge-page") ?? topRef.current;
     if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: "start" });
   }, [resource?.id]);
   const firstOpen = props.outline.find((module) => !module.locked)?.name ?? null;
