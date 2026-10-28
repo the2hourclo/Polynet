@@ -44,6 +44,8 @@
   flex-shrink: 0; padding: 6px 12px; font: inherit; font-weight: 600; color: #1f2937; background: #fff; border: 0; border-radius: 999px; cursor: pointer;
 }
 .test-run-bar.is-ended { background: #7f1d1d; }
+/* On a phone the composer's Send sits at the bottom, so the bar goes up top. */
+.app-root.mobile-shell .test-run-bar { top: calc(var(--mobile-topbar-clearance, 56px) + 6px); bottom: auto; }
 
 /* The start picker and the sequence review. */
 .test-run-field { display: flex; align-items: center; gap: 8px; }
