@@ -507,8 +507,14 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   // so "started" means the same thing on the client record everywhere.
   const lessonStatus = lessonActivity?.progress.loaded ? lessonActivity.progress.statusByRef[lessonRef] ?? "not_started" : null;
   const startLesson = lessonActivity?.signedIn ? lessonActivity.progress.setStatus : null;
+  // Once per lesson per page: a failed or refused write puts the status back
+  // to not_started, and retrying from here looped thousands of times a minute
+  // (2026-10-28). Mark as done still writes on click.
+  const autoStarted = useRef(new Set<string>());
   useEffect(() => {
-    if (startLesson && lessonStatus === "not_started") startLesson(resource.id, lessonRef, "in_progress");
+    if (!startLesson || lessonStatus !== "not_started" || autoStarted.current.has(lessonRef)) return;
+    autoStarted.current.add(lessonRef);
+    startLesson(resource.id, lessonRef, "in_progress");
   }, [startLesson, lessonStatus, resource.id, lessonRef]);
   // Every lesson ends with Mark as done, unless its body has its own button for it.
   // It writes the same progress the course outline reads, so the tick shows there at once.
