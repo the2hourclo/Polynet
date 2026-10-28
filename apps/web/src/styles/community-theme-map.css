@@ -2393,6 +2393,9 @@
 [data-community-theme] .community-dm-attachment-state-overlay {
   font-size: var(--pn-type-meta);
 }
+[data-community-theme] .community-dm-media-grid .community-dm-composer-media-item .chat-media-remove {
+  font-size: var(--pn-type-body);
+}
 [data-community-theme] .community-dm-attachment-state {
   font-size: var(--pn-type-micro);
 }
