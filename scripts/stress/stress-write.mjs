@@ -39,7 +39,7 @@ for (const from of [process.cwd() + "/package.json", "C:/Users/rkham/polynet-loc
 if (!playwright) throw new Error("playwright not found; run from C:/Users/rkham/polynet-local");
 const browser = await playwright.chromium.launch({ channel: "chrome" }).catch(() => playwright.chromium.launch());
 
-const DENY = /delete|archive|remove|publish|Theme|Appearance|Settings|saveCommunityResource|updateCommunity|setCommunity|Offer|grantAccess|revoke|ban|kick/i;
+const DENY = /delete|archive|remove|publish|Theme|Appearance|Settings|saveCommunityResource|updateCommunity|setCommunity(?!Typing)|Offer|grantAccess|revoke|ban|kick/i;
 const ALLOW = /communityTestMembers:(startTestMember|endTestMember)/;
 // The test member may delete its OWN stress message, once, right after posting it.
 let allowOneDelete = false;
@@ -189,10 +189,11 @@ async function ownerTestRun(vpName, vp) {
 
     // 2. Knowledge: open the first lesson, Mark as done, then undo.
     await tab.goto(tab.url().replace(/\/c\/[^/]+\/[^?]*/, `/c/${SLUG}/resources`)); await settle(tab);
-    const href = await tab.$eval("a[href*='/resources/']", (a) => a.getAttribute("href")).catch(() => null);
+    // Courses are cards (button.resource-course-card-main), not links; a card opens its first lesson.
+    const card = tab.locator(".resource-course-card:not(.is-locked) .resource-course-card-main");
+    const href = (await card.count()) ? "card" : null;
     if (href) {
-      await tab.locator(`a[href='${href}']`).first().click().catch(() => {}); await settle(tab);
-      await tab.locator("[data-lesson-id], [class*=lesson-row], [class*=lesson-item], [class*=outline] li a").first().click({ timeout: 5000 }).catch(() => {}); await settle(tab);
+      await card.first().click().catch(() => {}); await settle(tab, 2500);
       const done = tab.locator("button.lesson-done-button");
       if (await done.count()) {
         await done.first().scrollIntoViewIfNeeded().catch(() => {});
