@@ -86,11 +86,11 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   "global_settings",
 ]);
 
-// ?pods=aside|header previews the other pods placement (screenshots).
-const PODS_PLACE_OVERRIDE: "aside" | "header" | null = (() => {
+// ?pods=aside|header|tab previews the other pods placements (screenshots).
+const PODS_PLACE_OVERRIDE: "aside" | "header" | "tab" | null = (() => {
   try {
     const value = new URLSearchParams(window.location.search).get("pods");
-    return value === "aside" || value === "header" ? value : null;
+    return value === "aside" || value === "header" || value === "tab" ? value : null;
   } catch {
     return null;
   }
@@ -150,6 +150,13 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const activeCommunityId = props.communityShell.activeCommunity?.id ?? null;
   const [postSearchState, setPostSearchState] = useState<{ communityId: string | null; query: string }>({ communityId: null, query: "" });
   const [podPanelSlot, setPodPanelSlot] = useState<HTMLElement | null>(null);
+  // The Pods page ("tab" placement) closes on leaving the chat or the community.
+  const [podsHome, setPodsHome] = useState(false);
+  const communityTabNow = props.communityShell.communityTab;
+  useEffect(() => {
+    if (communityTabNow !== "chat") setPodsHome(false);
+  }, [communityTabNow]);
+  useEffect(() => setPodsHome(false), [activeCommunityId]);
   // Personal pods: one member's own pod, set up for them by a workflow.
   const podSpaces = usePodSpaces(activeCommunityId, props.memberSession ?? null);
   const personalPodIds = useMemo(
@@ -325,11 +332,13 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     .sort((a, b) => podRank(a.id) - podRank(b.id) || a.position - b.position);
   // Both layouts show pods: Classroom as a card and a room, Channels as their
   // own group in the channel list. Opening one shows the same pod panel.
-  const selectedPodSlug = props.communityShell.communityTab === "chat" ? props.communityShell.selectedCommunityChannelSlug || null : null;
+  const podsPlace = PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside";
+  const showPodsHome = Boolean(isTopCommunityNav && podsPlace === "tab" && podsHome && props.communityShell.communityTab === "chat");
+  const selectedPodSlug = props.communityShell.communityTab === "chat" && !showPodsHome ? props.communityShell.selectedCommunityChannelSlug || null : null;
   const podOpenInAside = Boolean(isTopCommunityNav && selectedPodSlug && podChannels.some((channel) => channel.slug === selectedPodSlug));
   communityFrame.pods = props.communityShell.activeCommunity ? {
     mode: isTopCommunityNav ? "classroom" : "channels",
-    place: PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside",
+    place: podsPlace,
     pods: podChannels,
     unread: Object.fromEntries(podChannels.map((channel) => [channel.slug, Boolean(props.communityShell.communityChannelIndicators[channel.slug]?.chat)])),
     selectedSlug: selectedPodSlug,
@@ -348,7 +357,13 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       error: props.communityShell.communityChannelCreateError,
       clearError: props.communityShell.clearCommunityChannelCreateError,
     } : null,
+    home: showPodsHome,
+    setHome: (open) => {
+      setPodsHome(open);
+      if (open) props.communityShell.onSelectCommunityTab("chat");
+    },
     onOpen: (channel) => {
+      setPodsHome(false);
       props.communityShell.onSelectCommunityTab("chat");
       props.communityShell.onSelectCommunityChannel(channel);
     },
@@ -361,7 +376,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   const showPodsCard = Boolean(isTopCommunityNav && communityFrame.pods && communityFrame.pods.place === "aside" && (podChannels.length > 0 || communityFrame.pods.createPod));
   const communityAsideBlocks =
     isTopCommunityNav && props.communityShell.communityTab === "chat" ? communityLayout.pages.chat.aside : [];
-  const hasCommunityAside = podOpenInAside || communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat");
+  // The Pods page is a full-width grid, with no right column.
+  const hasCommunityAside = !showPodsHome && (podOpenInAside || communityAsideBlocks.length > 0 || (showPodsCard && props.communityShell.communityTab === "chat"));
   const mobileGlobalShellContent = welcome ?? (isMobileCommunityHome ? (
     <WebCommunityNavSurface
       communityShell={props.communityShell}
