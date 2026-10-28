@@ -1,5 +1,4 @@
 export const COMMUNITY_OWNER_FUNDED_MODEL_ID = "gpt-6-luna";
-export const COMMUNITY_OWNER_FUNDED_MODEL_LABEL = "GPT 6 Luna";
 export const COMMUNITY_OWNER_FUNDED_MODEL_SUPPORTS_IMAGE_INPUT = true;
 
 export const COMMUNITY_OWNER_INFERENCE_ACTOR_TURNS_PER_MINUTE = 6;
@@ -51,6 +50,7 @@ export const COMMUNITY_INFERENCE_SURFACES = [
   "community_autonomous_cognition",
   "community_workflow_action",
   "community_setup_generation",
+  "community_founder_brief",
 ] as const;
 
 export type CommunityInferenceSurface = (typeof COMMUNITY_INFERENCE_SURFACES)[number];

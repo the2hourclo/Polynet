@@ -336,10 +336,11 @@ describe("offers in a community", () => {
     })).toMatchObject({ ok: false, code: "lesson_locked" });
 
     // Thomas's agent can't read it either.
-    const tool: any = await f.t.query(internalApi.communityResources.readCommunityResourcesForToolInternal, {
-      userId: f.thomasId, communityId: f.communityId, refs: [`resource:${ids.first}`, `resource:${ids.second}`],
-    });
-    expect(tool.resources.map((item: any) => item.ok)).toEqual([true, false]);
+    const reads: any[] = await Promise.all([ids.first, ids.second].map((id) =>
+      f.t.query(internalApi.communityResources.readCommunityResourceDirectoryInternal, {
+        userId: f.thomasId, communityId: f.communityId, ref: `resource:${id}`,
+      })));
+    expect(reads.map((read) => read.ok)).toEqual([true, false]);
     // The owner reads everything they sell.
     const owned: any[] = await f.asOwner.query(api.communityResources.listCommunityResources, { communityId: f.communityId });
     expect(owned.find((row) => row.id === ids.second)).toMatchObject({ body_md: "Inside Close the call." });

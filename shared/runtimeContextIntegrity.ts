@@ -102,6 +102,21 @@ const REQUIRED_PROMPT_SECTION_IDS_V2 = [
   "community_skill_overlay",
 ];
 
+// Version 3 (Oct 28): skills are gone; the resources architect section takes
+// the place of the four skill sections. Version 2 receipts still verify above.
+const REQUIRED_PROMPT_SECTION_IDS_V3 = [
+  "platform_doctrine",
+  "explanation_contract",
+  "harness_operating_policy",
+  "community_lens",
+  "community_lens_authority",
+  "community_system_prompt",
+  "community_resource_lane",
+  "runtime_turn_context",
+  "temporal_context",
+  "resources_architect",
+];
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -254,9 +269,7 @@ export async function buildRuntimeContextIntegrityCheck(params: {
   const manifestSummary = asRecord(manifest?.summary);
   const run = asRecord(params.run ?? null);
   const invocationSurface = normalizeText(contextResolved?.invocation_surface);
-  const providerContextAttestationRequired =
-    invocationSurface === "member_agent_dock" ||
-    invocationSurface === "community_funnel_builder";
+  const providerContextAttestationRequired = invocationSurface === "member_agent_dock";
   const requiredEventTypes = providerContextAttestationRequired
     ? [...BASE_REQUIRED_EVENT_TYPES, RUNTIME_PROVIDER_CONTEXT_ATTESTATION_EVENT_TYPE]
     : BASE_REQUIRED_EVENT_TYPES;
@@ -326,9 +339,11 @@ export async function buildRuntimeContextIntegrityCheck(params: {
   const usesCanonicalPromptProjection =
     promptReceiptVersion >= 2 && manifestVersion >= 2;
   const sectionIds = promptSectionIds(promptReceipt);
-  const requiredSectionIds = usesCanonicalPromptProjection
-    ? REQUIRED_PROMPT_SECTION_IDS_V2
-    : REQUIRED_PROMPT_SECTION_IDS_V1;
+  const requiredSectionIds = !usesCanonicalPromptProjection
+    ? REQUIRED_PROMPT_SECTION_IDS_V1
+    : promptReceiptVersion >= 3
+      ? REQUIRED_PROMPT_SECTION_IDS_V3
+      : REQUIRED_PROMPT_SECTION_IDS_V2;
   const missingSections = requiredSectionIds.filter((id) => !sectionIds.has(id));
   const promptSectionsPresent = Boolean(promptReceipt) && missingSections.length === 0;
   for (const sectionId of missingSections) failures.push(`missing_prompt_section:${sectionId}`);

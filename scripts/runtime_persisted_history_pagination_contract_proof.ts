@@ -25,8 +25,8 @@ assert.match(
 );
 assert.match(
   resolution,
-  /invocationSurface === "member_agent_dock" \|\|[\s\S]*invocationSurface === "community_funnel_builder"[\s\S]*persistedConversationHistory = \{[\s\S]*expectedUserMessageKey/,
-  "Member and Funnel must share the same persisted-history seed",
+  /usesPersistedConversation = invocationSurface === "member_agent_dock"[\s\S]*persistedConversationHistory = \{[\s\S]*expectedUserMessageKey/,
+  "member agent turns seed from persisted history",
 );
 assert.equal(
   (handlers.match(/persistedConversationHistory,/g) ?? []).length,
@@ -81,8 +81,8 @@ const beyondSixty = selectMemberAgentHistoryForBudget({
   rows: beyondSixtyRows,
   expectedUserMessageKey: "user-current",
   systemPrompt: "You are a governed community agent.",
-  transport: "openrouter_chat_completions",
-  modelRef: "openai/gpt-oss-120b:free",
+  transport: "openai_responses",
+  modelRef: "openai/gpt-6-luna",
   toolSchemas: [],
   reservedOutputTokens: 4_096,
 });
@@ -143,13 +143,13 @@ const budgetBoundary = selectMemberAgentHistoryForBudget({
       messageKey: "old-user",
       seq: 1,
       role: "user",
-      contentJson: { text: "q".repeat(180_000) },
+      contentJson: { text: "q".repeat(1_440_000) },
     },
     {
       messageKey: "old-assistant",
       seq: 2,
       role: "assistant",
-      contentJson: { text: "a".repeat(180_000) },
+      contentJson: { text: "a".repeat(1_440_000) },
     },
     {
       messageKey: "current-user",
@@ -160,8 +160,8 @@ const budgetBoundary = selectMemberAgentHistoryForBudget({
   ],
   expectedUserMessageKey: "current-user",
   systemPrompt: "system",
-  transport: "openrouter_chat_completions",
-  modelRef: "openai/gpt-oss-120b:free",
+  transport: "openai_responses",
+  modelRef: "openai/gpt-6-luna",
   toolSchemas: [],
   reservedOutputTokens: 4_096,
 });
@@ -203,8 +203,8 @@ const splitBoundary = selectMemberAgentHistoryForBudget({
   ],
   expectedUserMessageKey: "current-user",
   systemPrompt: "system",
-  transport: "openrouter_chat_completions",
-  modelRef: "openai/gpt-oss-120b:free",
+  transport: "openai_responses",
+  modelRef: "openai/gpt-6-luna",
   toolSchemas: [],
   reservedOutputTokens: 4_096,
 });
@@ -228,7 +228,7 @@ const unknownCapacity = selectMemberAgentHistoryForBudget({
   ],
   expectedUserMessageKey: "current-user",
   systemPrompt: "system",
-  transport: "openrouter_chat_completions",
+  transport: "openai_responses",
   modelRef: "unknown/model",
   toolSchemas: [],
   reservedOutputTokens: 4_096,

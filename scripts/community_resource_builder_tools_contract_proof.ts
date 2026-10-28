@@ -16,6 +16,12 @@ const app = read("apps/web/src/App.tsx");
 const turnRunner = read("shared/useWebTurnRunnerController.ts");
 const memberAgentDock = read("apps/web/src/components/WebMemberAgentDock.tsx");
 const communityContentController = read("apps/web/src/controllers/useWebCommunityContentController.ts");
+// One reload refreshes both courses and lessons (modules and resources).
+assert.match(
+  read("shared/useCommunityResourceController.ts"),
+  /collections: ResourceCollection\[\] = \["modules", "resources"\][\s\S]*const loadCommunityResources = useCallback\(\(communityId: string, session: SessionT\) =>\s*refreshCommunityResources\(communityId, session\)/,
+  "a resource mutation reload refreshes both modules and resources",
+);
 const runtimeTimeline = read("apps/web/src/components/RuntimeLiveTimeline.tsx");
 const changesetApprovalCards = read("apps/web/src/components/RuntimeResourceChangesetApprovalCards.tsx");
 const mutationEvents = read("shared/communityResourceMutationEvents.ts");
@@ -34,7 +40,6 @@ for (const exportName of [
   "readCommunityResourceBuilderResource",
   "getCommunityResourceBuilderChangesetStatus",
   "listPendingCommunityResourceBuilderChangesets",
-  "approveCommunityResourceBuilderChangeset",
   "rejectCommunityResourceBuilderChangeset",
   "applyCommunityResourceBuilderChangeset",
 ] as const) {
@@ -66,10 +71,10 @@ assert.match(
   /stageCommunityResourceBuilderChangesetCore[\s\S]*await requireCommunityManager[\s\S]*stageCommunityResourceBuilderChangesetInternal = internalMutation/,
   "internal changeset staging must remain owner/admin/manager gated",
 );
-assert.match(
+assert.doesNotMatch(
   resources,
-  /approveCommunityResourceBuilderChangeset[\s\S]*await requireCommunityManager/,
-  "changeset approval must be owner/admin/manager gated",
+  /export const approveCommunityResourceBuilderChangeset\b/,
+  "a separate approve step stays deleted: Apply accepts staged changesets directly",
 );
 assert.match(
   resources,
@@ -371,11 +376,6 @@ assert.match(
 );
 assert.match(
   resources,
-  /approveCommunityResourceBuilderChangeset[\s\S]*changeset\.status !== "staged"[\s\S]*status: "approved"[\s\S]*approvedByUserId: userId/,
-  "approval should be an explicit server-side state transition",
-);
-assert.match(
-  resources,
   /rejectCommunityResourceBuilderChangeset[\s\S]*status: "rejected"[\s\S]*rejectedByUserId: userId/,
   "rejection should be an explicit server-side state transition",
 );
@@ -476,7 +476,7 @@ assert.doesNotMatch(
 );
 assert.match(
   communityContentController,
-  /COMMUNITY_RESOURCES_MUTATED_EVENT[\s\S]*readCommunityResourcesMutatedEventDetail[\s\S]*loadCommunityResourceModules[\s\S]*loadCommunityResources/,
+  /COMMUNITY_RESOURCES_MUTATED_EVENT[\s\S]*readCommunityResourcesMutatedEventDetail[\s\S]*loadCommunityResources\(detail\.communityId/,
   "workspace should refresh modules and resources after a verified resource mutation",
 );
 

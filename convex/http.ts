@@ -4,13 +4,11 @@ import { httpRouter } from "convex/server";
 import { registerRuntimeAuthRoutes } from "./httpAuth";
 import { registerRuntimeAuthBridgeRoutes } from "./httpAuthBridge";
 import { registerRuntimeBillingRoutes } from "./httpBilling";
-import { registerRuntimeContextRoutes } from "./httpContext";
-import { registerCommunitySourceIntegrationRoutes } from "./httpCommunitySourceIntegrations";
 import { registerRuntimeMcpRoutes } from "./httpMcp";
 import { registerCommunitySiteRoutes } from "./httpCommunitySites";
 import { registerEmailRoutes } from "./httpEmail";
 import { readAuthenticatedIdentityProfile } from "./authIdentity";
-import { parseBoolish, parseOptionalString } from "./httpInferenceConfig";
+import { parseOptionalString } from "./httpInferenceConfig";
 import { registerRuntimeTurnRoutes } from "./httpRuntimeRoutes";
 import { registerRuntimeVoiceRoutes } from "./httpVoice";
 import { registerMemberAgentAttachmentRoutes } from "./httpMemberAgentAttachments";
@@ -20,16 +18,6 @@ import { registerCommunityAccessRoutes } from "./httpCommunityAccess";
 import { sseResponseWithHeaders, type SseSource } from "./httpStreaming";
 import type { RequireAuthenticatedActor } from "./runtimeTurnResolution";
 import { normalizeEmailForVerification } from "./workosEmailVerification";
-
-function readEnv(name: string): string {
-  try {
-    const value = (globalThis as any)?.process?.env?.[name];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  } catch {
-    // ignore
-  }
-  return "";
-}
 
 function buildCorsHeaders(req: Request): Headers {
   const origin = String(req.headers.get("origin") ?? "*").trim() || "*";
@@ -137,15 +125,6 @@ async function requireVerifiedIdentity(
       avatarUrl: identity.avatarUrl,
     },
   };
-}
-
-async function requireAuthenticatedSubject(
-  ctx: any,
-  req: Request,
-): Promise<{ ok: true; authSubject: string } | { ok: false; response: Response }> {
-  const auth = await requireAuthenticatedActor(ctx, req);
-  if (!auth.ok) return auth;
-  return { ok: true, authSubject: auth.actor.authSubject };
 }
 
 const requireAuthenticatedActor: RequireAuthenticatedActor = async (
@@ -257,11 +236,6 @@ registerRuntimeAuthBridgeRoutes({
   parseOptionalString,
 });
 
-registerCommunitySourceIntegrationRoutes({
-  http,
-  httpAction,
-});
-
 registerRuntimeBillingRoutes({
   http,
   httpAction,
@@ -299,14 +273,6 @@ registerCommunityAppRoutes({ http, httpAction });
 registerCommunityAccessRoutes({ http, httpAction });
 
 registerCommunitySiteRoutes({ http, httpAction, requireAuthenticatedActor });
-
-registerRuntimeContextRoutes({
-  http,
-  httpAction,
-  jsonResponse,
-  optionsResponse,
-  requireAuthenticatedSubject,
-});
 
 registerRuntimeMcpRoutes({
   http,

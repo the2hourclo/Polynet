@@ -36,7 +36,8 @@ const [
   read("convex/communityResourceEvidence.ts"),
   read("convex/communityResourceEvidenceCore.ts"),
   read("convex/communityEvidenceAudit.ts"),
-  read("convex/runtimeAgentLoop.ts"),
+  // The agent tool path: the loop plus the canonical executors it delegates to.
+  Promise.all(["convex/runtimeAgentLoop.ts", "convex/polynetCanonicalExecutor.ts", "convex/platformOperationExecutor.ts"].map(read)).then((parts) => parts.join("\n")),
   read("convex/communityCapabilityContext.ts"),
   read("convex/communityAgentServeWorker.ts"),
   read("shared/polynetMcp.ts"),
@@ -54,8 +55,7 @@ assert.match(resources, /ref: buildCommunityResourceEvidenceRef\(resourceId\)/);
 assert.match(resources, /lineage: deriveCommunityResourceLineageEnvelope/);
 assert.match(resources, /recordedByUserId: row\.createdByUserId/);
 assert.match(resources, /const typedResourceId = parseCommunityResourceEvidenceRef\(ref\)/);
-assert.match(resources, /export const mapCommunityResourcesForToolInternal[\s\S]*scope: "member"/);
-assert.match(resources, /export const readCommunityResourcesForToolInternal[\s\S]*builder: false/);
+assert.doesNotMatch(resources, /export const (map|read)CommunityResourcesForToolInternal/);
 assert.match(resources, /buildCommunityResourceDirectoryReadPayload[\s\S]*source: null/);
 assert.doesNotMatch(resources, /export const searchCommunityResourceDirectoryInternal/);
 assert.match(
@@ -64,7 +64,7 @@ assert.match(
 );
 const memberReadBlock =
   resources.match(
-    /export const readCommunityResourceDirectoryInternal = internalQuery\([\s\S]*?\n\}\);\n\nexport const readCommunityResourcesForToolInternal/,
+    /export const readCommunityResourceDirectoryInternal = internalQuery\([\s\S]*?\n\}\);\n/,
   )?.[0] ?? "";
 assert.ok(memberReadBlock, "member resource read implementation should be present");
 assert.ok(
@@ -77,13 +77,12 @@ assert.match(evidence, /const RECENT_RESOURCE_SCAN_LIMIT = 80/);
 assert.match(evidence, /\.take\(RECENT_RESOURCE_SCAN_LIMIT\)/);
 assert.doesNotMatch(evidence, /\.take\(5000\)/);
 assert.match(evidence, /q\.eq\("communityId", args\.communityId\)/);
-assert.match(evidence, /readCommunityResourceEvidenceItemsInternal/);
-assert.match(evidence, /resolveCommunityResourceEvidenceSource/);
+assert.doesNotMatch(evidence, /export const readCommunityResourceEvidenceItemsInternal/);
 assert.match(evidence, /recordCommunityEvidenceRetrievalInternal/);
 assert.match(evidence, /const matches = recent\.matches/);
 assert.match(evidence, /strategy: "bounded_lexical"/);
 assert.doesNotMatch(evidence, /vectorSearch|embedGemini|archiveAvailable|archiveError/);
-assert.match(evidence, /recordedByUserId: args\.resource\.createdByUserId/);
+assert.match(evidence, /const recordedByUserId = args\.resource\.createdByUserId/);
 assert.doesNotMatch(evidence, /recordTrustedCommunitySourceTraceCore/);
 assert.doesNotMatch(evidence, /communitySourceTraces/);
 
@@ -92,24 +91,23 @@ assert.match(audit, /resultRefs: v\.array\(v\.string\(\)\)/);
 assert.doesNotMatch(audit, /query: v\./);
 assert.doesNotMatch(audit, /args\.query/);
 
-assert.match(runtimeLoop, /communityResourceEvidence\.searchCommunityResourceEvidenceInternal/);
+assert.match(runtimeLoop, /communityResourceEvidence\s*\.searchCommunityResourceEvidenceInternal/);
 assert.match(
   runtimeLoop,
   /operationId:[\s\S]*"community\.semantic\.read"/,
   "native semantic reads should route through the canonical operation executor",
 );
-assert.match(runtimeLoop, /communityResourceEvidence\.readCommunityResourcesEvidenceForToolInternal/);
-assert.match(runtimeLoop, /surface: params\.evidenceSurface \?\? "member_agent_dock"/);
+assert.match(runtimeLoop, /evidenceSurface \?\? "member_agent_dock"/);
 assert.match(
   semanticContext,
   /readCommunitySemanticRepositoryInternal[\s\S]*communityResourceEvidence[\s\S]*readCommunityResourceEvidenceForToolInternal/,
   "semantic exact reads should reuse the canonical audited resource action",
 );
 assert.match(concierge, /evidenceSurface: "community_concierge"/);
-assert.match(mcp, /stable resource ref/);
-assert.match(httpMcp, /communityResourceEvidence\.searchCommunityResourceEvidenceInternal/);
-assert.match(httpMcp, /communityResourceEvidence\.readCommunityResourceEvidenceForToolInternal/);
-assert.match(httpMcp, /surface: "external_mcp"/);
+// The MCP reaches resource evidence through the same canonical executor as the
+// agent (asserted on the agent tool path above), as an external_mcp principal.
+assert.match(httpMcp, /executePolynetCanonicalTool\(/);
+assert.match(httpMcp, /principalKind: "external_mcp"/);
 
 assert.match(lineageContract, /resource:<communityResourceId>/);
 assert.match(lineageContract, /createdByUserId[\s\S]*accountable recorder/);

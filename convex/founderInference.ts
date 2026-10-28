@@ -2,7 +2,6 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
-  COMMUNITY_OWNER_FUNDED_MODEL_ID,
   COMMUNITY_OWNER_INFERENCE_ACTOR_TURNS_PER_MINUTE,
   COMMUNITY_OWNER_INFERENCE_COMMUNITY_TURNS_PER_MINUTE,
   PLATFORM_HOME_MEMBER_AGENT_LIMIT_REACHED,
@@ -85,6 +84,7 @@ const communityInferenceSurfaceValidator = v.union(
   v.literal("community_autonomous_cognition"),
   v.literal("community_workflow_action"),
   v.literal("community_setup_generation"),
+  v.literal("community_founder_brief"),
 );
 
 function normalizedId(value: unknown): string {

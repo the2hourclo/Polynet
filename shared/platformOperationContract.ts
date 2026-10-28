@@ -752,13 +752,3 @@ export function findPlatformOperationByNativeToolName(
     ) ?? null
   );
 }
-
-export function findPlatformOperationByMcpToolName(
-  toolName: string,
-): PlatformOperationContract | null {
-  return (
-    PLATFORM_OPERATION_CONTRACTS.find(
-      (contract) => contract.projections.mcp.name === toolName,
-    ) ?? null
-  );
-}

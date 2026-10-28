@@ -20,8 +20,6 @@ import { WebCommunityAiAgentSection } from "./WebCommunityAiAgentSection";
 import { WebCommunityAgentProfileCard } from "./WebCommunityAgentProfileCard";
 import { WebCommunityAppearanceSettings } from "./WebCommunityAppearanceSettings";
 import { WebCommunityOffersSettings } from "./WebCommunityOffersSettings";
-import { WebCommunityExternalFunnelLink } from "./WebCommunityExternalFunnelLink";
-import type { WebCommunityFunnelSection } from "./WebCommunityFunnelSection";
 import { WebCommunitySettingProposals } from "./WebCommunitySettingProposals";
 import { buildCommunitySettingsNav, WebCommunitySettingsNav } from "./WebCommunitySettingsNav";
 import "./WebCommunitySettings.css";
@@ -63,13 +61,6 @@ type WebCommunitySettingsSectionProps = {
   canManageCommunitySettings: boolean;
   canManageMembersActiveCommunity: boolean;
   aiAgentProps: ComponentProps<typeof WebCommunityAiAgentSection>;
-  // Settings > Sales page: the funnel editor's props, as the Funnel tab had them.
-  funnel: ComponentProps<typeof WebCommunityFunnelSection>;
-  externalWebsite: {
-    isLoading: boolean;
-    error: string | null;
-    controls: ComponentProps<typeof WebCommunityExternalFunnelLink>;
-  };
   requireSignIn: () => void;
   accountCommerceStatus: AccountCommerceStatus | null;
   communityPlatformFeeBps: number | null;
@@ -881,7 +872,6 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
     canManageCommunitySettings,
     canManageMembersActiveCommunity,
     aiAgentProps,
-    externalWebsite,
     requireSignIn,
     accountCommerceStatus,
     communityPlatformFeeBps,

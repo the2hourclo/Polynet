@@ -10,12 +10,9 @@ import type {
 } from "../../../../shared/appShellNavigation";
 import { confirmDiscardUnsavedCommunitySettingsWeb } from "../../../../shared/communityUnsavedGuard";
 import {
-  applyShellVariantToPublicPath,
-  buildCommunityFunnelPreviewPath,
   buildCommunityTabPath,
   type AppShellVariant,
 } from "../../../../shared/webAppRouteState";
-import type { CommunityFunnelSlot } from "../../../../shared/communityTypes";
 import type { MobileOverlay } from "../components/webShellChromeShared";
 import type { WebCommunityRecord } from "../webAppContracts";
 
@@ -86,26 +83,6 @@ export function useWebCommunityNavigationActions(params: {
     params.communityAgentConfigDirtyRef,
     params.communitySettingsDirtyRef,
   ]);
-
-  const handlePreviewCommunityFunnel = useCallback(
-    (slot: CommunityFunnelSlot) => {
-      const slug = String(params.activeCommunity?.slug ?? "").trim();
-      if (!slug) return;
-      const path = applyShellVariantToPublicPath(
-        buildCommunityFunnelPreviewPath(slug, slot) ?? "",
-        params.shellVariant,
-      );
-      if (!path) return;
-      params.pushNavSnapshot();
-      params.navigateTo(path);
-    },
-    [
-      params.activeCommunity?.slug,
-      params.navigateTo,
-      params.pushNavSnapshot,
-      params.shellVariant,
-    ],
-  );
 
   const handleSelectActiveCommunity = useCallback(
     (community: WebCommunityRecord): boolean => {
@@ -204,7 +181,6 @@ export function useWebCommunityNavigationActions(params: {
   );
 
   return {
-    handlePreviewCommunityFunnel,
     handleSelectActiveCommunity,
     handleSelectCommunitySettingsPane,
     handleSelectCommunityTab,

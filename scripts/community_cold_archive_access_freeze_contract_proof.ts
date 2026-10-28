@@ -51,9 +51,7 @@ assert.match(
 for (const projection of [
   "resolvePublicFunnelBySlug",
   "resolvePublicFunnelStatsBySlug",
-  "resolvePublicCommunityAccessBySlug",
   "recordPublicFunnelVisitBySlug",
-  "getMyJoinRequestBySlug",
 ]) {
   const start = publicCommunity.indexOf(`export const ${projection}`);
   assert.notEqual(start, -1, `${projection} must exist`);
@@ -95,10 +93,10 @@ assert.match(
   /error\.message === "community_archived"[\s\S]*"semantic_not_found"[\s\S]*"Semantic path not found or not accessible\."/,
   "external semantic access must not disclose archived-community lifecycle state",
 );
-assert.match(
+assert.doesNotMatch(
   platformHome,
-  /if \(!communityIsActive\(community\)\) \{[\s\S]*status: "disabled", communityId: null/,
-  "platform-home autojoin must stop before membership writes for archived communities",
+  /db\.insert\("communityMemberships"/,
+  "platform-home autojoin stays removed (Sept 2026), so it cannot write memberships for archived communities",
 );
 assert.match(
   cognitionLifecycle,
@@ -131,7 +129,7 @@ for (const path of [
   "convex/communityResources.ts",
   "convex/communityEvents.ts",
   "convex/communityAgent.ts",
-  "convex/runtimeSkillResolution.ts",
+  "convex/runtimeCommunityResourceLane.ts",
 ]) {
   const source = read(path);
   assert.doesNotMatch(

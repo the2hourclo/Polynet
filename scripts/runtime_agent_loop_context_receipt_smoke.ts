@@ -10,7 +10,6 @@ import {
   type RuntimeProviderContextAttestationV1,
 } from "../shared/runtimeProviderContextAttestation.ts";
 
-process.env.OPENROUTER_API_KEY = "";
 process.env.OPENAI_API_KEY = "";
 
 const { executeChatToolsAgentLoop } = await import("../convex/runtimeAgentLoop.ts");
@@ -99,9 +98,9 @@ const loopParams = {
   userId: "user_context_receipt_smoke",
   authSubject: "user:context-receipt-smoke",
   threadId: "thread_context_receipt_smoke",
-  requestedModelId: "gpt-oss-120b-free",
-  inferenceSource: "free",
-  modelRef: "openai/gpt-oss-120b:free",
+  requestedModelId: "gpt-6-luna",
+  inferenceSource: "platform",
+  modelRef: "openai/gpt-6-luna",
   messages: [
     {
       role: "user",
@@ -242,7 +241,7 @@ const promptPayload = promptReceipt.payload as {
   base_prompt_chars?: unknown;
   system_prompt_chars?: unknown;
 };
-assert.equal(promptPayload.version, 2);
+assert.equal(promptPayload.version, 3);
 assert.ok(Number(promptPayload.base_prompt_chars) > 0, "prompt receipt should report rendered prompt chars");
 assert.ok(Number(promptPayload.system_prompt_chars) > 0, "prompt receipt should report full system prompt chars");
 const sectionIds = new Set((promptPayload.sections ?? []).map((section) => String(section.id ?? "")));
@@ -256,10 +255,7 @@ for (const sectionId of [
   "community_resource_lane",
   "runtime_turn_context",
   "temporal_context",
-  "platform_skill_overlay",
-  "personal_skill_overlay",
-  "ambiguous_skill_mentions",
-  "community_skill_overlay",
+  "resources_architect",
 ]) {
   assert.ok(sectionIds.has(sectionId), `prompt receipt should include ${sectionId}`);
 }
@@ -271,7 +267,7 @@ assert.equal(manifest?.scope?.threadId, "thread_context_receipt_smoke");
 assert.equal(manifest?.scope?.communityId, "community_context_receipt_smoke");
 assert.equal(manifest?.scope?.communityContextVersion, 7);
 assert.equal(manifest?.scope?.harnessName, "chat_tools");
-assert.equal(manifest?.scope?.inferenceSource, "free");
+assert.equal(manifest?.scope?.inferenceSource, "platform");
 assert.equal(manifest?.request?.latestUserText, "Smoke test the runtime context receipt path.");
 assert.equal(manifest?.request?.conversationMessageCount, 1);
 assert.ok(manifest?.summary?.promptCount > 0, "manifest should enumerate prompt inputs");

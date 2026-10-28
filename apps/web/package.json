@@ -1,6 +1,7 @@
 {
   "name": "arx-web",
   "private": true,
+  "license": "AGPL-3.0-only",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
@@ -49,7 +50,7 @@
   },
   "overrides": {
     "brace-expansion": "5.0.12",
-    "dompurify": "^3.4.16",
+    "dompurify": "^3.4.17",
     "nanoid": "3.3.18",
     "katex": "$katex",
     "source-map-js": "1.2.2"

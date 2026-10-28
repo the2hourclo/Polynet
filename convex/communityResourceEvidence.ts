@@ -18,7 +18,6 @@ import {
   communityEvidenceSurfaceValidator,
   resolveTrustedCommunityEvidenceUserId,
 } from "./communityEvidenceAudit";
-import { resolveCommunityResourceEvidenceSource } from "./communityResourceEvidenceCore";
 import {
   buildCommunityResourceDirectoryFields,
 } from "../shared/communityResourceDirectory";
@@ -359,48 +358,3 @@ export const readCommunityResourceEvidenceForToolInternal = internalAction({
   },
 });
 
-export const readCommunityResourcesEvidenceForToolInternal = internalAction({
-  args: {
-    userId: v.optional(v.id("users")),
-    authSubject: v.optional(v.string()),
-    communityId: v.id("communities"),
-    refs: v.array(v.string()),
-    maxChars: v.optional(v.number()),
-    perResourceChars: v.optional(v.number()),
-    surface: communityEvidenceSurfaceValidator,
-  },
-  handler: async (ctx, args): Promise<Record<string, unknown>> => {
-    const userId = await resolveTrustedCommunityEvidenceUserId({
-      ctx,
-      userId: args.userId,
-      authSubject: args.authSubject,
-    });
-    const payload = (await ctx.runQuery(
-      (internal as any).communityResources.readCommunityResourcesForToolInternal,
-      {
-        userId,
-        communityId: args.communityId,
-        refs: args.refs,
-        maxChars: args.maxChars,
-        perResourceChars: args.perResourceChars,
-      },
-    )) as Record<string, any>;
-    const resultRefs = Array.isArray(payload?.resources)
-      ? payload.resources
-          .filter((row: any) => row?.ok === true)
-          .map((row: any) => String(row?.resource?.ref ?? "").trim())
-          .filter((ref: string) => Boolean(parseCommunityResourceEvidenceRef(ref)))
-      : [];
-    const retrievalId: any = await ctx.runMutation(
-      (internal as any).communityEvidenceAudit.recordCommunityEvidenceRetrievalInternal,
-      {
-        communityId: args.communityId,
-        userId,
-        surface: args.surface,
-        capability: "community_resources_read",
-        resultRefs,
-      },
-    );
-    return { ...payload, retrieval_id: normalizeIdValue(retrievalId) };
-  },
-});

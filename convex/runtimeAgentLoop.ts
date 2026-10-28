@@ -6,12 +6,7 @@ import {
   renderCommunityMemoryRecall,
 } from "../shared/communityMemoryRecall";
 import type { FounderProviderRequestUsage } from "../shared/founderInference";
-import {
-  runChatgptNativeToolCompletion,
-  type ChatgptCodexRequestMetadata,
-  type ChatgptFunctionTool,
-  type ChatgptToolAwareMessage,
-} from "./httpChatgpt";
+import { normalizeCommunityResourceRuntimeLaneState } from "../shared/communityResourceLane";
 import {
   appendRuntimeToolCallFinished,
   appendRuntimeToolCallStarted,
@@ -39,7 +34,6 @@ import {
   type WebResearchCreditAction,
 } from "../shared/providerPricing";
 import { founderPaidToolActionForTool } from "../shared/founderPaidTools";
-import { runOpenRouterNativeToolCompletion } from "./openRouterNativeTransport";
 import { type RetrievalToolName } from "../shared/retrievalTools";
 import {
   extractTextFromNativeToolMessageContent,
@@ -59,12 +53,10 @@ import {
   type RuntimeKernelToolExecutionResult as NativeToolExecutionResult,
 } from "../shared/runtimeKernelTypes";
 import {
-  buildOpenAiFunctionTools,
   buildResponsesApiFunctionTools,
   normalizeToolArguments as normalizeRegistryToolArguments,
 } from "../shared/toolRegistry";
 import type { CommunityEvidenceSurface } from "../shared/communityEvidenceContract";
-import type { CommunityCustomFunnelSlot } from "../shared/communityTypes";
 import {
   buildPlatformHarnessRuntimePromptBundle,
   type RuntimeCommunityPromptFields,
@@ -87,7 +79,6 @@ import {
 } from "../shared/memberAgentIdentityContext.ts";
 import type { MemberAgentSurfaceContextV1 } from "../shared/memberAgentSurfaceContext.ts";
 import { loadRuntimeTurnContextPacketForRun } from "./runtimeTurnContext";
-import { createRuntimeReasoningSummaryEmitter } from "./runtimeReasoningSummaryEvents";
 import { parseProviderModelRef } from "./httpInferenceConfig";
 import { runOpenAiNativeToolCompletion } from "./openAiNativeToolCompletion";
 import { logStructuredError, summarizeErrorForLog } from "./errorLogging";
@@ -98,14 +89,12 @@ import {
 } from "./runtimeHarnessTelemetry";
 import { executePlatformOperation } from "./platformOperationExecutor.ts";
 import { executePolynetCanonicalTool } from "./polynetCanonicalExecutor.ts";
-import type { IntegrationReadDependencies } from "./communityIntegrationReadCore";
 import {
   POLYNET_CANONICAL_TOOL_NAMES,
   type PolynetCanonicalToolName,
 } from "../shared/polynetCanonicalToolContract.ts";
 import {
   formatJsonToolOutput,
-  normalizeRuntimeSkillResolution,
   summarizeToolArgsForLog,
 } from "./runtimeHarnessShaping";
 import { composeResolvedRuntimeHarness } from "./runtimeHarnessComposition.ts";
@@ -191,11 +180,8 @@ class RuntimeProviderLifecycleHookError extends Error {
   }
 }
 
-type OpenAiCompatibleFunctionTool = ReturnType<
-  typeof buildOpenAiFunctionTools
->[number];
-type ChatgptCompatibleFunctionTool = ChatgptFunctionTool;
-type RuntimeInferenceSource = "free" | "platform" | "chatgpt" | "user_key";
+// Every turn is founder-funded through OpenAI.
+type RuntimeInferenceSource = "platform";
 const CHAT_TOOLS_RUNTIME_KERNEL_BUDGET: RuntimeKernelBudget =
   DEFAULT_RUNTIME_KERNEL_BUDGET;
 const RUNTIME_PARALLEL_READ_TOOLS_FLAG =
@@ -240,7 +226,6 @@ function readRuntimeBooleanFlag(name: string, defaultValue: boolean): boolean {
 }
 
 export async function executeRetrievalHarnessTool(params: {
-  integrationRead?: IntegrationReadDependencies;
   ctx: any;
   userId: string;
   authSubject?: string | null;
@@ -250,7 +235,6 @@ export async function executeRetrievalHarnessTool(params: {
   toolName: RetrievalToolName;
   args: Record<string, unknown>;
   evidenceSurface?: CommunityEvidenceSurface;
-  communityFunnelSlot?: CommunityCustomFunnelSlot | null;
   communityBoundConversation?: boolean;
   signal?: AbortSignal;
 }): Promise<NativeToolExecutionResult> {
@@ -338,7 +322,7 @@ export async function executeRetrievalHarnessTool(params: {
     const communityOwned =
       params.evidenceSurface === "community_concierge";
     const communityMounted =
-      communityOwned || params.evidenceSurface === "community_funnel_builder" || params.communityBoundConversation === true;
+      communityOwned || params.communityBoundConversation === true;
     if (params.communityBoundConversation && !params.communityId) throw new Error("community_context_required");
     if (params.communityBoundConversation) {
       const path = String(normalizedArgs.path ?? "").trim();
@@ -350,7 +334,6 @@ export async function executeRetrievalHarnessTool(params: {
       }
     }
     const execution = await executePolynetCanonicalTool({
-      integrationRead: params.integrationRead,
       toolCallId: params.toolCallId,
       communityBoundConversation: params.communityBoundConversation,
       runId: params.runId,
@@ -362,7 +345,6 @@ export async function executeRetrievalHarnessTool(params: {
         ? { mountedCommunityId: params.communityId }
         : {}),
       evidenceSurface: params.evidenceSurface ?? "member_agent_dock",
-      funnelDraftSlot: params.communityFunnelSlot ?? null,
       toolName: params.toolName as PolynetCanonicalToolName,
       input: normalizedArgs,
     });
@@ -795,72 +777,34 @@ export async function executeRetrievalHarnessTool(params: {
 }
 
 async function runProviderNativeToolCompletion(params: {
-  ctx: any;
-  userId: string;
-  requestedModelId: string;
-  inferenceSource: RuntimeInferenceSource;
   modelRef: string;
   messages: NativeToolAwareMessage[];
   maxTokens: number;
-  openRouterTools: OpenAiCompatibleFunctionTool[];
-  responsesApiTools: ChatgptCompatibleFunctionTool[];
-  apiKeyOverride?: string | null;
+  tools: Parameters<typeof runOpenAiNativeToolCompletion>[0]["tools"];
   parallelToolCalls?: boolean;
   toolChoice?: NativeToolChoice;
   onTextDelta?: (delta: string) => void;
-  onReasoningSummaryTextDelta?: (params: {
-    delta: string;
-    summaryIndex: number;
-  }) => Promise<void> | void;
-  onReasoningSummaryPartAdded?: (params: {
-    summaryIndex: number;
-  }) => Promise<void> | void;
-  requestMetadata?: ChatgptCodexRequestMetadata | null;
   signal?: AbortSignal;
 }): Promise<
   NativeToolAwareCompletionSuccess<string> | RuntimeAgentLoopFailureInput
 > {
-  if (params.inferenceSource === "chatgpt") {
-    return runChatgptNativeToolCompletion({
-      ctx: params.ctx,
-      userId: params.userId,
-      modelId: params.requestedModelId,
-      messages: params.messages as ChatgptToolAwareMessage[],
-      maxTokens: params.maxTokens,
-      tools: params.responsesApiTools,
-      parallelToolCalls: params.parallelToolCalls,
-      toolChoice: params.toolChoice,
-      onReasoningSummaryTextDelta: params.onReasoningSummaryTextDelta,
-      onReasoningSummaryPartAdded: params.onReasoningSummaryPartAdded,
-      requestMetadata: params.requestMetadata,
-      signal: params.signal,
-    });
-  }
   const parsedProviderRef = parseProviderModelRef(params.modelRef);
-  if (
-    (params.inferenceSource === "platform" || params.inferenceSource === "user_key") &&
-    parsedProviderRef?.provider === "openai"
-  ) {
-    return runOpenAiNativeToolCompletion({
-      modelId: parsedProviderRef.providerModel,
-      messages: params.messages,
-      maxTokens: params.maxTokens,
-      tools: params.responsesApiTools,
-      apiKeyOverride: params.inferenceSource === "user_key" ? params.apiKeyOverride : null,
-      parallelToolCalls: params.parallelToolCalls,
-      toolChoice: params.toolChoice,
-      onTextDelta: params.onTextDelta,
-      signal: params.signal,
-    });
+  if (parsedProviderRef?.provider !== "openai") {
+    return {
+      ok: false,
+      status: 503,
+      code: "runtime_model_provider_unsupported",
+      message: "The community model must be an OpenAI model.",
+    };
   }
-  return runOpenRouterNativeToolCompletion({
-    modelRef: params.modelRef,
+  return runOpenAiNativeToolCompletion({
+    modelId: parsedProviderRef.providerModel,
     messages: params.messages,
     maxTokens: params.maxTokens,
-    tools: params.openRouterTools,
-    apiKeyOverride: params.apiKeyOverride,
+    tools: params.tools,
     parallelToolCalls: params.parallelToolCalls,
     toolChoice: params.toolChoice,
+    onTextDelta: params.onTextDelta,
     signal: params.signal,
   });
 }
@@ -883,12 +827,10 @@ async function executeRetrievalAgentLoop(
     allowedToolNames: readonly RetrievalToolName[];
     invocationSurface: RuntimeInvocationSurface;
     memberAgentSurfaceContext?: MemberAgentSurfaceContextV1 | null;
-    communityFunnelSlot?: CommunityCustomFunnelSlot | null;
-    communitySystemPrompt?: string | null;
+      communitySystemPrompt?: string | null;
     communityContextVersion?: number | null;
     threadWorkingState?: ThreadWorkingStatePrompt | null;
     authSubject?: string | null;
-    apiKeyOverride?: string | null;
     appendRunEvent: (params: {
       eventType: string;
       eventKey?: string;
@@ -909,35 +851,23 @@ async function executeRetrievalAgentLoop(
     timeStyle: "long",
     timeZone: runtimeTimeZone,
   }).format(now);
-  const skillResolution = normalizeRuntimeSkillResolution(
+  const communityResourceLane = normalizeCommunityResourceRuntimeLaneState(
     await params.ctx.runQuery(
-      internal.runtimeSkillResolution.resolveRuntimeSkillSelectionInternal,
+      internal.runtimeCommunityResourceLane.resolveRuntimeCommunityResourceLaneInternal,
       {
         userId: params.userId as any,
         authSubject: params.authSubject ?? undefined,
         communityId: params.communityId ? (params.communityId as any) : undefined,
-        messages: params.messages.map((message) => ({
-          role: String(message.role ?? ""),
-          content: extractTextFromNativeToolMessageContent(message.content),
-        })),
       },
     ),
   );
   const resolvedHarness = composeResolvedRuntimeHarness({
-    skillResolution,
+    communityResourceLane,
   });
-  const platformSkills = resolvedHarness.platformSkillInventory;
-  const selectedPlatformSkills = resolvedHarness.selectedPlatformSkills;
   const effectiveAllowedToolNames = restrictToolNamesForInvocationSurface({
     invocationSurface: params.invocationSurface,
     toolNames: params.allowedToolNames,
   });
-  const installedUserPlatformSkills = resolvedHarness.personalSkillInventory;
-  const selectedUserPlatformSkills = resolvedHarness.selectedPersonalSkills;
-  const attachedCommunitySkills =
-    resolvedHarness.activeCommunityModule?.attachedSkills ?? [];
-  const selectedCommunitySkills =
-    resolvedHarness.activeCommunityModule?.selectedSkills ?? [];
   const latestUserContent = [...params.messages]
     .reverse()
     .find((message) => message.role === "user")?.content;
@@ -1095,7 +1025,6 @@ async function executeRetrievalAgentLoop(
     fixedToolNames: effectiveAllowedToolNames,
   });
   const activeProviderTools = {
-    openAiTools: buildOpenAiFunctionTools(effectiveAllowedToolNames),
     responsesTools: buildResponsesApiFunctionTools(effectiveAllowedToolNames),
     activeToolNames: [...effectiveAllowedToolNames],
     activeToolPolicies: providerToolPolicySurface.policies,
@@ -1106,10 +1035,7 @@ async function executeRetrievalAgentLoop(
     requestedModelId: params.requestedModelId,
     modelRef: params.modelRef,
   });
-  const resolvedProviderToolSchemas =
-    inputBudgetIdentity.transport === "openrouter_chat_completions"
-      ? activeProviderTools.openAiTools
-      : activeProviderTools.responsesTools;
+  const resolvedProviderToolSchemas = activeProviderTools.responsesTools;
   let conversationMessagesForProvider = params.messages;
   if (params.persistedConversationHistory) {
     const historySeed = params.persistedConversationHistory;
@@ -1264,7 +1190,7 @@ async function executeRetrievalAgentLoop(
       eventType: "runtime_prompt_bundle_resolved",
       eventKey: `${params.runId}:runtime_prompt_bundle_resolved:1`,
       payload: {
-        version: 2,
+        version: 3,
         run_id: params.runId,
         base_prompt_chars: runtimePromptBundle.text.length - promptSuffixChars,
         prompt_suffix_chars: promptSuffixChars,
@@ -1293,8 +1219,6 @@ async function executeRetrievalAgentLoop(
   );
   const providerToolChoice: NativeToolChoice = "auto";
   let reasoningSummaryStreamCount = 0;
-  let reasoningSummaryPartAddedCount = 0;
-  let reasoningSummaryTextDeltaCount = 0;
   let activeToolBatchTelemetry: ActiveRuntimeToolBatchTelemetry | null = null;
 
   const flushActiveToolBatchTelemetry = async (options: {
@@ -1390,154 +1314,6 @@ async function executeRetrievalAgentLoop(
       ),
     };
   };
-  if (platformSkills.length > 0) {
-    try {
-      await params.appendRunEvent({
-        eventType: "platform_skills_resolved",
-        eventKey: `${params.runId}:platform_skills_resolved:1`,
-        payload: {
-          run_id: params.runId,
-          community_scope_id: params.communityId ?? null,
-          community_resource_lane: resolvedHarness.communityResourceLane,
-          requested_skill_mention_tokens:
-            skillResolution.requested_mention_tokens,
-          ambiguous_skill_mention_tokens:
-            skillResolution.ambiguous_mention_tokens,
-          skills: platformSkills.map((skill) => {
-            const selected = selectedPlatformSkills.find(
-              (candidate) =>
-                candidate.platform_skill_id === skill.platform_skill_id,
-            );
-            return {
-              platform_skill_id: skill.platform_skill_id,
-              catalog_skill_id: skill.catalog_skill_id,
-              required_capability: skill.requires_capability,
-              skill_name: skill.name,
-              skill_mention_token: skill.mention_token,
-              selected: Boolean(selected),
-              activation_route: selected?.activation_route ?? null,
-              activation_reason: selected?.activation_reason ?? null,
-            };
-          }),
-          selected_skill_mention_tokens: selectedPlatformSkills.map(
-            (skill) => skill.mention_token,
-          ),
-        },
-      });
-    } catch {
-      // Best-effort runtime evidence only.
-    }
-  }
-  if (installedUserPlatformSkills.length > 0) {
-    try {
-      await params.appendRunEvent({
-        eventType: "personal_skills_resolved",
-        eventKey: `${params.runId}:personal_skills_resolved:1`,
-        payload: {
-          run_id: params.runId,
-          user_scope_id: params.userId ?? null,
-          requested_skill_mention_tokens:
-            skillResolution.requested_mention_tokens,
-          ambiguous_skill_mention_tokens:
-            skillResolution.ambiguous_mention_tokens,
-          skills: installedUserPlatformSkills.map((skill) => {
-            const selected = selectedUserPlatformSkills.find(
-              (candidate) =>
-                candidate.user_platform_skill_install_id ===
-                skill.user_platform_skill_install_id,
-            );
-            return {
-              user_platform_skill_install_id:
-                skill.user_platform_skill_install_id,
-              skill_package_id: skill.skill_package_id,
-              skill_revision_id: selected?.skill_revision_id ?? null,
-              skill_name: skill.name,
-              skill_mention_token: skill.mention_token,
-              selected: Boolean(selected),
-              activation_route: selected?.activation_route ?? null,
-              activation_reason: selected?.activation_reason ?? null,
-            };
-          }),
-          selected_skill_mention_tokens: selectedUserPlatformSkills.map(
-            (skill) => skill.mention_token,
-          ),
-        },
-      });
-    } catch {
-      // Best-effort runtime evidence only.
-    }
-  }
-  if (attachedCommunitySkills.length > 0) {
-    try {
-      await params.appendRunEvent({
-        eventType: "community_skills_resolved",
-        eventKey: `${params.runId}:community_skills_resolved:1`,
-        payload: {
-          run_id: params.runId,
-          community_scope_id: params.communityId ?? null,
-          requested_skill_mention_tokens:
-            skillResolution.requested_mention_tokens,
-          ambiguous_skill_mention_tokens:
-            skillResolution.ambiguous_mention_tokens,
-          skills: attachedCommunitySkills.map((skill) => {
-            const selected = selectedCommunitySkills.find(
-                (candidate) =>
-                  candidate.community_skill_attachment_id ===
-                  skill.community_skill_attachment_id,
-              );
-            return {
-              community_skill_attachment_id:
-                skill.community_skill_attachment_id,
-              skill_package_id: skill.skill_package_id,
-              skill_revision_id: selected?.skill_revision_id ?? null,
-              skill_name: skill.name,
-              skill_mention_token: skill.mention_token,
-              selected: Boolean(selected),
-              activation_route: selected?.activation_route ?? null,
-              activation_reason: selected?.activation_reason ?? null,
-            };
-          }),
-          selected_skill_mention_tokens: selectedCommunitySkills.map(
-            (skill) => skill.mention_token,
-          ),
-        },
-      });
-    } catch {
-      // Best-effort runtime evidence only.
-    }
-  }
-  if (
-    installedUserPlatformSkills.length > 0 ||
-    attachedCommunitySkills.length > 0
-  ) {
-    try {
-      await params.appendRunEvent({
-        eventType: "effective_harness_resolved",
-        eventKey: `${params.runId}:effective_harness_resolved:1`,
-        payload: {
-          run_id: params.runId,
-          user_scope_id: params.userId ?? null,
-          community_scope_id: params.communityId ?? null,
-          requested_skill_mention_tokens:
-            resolvedHarness.requestedSkillMentionTokens,
-          ambiguous_skill_mention_tokens:
-            resolvedHarness.ambiguousSkillMentionTokens,
-          personal_skill_mention_tokens: installedUserPlatformSkills.map(
-            (skill) => skill.mention_token,
-          ),
-          selected_personal_skill_mention_tokens:
-            selectedUserPlatformSkills.map((skill) => skill.mention_token),
-          community_skill_mention_tokens: attachedCommunitySkills.map(
-            (skill) => skill.mention_token,
-          ),
-          selected_community_skill_mention_tokens:
-            selectedCommunitySkills.map((skill) => skill.mention_token),
-        },
-      });
-    } catch {
-      // Best-effort runtime evidence only.
-    }
-  }
   try {
     await params.appendRunEvent({
       eventType: "provider_tool_surface_resolved",
@@ -1564,12 +1340,8 @@ async function executeRetrievalAgentLoop(
       });
     };
     const loopStartedAt = Date.now();
-    const chatgptCodexRequestId = String(params.threadId ?? "").trim() || params.runId;
     const attestedSurface =
-      params.invocationSurface === "member_agent_dock" ||
-      params.invocationSurface === "community_funnel_builder"
-        ? params.invocationSurface
-        : null;
+      params.invocationSurface === "member_agent_dock" ? params.invocationSurface : null;
     let initialProviderContextAttested = !attestedSurface;
     const ensureInitialProviderContextAttestation = async (
       providerMessages: NativeToolAwareMessage[],
@@ -1585,12 +1357,6 @@ async function executeRetrievalAgentLoop(
         ) {
           throw new Error("runtime_provider_context_attestation_inputs_missing");
         }
-        const parsedProviderRef = parseProviderModelRef(params.modelRef);
-        const useResponsesApiTools =
-          params.inferenceSource === "chatgpt" ||
-          ((params.inferenceSource === "platform" ||
-            params.inferenceSource === "user_key") &&
-            parsedProviderRef?.provider === "openai");
         const attestation = await buildRuntimeProviderContextAttestation({
           surface: attestedSurface,
           runId: params.runId,
@@ -1598,7 +1364,6 @@ async function executeRetrievalAgentLoop(
           threadId: params.threadId,
           communityId: params.communityId,
           communityContextVersion: params.communityContextVersion,
-          funnelSlot: params.communityFunnelSlot ?? null,
           requestedModelId: params.requestedModelId,
           inferenceSource: params.inferenceSource,
           modelRef: params.modelRef,
@@ -1609,13 +1374,9 @@ async function executeRetrievalAgentLoop(
           messages: providerMessages,
           promptSections: runtimePromptBundle.sections,
           contextManifest: runtimeContextManifest,
-          toolSchemaFormat: useResponsesApiTools
-            ? "responses_api"
-            : "openai_compatible",
+          toolSchemaFormat: "responses_api",
           toolNames: activeProviderTools.activeToolNames,
-          providerTools: useResponsesApiTools
-            ? activeProviderTools.responsesTools
-            : activeProviderTools.openAiTools,
+          providerTools: activeProviderTools.responsesTools,
         });
         const persisted =
           await params.recordInitialProviderContextAttestation(attestation);
@@ -1690,11 +1451,6 @@ async function executeRetrievalAgentLoop(
           | NativeToolAwareCompletionSuccess<string>
           | RuntimeAgentLoopFailureInput;
         let providerResultObserved = false;
-        const reasoningSummaryEmitter = createRuntimeReasoningSummaryEmitter({
-          runId: params.runId,
-          summaryStreamId: `${params.runId}:tool_completion:${reasoningSummaryStreamCount}`,
-          appendRunEvent: params.appendRunEvent,
-        });
         const completionIndex = reasoningSummaryStreamCount;
         const onAssistantTextDelta = params.onAssistantTextDelta;
         reasoningSummaryStreamCount += 1;
@@ -1717,49 +1473,16 @@ async function executeRetrievalAgentLoop(
                 throw new RuntimeProviderLifecycleHookError(error);
               }
               return await runProviderNativeToolCompletion({
-                ctx: params.ctx,
-                userId: params.userId,
-                requestedModelId: params.requestedModelId,
-                inferenceSource: params.inferenceSource,
                 modelRef: params.modelRef,
                 messages,
                 maxTokens: params.maxTokens,
-                openRouterTools: activeProviderTools.openAiTools,
-                responsesApiTools: activeProviderTools.responsesTools,
-                apiKeyOverride: params.apiKeyOverride,
+                tools: activeProviderTools.responsesTools,
                 parallelToolCalls:
                   providerToolChoice === "auto" && parallelReadToolsEnabled,
                 toolChoice: providerToolChoice,
                 onTextDelta: onAssistantTextDelta
                   ? (delta) => onAssistantTextDelta(delta, completionIndex)
                   : undefined,
-                requestMetadata: {
-                  sessionId: chatgptCodexRequestId,
-                  threadId: chatgptCodexRequestId,
-                },
-                onReasoningSummaryPartAdded: async ({ summaryIndex }) => {
-                  try {
-                    reasoningSummaryPartAddedCount += 1;
-                    await reasoningSummaryEmitter.onPartAdded(summaryIndex);
-                  } catch {
-                    // Best-effort UX event; do not fail the loop if summary persistence fails.
-                  }
-                },
-                onReasoningSummaryTextDelta: async ({
-                  delta,
-                  summaryIndex,
-                }) => {
-                  if (!delta) return;
-                  try {
-                    reasoningSummaryTextDeltaCount += 1;
-                    await reasoningSummaryEmitter.onTextDelta(
-                      delta,
-                      summaryIndex,
-                    );
-                  } catch {
-                    // Best-effort UX event; do not fail the loop if summary persistence fails.
-                  }
-                },
                 signal,
               });
             },
@@ -1976,10 +1699,7 @@ async function executeRetrievalAgentLoop(
                 evidenceSurface:
                   params.invocationSurface === "member_agent_dock"
                     ? "member_agent_dock"
-                    : params.invocationSurface === "community_funnel_builder"
-                      ? "community_funnel_builder"
-                      : "coding_harness",
-                communityFunnelSlot: params.communityFunnelSlot ?? null,
+                    : "coding_harness",
                 communityBoundConversation: params.memberAgentSurfaceContext?.kind === "community" && params.memberAgentSurfaceContext.community_conversation === true,
                 signal,
               }),
@@ -2249,11 +1969,9 @@ async function executeChatToolsAgentLoop(
     allowedToolNames: readonly RetrievalToolName[];
     invocationSurface: RuntimeInvocationSurface;
     memberAgentSurfaceContext?: MemberAgentSurfaceContextV1 | null;
-    communityFunnelSlot?: CommunityCustomFunnelSlot | null;
-    communitySystemPrompt?: string | null;
+      communitySystemPrompt?: string | null;
     communityContextVersion?: number | null;
     threadWorkingState?: ThreadWorkingStatePrompt | null;
-    apiKeyOverride?: string | null;
     appendRunEvent: (params: {
       eventType: string;
       eventKey?: string;

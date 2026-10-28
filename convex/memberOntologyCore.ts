@@ -11,7 +11,6 @@ import {
   memberFactVisibleToLens,
   normalizeMemberFactBody,
   type MemberFactActorType,
-  type MemberFactConsentState,
   type MemberFactKind,
   type MemberFactLike,
   type MemberFactProvenance,
@@ -212,33 +211,6 @@ export async function insertMissingBridgeSocialLinkFacts(ctx: any, args: {
   };
 }
 
-export async function transitionMemberFactConsent(ctx: any, args: {
-  factId: any;
-  to: MemberFactConsentState;
-  actorType: MemberFactActorType;
-  actorUserId: any;
-  nowMs: number;
-}): Promise<void> {
-  const fact = await ctx.db.get(args.factId);
-  if (!fact) throw new Error("member_fact_not_found");
-  if (fact.contextKind === "workflow") throw new Error("member_fact_consent_forbidden");
-  /* Only the subject member consents about themselves. */
-  if (args.actorType === "member" && String(fact.userId) !== String(args.actorUserId)) {
-    throw new Error("member_fact_consent_forbidden");
-  }
-  if (
-    !canTransitionMemberFactConsent({
-      from: fact.consentState,
-      to: args.to,
-      actorType: args.actorType,
-    })
-  ) {
-    throw new Error("member_fact_consent_transition_invalid");
-  }
-  await ctx.db.patch(args.factId, { consentState: args.to, updatedAt: args.nowMs });
-  await recomputeMemberSpine(ctx, fact.userId, args.nowMs);
-}
-
 export async function recomputeMemberSpine(ctx: any, userId: any, nowMs: number): Promise<void> {
   const rows = (await ctx.db
     .query("memberFacts")
@@ -310,14 +282,10 @@ export async function loadMemberAccountContext(
   userId: any,
   nowMs: number,
 ): Promise<MemberAccountContextLike> {
-  const [user, detail, providerConnections, membershipRows, ownedRows] =
+  const [user, detail, membershipRows, ownedRows] =
     await Promise.all([
       ctx.db.get(userId),
       getUniqueUserProfileDetailByUserId(ctx, userId),
-      ctx.db
-        .query("userProviderConnections")
-        .withIndex("by_user", (q: any) => q.eq("userId", userId))
-        .collect(),
       ctx.db
         .query("communityMemberships")
         .withIndex("by_user", (q: any) => q.eq("userId", userId))
@@ -327,9 +295,6 @@ export async function loadMemberAccountContext(
         .withIndex("by_owner", (q: any) => q.eq("ownerId", userId))
         .collect(),
     ]);
-
-  const hasChatgpt = providerConnections.some((row: any) => row?.provider === "chatgpt");
-  const hasOpenAi = providerConnections.some((row: any) => row?.provider === "openai");
 
   const activeMemberships = (membershipRows as any[]).filter((row) =>
     communityMembershipRowIsActive(row),
@@ -358,7 +323,6 @@ export async function loadMemberAccountContext(
     displayName: detail?.displayName ?? null,
     handle: user?.handle ?? null,
     timezone: detail?.timezone ?? null,
-    inferenceProvider: hasChatgpt ? "chatgpt" : hasOpenAi ? "openai" : null,
     socialLinks,
     memberships,
     ownedCommunities: (ownedRows as any[])

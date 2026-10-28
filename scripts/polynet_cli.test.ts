@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 // @ts-expect-error plain ES module without types
-import { buildManifest, collectFiles, hashFile, installGuide, installSkills, mimeType, pkce, readCheckedFiles, uploadBuckets } from "../packages/polynet-cli/lib.mjs";
+import { buildManifest, collectFiles, hashFile, installGuide, installSkills, mimeType, pkce, readCheckedFiles, siteConfigPaths, uploadBuckets } from "../packages/polynet-cli/lib.mjs";
 import { checkSite } from "../packages/polynet-cli/checks.mjs";
 // @ts-expect-error plain ES module without types
 import { checkCourses, checkTheme, packChangesets, readCourses, resolveCourses, resolveLessonBody } from "../packages/polynet-cli/content.mjs";
@@ -67,6 +67,19 @@ test("only the files Cloudflare asks for are uploaded, with the upload pass", as
   await expect(uploadBuckets({ upload: { url: "u", jwt: "pass", buckets: [["f".repeat(32)]] }, byHash: built.byHash, fetchImpl: fakeFetch })).rejects.toThrow(/doesn't have/);
 });
 
+test("deploying a build folder keeps polynet.json in the project, where builds don't wipe it", () => {
+  const project = "/work/club-site";
+  expect(siteConfigPaths(project, project)).toEqual({ read: [`${project}/polynet.json`], save: `${project}/polynet.json` });
+  // polynet deploy dist: the project's polynet.json wins, so a stale dist/polynet.json (from an older
+  // deploy) never redirects a deploy to another community; it's read only when the project has none.
+  expect(siteConfigPaths(`${project}/dist`, project)).toEqual({
+    read: [`${project}/polynet.json`, `${project}/dist/polynet.json`], save: `${project}/polynet.json`,
+  });
+  // A folder outside the current one keeps its own polynet.json and never borrows this one.
+  expect(siteConfigPaths("/elsewhere/site", project)).toEqual({ read: ["/elsewhere/site/polynet.json"], save: "/elsewhere/site/polynet.json" });
+  expect(siteConfigPaths("/work/club-site-2", project)).toEqual({ read: ["/work/club-site-2/polynet.json"], save: "/work/club-site-2/polynet.json" });
+});
+
 test("sign-in uses PKCE", () => {
   const first = pkce();
   expect(first.verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -78,7 +91,7 @@ test("the published package is exactly the command, its library and checks, READ
   const packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: join(__dirname, "../packages/polynet-cli"), encoding: "utf8" }))[0];
   expect(packed.name).toBe("@polynet/cli");
   expect(packed.files.map((file: { path: string }) => file.path).sort()).toEqual([
-    "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
+    "LICENSE", "README.md", "bin/polynet.mjs", "checks.mjs", "content.mjs",
     "contracts/brand.mjs", "contracts/embed.mjs", "contracts/layout.mjs", "contracts/lesson.mjs", "contracts/sections.mjs", "contracts/theme.mjs", "design.mjs",
     "guide/AGENTS.md", "guide/CLAUDE.md", "guide/agents/polynet-ui-reviewer.md",
     ...["accessibility", "build-site", "deploy-verify", "design", "sdk", "ui-design"].map((name) => `guide/skills/polynet-${name}/SKILL.md`),
@@ -113,13 +126,14 @@ test("site checks block what is certain from the source", () => {
   expect(bad.errors).toContain("no language");
   expect(bad.errors).toContain("no <title>");
   expect(bad.errors).toContain("blocks zooming");
-  expect(bad.errors).toContain("doesn't load the Polynet shell");
-  expect(bad.errors).toContain("never shows <polynet-account>");
   expect(bad.errors).toContain("image has no alt");
   expect(bad.errors.match(/has no name/g)).toHaveLength(2); // the labelled button and the logo link are fine
   expect(problems(GOOD.replace("initial-scale=1", "user-scalable=no")).errors).toContain("blocks zooming");
-  // The shell element may come from a script (single-page sites build it there).
-  expect(problems(GOOD.replace("<polynet-account></polynet-account>", ""), [{ path: "/app.js", text: 'el("polynet-account")' }]).errors).toBe("");
+  // The shell isn't the site's to prove: the edge adds ui.js, and ui.js adds a missing
+  // <polynet-account>. So a bundled page (Vite moved ui.js into its own module) passes.
+  const bundled = GOOD.replace('<script type="module" src="/__polynet/ui.js"></script>', '<script type="module" src="/assets/index-abc.js"></script>')
+    .replace("<polynet-account></polynet-account>", "");
+  expect(problems(bundled, [{ path: "/assets/index-abc.js", text: 'import "/__polynet/ui.js";' }])).toEqual({ errors: "", warnings: "" });
   // A fragment that isn't a page isn't held to page rules.
   expect(checkSite([{ path: "/google123.html", text: "google-site-verification: google123.html" }, { path: "/index.html", text: GOOD }]).errors).toEqual([]);
 });

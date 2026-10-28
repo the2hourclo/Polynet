@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   Suspense,
-  type ChangeEvent,
 } from "react";
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
@@ -15,24 +14,18 @@ import { useTestMemberAutoplayFollow, useTestMemberRunCheck } from "./components
 import { WebCommunitySiblings } from "./components/WebCommunitySiblings";
 import {
   beginBrowserSignedOutState,
-  getAuthPublicKey,
-  getAuthUrl,
   type AuthSession,
 } from "./auth";
 import {
-  clearPendingPurchaseClaimToken, storePendingPublicJoin, storePendingPurchaseClaimToken, type PendingPurchaseClaim
+  clearPendingPurchaseClaimToken, storePendingPurchaseClaimToken, type PendingPurchaseClaim
 } from "../../../shared/pay_first";
 import { resolveAuthSubject } from "../../../shared/authSession";
 import { getAuthUid } from "../../../shared/authCore";
-import { CommunityAvatar } from "../../../shared/CommunityAvatar";
 import { isLikelyImageFile } from "../../../shared/attachmentHelpers";
 import {
-  DEFAULT_EMPTY_THREAD_LANDING, normalizeCommunityAgentLanding, } from "../../../shared/communityAgentLanding";
-import {
-  formatChatTime, formatCount, formatMoneyBaseUnits, formatPercent, formatRelativeTimeFromIso as formatRelativeTime, } from "../../../shared/contentFormatting";
+  formatChatTime, formatRelativeTimeFromIso as formatRelativeTime, } from "../../../shared/contentFormatting";
 import {
   formatPlanPrice,
-  formatSubscriptionPrice,
 } from "../../../shared/accountCommerce";
 import { useCheckoutFinalizeController } from "../../../shared/useCheckoutFinalizeController";
 import { useWebCommunityUiController } from "./controllers/useWebCommunityUiController";
@@ -77,7 +70,7 @@ import { useWebDiscoverActivationController } from "./controllers/useWebDiscover
 import { useWebAccountGraphLifecycle } from "./controllers/useWebAccountGraphLifecycle";
 import { useWebAuthenticatedIdentityController } from "./controllers/useWebAuthenticatedIdentityController";
 import { useWebCommunityMemberManagementController } from "./controllers/useWebCommunityMemberManagementController";
-import { useWebCommunityAgentAndFunnelController } from "./controllers/useWebCommunityAgentAndFunnelController";
+import { useWebCommunityAgentSettingsController } from "./controllers/useWebCommunityAgentSettingsController";
 import { useWebCommunityWorkflowsController } from "./controllers/useWebCommunityWorkflowsController";
 import { useWebCommunitySettingsController } from "./controllers/useWebCommunitySettingsController";
 import { useWebShellState } from "./controllers/useWebShellState";
@@ -88,8 +81,6 @@ import { useWebShellNavigationController } from "./controllers/useWebShellNaviga
 import { useWebAppAuthController } from "./controllers/useWebAppAuthController";
 import { useWebAppActivityController } from "./controllers/useWebAppActivityController";
 import { captureProductAnalyticsEvent } from "./posthogAnalytics";
-
-import { AnalyticsLineChart } from "../../../shared/AnalyticsLineChart";
 import {
   copyTextToClipboard,
   getAvatarColor,
@@ -97,13 +88,7 @@ import {
 } from "../../../shared/chatUi";
 import {
   isCommunityChatBackedTab,
-  type AppPage,
-  type AppView,
-  type CommunitySettingsPane,
-  type CommunityTab,
-  type OperatorTab,
   type SettingsGroup,
-  type SettingsPage,
 } from "../../../shared/appShellNavigation";
 import type {
   CommunityAccess as SharedCommunityAccess,
@@ -113,7 +98,6 @@ import type {
 } from "../../../shared/communityTypes";
 import {
   type PublicRoute,
-  applyShellVariantToAppPath,
   buildAppRoutePath,
   buildCommunityTabPath,
   buildSettingsIndexPath,
@@ -123,15 +107,6 @@ import { shouldHydrateWebRouteAccountSetup } from "../../../shared/webRouteAcces
 import { PRODUCT_DOCS_DEFAULT_SLUG } from "./docs/productDocsMeta";
 import {
   communityInitials,
-  parseHistoryUsedArray,
-  parseMessageHistoryUsed,
-  parseMemoryUsedArray,
-  parseMessageMemoryAdded,
-  parseMessageMemorySuggestions,
-  parseMessageMemoryUsed,
-  type HistoryUsedItem,
-  type MemorySuggestion,
-  type MemoryUsedItem,
 } from "../../../shared/messageMetadataUi";
 import { renderTextWithLinks } from "../../../shared/linkEmbedUi";
 import { renderMarkdown } from "../../../shared/markdownUi";
@@ -148,16 +123,12 @@ import { useCommunityMembersReviewController } from "../../../shared/useCommunit
 import { useCommunityAdminAnalyticsLifecycle } from "../../../shared/useCommunityAdminAnalyticsLifecycle";
 import { useCommunityMembersReviewLifecycle } from "../../../shared/useCommunityMembersReviewLifecycle";
 import { truncateReplyPreview } from "../../../shared/communityMessageParsing";
-import { buildCommunityFunnelPrimaryActionView } from "../../../shared/communityFunnelUi";
 import {
-  formatCommunityVisibilityLabel,
   toCanonicalCommunityVisibility,
 } from "../../../shared/communityVisibility";
 import {
-  loadAccountCommerceStatusCanonical,
   type AccountCommerceStatus,
 } from "../../../shared/accountCommerceStatusGateway";
-import { formatUsdCents, toEpochSeconds } from "../../../shared/displayFormatting";
 import {
   deriveCommunityFunnelAction,
   deriveCommunityMembersJoinReviewMode,
@@ -177,7 +148,6 @@ import { useWebCommunityRouteController } from "./controllers/useWebCommunityRou
 import { useWebRouteAccessBoundaryController } from "./controllers/useWebRouteAccessBoundaryController";
 import { useWebSelectedCommunityController } from "./controllers/useWebSelectedCommunityController";
 import { useWebPublicCommunityRouteController } from "./controllers/useWebPublicCommunityRouteController";
-import { useWebCommunityFunnelDraftPreviewController } from "./controllers/useWebCommunityFunnelDraftPreviewController";
 import { useWebUiPersistenceLifecycle } from "./controllers/useWebUiPersistenceLifecycle";
 import { buildWebShellProjection } from "./controllers/buildWebShellProjection";
 import { buildWebDestinationFromShellState } from "./controllers/buildWebDestinationFromShellState";
@@ -196,13 +166,9 @@ import { useWebChannelPeoplePanel } from "./controllers/useWebChannelPeoplePanel
 import type { WebMemberAgentDockHandle } from "./components/WebMemberAgentDock";
 import type {
   WebCommunityRecord,
-  WebPersonalMemoryItem,
   WebPublicCommunityRecord,
 } from "./webAppContracts";
 import {
-  buildSourceIntegrationOAuthFinalizeSessionGuardKey,
-  claimSourceIntegrationOAuthFinalizeSessionGuard,
-  clearSourceIntegrationOAuthFinalizeSessionGuard,
   WEB_IMAGE_DATA_URL_CHAR_LIMIT,
 } from "./webAppRuntime";
 import { useWebCommunityVisualIdentityRegistryLifecycle } from "./controllers/useWebCommunityVisualIdentityRegistryLifecycle";
@@ -229,29 +195,7 @@ type CommunityAccess = SharedCommunityAccess;
 type UserProfile = SharedUserProfile;
 type UserProfileDetail = SharedUserProfileDetail;
 type CommunityJoinRequest = WebCommunityJoinRequest;
-type PersonalMemoryItem = WebPersonalMemoryItem;
 type PublicPlanSummary = SharedPublicPlanSummary;
-
-function buildCommunityFunnelPreviewPlan(params: {
-  pricingMode: "free" | "monthly" | "annual";
-  monthlyUsd: string;
-  annualUsd: string;
-}): PublicPlanSummary | null {
-  if (params.pricingMode === "free") return null;
-  const rawAmount = params.pricingMode === "monthly"
-    ? params.monthlyUsd
-    : params.annualUsd;
-  const amountUsd = Number(rawAmount);
-  if (!Number.isFinite(amountUsd) || amountUsd <= 0) return null;
-  return {
-    name: "Community access",
-    description: null,
-    amount_base_units: String(Math.round(amountUsd * 100)),
-    currency: "USD",
-    currency_decimals: 2,
-    billing_period: params.pricingMode,
-  };
-}
 
 export default function App() {
   const appActivity = useWebAppActivityController();
@@ -809,7 +753,6 @@ export default function App() {
     communitySocialSummary,
     funnelPreviewAdminCount,
     funnelPreviewOnlineCount,
-    funnelPreviewOnlineFaces,
     activeCommunityOnlineUserIds,
     activeCommunityPresenceSummary,
     isLoadingActiveCommunityPresence,
@@ -928,14 +871,6 @@ export default function App() {
   } = communityAgentConfigUi;
   const communityAdminUi = communityAdministration.adminUi;
   const {
-    communityFunnelConfig,
-    isLoadingCommunityFunnel,
-    setIsLoadingCommunityFunnel,
-    communityFunnelError,
-    setCommunityFunnelError,
-    communityFunnelLoadedCommunityIdRef,
-    hydrateCommunityFunnelEditor,
-    resetCommunityFunnelState,
     communityMemberMuted,
     setCommunityMemberMuted,
     isLoadingCommunityMemberSettings,
@@ -1090,11 +1025,10 @@ export default function App() {
     setFreeAccessMode: handleSetCommunityContextFreeAccessMode,
   } = communityMemberManagement;
 
-  const communityAgentAndFunnel =
-    useWebCommunityAgentAndFunnelController({
+  const communityAgentSettings =
+    useWebCommunityAgentSettingsController({
     activeCommunityId,
     activePage,
-    adminUi: communityAdminUi,
     agentUi: communityAgentConfigUi,
     canManageMembers: canManageMembersActiveCommunity,
     communitySettingsPane,
@@ -1105,7 +1039,7 @@ export default function App() {
   });
   const {
     handleSaveCommunityAgentConfig,
-  } = communityAgentAndFunnel;
+  } = communityAgentSettings;
   useTestMemberRunCheck(session, ensureUsableAuthSession);
   useTestMemberAutoplayFollow(session, ensureUsableAuthSession);
   const communityWorkflows = useWebCommunityWorkflowsController({
@@ -1577,8 +1511,6 @@ export default function App() {
 
   const {
     publicFunnelSlug,
-    isPublicFunnelPreviewRoute,
-    publicFunnelPreviewSlot,
     checkoutSuccessSessionId,
     claimTokenParam,
     isPublicCommunityFunnel,
@@ -1606,13 +1538,6 @@ export default function App() {
     loadPublicCommunity,
     refreshPendingPublicCommunityAccess,
   });
-  const funnelDraftPreview = useWebCommunityFunnelDraftPreviewController({
-    enabled: isPublicFunnelPreviewRoute,
-    communitySlug: publicFunnelSlug,
-    slot: publicFunnelPreviewSlot,
-    session,
-    ensureSession: ensureUsableAuthSession,
-  });
   const communityEntryBridge = useWebCommunityEntryBridgeController({
     publicRouteKind: shellPublicRoute.kind,
     isAccountSetupResolved,
@@ -1637,14 +1562,6 @@ export default function App() {
     completePlatformBridge,
     completeCommunityBridge: completeBridgeAndEnter,
   } = communityEntryBridge;
-  /* The manager-only draft read is the single authority for both preview
-     admission and content. Public-funnel access state must not gate it. */
-  const communityPreviewAccessState =
-    shellPublicRoute.kind !== "community_funnel_preview"
-      ? "not_applicable" as const
-      : authPresentationState !== "signed_in"
-        ? "resolving" as const
-        : funnelDraftPreview.accessState;
   const operatorRouteAccessState =
     activePage !== "operator"
       ? "not_applicable" as const
@@ -1681,7 +1598,6 @@ export default function App() {
       communities,
       session,
       isAuthBootstrapComplete,
-      communityPreviewAccessState,
       operatorAccessState: operatorRouteAccessState,
       accountSetupAccessState: accountSetupRouteAccessState,
       ensureSession: ensureUsableAuthSession,
@@ -1876,20 +1792,6 @@ export default function App() {
       enabled: canReorderCommunities,
       onMoveToIndex: handleReorderCommunityRail,
     });
-  const funnelPreviewVisibility = toCanonicalCommunityVisibility(activeCommunity?.visibility, "unlisted");
-  const funnelPreviewVisibilityLabel = formatCommunityVisibilityLabel(funnelPreviewVisibility);
-  const funnelPreviewAction = deriveCommunityFunnelAction({
-    entry_policy: activeCommunity?.entry_policy,
-  });
-  const funnelPreviewPlan = buildCommunityFunnelPreviewPlan({
-    pricingMode: communitySettingsPricingMode,
-    monthlyUsd: communitySettingsPriceUsdMonthly,
-    annualUsd: communitySettingsPriceUsdAnnual,
-  });
-  const funnelPreviewPrimaryActionLabel = buildCommunityFunnelPrimaryActionView({
-    mode: funnelPreviewAction,
-    plan: funnelPreviewPlan,
-  }).label;
   const activeCommunitySocialMemberCount = activeCommunity && typeof communitySocialSummary.memberCount === "number"
     ? communitySocialSummary.memberCount
     : null;
@@ -1916,7 +1818,6 @@ export default function App() {
     publicRouteClaimToken:
       publicRoute.kind === "claim" ? publicRoute.token : null,
     manualClaimToken,
-    isPreviewRoute: isPublicFunnelPreviewRoute,
     publicCommunity: publicCommunityUi.publicCommunity,
     publicCommunityAccess: publicCommunityUi.publicCommunityAccess,
     canEnterCommunity: canEnterPublicCommunity,
@@ -1994,7 +1895,6 @@ export default function App() {
       openCommunityCreateFlow: openNewCommunityPurchaseFlow,
     });
   const {
-    handlePreviewCommunityFunnel,
     handleSelectActiveCommunity,
     handleSelectCommunitySettingsPane,
     handleSelectCommunityTab,
@@ -2203,37 +2103,6 @@ export default function App() {
         communityAgentConfigCommunitySystemPrompt,
         setCommunityAgentConfigCommunitySystemPrompt,
         markCommunityAgentConfigDirty,
-      },
-      isLoadingCommunityFunnel,
-      isCommunityFunnelReady: Boolean(activeCommunity?.id) &&
-        communityFunnelLoadedCommunityIdRef.current === activeCommunity?.id,
-      communityFunnelError,
-      funnelEditorProps: {
-        session,
-        ensureSession: ensureUsableAuthSession,
-        fetchPublic: fetchWithPublic,
-        fetchAuth: fetchWithAuth,
-        handlePreviewCommunityFunnel,
-        communityFunnelConfig,
-        hydrateCommunityFunnelEditor,
-        previewPrimaryActionLabel: funnelPreviewPrimaryActionLabel,
-        previewCommunity: {
-          id: activeCommunity?.id ?? "",
-          slug: activeCommunity?.slug ?? null,
-          name: activeCommunity?.name ?? "Community",
-          one_liner: activeCommunity?.one_liner ?? null,
-          about: activeCommunity?.about ?? null,
-          avatar_url: activeCommunity?.avatar_url ?? null,
-          avatar_focus_x: activeCommunity?.avatar_focus_x ?? null,
-          avatar_focus_y: activeCommunity?.avatar_focus_y ?? null,
-          avatar_zoom: activeCommunity?.avatar_zoom ?? null,
-          banner_url: activeCommunity?.banner_url ?? null,
-          banner_focus_x: activeCommunity?.banner_focus_x ?? null,
-          banner_focus_y: activeCommunity?.banner_focus_y ?? null,
-          banner_zoom: activeCommunity?.banner_zoom ?? null,
-          member_count: activeCommunitySocialMemberCount,
-          member_faces_preview: funnelPreviewOnlineFaces,
-        },
       },
       workflows: {
         forms: communityWorkflows.forms,
@@ -2756,25 +2625,13 @@ export default function App() {
     },
     publicCommunityFunnelProps: {
       publicRouteSlug:
-        publicRoute.kind === "community_funnel" ||
-        publicRoute.kind === "community_funnel_preview"
-          ? publicRoute.slug
-          : undefined,
+        publicRoute.kind === "community_funnel" ? publicRoute.slug : undefined,
       publicCommunity: resolvedPublicCommunity
         ? {
             ...resolvedPublicCommunity,
             slug: resolvedPublicCommunity.slug ?? undefined,
           }
         : null,
-      isPreviewMode: isPublicFunnelPreviewRoute,
-      previewExitPath:
-        publicRoute.kind === "community_funnel_preview"
-          ? buildCommunityTabPath(publicRoute.slug, "settings")
-          : null,
-      previewSlot: publicFunnelPreviewSlot,
-      previewDocument: funnelDraftPreview.document,
-      previewVslUrl: funnelDraftPreview.vslUrl,
-      previewDocumentError: funnelDraftPreview.error,
       selectedPublicCommunityPlan,
       isLoadingPublicCommunity: publicCommunityUi.isLoadingPublicCommunity,
       canEnterCommunity: canEnterPublicCommunity,
@@ -2800,7 +2657,6 @@ export default function App() {
       bridge:
         /* The pitch converts first: the bridge opens on an entry ATTEMPT
            (join/enter/claim), never on arrival. */
-        !isPublicFunnelPreviewRoute &&
         session &&
         resolvedPublicCommunity &&
         effectiveAccountSetupStatus &&
@@ -2966,8 +2822,7 @@ export default function App() {
     prepareMobileGlobalNavigation,
     setMobileOverlay,
     isPublicCommunityFunnel,
-    hasBackTargetSnapshot:
-      !isPublicFunnelPreviewRoute && Boolean(backTargetSnapshot),
+    hasBackTargetSnapshot: Boolean(backTargetSnapshot),
     backTargetLabel: effectiveBackTargetLabel ?? null,
     directMessagesButton,
     handleTopbarBackFromPublicFunnel,
@@ -3072,9 +2927,6 @@ export default function App() {
   }
 
   if (shouldHoldRouteForAccess) {
-    const previewAdmissionError = isPublicFunnelPreviewRoute
-      ? funnelDraftPreview.error
-      : null;
     const operatorAdmissionError = activePage === "operator"
       ? operatorAccessError
       : null;
@@ -3082,19 +2934,8 @@ export default function App() {
       authError ??
       onboardingError ??
       communityResolutionError ??
-      previewAdmissionError ??
       operatorAdmissionError;
-    const isPreviewAdmissionFailure = Boolean(
-      previewAdmissionError &&
-        !authError &&
-        !onboardingError &&
-        !communityResolutionError,
-    );
     const retryRouteAdmission = () => {
-      if (isPreviewAdmissionFailure) {
-        funnelDraftPreview.retry();
-        return;
-      }
       if (authError) {
         retryAuthBootstrap();
         return;
@@ -3115,7 +2956,6 @@ export default function App() {
         shellChromeHostProps={shellChromeHostProps}
         mainSurfaceHostProps={mainSurfaceHostProps}
         error={routeAdmissionError}
-        errorMessage={isPreviewAdmissionFailure ? previewAdmissionError ?? undefined : undefined}
         onRetry={retryRouteAdmission}
       />
     );

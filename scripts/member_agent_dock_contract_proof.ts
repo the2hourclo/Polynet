@@ -39,7 +39,7 @@ import {
   projectCommunityMembershipReadSummary,
   projectPublicDiscoverCommunityReadSummary,
 } from "../shared/communityReadContract.ts";
-import { supportsModelImageInput } from "../shared/modelCatalog.ts";
+import { COMMUNITY_OWNER_FUNDED_MODEL_SUPPORTS_IMAGE_INPUT } from "../shared/founderInference.ts";
 
 function read(path: string): string {
   return readFileSync(path, "utf8");
@@ -63,9 +63,8 @@ const memberAgentSurfaceController = read(
 const attachmentPolicy = read("shared/memberAgentAttachments.ts");
 const voiceController = read("shared/useWebVoiceInputController.ts");
 const cloudThreadsGateway = read("shared/cloudThreadsGateway.ts");
-const modelCatalog = read("shared/modelCatalog.ts");
 const nativeToolProtocol = read("shared/nativeToolProtocol.ts");
-const openRouterTransport = read("convex/openRouterNativeTransport.ts");
+const openAiCompletion = read("convex/openAiNativeToolCompletion.ts");
 const runtimeTurnResolution = read("convex/runtimeTurnResolution.ts");
 const cognitionContract = read("docs/community-agent-cognition-contract-v1.md");
 const account = read("convex/account.ts");
@@ -78,7 +77,6 @@ const toolRegistry = read("shared/toolRegistry.ts");
 const retrievalTools = read("shared/retrievalTools.ts");
 const runtimeToolPolicy = read("shared/runtimeToolPolicy.ts");
 const runtimeContextManifest = read("shared/runtimeContextManifest.ts");
-const communityReadKernel = read("convex/communityReadKernel.ts");
 const platformOperationExecutor = read("convex/platformOperationExecutor.ts");
 const platformOperationContract = read("shared/platformOperationContract.ts");
 const httpMcp = read("convex/httpMcp.ts");
@@ -490,26 +488,6 @@ assert.match(
 );
 assert.match(
   threads,
-  /ensureMemberAgentGlobalChannel = mutation[\s\S]*resolveOwnerIdForAuthenticatedRequest[\s\S]*requireCommunityChatAccess[\s\S]*ensureGlobalMemberAgentChannelCore/,
-  "the global private channel must authenticate and validate its initial community lens",
-);
-assert.match(
-  threads,
-  /ensureGlobalMemberAgentChannelCore[\s\S]*getGlobalMemberAgentChannel[\s\S]*buildGlobalMemberAgentEpisodeThreadKey\(1\)[\s\S]*scopeKey: MEMBER_AGENT_GLOBAL_SCOPE_KEY[\s\S]*memberAgentEpisodes/,
-  "the member must receive one global channel and one active global episode",
-);
-assert.match(
-  threads,
-  /startNewMemberAgentGlobalEpisode = mutation[\s\S]*expectedActiveEpisodeId[\s\S]*status: "closed"[\s\S]*activeEpisodeId: episodeId/,
-  "New chat must close the prior global episode and atomically move the global channel pointer",
-);
-assert.doesNotMatch(
-  threads.match(/startNewMemberAgentGlobalEpisode = mutation[\s\S]*?\n\}\);/)?.[0] ?? "",
-  /archivedAt|\.delete\(/,
-  "New chat must preserve the prior thread and transcript",
-);
-assert.match(
-  threads,
   /requireWritableMemberAgentThread[\s\S]*isReadOnlyLegacyMemberAgentThreadKey\(threadKey\)[\s\S]*member_agent_legacy_episode_read_only[\s\S]*args\.role !== "user"[\s\S]*getGlobalMemberAgentChannel[\s\S]*episode\.threadId !== args\.thread\._id[\s\S]*member_agent_episode_not_active/,
   "new user messages must fail closed when addressed to a closed member-agent episode",
 );
@@ -561,7 +539,7 @@ assert.match(
 );
 assert.match(
   threads,
-  /listNewestCloudThreadMessages = query[\s\S]*by_thread_seq[\s\S]*order\("desc"\)[\s\S]*take\(safeLimit\)/,
+  /async function listNewestCloudThreadMessagesHandler[\s\S]*by_thread_seq[\s\S]*order\("desc"\)[\s\S]*take\(safeLimit\)/,
   "the dock transcript must read from the newest end of the message index",
 );
 assert.match(
@@ -586,18 +564,13 @@ assert.match(
 );
 assert.match(
   threads,
-  /upsertCloudThreadMessageByMessageKey = mutation[\s\S]*deriveAutoThreadTitlePatch/,
+  /upsertCloudThreadMessageByMessageKeyHandler[\s\S]*deriveAutoThreadTitlePatch[\s\S]*upsertCloudThreadMessageByMessageKey = mutation/,
   "the dock's idempotent message path must derive the episode title from the first user message",
 );
 assert.match(
   threads,
-  /prepareActiveGlobalMemberAgentThread[\s\S]*buildGlobalMemberAgentEpisodeThreadKey[\s\S]*isGlobalMemberAgentEpisodeThreadKey[\s\S]*member_agent_thread_context_mismatch/,
-  "the server must derive the global episode key and fail closed on context collisions",
-);
-assert.match(
-  threads,
-  /prepareActiveGlobalMemberAgentThread[\s\S]*modelId: DEFAULT_ACTIVE_MODEL_ID/,
-  "the member-agent channel must remain on the default model",
+  /threadKey, titleSource: "auto", modelId: DEFAULT_ACTIVE_MODEL_ID/,
+  "community agent conversations start on the default model",
 );
 assert.doesNotMatch(
   component,
@@ -633,23 +606,15 @@ assert.match(
   /restrictCapabilityFamiliesForInvocationSurface[\s\S]*restrictToolNamesForInvocationSurface/,
   "the server must constrain capabilities and tools instead of trusting the web client",
 );
-const memberAgentGateBranch = resolution.match(
-  /if \(isCommunityOwnerFundedTurn\) \{([\s\S]*?)\n  \} else \{/,
-)?.[1] ?? "";
-assert.match(
-  memberAgentGateBranch,
-  /lane = "platform"[\s\S]*modelRef = `openai\/\$\{COMMUNITY_OWNER_FUNDED_MODEL_ID\}`[\s\S]*inferenceSource = "platform"/,
-  "the member dock must use the platform-hosted community model lane",
-);
-assert.doesNotMatch(
-  memberAgentGateBranch,
-  /hasOpenAiConnectionForUser|hasChatgptConnectionForUser|getOpenAiConnectionForUserInternal|decryptStoredSecret/,
-  "member-agent admission must not depend on member provider credentials",
-);
 assert.match(
   resolution,
-  /\} else \{[\s\S]*hasOpenAiConnectionForUser[\s\S]*hasChatgptConnectionForUser[\s\S]*getOpenAiConnectionForUserInternal/,
-  "the protected non-dock runtime must retain its existing provider-connection path",
+  /const lane = "platform" as const;\s*const modelRef = `openai\/\$\{COMMUNITY_OWNER_FUNDED_MODEL_ID\}`;\s*const inferenceSource = "platform" as const;/,
+  "every runtime turn, the member dock included, must use the founder-funded platform model lane",
+);
+assert.doesNotMatch(
+  resolution,
+  /hasOpenAiConnectionForUser|hasChatgptConnectionForUser|getOpenAiConnectionForUserInternal|decryptStoredSecret/,
+  "runtime admission must not depend on member provider credentials",
 );
 assert.match(
   resolution,
@@ -665,16 +630,6 @@ assert.doesNotMatch(
   runtimeLoop,
   /mountedUserPlatformAppTools|mounted_app_tool|resolveMountedMcpToolsForRuntime/,
   "native runtime surfaces must not mount third-party MCP tools",
-);
-assert.match(
-  communityReadKernel,
-  /listAccessibleCommunityMemberships[\s\S]*listPublicDiscoverCommunities[\s\S]*resolveCommunityCapabilityContextInternal/,
-  "one kernel must own joined listing, public Discover projection, and authenticated capability resolution",
-);
-assert.doesNotMatch(
-  communityReadKernel,
-  /db\.patch|db\.insert|db\.delete|runMutation|communityId:/,
-  "the cross-community directory kernel must remain read-only and must not mutate lens state",
 );
 assert.match(
   httpMcp,
@@ -992,7 +947,7 @@ assert.equal(
 );
 assert.match(
   runtimeHandlers,
-  /invocationSurface === "member_agent_dock" \|\|[\s\S]*invocationSurface === "community_funnel_builder"[\s\S]*surface: communityInferenceSurface[\s\S]*receiptKey: `\$\{communityInferenceSurface\}:\$\{runId\}`[\s\S]*settleCommunityInferenceFundingSession[\s\S]*failCommunityInferenceFundingSession/,
+  /invocationSurface === "member_agent_dock" \? invocationSurface : null[\s\S]*surface: communityInferenceSurface[\s\S]*receiptKey: `\$\{communityInferenceSurface\}:\$\{runId\}`[\s\S]*settleCommunityInferenceFundingSession[\s\S]*failCommunityInferenceFundingSession/,
   "member turns must reuse the canonical idempotent community inference receipt lifecycle",
 );
 assert.match(
@@ -1088,10 +1043,10 @@ assert.match(
   /cleanupPendingCloudThreadAttachment = internalMutation[\s\S]*attachment\.status !== "pending"[\s\S]*deleteCloudStorageObjectIfPresent[\s\S]*deleteCloudThreadMessage[\s\S]*deleteMemberAgentClaimsForMessage/,
   "pending claims and deleted messages must delete their storage blobs",
 );
-assert.match(
+assert.doesNotMatch(
   threads,
-  /generateCloudThreadAttachmentUploadUrl = mutation[\s\S]*member_agent_attachment_upload_ticket_required[\s\S]*prepareCloudMemberAgentAttachmentUploadInternal = internalMutation/,
-  "the generic thread uploader must not bypass server-owned upload preparation on member-agent threads",
+  /generateCloudThreadAttachmentUploadUrl/,
+  "there is no generic thread uploader; member-agent uploads go through server-owned preparation",
 );
 assert.match(
   nativeToolProtocol,
@@ -1099,18 +1054,15 @@ assert.match(
   "runtime metadata must derive bounded text without stringifying multimodal content",
 );
 assert.match(
-  openRouterTransport,
-  /normalizeMessagesForOpenRouter[\s\S]*type: "image_url"[\s\S]*image_url: \{ url: imageUrl \}/,
-  "OpenRouter must receive its provider-native image_url content shape",
+  openAiCompletion,
+  /part\.type === "image"[\s\S]*type: "input_image"[\s\S]*image_url: imageUrl/,
+  "OpenAI must receive its provider-native input_image content shape",
 );
-assert.match(
-  modelCatalog,
-  /supportsImageInput: boolean[\s\S]*supportsModelImageInput[\s\S]*supportsImageInput === true/,
-  "image-capable model selection must be an explicit catalog policy",
+assert.equal(
+  COMMUNITY_OWNER_FUNDED_MODEL_SUPPORTS_IMAGE_INPUT,
+  true,
+  "the founder-funded model must accept member image attachments",
 );
-assert.equal(supportsModelImageInput("gpt-5.6-sol"), true);
-assert.equal(supportsModelImageInput("gpt-oss-120b-free"), false);
-assert.equal(supportsModelImageInput("unknown-future-model"), false);
 assert.match(
   runtimeTurnResolution,
   /image_model_unsupported[\s\S]*const allowedToolNames/,

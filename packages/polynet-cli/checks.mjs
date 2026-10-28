@@ -46,12 +46,12 @@ function checkPage(path, html, problem, embed = false) {
       problem("error", path, "The viewport blocks zooming. Remove user-scalable=no and maximum-scale.");
     }
   }
-  const scripts = [...source.matchAll(/<script\b[^>]*>/gi)].map((m) => attr(m[0], "src") ?? "");
   if (embed) {
+    const scripts = [...source.matchAll(/<script\b[^>]*>/gi)].map((m) => attr(m[0], "src") ?? "");
     if (!scripts.some((src) => /^\/__polynet\/embed\.js(\?.*)?$/.test(src))) {
       problem("warning", path, 'The widget doesn\'t load /__polynet/embed.js, so it can\'t resize to fit or keep a member\'s answers. Add <script src="/__polynet/embed.js"></script>.');
     }
-  } else if (!scripts.some((src) => /^\/__polynet\/ui\.js(\?.*)?$/.test(src))) problem("error", path, 'The page doesn\'t load the Polynet shell. Add <script type="module" src="/__polynet/ui.js"></script>.');
+  }
   for (const m of source.matchAll(/<img\b[^>]*>/gi)) {
     if (attr(m[0], "alt") === null) problem("error", path, `An image has no alt text: ${m[0].slice(0, 80)}. Describe it, or use alt="" if it's decorative.`);
   }
@@ -82,12 +82,9 @@ export function checkSite(files, options = {}) {
   const scripts = checked.filter((file) => /\.m?js$/i.test(file.path));
   const pages = checked.filter((file) => /\.html?$/i.test(file.path));
 
+  // The shell isn't checked: the edge adds /__polynet/ui.js to every page, and
+  // ui.js shows <polynet-account> on any page that doesn't place one.
   for (const page of pages) checkPage(page.path, page.text, problem, isEmbedPage(page.path, options.embeds));
-  const sitePages = pages.filter((page) => !isEmbedPage(page.path, options.embeds));
-  const siteScripts = scripts.filter((file) => !isEmbedPage(file.path, options.embeds));
-  if ((sitePages.length || !pages.length) && ![...sitePages, ...siteScripts].some((file) => /polynet-account/.test(file.text))) {
-    problem("error", "/", "The site never shows <polynet-account>. Put it in the header of every page.");
-  }
 
   const allCss = css.map((file) => file.text).join("\n") + pages.map((file) => file.text).join("\n");
   for (const file of [...css, ...pages]) {

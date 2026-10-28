@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Lock,
   MessageCircle,
@@ -10,22 +10,17 @@ import {
 } from "lucide-react";
 import {
   EmojiPickerButton,
-  QUICK_REACTIONS,
   ReactionSummary,
 } from "./communityInteractionRowParts";
 import type {
-  CommunityInteractionAttachment,
-  CommunityInteractionContentBlock,
   CommunityInteractionReplyBundle,
   CommunityInteractionRootBundle,
 } from "../../../../shared/cloudCommunityInteractionsGateway";
-import { partitionCommunityAttachments } from "../../../../shared/communityAttachmentUi";
 import { youTubeEmbedsInText } from "../../../../shared/linkEmbedUi";
 import { pdfLinksInText } from "../../../../shared/messagePdf";
-import { CommunityChatMediaGrid, type CommunityChatMediaImage } from "../../../../shared/CommunityChatMediaGrid";
+import { type CommunityChatMediaImage } from "../../../../shared/CommunityChatMediaGrid";
 import type { CommunityAdmissionJoinRequest } from "./CommunityJoinRequestReview";
 import type { MentionCandidate } from "./communityMentionAutocomplete";
-import { CommunityChatMediaPlayers } from "../../../../shared/CommunityChatMediaPlayers";
 import {
   WebCommunityChannelHeader,
   type WebCommunityChannelHeaderChannel,
@@ -33,12 +28,10 @@ import {
 import type { CloudCommunityMemberBillingHistory } from "../../../../shared/cloudCommunityAdminGateway";
 import type {
   CommunityTypingPresenceBundle,
-  CommunityTypingPresenceUser,
   CommunityPresenceSummary,
   CommunityActivityEvent,
   UserProfile,
 } from "../../../../shared/communityTypes";
-import { UserAvatar } from "../../../../shared/UserAvatar";
 import { ChannelRosterPanel } from "./ChannelRosterPanel";
 import type { CommunityAdmissionControl } from "./CommunityAutoJoinControl";
 import {
@@ -154,23 +147,17 @@ export type WebCommunityInteractionProjectionProps = {
 };
 
 import {
-  ActorAvatar,
   CommunityInteractionFeedList,
   EditForm,
   InteractionAttachments,
   InteractionContent,
   MessageActions,
-  OverflowMenu,
   ProfileHoverCard,
   TypingIndicator,
   actorLabel,
   agentBadgeLabel,
-  blockText,
   bundleText,
-  formatRelativeTime,
-  hostnameOf,
   kindChipLabel,
-  sortedBlocks,
   stripSharedAttachmentSummary,
 } from "./communityInteractionFeed";
 import { interactionMentionsViewer } from "../controllers/communityMentionAttention";
@@ -201,7 +188,6 @@ export function communityInteractionRootHasRichContent(
     || youTubeEmbedsInText(text).length > 0
     || pdfLinksInText(text).length > 0;
 }
-
 
 export function WebCommunityInteractionProjection(props: WebCommunityInteractionProjectionProps) {
   const agentName = useCommunityAgentName(props.activeCommunityName);

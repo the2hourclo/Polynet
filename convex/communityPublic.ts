@@ -4,7 +4,6 @@ import { normalizeCommunityReferralRef } from "../shared/communityClients";
 import { v } from "convex/values";
 import {
   type CommunityLike,
-  type CommunityMembershipLike,
   type CommunityPricePointLike,
   type CommunityResourceModuleLike,
   type PublicPlanSummaryLike,
@@ -19,11 +18,9 @@ import {
   mapActivePlanSummaries,
   normalizeCommunityRoleForOutput,
   normalizeSlug,
-  pickMostRelevantCommunityMembership,
   pickPreferredActivePlan,
   requireCommunityChatAccess,
   requireCommunityUserNotBlocked,
-  resolveCommunityAccessBundle,
   resolveCommunityBrandingFields,
   buildCommunityVisualIdentity,
   resolveCommunityEntryPolicy,
@@ -40,9 +37,8 @@ import {
   getCurrentCommunityJoinRequestByPair,
 } from "./communityJoinRequestCore";
 import { findAuthenticatedActorState } from "./authActor";
-import { resolveCommunityFunnelConfigByCommunityId } from "./communityFunnel";
+import { COMMUNITY_FUNNEL_PUBLIC_CONFIG } from "./communityFunnel";
 import { readPublishedCommunityLayout } from "./communityLayouts";
-import { readCommunityExternalFunnelUrl } from "../shared/communityExternalFunnel";
 import { enqueueCommunityAccessGrantedEmailInternal } from "./emailEvents";
 import {
   communityMembershipRequiresManagerReapproval,
@@ -319,7 +315,6 @@ export const resolvePublicFunnelBySlug = query({
     const activePlan = pickPreferredActivePlan(mappedPlans);
     const branding = await resolveCommunityBrandingFields(ctx, community);
     const entryPolicy = resolveCommunityEntryPolicy(community);
-    const funnel = await resolveCommunityFunnelConfigByCommunityId(ctx, community._id);
     const owner = community.ownerId ? await ctx.db.get(community.ownerId) : null;
     const host = owner ? await resolvePublicProfileFaceFields(ctx, owner._id) : null;
     const layout = await readPublishedCommunityLayout(ctx, community._id);
@@ -343,11 +338,7 @@ export const resolvePublicFunnelBySlug = query({
         banner_zoom: branding.banner_zoom,
         visibility: community.visibility,
         entry_policy: entryPolicy,
-        external_funnel_url: community.externalFunnelActive === true
-          ? readCommunityExternalFunnelUrl(community.externalFunnelUrl)
-          : null,
-        funnel,
-        // "funnel": the community's About page is its public page.
+        funnel: COMMUNITY_FUNNEL_PUBLIC_CONFIG,
         about_presentation: layout?.pages.about.presentation ?? "page",
         about_media: layout?.pages.about.media ?? [],
         about_text: layout?.pages.about.text ?? "",
@@ -381,53 +372,6 @@ export const resolvePublicFunnelStatsBySlug = query({
         resource_count_capped: activityCounts.resourceCountCapped,
         memory_note_count: activityCounts.memoryNoteCount,
         memory_note_count_capped: activityCounts.memoryNoteCountCapped,
-      },
-    };
-  },
-});
-
-export const resolvePublicCommunityAccessBySlug = query({
-  args: {
-    communitySlug: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const slug = normalizeSlug(args.communitySlug);
-    const community = (await ctx.db
-      .query("communities")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
-      .first()) as CommunityLike | null;
-    if (!community || !communityIsActive(community)) return { ok: false as const };
-
-    let userId: any = null;
-    try {
-      const { actor } = await findAuthenticatedActorState({ ctx, authSubject: null });
-      userId = actor?.dbUserId ?? null;
-    } catch {
-      userId = null;
-    }
-
-    let membership: CommunityMembershipLike | null = null;
-    if (userId) {
-      const membershipRows = (await ctx.db
-        .query("communityMemberships")
-        .withIndex("by_community_user", (q) => q.eq("communityId", community._id).eq("userId", userId))
-        .collect()) as CommunityMembershipLike[];
-      membership = pickMostRelevantCommunityMembership(membershipRows);
-    }
-
-    const access = await resolveCommunityAccessBundle({
-      ctx,
-      community,
-      membership,
-      userId,
-    });
-    if (!access.relation) return { ok: false as const };
-
-    return {
-      ok: true as const,
-      access: {
-        ...access,
-        user_id: userId ? access.user_id : null,
       },
     };
   },
@@ -581,9 +525,6 @@ export const listPublicDiscoverCommunities = query({
           banner_zoom: branding.banner_zoom,
           visibility: community.visibility,
           entry_policy: entryPolicy,
-          external_funnel_url: community.externalFunnelActive === true
-            ? readCommunityExternalFunnelUrl(community.externalFunnelUrl)
-            : null,
           created_at: toIsoString(community.createdAt),
           updated_at: toIsoString(community.updatedAt),
           branding_revision: community.brandingRevision ?? community.updatedAt,
@@ -661,57 +602,6 @@ export const listCommunityCreators = query({
    uses communityAccessQueries:getMyCommunityAccessBySlug as its sole
    admission projection; remove this compatibility shim only after the pinned
    cached-client contract advances past that build. */
-export const getMyJoinRequestBySlug = query({
-  args: {
-    userId: v.optional(v.id("users")),
-    authSubject: v.optional(v.string()),
-    communitySlug: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await resolveUserIdForAuthenticatedRequest({
-      ctx,
-      userId: args.userId,
-      authSubject: args.authSubject ?? null,
-    });
-    const slug = normalizeSlug(args.communitySlug);
-    const community = (await ctx.db
-      .query("communities")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
-      .first()) as CommunityLike | null;
-    if (!community || !communityIsActive(community)) return null;
-    if (String(community.ownerId) === String(userId)) return null;
-    if (await communityUserIsBlocked({
-      ctx,
-      communityId: community._id,
-      userId,
-    })) return null;
-    const membership = await getUniqueCommunityMembershipByPair({
-      ctx,
-      communityId: community._id,
-      userId,
-    });
-    if (communityMembershipRowIsActive(membership)) return null;
-    const request = await getCurrentCommunityJoinRequestByPair({
-      ctx,
-      communityId: community._id,
-      userId,
-    });
-    if (!request) return null;
-    const status = assertCanonicalCommunityJoinRequest(request);
-    return {
-      community_id: String(community._id),
-      status,
-      created_at: toIsoString(request.createdAt),
-      updated_at: toIsoString(request.updatedAt),
-      denied_at:
-        typeof request.deniedAt === "number" ? toIsoString(request.deniedAt) : null,
-      reapply_at:
-        typeof request.reapplyAt === "number" ? toIsoString(request.reapplyAt) : null,
-      denied_until:
-        typeof request.reapplyAt === "number" ? toIsoString(request.reapplyAt) : null,
-    };
-  },
-});
 
 async function joinPublicCommunityInternal(args: {
   ctx: any;

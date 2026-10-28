@@ -1,6 +1,5 @@
 import { founderProviderRequestUsageValidator } from "./founderPlanPricing";
 import { defineSchema, defineTable } from "convex/server";
-import { integrationReceiptIntentValidator } from "./communityIntegrationReceiptIntent";
 import { communityFormQuestionValidator } from "./communityFormValidators";
 import { communityLessonFieldsValidator } from "./communityLessonValidators";
 import { v } from "convex/values";
@@ -372,6 +371,7 @@ export default defineSchema({
       v.literal("community_autonomous_cognition"),
       v.literal("community_workflow_action"),
       v.literal("community_setup_generation"),
+      v.literal("community_founder_brief"),
     ),
     provider: v.literal("openai"),
     modelId: v.string(),
@@ -415,7 +415,7 @@ export default defineSchema({
     .index("by_community_createdAt", ["communityId", "createdAt"])
     .index("by_payer_createdAt", ["payerUserId", "createdAt"]),
 
-  communityPaidToolReceipts: defineTable(v.union(v.object({
+  communityPaidToolReceipts: defineTable({
     receiptKey: v.string(),
     sourceRunId: v.string(),
     toolCallId: v.string(),
@@ -456,22 +456,8 @@ export default defineSchema({
     failedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }), v.object({
-    receiptKey: v.string(), sourceRunId: v.string(), toolCallId: v.string(),
-    communityId: v.id("communities"), actorUserId: v.id("users"),
-    fundingMode: v.literal("platform_included_allowance"),
-    pilotId: v.string(), pilotExpiresAt: v.number(), reservedOperations: v.literal(1),
-    costEvidence: v.literal("unknown"),
-    integrationIntent: integrationReceiptIntentValidator,
-    toolName: v.literal("integration"), action: v.literal("verify_scopes"),
-    status: v.union(v.literal("authorized"), v.literal("settled"), v.literal("failed"), v.literal("indeterminate")),
-    claimToken: v.string(), leaseExpiresAt: v.number(), providerStartedAt: v.optional(v.number()),
-    outcomeCode: v.optional(v.string()), failureCode: v.optional(v.string()),
-    authorizedAt: v.number(), settledAt: v.optional(v.number()), failedAt: v.optional(v.number()),
-    createdAt: v.number(), updatedAt: v.number(),
-  })))
+  })
     .index("by_receipt_key", ["receiptKey"])
-    .index("by_pilot", ["pilotId"])
     .index("by_source_run", ["sourceRunId"])
     .index("by_actor_community_createdAt", ["actorUserId", "communityId", "createdAt"])
     .index("by_cycle_createdAt", ["usageCycleId", "createdAt"])
@@ -1344,6 +1330,46 @@ export default defineSchema({
   })
     .index("by_membership_activation", ["membershipId", "activationSequence"])
     .index("by_user_community_status_createdAt", ["userId", "communityId", "status", "createdAt"]),
+
+  // The founder's daily brief (docs/specs/proactive-community-agent-v0.md, slice A).
+  communityFounderBriefSettings: defineTable({
+    communityId: v.id("communities"),
+    enabled: v.boolean(),
+    localHour: v.number(),
+    timeZone: v.string(),
+    nextDueAt: v.number(),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_community", ["communityId"])
+    .index("by_enabled_nextDueAt", ["enabled", "nextDueAt"]),
+
+  communityFounderBriefs: defineTable({
+    communityId: v.id("communities"),
+    ownerUserId: v.id("users"),
+    briefDate: v.string(),
+    status: v.union(v.literal("running"), v.literal("sent"), v.literal("failed")),
+    windowStartMs: v.number(),
+    windowEndMs: v.number(),
+    leaseExpiresAt: v.number(),
+    attempts: v.number(),
+    writer: v.optional(v.union(v.literal("model"), v.literal("deterministic"))),
+    stats: v.optional(v.record(v.string(), v.number())),
+    threadMessageKey: v.optional(v.string()),
+    // Saved before delivery starts: a retry re-sends exactly this, to the same thread.
+    delivery: v.optional(v.object({
+      threadId: v.string(),
+      markdown: v.string(),
+      emailPayload: v.any(),
+      communityLifecycleGeneration: v.number(),
+      writer: v.union(v.literal("model"), v.literal("deterministic")),
+    })),
+    errorCode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    sentAt: v.optional(v.number()),
+  }).index("by_community_date", ["communityId", "briefDate"])
+    .index("by_community_status_windowEnd", ["communityId", "status", "windowEndMs"]),
 
   communityMemberWorkflows: defineTable({
     communityId: v.id("communities"),

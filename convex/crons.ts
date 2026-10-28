@@ -73,4 +73,7 @@ crons.interval("recover access webhook deliveries", { minutes: 5 },
 crons.interval("sweep community access", { minutes: 15 },
   (internal as any).communityAccess.sweepCommunityAccessInternal, {});
 
+// The founder's daily brief: due when the founder's local hour arrives.
+crons.interval("send due founder briefs", { minutes: 15 },
+  (internal as any).communityFounderBrief.processDueFounderBriefsInternal, {});
 export default crons;

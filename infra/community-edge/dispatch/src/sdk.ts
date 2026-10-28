@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: MIT (see LICENSING.md and ./LICENSE-MIT)
 // The Polynet SDK for community front ends, served by the edge at
 // /__polynet/sdk.js on every community's own domain. It is plain JavaScript
 // (an ES module) kept as text so the edge serves exactly what the tests run.
 // No backticks or template placeholders inside: this is a String.raw literal.
-export const SDK_SOURCE = String.raw`// Polynet SDK: everything a community front end needs, on this community's own domain.
+export const SDK_SOURCE = String.raw`// SPDX-License-Identifier: MIT
+// Polynet SDK: everything a community front end needs, on this community's own domain.
 // Usage:  import polynet from "/__polynet/sdk.js";
 // Docs:   /__polynet/llms.txt
 // The member's session lives in an HttpOnly cookie that this page never sees.
@@ -424,9 +426,11 @@ async function watch(channel, onChange) {
   });
 }
 
-// The signed-in member's Polynet account, for the shell: { member, communities
-// [{ slug, name, role, current, site_url, studio_url }], links { discover,
-// settings, messages } }. Most sites use <polynet-account> instead.
+// The signed-in member's Polynet account, for the shell: { member { name,
+// handle, avatar_url }, community { slug, name, role, studio_url }, links {
+// communities, discover, settings, messages } }. It covers this community only;
+// links.communities opens the member's own list in Polynet. Most sites use
+// <polynet-account> instead.
 async function account() {
   const res = await fetch("/__polynet/account", { credentials: "same-origin" });
   const body = await res.json().catch(function () { return {}; });
