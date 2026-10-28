@@ -1,0 +1,88 @@
+head: 26bac8c5 (claude/local-combined), Convex functions ready 16:24:43 local, web 200
+files:
+  channels-1440-events.png
+  channels-1440-reading-focus.png
+  channels-1440-track.png
+  channels-390-track.png
+  channels-390-workflows.png
+  classroom-1440-reading-focus.png
+  classroom-1440-sidecard.png
+  classroom-1440-track.png
+  classroom-390-lesson.png
+  classroom-390-track.png
+  classroom-390-workflows.png
+  dm-paste-chip-2.png
+
+side card member count (classroom-1440-sidecard): 10 members (was 42). AIEB now has 9 active memberships + owner; cached activeMemberCount = 10
+tables (participants, channels, events, layouts, resource progress, workflow changes, themes): unchanged
+
+== shots log ==
+  channels 1440 track: overview=true lockNote="Opens after the Module 1 checkpoint" upnext=true
+saved channels-1440-track
+  channels 1440 lesson url: /c/ai-employee-builders/resources/v171a15p4sfhmjan3r3a083e418gt0kp | focus button: 1
+saved channels-1440-reading-focus
+  events: New event visible=1
+saved channels-1440-events
+  channels 390 track: overview=false lockNote=null upnext=true
+saved channels-390-track
+saved channels-390-workflows
+  classroom 1440 track: overview=true lockNote="Opens after the Module 1 checkpoint" upnext=true
+saved classroom-1440-track
+  classroom 1440 lesson url: /c/ai-employee-builders/resources/v171a15p4sfhmjan3r3a083e418gt0kp | focus button: 1
+saved classroom-1440-reading-focus
+  sidecard member texts: ["10\nmembers","member 2922","Member2"]
+saved classroom-1440-sidecard
+  classroom 390 track: overview=false lockNote=null upnext=true
+saved classroom-390-track
+  classroom 390 lesson url: /m/c/ai-employee-builders/resources/v171a15p4sfhmjan3r3a083e418gt0kp | focus button: 1
+saved classroom-390-lesson
+saved classroom-390-workflows
+progress write attempts (all blocked unless listed in ALLOWED): 0
+
+ALLOWED:
+140 × profiles:resolveOnboardingProfileDetail
+38 × communityCommerce:redeemPendingPurchaseClaims
+15 × auth:bootstrapActor
+15 × businessAnalytics:identifyBusinessVisitor
+15 × communityPublic:heartbeatCommunityPresence
+10 × communityAttention:markCommunitySurfaceSeen
+
+BLOCKED:
+3 × youtubeChapters:loadYouTubeChapters
+
+OTHER BLOCKED:
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=0VrehXkby5P-DPe_&ver=2&cmt=0&fs=0&rt=1.591&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=nxmf6oLHNfXJUylm&ver=2&cmt=0&fs=0&rt=2.278&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=J9sd7qKGQGumFl_j&ver=2&cmt=0&fs=0&rt=3.618&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+
+LEAKS:
+none
+== DM paste redo (dm-paste-chip-2.png) ==
+inbox rows: ["TM","Test Member","Cara Agency","Ben Coach","Ava Builder"]
+panel: Test Member direct message
+composer before: ""
+chip box: {"x":979,"y":683,"width":64,"height":64}
+chip count: 1 | chip text: "Upload failed\n×"
+banner: ["Couldn't reach Polynet. Check your connection and try again."]
+requests during paste: []
+normal click on × worked
+removed chip; left: 0
+composer after: ""
+BLOCKED: {"directMessages:generateDirectMessageAttachmentUploadUrlForUser":1} | OTHER: [] | LEAKS: []
+all non-GET localhost requests: 0
