@@ -1,0 +1,359 @@
+saved channels-1440-chat
+saved channels-1440-members
+saved channels-1440-wf-automations
+saved channels-1440-wf-runs
+saved channels-1440-wf-welcome
+saved channels-1440-funnels
+saved channels-1440-analytics
+saved channels-1440-events
+saved channels-1440-settings
+  progress writes in first 15s on "Connect & onboard": 0
+saved channels-1440-lesson
+saved channels-1440-tracks-gallery
+  track candidates: ["New track","Core track Build your AI Employee From install to an AI Employee that "]
+  track url: /c/ai-employee-builders/resources (was /c/ai-employee-builders/resources)
+  track page: overview=true modules=1 locked="false" upnext=true continue=true who=true allTracks=true editModules=true editTrack=true focus=0
+saved channels-1440-track
+  Up next: Up next: Watch: how your AI Employee actually works Module 1 · 0 of 30 done Continue What you'll be able to do Install the plugin and connect your workspace Map your b
+  Continue -> /c/ai-employee-builders/resources | focus button: 1
+saved channels-1440-track-lesson
+  Track overview -> /c/ai-employee-builders/resources
+  edit modules: doneBar=true
+saved edit-modules
+  closed Done editing
+  no Pods tab in channels (count 0)
+saved general-1440-channels
+saved channels-390-chat
+saved channels-390-members
+saved channels-390-wf-automations
+saved channels-390-wf-runs
+saved channels-390-wf-welcome
+saved channels-390-funnels
+saved channels-390-analytics
+saved channels-390-events
+saved channels-390-settings
+FAILED channels-390-lesson: locator.click: Timeout 30000ms exceeded.
+  cover-initial elements right after cards render: 0
+  cover-initial elements after load: 0
+saved channels-390-courses
+saved channels-390-tracks-gallery
+  track candidates: ["New track","Core track Build your AI Employee From install to an AI Employee that "]
+  track url: /m/c/ai-employee-builders/resources (was /m/c/ai-employee-builders/resources)
+  track page: overview=false modules=1 locked="false" upnext=true continue=true who=true allTracks=true editModules=true editTrack=true focus=0
+saved channels-390-track
+  Up next: Up next: Watch: how your AI Employee actually works Module 1 · 0 of 30 done Continue What you'll be able to do Install the plugin and connect your workspace Map your b
+  Continue not followed (phone)
+saved classroom-1440-chat
+saved classroom-1440-members
+saved classroom-1440-wf-automations
+saved classroom-1440-wf-runs
+saved classroom-1440-wf-welcome
+saved classroom-1440-funnels
+saved classroom-1440-analytics
+saved classroom-1440-events
+saved classroom-1440-settings
+  progress writes in first 15s on "Connect & onboard": 0
+saved classroom-1440-lesson
+saved classroom-1440-tracks-gallery
+  track candidates: ["New track","Core track Build your AI Employee From install to an AI Employee that "]
+  track url: /c/ai-employee-builders/resources (was /c/ai-employee-builders/resources)
+  track page: overview=true modules=1 locked="false" upnext=true continue=true who=true allTracks=true editModules=true editTrack=true focus=0
+saved classroom-1440-track
+  Up next: Up next: Watch: how your AI Employee actually works Module 1 · 0 of 30 done Continue What you'll be able to do Install the plugin and connect your workspace Map your b
+  Continue -> /c/ai-employee-builders/resources | focus button: 1
+saved classroom-1440-track-lesson
+  Track overview -> /c/ai-employee-builders/resources
+saved classroom-1440-pods-grid
+  pods grid text: Pods Private rooms for a few members. Only the people in a pod can see it. New pod Agency owners (test) 1 person + The Builder
+  pinned card: Pinned | Unpin | Image · Oct 27
+saved pod-pinned-card
+saved classroom-390-chat
+saved classroom-390-members
+saved classroom-390-wf-automations
+saved classroom-390-wf-runs
+saved classroom-390-wf-welcome
+saved classroom-390-funnels
+saved classroom-390-analytics
+saved classroom-390-events
+saved classroom-390-settings
+FAILED classroom-390-lesson: locator.click: Timeout 30000ms exceeded.
+  cover-initial elements right after cards render: 0
+  cover-initial elements after load: 0
+saved classroom-390-courses
+saved classroom-390-tracks-gallery
+  track candidates: ["New track","Core track Build your AI Employee From install to an AI Employee that "]
+  track url: /m/c/ai-employee-builders/resources (was /m/c/ai-employee-builders/resources)
+  track page: overview=false modules=1 locked="false" upnext=true continue=true who=true allTracks=true editModules=true editTrack=true focus=0
+saved classroom-390-track
+  Up next: Up next: Watch: how your AI Employee actually works Module 1 · 0 of 30 done Continue What you'll be able to do Install the plugin and connect your workspace Map your b
+  Continue not followed (phone)
+
+ALLOWED:
+546 × profiles:resolveOnboardingProfileDetail
+145 × communityCommerce:redeemPendingPurchaseClaims
+60 × communityPublic:heartbeatCommunityPresence
+57 × auth:bootstrapActor
+57 × businessAnalytics:identifyBusinessVisitor
+14 × communityAttention:markCommunitySurfaceSeen
+
+BLOCKED:
+16 × communityAttention:acknowledgeCommunityChatRead
+6 × youtubeChapters:loadYouTubeChapters
+
+OTHER BLOCKED:
+POST https://www.youtube.com/api/stats/qoe?cpn=s1g-YW841fEp7UFl&el=embedded&ns=yt&fexp=v1%2C100673025%2C1884%2C-76670265%2C27
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=s1g-YW841fEp7UFl&el=embedded&ns=yt&fexp=v1%2C100673025%2C1884%2C-76670265%2C27
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=0hwGOlycrew-IR4x&ver=2&cmt=0&fs=0&rt=2.533&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://api.stytch.com/sdk/v1/events
+POST https://sdk.iad-05.braze.com/api/v3/data/
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://www.google.com/ccm/collect?rcb=5&frm=2&apvc=1&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Builder
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://www.google.com/ccm/collect?rcb=11&frm=2&apvc=0&ae=g&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20B
+POST https://www.google.com/rmkt/collect/384481089/?random=1793191404449&cv=11&fst=1793191404449&fmt=8&bg=ffffff&guid=ON&asyn
+POST https://www.google.com/ccm/collect?rcb=5&frm=2&apvc=0&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Builder
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/9681aa48-26c7-4034-9a69-d007860eade5/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/9681aa48-26c7-4034-9a69-d007860eade5/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.sprig.com/sdk/1/visitors/9681aa48-26c7-4034-9a69-d007860eade5/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/9681aa48-26c7-4034-9a69-d007860eade5/attributes
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/9681aa48-26c7-4034-9a69-d007860eade5/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/9681aa48-26c7-4034-9a69-d007860eade5/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.sprig.com/sdk/1/visitors/9681aa48-26c7-4034-9a69-d007860eade5/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/9681aa48-26c7-4034-9a69-d007860eade5/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://sdk.iad-05.braze.com/api/v3/data/
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=_HrRjrMhpAUMkcsE&ver=2&cmt=0&fs=0&rt=3.619&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=jehggo7T1vs-rQBg&el=embedded&ns=yt&fexp=v1%2C100673025%2C1884%2C-76670265%2C27
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=jehggo7T1vs-rQBg&el=embedded&ns=yt&fexp=v1%2C100673025%2C1884%2C-76670265%2C27
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=7Trr5wCcTaGyZ7zl&ver=2&cmt=0&fs=0&rt=32.539&euri=http%3A%2F%
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=s8Rkq-pMXONy-0EE&el=embedded&ns=yt&fexp=v1%2C100673025%2C1883%2C-76670264%2C49
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=s8Rkq-pMXONy-0EE&el=embedded&ns=yt&fexp=v1%2C100673025%2C1883%2C-76670264%2C49
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=FdA_nUP0ZUuoSwgS&ver=2&cmt=0&fs=0&rt=2.598&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://api.stytch.com/sdk/v1/events
+POST https://sdk.iad-05.braze.com/api/v3/data/
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://www.google.com/ccm/collect?rcb=3&frm=2&apvc=1&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Builder
+POST https://www.google.com/ccm/collect?rcb=3&frm=2&apvc=0&ae=g&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Bu
+POST https://www.google.com/rmkt/collect/384481089/?random=1793191750677&cv=11&fst=1793191750677&fmt=8&bg=ffffff&guid=ON&asyn
+POST https://www.google.com/ccm/collect?rcb=3&frm=2&apvc=0&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Builder
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/attributes
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/attributes
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/64054ea1-90e6-4612-8ce8-279fad220b72/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=Rp3a_arhh9Obl49u&ver=2&cmt=0&fs=0&rt=3.643&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=2chl5Il9tYnnqFJQ&el=embedded&ns=yt&fexp=v1%2C100673025%2C1883%2C-76670264%2C27
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=2chl5Il9tYnnqFJQ&el=embedded&ns=yt&fexp=v1%2C100673025%2C1883%2C-76670264%2C27
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=aESHu9ooBGK9ePN7&ver=2&cmt=0&fs=0&rt=32.566&euri=http%3A%2F%
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+
+LEAKS:
+none
+
+CONSOLE ERRORS (first 20):
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: the server responded with a status of 401 (Unauthorized)
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
