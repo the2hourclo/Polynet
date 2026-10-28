@@ -1,6 +1,7 @@
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { bootstrapConvexAuthenticatedClient } from "./convexAuthenticatedClient";
+import type { CommunityMemberWorkflowMilestone } from "./communityMemberWorkflow";
 
 // Hard-to-undo Settings changes an agent proposed (convex/communitySettingProposals.ts).
 export type CommunitySettingProposal = {
@@ -9,6 +10,11 @@ export type CommunitySettingProposal = {
   summary: string;
   details: Array<{ label: string; value: string }>;
   note: string | null;
+  // The agent's name for itself ("Claude Code"), when it gave one.
+  proposed_by?: string | null;
+  // A workflow stage change: the stage now and as it would be, and whether the
+  // stage changed since the agent looked (then Apply is refused).
+  workflow?: { milestone_key: string; proposed: CommunityMemberWorkflowMilestone; current?: CommunityMemberWorkflowMilestone | null; stale?: boolean };
   // staged, applying, applied, rejected, failed or expired.
   status: string;
   error: string | null;

@@ -660,6 +660,7 @@ const modules = import.meta.glob([
   "./communityForms.ts",
   "./communityAccess.ts",
   "./communitySettingProposals.ts",
+  "./communityWorkflowChanges.ts",
   "./communityColdArchive.ts",
   "./polynetCanonicalReceipts.ts",
   "./communityTestMembers.ts",
@@ -4830,4 +4831,77 @@ test("the design guide is a read-only builder document for managers over the MCP
   expect(review.body).toContain("# The mistake ledger");
   expect(review.body).toContain("# The fresh-eyes review");
   for (const doc of [guide, review]) expect(doc.body.length).toBeLessThanOrEqual(24_000);
+});
+
+test("an agent's stage change goes live and shows in Recent changes with Undo, or waits for the owner when they ask", async () => {
+  const t = convexTest(schema, modules);
+  const fixture = await createFixture(t);
+  const community = "canonical-community";
+  const asOwner = t.withIdentity({ subject: fixture.ownerSubject });
+  const owner = async (toolName: string, input: Record<string, unknown>) => {
+    const result = await executePolynetCanonicalTool({
+      ctx: executionContext(asOwner), authSubject: fixture.ownerSubject, userId: fixture.ownerId,
+      principalKind: "external_mcp", evidenceSurface: "external_mcp", toolName: toolName as any, input,
+    });
+    if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+    return result.value as any;
+  };
+  const change = (operation: string, input: Record<string, unknown>) => owner("polynet_call", { operation, version: 1,
+    target: `/communities/${community}/capabilities/${operation}.json`, input, idempotency_key: `${operation}:${JSON.stringify(input)}:${Math.random()}` });
+  const changes = async () => JSON.parse((await owner("polynet_read", { path: `/communities/${community}/builder/workflow-changes.json` })).body);
+  const stage = async () => (await t.run(async (ctx) => (await ctx.db.query("communityMemberWorkflows").first())!)).milestones[0];
+  const revision = async () => (await t.run(async (ctx) => (await ctx.db.query("communityMemberWorkflows").first())!)).revision;
+  const created = await asOwner.mutation(api.communityMemberWorkflows.createBuilderWorkflowMilestone,
+    { communityId: fixture.communityId, expectedRevision: await revision().catch(() => 0), name: "Onboarding" });
+  const key = created.milestone.key;
+  const welcome = [{ trigger: { type: "milestone_elapsed", delayMinutes: 0 }, action: { type: "send_email", subject: "Welcome", body: "Hi {first_name}" } }];
+  const update = async (automations: any[]) => change("community.workflow.stage.update", { expected_revision: await revision(),
+    milestone_key: key, name: "Onboarding", automations, changed_by: "Claude Code" });
+
+  // Apply right away (the default): live at once, listed with who made it, and undoable.
+  expect(JSON.stringify(await owner("polynet_list", { path: `/communities/${community}/builder/` }))).toContain("/builder/workflow-changes.json");
+  await update(welcome);
+  expect((await stage()).automations).toHaveLength(1);
+  const first = await changes();
+  expect(first.agent_change_review).toBe("apply");
+  expect(first.changes[0]).toMatchObject({ via: "agent", changed_by: "Claude Code", stage_name: "Onboarding", can_undo: true });
+  await change("community.workflow.change.undo", { change_id: first.changes[0].change_id, changed_by: "Claude Code" });
+  expect((await stage()).automations).toHaveLength(0);
+  const undone = await changes();
+  expect(undone.changes[0]).toMatchObject({ undo_of: first.changes[0].change_id, can_undo: true });
+  expect(undone.changes[1].can_undo).toBe(false);
+
+  // Only the owner sets the permission in the app; an agent can only propose it.
+  expect(await change("community.workflow.agent_review.set", { review: "apply" })).toMatchObject({ kind: "community_setting_change_proposed" });
+  await asOwner.mutation(api.communityWorkflowChanges.setBuilderWorkflowAgentChangeReview, { communityId: fixture.communityId, review: "ask" });
+
+  // Always ask: the same call waits, and the owner's Apply puts it live.
+  const held = await update(welcome);
+  expect(held).toMatchObject({ kind: "community_setting_change_proposed", result: { status: "staged", proposed_by: "Claude Code" } });
+  expect((await stage()).automations).toHaveLength(0);
+  const stageProposals = async () => (await asOwner.query(api.communitySettingProposals.listCommunitySettingProposals, { communityId: fixture.communityId }))
+    .pending.filter((row: any) => row.operation === "community.workflow.stage.propose");
+  const waiting = { pending: await stageProposals() };
+  expect(waiting.pending).toHaveLength(1);
+  expect(waiting.pending[0]).toMatchObject({ summary: "Change the Onboarding stage", workflow: { milestone_key: key, stale: false } });
+  expect((waiting.pending[0] as any).workflow.proposed.automations).toHaveLength(1);
+  // Something else changed meanwhile (the revision moved on); this stage didn't, so Apply still works.
+  await asOwner.mutation(api.communityMemberWorkflows.createBuilderWorkflowMilestone, { communityId: fixture.communityId, expectedRevision: await revision(), name: "Later" });
+  expect(await asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { communityId: fixture.communityId, proposalId: waiting.pending[0].proposal_id as any })).toMatchObject({ status: "applied" });
+  expect((await stage()).automations).toHaveLength(1);
+  expect((await changes()).changes[0]).toMatchObject({ via: "agent", changed_by: "Claude Code", approved_by: expect.any(String) });
+
+  // A suggestion for a stage that changed since can't be applied over the newer edit.
+  await update([]);
+  await asOwner.mutation(api.communityMemberWorkflows.updateBuilderWorkflowMilestone, { communityId: fixture.communityId,
+    expectedRevision: await revision(), milestoneKey: key, name: "Onboarding (renamed)", automations: (await stage()).automations });
+  const stale = (await stageProposals())[0];
+  expect(stale).toMatchObject({ workflow: { stale: true } });
+  await expect(asOwner.action(api.communitySettingProposals.applyCommunitySettingProposal,
+    { communityId: fixture.communityId, proposalId: stale.proposal_id as any })).rejects.toThrow("setting_proposal_stale");
+  expect((await stage()).name).toBe("Onboarding (renamed)");
+  // A broken rule is refused when it's proposed, not when the owner taps Apply.
+  await expect(update([{ trigger: { type: "milestone_elapsed", delayMinutes: 0 }, action: { type: "set_pod_member", channelId: "nope", active: true } }]))
+    .rejects.toThrow("setting_refused");
 });

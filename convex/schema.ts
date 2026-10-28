@@ -1353,6 +1353,9 @@ export default defineSchema({
     welcomeGateEnabledAt: v.optional(v.number()),
     /** How the welcome page shows: the whole community pane ("page", the default), or a pop-up over the open community. */
     welcomeDisplay: v.optional(v.union(v.literal("page"), v.literal("popup"))),
+    /** Whether a stage change made over the MCP/CLI goes live at once ("apply", the default),
+     *  waits for the owner when another admin's agent made it ("ask_others"), or always waits ("ask"). */
+    agentChangeReview: v.optional(v.union(v.literal("apply"), v.literal("ask_others"), v.literal("ask"))),
     /** Lesson pages a member marks done in the welcome flow, after its join forms, in this order. */
     welcomeLessonIds: v.optional(v.array(v.id("communityResources"))),
     /** The builder's words on the welcome page; Polynet's defaults where absent. */
@@ -3500,6 +3503,12 @@ export default defineSchema({
     summary: v.string(),
     details: v.array(v.object({ label: v.string(), value: v.string() })),
     note: v.optional(v.string()),
+    // Which agent proposed it, in its own words ("Claude Code").
+    proposedBy: v.optional(v.string()),
+    // A workflow stage change: the stage as it was when proposed (so Apply can
+    // tell it changed since) and the stage as it would be.
+    baseStage: v.optional(v.string()),
+    previewStage: v.optional(v.any()),
     status: v.union(v.literal("staged"), v.literal("applying"), v.literal("applied"),
       v.literal("rejected"), v.literal("failed"), v.literal("expired")),
     error: v.optional(v.string()),
@@ -3512,6 +3521,25 @@ export default defineSchema({
     .index("by_community_status_createdAt", ["communityId", "status", "createdAt"])
     .index("by_community_createdAt", ["communityId", "createdAt"])
     .index("by_community_creator_idempotencyKey", ["communityId", "createdByUserId", "idempotencyKey"]),
+
+  // Every saved change to a workflow stage, from the app or an agent, with the
+  // stage before and after, so Workflows can show what changed and undo it.
+  communityWorkflowChanges: defineTable({
+    communityId: v.id("communities"),
+    milestoneKey: v.string(),
+    changedByUserId: v.id("users"),
+    via: v.union(v.literal("app"), v.literal("agent")),
+    // The agent's own name for itself ("Claude Code"), when an agent made it.
+    changedBy: v.optional(v.string()),
+    // Set when the owner approved an agent's suggestion.
+    approvedByUserId: v.optional(v.id("users")),
+    undoOf: v.optional(v.id("communityWorkflowChanges")),
+    before: v.any(),
+    after: v.any(),
+    revision: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_community_createdAt", ["communityId", "createdAt"]),
 
   communityResourceBuilderChangesets: defineTable({
     communityId: v.id("communities"),

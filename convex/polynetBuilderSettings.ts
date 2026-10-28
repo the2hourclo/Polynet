@@ -49,6 +49,7 @@ export type BuilderSettingOperation = {
 };
 
 const op = (spec: BuilderSettingOperation) => spec;
+const CHANGED_BY = 'optional: your name as the owner should see it in Workflows › Recent changes, for example "Claude Code" or "Codex"';
 
 export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
   op({
@@ -143,8 +144,16 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     fields: { expected_revision: "workflow revision", milestone_key: "the stage's key", name: "stage name", goal: "what finishing it means",
       instructions: "notes for the agent", require_human_approval: "true or false",
       color: "stage colour: grey, green, teal, blue, purple, pink, red, orange, yellow, or none to clear (left out keeps it)",
+      changed_by: CHANGED_BY,
       automations: "the stage's full list of automations, as /builder/settings.json shows them, including its pausedAutomations sent with paused: true (paused: true switches a rule off, and the steps after it go off too; left out, a rule is deleted); a client_property_changed trigger { propertyKey, value? } runs when that client property on their record changes (to value, if given) by the owner, the member, a form or an agent, never from a Workflow step's own write, and never holds the stage; a property_date trigger { propertyKey, offsetDays } on a date property runs at 09:00 UTC offsetDays from that date (negative = before, 0 = on the day, up to 365), once per date, for members in the stage then, never for dates already gone, and never holds the stage; a milestone_elapsed trigger { delayMinutes } runs that long after they reach the stage, and delayMinutes: 0 runs the moment they reach it (shown as Reaches this stage); one with nudge: true (and a real wait) is an agent check-in that runs only if they're still in the stage and never holds it; a prompt_agent action's sees lists what the agent reads: all_member_data (facts, progress, guide channel, every form and every client property, so new ones are included), facts, progress, guide_channel, form:<key>, property:<key>, lesson:<id> (absent = facts + the triggering form); a set_pod_member action { channelId, active } adds the member to a pod (a restricted channel from /builder/pods.json) when active is true and takes them out when false; a pod_member_added trigger { channelId? } runs when the owner, an admin, an agent or an offer adds them to that pod (absent = any pod), never from a Workflow step's own add, and never holds the stage; a send_email action has subject and body (plain text, blank line = new paragraph; {first_name}, {name}, {community} fill in), goes from Polynet with an unsubscribe link, skips members who unsubscribed, and sends a test member's copy to the admin running the test; an optional condition (Only if) is { propertyKey, op: is|is_not|is_set|is_empty, value? } on a client property, plus also: up to 3 more clauses joined by match: all (and) or any (or); a step whose condition fails is skipped with every step after it, and a sibling step after the same step with the same condition and otherwise: true runs exactly for the members it leaves out" },
-    required: ["expected_revision", "milestone_key", "name", "automations"], effects: ["update_workflow_stage"],
+    required: ["expected_revision", "milestone_key", "name", "automations"], extra: { via: "agent" }, effects: ["update_workflow_stage"],
+  }),
+  op({
+    operation: "community.workflow.change.undo", area: "workflows", name: "Undo a workflow stage change",
+    calls: "communityWorkflowChanges:undoBuilderWorkflowChange", ref: api.communityWorkflowChanges.undoBuilderWorkflowChange, kind: "mutation",
+    fields: { change_id: "a change_id from workflow_changes in /builder/settings.json; refused with workflow_change_newer_edits once the stage changed again (undo the newer change first)",
+      changed_by: CHANGED_BY },
+    required: ["change_id"], extra: { via: "agent" }, effects: ["undo_workflow_stage_change"],
   }),
   op({
     operation: "community.form.save", area: "forms", name: "Create or edit a form",
@@ -285,7 +294,20 @@ BUILDER_SETTING_OPERATIONS.push(
 
 // Hard-to-undo changes (Rashid, 2026-10-25: "Direct, risky ones need Apply").
 const proposal = (spec: Omit<BuilderSettingOperation, "review">) => op({ ...spec, review: "owner_apply" });
+const stageUpdate = BUILDER_SETTING_OPERATIONS.find(spec => spec.operation === "community.workflow.stage.update")!;
 BUILDER_SETTING_OPERATIONS.push(
+  proposal({
+    operation: "community.workflow.agent_review.set", area: "workflows", name: "Choose whether agents' workflow changes wait for you",
+    calls: "communityWorkflowChanges:setBuilderWorkflowAgentChangeReview", ref: api.communityWorkflowChanges.setBuilderWorkflowAgentChangeReview, kind: "mutation",
+    fields: { review: '"apply": community.workflow.stage.update goes live at once; "ask_others": it waits for the owner when another admin\'s agent sends it; "ask": it always waits (staged like community.workflow.stage.propose)' },
+    required: ["review"], effects: ["set_workflow_agent_review"],
+  }),
+  // Always waits for the owner, whatever the Workflows permission says.
+  proposal({
+    operation: "community.workflow.stage.propose", area: "workflows", name: "Suggest a change to a workflow stage",
+    calls: stageUpdate.calls, ref: stageUpdate.ref, kind: "mutation",
+    fields: stageUpdate.fields, required: stageUpdate.required, extra: stageUpdate.extra, effects: ["propose_workflow_stage_change"],
+  }),
   proposal({
     operation: "community.pricing.set", area: "pricing", name: "Change the price",
     calls: "communityLifecycle:saveCommunitySettings", ref: api.communityLifecycle.saveCommunitySettings, kind: "mutation",
@@ -718,7 +740,7 @@ export function builderSettingInput(spec: BuilderSettingOperation) {
   return {
     required: spec.required,
     ...spec.fields,
-    ...(proposing ? { note: "optional: one line for the owner on why" } : {}),
+    ...(proposing ? { note: "optional: one line for the owner on why", proposed_by: 'optional: your name as the owner should see it, for example "Claude Code"' } : {}),
     ...(spec.merge ? { guidance: "Leave out what you don't change; it keeps its current value." } : {}),
     ...(proposing ? { review: "owner_apply: this only proposes the change. It happens when the owner taps Apply in the app, within 24 hours." } : {}),
     result: proposing
@@ -737,7 +759,7 @@ export type BuilderSettingCall = { ok: true; args: Record<string, unknown> } | {
 export function builderSettingArgs(spec: BuilderSettingOperation, input: Record<string, unknown>, caller: {
   authSubject: string; userId: string; communityId: string; current?: Record<string, unknown> | null;
 }): BuilderSettingCall {
-  const unknown = Object.keys(input).filter(key => !(key in spec.fields) && !(key === "note" && spec.review === "owner_apply"));
+  const unknown = Object.keys(input).filter(key => !(key in spec.fields) && !((key === "note" || key === "proposed_by") && spec.review === "owner_apply"));
   if (unknown.length) return { ok: false, message: `Not a field of ${spec.operation}: ${unknown.join(", ")}.` };
   const missing = spec.required.filter(key => input[key] === undefined);
   if (missing.length) return { ok: false, message: `${spec.operation} needs ${missing.join(", ")}.` };
@@ -746,7 +768,7 @@ export function builderSettingArgs(spec: BuilderSettingOperation, input: Record<
     args.name = caller.current.name;
     args.slug = caller.current.slug;
   }
-  for (const [key, value] of Object.entries(input)) if (value !== undefined && key !== "note") args[camel(key)] = value;
+  for (const [key, value] of Object.entries(input)) if (value !== undefined && key !== "note" && key !== "proposed_by") args[camel(key)] = value;
   Object.assign(args, spec.extra ?? {});
   if (spec.community !== false) args.communityId = caller.communityId;
   if (spec.identity === "user") args.userId = caller.userId;
