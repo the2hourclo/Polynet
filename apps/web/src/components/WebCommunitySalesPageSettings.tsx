@@ -27,7 +27,7 @@ const STYLES: { id: Presentation; name: string; description: string }[] = [
   },
   {
     id: "funnel",
-    name: "Classroom sales page",
+    name: "Side card page",
     description: "Video and pitch on the left; a card with the price, members and join button stays beside it.",
   },
 ];
