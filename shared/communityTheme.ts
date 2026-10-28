@@ -199,7 +199,8 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   sibling_communities: "hide",
   pods_place: "aside",
   classroom_chat: "posts",
-  edges: "soft",
+  // Clean white is the light default (Rashid, 2026-10-28).
+  edges: "clean",
 };
 
 const COLOR_KEYS: readonly (keyof CommunityThemeColors)[] = [
@@ -829,17 +830,19 @@ function edgeVariables(
       "--pn-edge-card-line": ink(19, c.background),
     };
   }
-  const line = edges === "clean" ? 14 : 12;
+  // Clean takes Sharper's line strength (Rashid, 2026-10-28: "Sharper and
+  // Clean White is nice ... they are very similar").
+  const line = edges === "clean" ? 19 : 12;
   const panels: Record<string, string> = {
     "--border-default": ink(line, c.surface),
     "--stroke-default": ink(line, c.surface),
     "--stroke-panel-edge": ink(line, c.surface),
     "--stroke-divider-accent": ink(line, c.surface),
-    "--composer-border": ink(22, c.surface),
-    "--border-muted": ink(line - 5, c.surface),
-    "--stroke-muted": ink(line - 5, c.surface),
-    "--border-strong": ink(32, c.surface),
-    "--stroke-strong": ink(32, c.surface),
+    "--composer-border": ink(line + 7, c.surface),
+    "--border-muted": ink(line - 7, c.surface),
+    "--stroke-muted": ink(line - 7, c.surface),
+    "--border-strong": ink(line + 15, c.surface),
+    "--stroke-strong": ink(line + 15, c.surface),
     "--bg-workspace": c.surface,
     "--surface-workspace": c.surface,
     "--bg-header": c.surface,
