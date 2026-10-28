@@ -1,0 +1,10 @@
+opened pod: /c/ai-employee-builders/chat/agency-owners-test
+after 30 s: {"imgs":[{"where":"files","alt":"AI Employee Builders","loaded":true,"w":1024,"src":"http://127.0.0.1:3210/api/storage/af6bed"},{"where":"files","alt":"Classroom Demo","loaded":true,"w":400,"src":"http://127.0.0.1:3210/api/storage/6f5ec8"},{"where":"chat","alt":"","loaded":true,"w":1024,"src":"http://127.0.0.1:3210/api/storage/af6bed"},{"where":"chat","alt":"Copy of Youtube Thumbnail.png","loaded":true,"w":1280,"src":"blob"},{"where":"files","alt":"","loaded":true,"w":1024,"src":"http://127.0.0.1:3210/api/storage/af6bed"},{"where":"pinned","alt":"Copy of Youtube Thumbnail.png","loaded":true,"w":1280,"src":"blob"},{"where":"panel","alt":"","loaded":true,"w":1280,"src":"blob"},{"where":"files","alt":"","loaded":true,"w":1024,"src":"http://127.0.0.1:3210/api/storage/af6bed"},{"where":"files","alt":"","loaded":true,"w":1024,"src":"http://127.0.0.1:3210/api/storage/af6bed"},{"where":"chat","alt":"","loaded":true,"w":1024,"src":"http://127.0.0.1:3210/api/storage/af6bed"}],"loadingText":0,"placeholders":12}
+[images] console lines (0):
+attachment_download requests (1):
+  #1 POST id=qd7f95my75z0… status=200 headers=154ms total=212ms t0+127ms
+saved consistent-images-check.png
+ALLOWED {"auth:bootstrapActor":2,"businessAnalytics:identifyBusinessVisitor":2,"profiles:resolveOnboardingProfileDetail":17,"communityCommerce:redeemPendingPurchaseClaims":8,"communityPublic:heartbeatCommunityPresence":3,"communityAttention:markCommunitySurfaceSeen":1}
+BLOCKED {"communityAttention:acknowledgeCommunityChatRead":10}
+OTHER []
+LEAKS []
