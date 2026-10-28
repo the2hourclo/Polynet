@@ -24,16 +24,16 @@
 /* Framed: each column is its own rounded panel with a gap around it, on the
    tinted canvas. With the other settings the gap and radius are 0. */
 .product-shell-surface[data-community-theme] { background: var(--pn-edge-canvas, var(--bg-app)); }
-.product-shell-surface--community[data-community-theme] {
+:is(.product-shell-surface--community, .product-shell-surface--single)[data-community-theme] {
   gap: var(--pn-edge-gap, 0rem);
   padding: var(--pn-edge-gap, 0rem);
 }
-.product-shell-surface--community[data-community-theme] > :is(.community-nav, .channels-feel-body > main.workspace, main.workspace),
-.product-shell-surface--community[data-community-theme] .channels-feel-body > :is(.channels-feel-masthead, main.workspace) {
+:is(.product-shell-surface--community, .product-shell-surface--single)[data-community-theme] > :is(.community-nav, main.workspace),
+:is(.product-shell-surface--community, .product-shell-surface--single)[data-community-theme] .channels-feel-body :is(.channels-feel-masthead, main.workspace) {
   border-radius: var(--pn-edge-panel-radius, 0rem);
   box-shadow: var(--pn-edge-frame, none);
 }
-.product-shell-surface--community[data-community-theme] > .channels-feel-body { gap: var(--pn-edge-gap, 0rem); }
+:is(.product-shell-surface--community, .product-shell-surface--single)[data-community-theme] > .channels-feel-body { gap: var(--pn-edge-gap, 0rem); }
 .product-shell-surface--community-top[data-community-theme] .community-top-nav { box-shadow: var(--pn-edge-frame, none); }
 
 /* ---------------------------------------------------------------------------
@@ -47,12 +47,19 @@
   position: relative;
   padding-top: 3.5rem;
 }
-.product-shell-surface[data-channels-feel="publication"] > .channels-feel-body:not(:has(> .channels-feel-masthead))::before {
-  content: "";
-  position: absolute;
-  inset: 3.5rem 0 auto;
+.product-shell-surface[data-channels-feel="publication"] > .channels-feel-body:not(:has(> .channels-feel-masthead)) main.workspace {
   border-top: 1px solid var(--border-default);
-  pointer-events: none;
+}
+/* Framed: with no masthead the bar and the page are one panel. */
+:is(.product-shell-surface--community, .product-shell-surface--single)[data-community-theme][data-channels-feel="publication"] > .channels-feel-body:not(:has(> .channels-feel-masthead)) {
+  background: var(--bg-workspace);
+  border-radius: var(--pn-edge-panel-radius, 0rem);
+  box-shadow: var(--pn-edge-frame, none);
+  overflow: hidden;
+}
+:is(.product-shell-surface--community, .product-shell-surface--single)[data-community-theme][data-channels-feel="publication"] > .channels-feel-body:not(:has(> .channels-feel-masthead)) main.workspace {
+  border-radius: 0;
+  box-shadow: none;
 }
 .product-shell-surface[data-channels-feel="publication"] > .channels-feel-body:not(:has(> .channels-feel-masthead)) :is(
   .community-knowledge-header,
@@ -70,5 +77,5 @@
 /* Framed: the top-right buttons move in with the panels, so they sit inside
    the top panel's bar instead of on its edge. */
 .app-topbar .topbar-right-island > [data-community-theme] > * {
-  translate: calc(-1 * var(--pn-edge-gap, 0rem)) calc(var(--pn-edge-gap, 0rem) * 1.5);
+  translate: calc(-1 * var(--pn-edge-gap, 0rem)) var(--pn-edge-gap, 0rem);
 }
