@@ -142,7 +142,8 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
           : <p role="status">Only the community's owner and admins can see members.</p>)}
 
       {props.communityTab === "funnels" &&
-        renderWorkspacePane(
+        // Every owner page has the same way back in Channels (2026-10-28 review #9).
+        renderWorkspacePane(<div className="pn-page-with-back"><WebCommunityPageBack />
           <WebCommunityFunnelsSection
             communityId={props.funnel.editorProps.previewCommunity.id || null}
             communitySlug={props.funnel.editorProps.previewCommunity.slug ?? null}
@@ -150,11 +151,11 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
             ensureSession={props.funnel.editorProps.ensureSession}
             funnel={props.funnel}
             externalWebsite={settingsSectionProps.externalWebsite}
-          />,
+          /></div>,
         )}
 
       {props.communityTab === "analytics" &&
-        renderCenteredPane(<WebCommunityAnalyticsSection {...props.analytics} />)}
+        renderCenteredPane(<div className="pn-page-with-back"><WebCommunityPageBack /><WebCommunityAnalyticsSection {...props.analytics} /></div>)}
 
       {props.communityTab === "resources" ? (
         <>
