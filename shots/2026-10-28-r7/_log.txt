@@ -1,0 +1,24 @@
+head: 3a1cff7e (claude/local-combined); Convex functions ready 18:17:46 local after the pull; web 200
+Member = existing dev user Test Member via /open/ai-employee-builders?as=member; owner = normal bridge sign-in. Guard on (acknowledgeCommunityChatRead blocked, nothing marked read).
+
+  member: signed in as Your profile and settings (Test Member)
+  member: Oct 24 divider found=false; 1 join line(s):
+    "Test Member joined the community"
+  member: any "Fresh Member" in join lines: false
+saved general-joinlines-member.png
+  owner: signed in as Your profile and settings (Rashid)
+  owner: Oct 24 divider found=false; 1 join line(s):
+    "Test Member joined the community"
+  owner: any "Fresh Member" in join lines: false
+saved general-joinlines-owner.png
+ALLOWED {"auth:bootstrapActor":4,"businessAnalytics:identifyBusinessVisitor":4,"profiles:resolveOnboardingProfileDetail":37,"communityCommerce:redeemPendingPurchaseClaims":14,"communityPublic:heartbeatCommunityPresence":5}
+BLOCKED {"communityAttention:acknowledgeCommunityChatRead":11}
+OTHER []
+LEAKS []
+SNAPSHOT users: 124 -> 124, added 0, removed 0, changed 0
+SNAPSHOT communityMemberships: 44 -> 44, added 0, removed 0, changed 0
+SNAPSHOT communityChannels: 26 -> 26, added 0, removed 0, changed 0
+SNAPSHOT communityChannelParticipants: 115 -> 115, added 0, removed 0, changed 0
+SNAPSHOT userEntitlements: 124 -> 124, added 0, removed 0, changed 0
+
+RESULT: PASS for both views. The whole OCT 24 day is gone: all three of its join lines were Fresh Member rows, so no divider shows. The only join line left is OCT 25 "Test Member joined the community". No "Fresh Member" text appears anywhere. Owner and member see the same thing.
