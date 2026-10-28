@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 import {
   communityOfferUpgradeErrorMessage,
@@ -120,6 +120,10 @@ function periodFor(offer: CommunityVisitorOffer, preferred: CommunityBillingPeri
 export function WebCommunityOfferChooser(props: { choice: CommunityOfferChoice; preferredPeriod: CommunityBillingPeriod | null }) {
   const { choice } = props;
   const shown = choice.offers.length > 0;
+  // Each chooser its own radio group: the sales page shows the action twice
+  // (in the join card and, on narrow screens, under the facts), and one shared
+  // name let the browser uncheck the picked card in the other copy.
+  const group = `pn-offer-choice-${useId()}`;
   // Settings › Offers links here with #offers.
   // The cards load after the page, and the media above them can still push
   // them down, so try a few times; a page can hold the chooser twice (the
@@ -149,7 +153,7 @@ export function WebCommunityOfferChooser(props: { choice: CommunityOfferChoice; 
         const isCurrent = choice.current?.key === offer.key;
         return (
           <label key={offer.key} className={`pn-offer-choice${choice.selected?.key === offer.key ? " is-selected" : ""}`}>
-            <input type="radio" name="pn-offer-choice" checked={choice.selected?.key === offer.key} onChange={() => choice.onSelect(offer.key)} />
+            <input type="radio" name={group} checked={choice.selected?.key === offer.key} onChange={() => choice.onSelect(offer.key)} />
             <span className="pn-offer-choice-body">
               {/* The price shares the name's row, so the lines under it get the
                   card's full width rather than a squeezed column (2026-10-28). */}
