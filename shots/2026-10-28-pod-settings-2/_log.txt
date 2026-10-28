@@ -1,0 +1,43 @@
+  classroom: pod entries matching 1
+  classroom: in pod, url /c/ai-employee-builders/chat/agency-owners-test
+  menu: ["Pod settings | Delete pod"]
+  consistent-classroom-header-settings: ["Pod settings | Name the pod and choose who's in it. The pinned post and calls are in the pod's panel. | Pod name | Who can see it | Private: only the people in this pod | Open: every member can find and join it | Everyone in the community (makes it a channel) | Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately. | Let the community agent in this pod | In this pod | Ava Builder | Ben Coach | Cara Agency | Test Member | New Path c | TM | Test member 24 | TM | Test member 29 | TM | Test member 30 | Close | Save name"]
+    "Pod settings": true
+    "Who can see it": true
+saved consistent-classroom-header-settings.png
+    who-can-see value private; options ["private=Private: only the people in this pod","open=Open: every member can find and join it","all_members=Everyone in the community (makes it a channel)"]
+saved consistent-classroom-header-settings-whocansee.png
+    who-can-see value after Escape: (closed)
+  classroom: pod entries matching 1
+  classroom: in pod, url /c/ai-employee-builders/chat/agency-owners-test
+  consistent-classroom-addpeople: ["Pod settings | Name the pod and choose who's in it. The pinned post and calls are in the pod's panel. | Pod name | Who can see it | Private: only the people in this pod | Open: every member can find and join it | Everyone in the community (makes it a channel) | Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately. | Let the community agent in this pod | In this pod | Ava Builder | Ben Coach | Cara Agency | Test Member | New Path c | TM | Test member 24 | TM | Test member 29 | TM | Test member 30 | Close | Save name"]
+    "Pod settings": true
+    "Who can see it": true
+saved consistent-classroom-addpeople.png
+    who-can-see value private; options ["private=Private: only the people in this pod","open=Open: every member can find and join it","all_members=Everyone in the community (makes it a channel)"]
+saved consistent-classroom-addpeople-whocansee.png
+    who-can-see value after Escape: (closed)
+  channels: in pod, url /c/ai-employee-builders/chat/agency-owners-test
+  menu: ["Pod settings | Delete pod"]
+  consistent-channels-header-settings: ["Pod settings | Name the pod and choose who's in it. The pinned post and calls are in the pod's panel. | Pod name | Who can see it | Private: only the people in this pod | Open: every member can find and join it | Everyone in the community (makes it a channel) | Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately. | Let the community agent in this pod | In this pod | Ava Builder | Ben Coach | Cara Agency | Test Member | New Path c | TM | Test member 24 | TM | Test member 29 | TM | Test member 30 | Close | Save name"]
+    "Pod settings": true
+    "Who can see it": true
+saved consistent-channels-header-settings.png
+    who-can-see value private; options ["private=Private: only the people in this pod","open=Open: every member can find and join it","all_members=Everyone in the community (makes it a channel)"]
+saved consistent-channels-header-settings-whocansee.png
+    who-can-see value after Escape: (closed)
+  channels: in pod, url /c/ai-employee-builders/chat/agency-owners-test
+  consistent-channels-addpeople: ["Pod settings | Name the pod and choose who's in it. The pinned post and calls are in the pod's panel. | Pod name | Who can see it | Private: only the people in this pod | Open: every member can find and join it | Everyone in the community (makes it a channel) | Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately. | Let the community agent in this pod | In this pod | Ava Builder | Ben Coach | Cara Agency | Test Member | New Path c | TM | Test member 24 | TM | Test member 29 | TM | Test member 30 | Close | Save name"]
+    "Pod settings": true
+    "Who can see it": true
+saved consistent-channels-addpeople.png
+    who-can-see value private; options ["private=Private: only the people in this pod","open=Open: every member can find and join it","all_members=Everyone in the community (makes it a channel)"]
+saved consistent-channels-addpeople-whocansee.png
+    who-can-see value after Escape: (closed)
+ALLOWED {"auth:bootstrapActor":8,"businessAnalytics:identifyBusinessVisitor":8,"profiles:resolveOnboardingProfileDetail":70,"communityCommerce:redeemPendingPurchaseClaims":31,"communityPublic:heartbeatCommunityPresence":11,"communityAttention:markCommunitySurfaceSeen":3}
+BLOCKED {"communityAttention:acknowledgeCommunityChatRead":24}
+OTHER []
+LEAKS []
+
+Served commit a57fa40 (Convex functions ready 20:05:07 local, no schema errors). Read-only: no visibility change, no Save. Pod mx7e5z6xa3pya6rz63z7g5sqe18h1md1 unchanged after (accessMode restricted, no podVisibility, updatedAt 1793188436853).
+The "Who can see it" control is a native <select>; its popup is drawn by the OS and never appears in a page screenshot, so the *-whocansee shots show the list via a temporary size attribute (display only, removed after; value stayed "private").
