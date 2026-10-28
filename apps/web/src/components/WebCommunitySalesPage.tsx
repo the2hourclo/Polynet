@@ -111,6 +111,33 @@ function videoThumbnail(url: string): string | null {
   return null;
 }
 
+// A picture on the gallery shows whole. The slide takes the picture's own
+// shape, kept between portrait 4:5 and wide 21:9 so a very tall or very wide
+// one can't swamp the page; whatever room is left is filled by a soft, blurred
+// copy of the picture rather than bars (Rashid, 2026-10-28: "too zoomed in").
+const GALLERY_RATIO_MIN = 4 / 5;
+const GALLERY_RATIO_MAX = 21 / 9;
+
+function GallerySlidePicture(props: { url: string; alt: string }) {
+  const [ratio, setRatio] = useState<number | null>(null);
+  return (
+    <div
+      className="community-sales-media is-picture"
+      style={ratio ? { aspectRatio: String(Math.min(GALLERY_RATIO_MAX, Math.max(GALLERY_RATIO_MIN, ratio))) } : undefined}
+    >
+      <img className="community-sales-media-backdrop" src={props.url} alt="" aria-hidden="true" />
+      <img
+        src={props.url}
+        alt={props.alt}
+        onLoad={(event) => {
+          const { naturalWidth, naturalHeight } = event.currentTarget;
+          if (naturalWidth > 0 && naturalHeight > 0) setRatio(naturalWidth / naturalHeight);
+        }}
+      />
+    </div>
+  );
+}
+
 // The gallery: one slide at a time, arrows and the arrow keys to move, and a
 // row of thumbnails to jump. A video plays in place; moving on stops it.
 export function SalesPageGallery(props: {
@@ -147,10 +174,10 @@ export function SalesPageGallery(props: {
   return (
     <figure className="community-sales-gallery" aria-roledescription="carousel" aria-label={`${props.communityName} pictures and videos`}>
       <div className="community-sales-gallery-stage" tabIndex={many ? 0 : undefined} onKeyDown={onKeyDown}>
-        <div className="community-sales-media" key={`${index}:${current.url}`} aria-roledescription="slide" aria-label={`${index + 1} of ${items.length}`}>
+        <div className="community-sales-gallery-slide" key={`${index}:${current.url}`} aria-roledescription="slide" aria-label={`${index + 1} of ${items.length}`}>
           {current.kind === "video"
-            ? renderHeroMediaDefault("video", current.url, { eager: index === 0, playHint: "Watch" })
-            : <img src={current.url} alt={current.caption || ""} />}
+            ? <div className="community-sales-media">{renderHeroMediaDefault("video", current.url, { eager: index === 0, playHint: "Watch" })}</div>
+            : <GallerySlidePicture url={current.url} alt={current.caption || ""} />}
         </div>
         {many ? (
           <>
