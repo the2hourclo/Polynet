@@ -252,7 +252,7 @@ function ResourceCourseCard(props: {
             </span>
           ) : (
             <span className={`resource-course-card-meta ${lockedReason ? "is-locked" : "is-count"}`}>
-              {lockedReason ? lockedReason : lessonsText ?? "Lessons not loaded"}
+              {lockedReason ? lockedReason : lessonsText ?? "Loading lessons…"}
             </span>
           )}
         </span>

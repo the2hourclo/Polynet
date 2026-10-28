@@ -22,7 +22,7 @@ function lesson(id: string, title: string, stage: string, stageOrder: number, or
   };
 }
 
-function renderBoard(statusByRef: Record<string, "not_started" | "in_progress" | "done">, owner = false) {
+function renderBoard(statusByRef: Record<string, "not_started" | "in_progress" | "done">, owner = false, about?: Record<string, unknown>) {
   const resources = [
     lesson("l1", "Set up your workspace", "Start", 1, 1),
     lesson("l2", "Map your week", "Start", 1, 2),
@@ -35,6 +35,8 @@ function renderBoard(statusByRef: Record<string, "not_started" | "in_progress" |
   return renderToStaticMarkup(createElement(WebCommunityLessonBoard, {
     resources, progress, signedIn: true, onRequireSignIn: () => {},
     editing: owner ? { save: async () => true, addLesson: async () => null, editLesson: () => {} } : null,
+    title: "Your first employee",
+    ...(about ? { about: about as never } : {}),
   }));
 }
 
@@ -43,8 +45,8 @@ describe("roadmap progress", () => {
     const markup = renderBoard({ [buildCommunityResourceEvidenceRef("l1")]: "done" });
 
     expect(markup).toContain('aria-valuetext="1 of 3 lessons done"');
-    expect(markup).toContain("Section 1 of 2");
-    expect(markup).toMatch(/class="lesson-journey-next"[^>]*>.*?<small>Next up<\/small><strong>Map your week<\/strong>/);
+    expect(markup).toContain("Module 1 of 2");
+    expect(markup).toMatch(/class="lesson-journey-next"[^>]*>.*?<small>Up next<\/small><strong>Map your week<\/strong>/);
     expect(markup).toMatch(/data-state="current" data-open=""/);
     expect(markup).toMatch(/lesson-journey-lesson is-next"[^>]*>.*?Map your week/);
     // Members see only the stage they're on; later stages stay folded.
@@ -58,7 +60,7 @@ describe("roadmap progress", () => {
 
     expect(markup).toContain('aria-valuenow="100"');
     expect(markup).toContain("Every lesson is done");
-    expect(markup).not.toContain("Next up");
+    expect(markup).not.toContain("Up next");
     expect(markup).toMatch(/data-state="done"(?! data-open)/);
   });
 
@@ -70,7 +72,25 @@ describe("roadmap progress", () => {
     expect(markup).toContain('aria-label="Move Map your week down"');
     expect(markup).toContain("Edit lesson");
     expect(markup).toContain("Add a lesson");
-    expect(markup).toContain("Add a stage");
+    expect(markup).toContain("Add a module");
     expect(markup).toContain('draggable="true"');
+  });
+
+  it("opens a track like a course: modules in the outline, the track's page beside them", () => {
+    const markup = renderBoard({ [buildCommunityResourceEvidenceRef("l1")]: "done" }, false, {
+      eyebrow: "Skill track", summary: "From install to your first employee.", outcomes: ["Map your week"], audience: "New owners.",
+    });
+
+    expect(markup).toContain("lesson-step-outline");
+    expect(markup).toContain("Track overview");
+    expect(markup).toMatch(/Module 1<\/span><span class="lesson-step-module-name">Start/);
+    expect(markup).toContain("Skill track · 2 modules · 3 lessons");
+    expect(markup).toContain("Start here: Map your week");
+    expect(markup).toContain("Module 1 · 1 of 3 done");
+    expect(markup).toContain("Who it&#x27;s for");
+    // The module you're on is open; the next one folds to its name.
+    expect(markup).toContain("Set up your workspace");
+    expect(markup).not.toContain("Build your first employee</span></span></button>");
+    expect(markup).not.toContain("lesson-journey-stages");
   });
 });

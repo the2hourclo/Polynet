@@ -24,3 +24,13 @@ test("a course behind an unfinished gate is locked and names the gate", () => {
   });
   expect(computeCommunityCourseProgress({ lessons, statusByRef: { "resource:setup": "done" } }).xray).toEqual({ done: 0, total: 1 });
 });
+
+test("with course names, a locked course names the course to finish, not a lesson", () => {
+  const lessons = [
+    lesson("setup", "start", "Connect and onboard", { stage: "Get set up", stage_order: 0, gate: true }),
+    lesson("map", "xray", "Map the business", { stage: "Map the business", stage_order: 1 }),
+  ];
+  expect(computeCommunityCourseProgress({ lessons, statusByRef: {}, courseTitles: { start: "Get set up", xray: "Business X-Ray" } }).xray).toEqual({
+    done: 0, total: 1, lockedReason: 'Opens after "Get set up"',
+  });
+});

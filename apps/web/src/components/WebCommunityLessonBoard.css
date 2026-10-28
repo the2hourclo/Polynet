@@ -215,3 +215,74 @@ input.lesson-journey-lesson-title { flex: 1; }
   border-radius: var(--pn-radius-button); box-shadow: var(--pn-shadow-button);
 }
 .lesson-journey .lesson-journey-stage-name { font-family: var(--pn-font-heading, inherit); font-size: 17px; font-weight: var(--pn-heading-weight, 600); text-transform: var(--pn-heading-case, none); }
+
+/* A track's outline groups its lessons by module: a quiet header row with the
+   module's number, name and done count, folding open on the module you're in. */
+.lesson-step-outline-stage + .lesson-step-outline-stage { margin-top: 2px; }
+.lesson-step-outline-stage { border-top: 1px solid color-mix(in srgb, var(--border-default) 72%, transparent); }
+.lesson-step-module {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 8px; border: 0; border-radius: 8px; background: none; font: inherit; text-align: left; color: var(--text-primary); cursor: pointer;
+}
+.lesson-step-module:hover { background: var(--hover-overlay); }
+.lesson-step-module-copy { display: grid; gap: 1px; min-width: 0; }
+.lesson-step-module .lesson-step-outline-stage-name { margin: 0; padding: 0; }
+.lesson-step-module-name { overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-step-module-count { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.lesson-step-module-count svg { width: 13px; height: 13px; }
+.lesson-step-module-chevron { width: 15px; height: 15px; color: var(--text-secondary); transition: transform 150ms ease; }
+.lesson-step-outline-stage[data-open] .lesson-step-module-chevron { transform: rotate(180deg); }
+.lesson-step-outline-stage[data-locked] .lesson-step-module-name { color: var(--text-secondary); }
+.lesson-step-module-lessons { display: grid; gap: 2px; padding-bottom: 8px; }
+.lesson-step-module-lock { margin: 0 0 4px; padding: 0 8px; font-size: 12px; color: var(--text-secondary); }
+.lesson-step-overview { margin-bottom: 6px; }
+.lesson-step-overview-icon { display: grid; place-items: center; flex: none; width: 18px; height: 18px; color: var(--text-secondary); }
+.lesson-step-overview-icon svg { width: 16px; height: 16px; }
+.lesson-step-overview .knowledge-resource-item-title { font-weight: 600; }
+
+/* The track's own page beside the outline: a calm column, no hero. */
+.roadmap-track-page {
+  box-sizing: border-box; display: grid; align-content: start; gap: 20px; width: 100%; max-width: 44rem;
+  padding: 4px clamp(16px, 3vw, 40px) 64px; color: var(--text-primary);
+}
+.roadmap-track-crumb { margin: 0; font-size: 13px; color: var(--text-secondary); }
+.roadmap-track-title {
+  margin: -8px 0 0; font-family: var(--pn-font-heading, inherit); font-size: clamp(28px, 3.2vw, 38px); line-height: 1.15;
+  font-weight: var(--pn-heading-weight, 700); text-transform: var(--pn-heading-case, none); text-wrap: balance;
+}
+.roadmap-track-promise { margin: -6px 0 0; max-width: 60ch; font-size: 17px; line-height: 1.55; color: var(--text-primary); }
+.roadmap-track-next {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; width: 100%; padding: 14px 16px;
+  border: 1px solid var(--border-default); border-radius: var(--pn-radius-card, 12px); background: var(--surface-card, transparent);
+  font: inherit; text-align: left; color: var(--text-primary); cursor: pointer; transition: border-color 150ms ease;
+}
+.roadmap-track-next:hover { border-color: var(--accent-brand); }
+.roadmap-track-next-copy { display: grid; gap: 2px; min-width: 0; }
+.roadmap-track-next-copy strong { font-size: 15px; font-weight: 600; line-height: 1.35; }
+.roadmap-track-next-copy span { font-size: 13px; color: var(--text-secondary); }
+.roadmap-track-next-go {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap;
+  color: var(--pn-on-accent, #fff); background: var(--pn-accent, var(--accent-brand)); box-shadow: var(--pn-shadow-button, none);
+}
+.roadmap-track-next-go svg { width: 15px; height: 15px; }
+.roadmap-track-page .lesson-journey-complete { margin: 0; }
+.roadmap-track-outcomes { display: grid; gap: 8px; }
+.roadmap-track-outcomes h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.roadmap-track-outcomes ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.roadmap-track-outcomes li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 15px; line-height: 1.5; }
+.roadmap-track-outcomes li svg { width: 15px; height: 15px; color: var(--accent-brand); transform: translateY(2px); }
+.roadmap-track-who { margin: 0; font-size: 14px; color: var(--text-secondary); }
+.roadmap-track-who b { margin-right: 4px; color: var(--text-primary); font-weight: 600; }
+.roadmap-track-owner { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-default); }
+.roadmap-track-page .track-opens { margin: 0; padding-bottom: 0; }
+
+/* Edit modules: the full editor, with the way back to the track page. */
+.roadmap-edit-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 20px;
+  padding: 10px 12px 10px 16px; border: 1px solid var(--border-default); border-radius: 12px; font-size: 14px; color: var(--text-secondary);
+}
+.roadmap-edit-bar strong { color: var(--text-primary); }
+@media (max-width: 560px) {
+  .roadmap-track-next { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .roadmap-track-next-go { justify-self: start; }
+}

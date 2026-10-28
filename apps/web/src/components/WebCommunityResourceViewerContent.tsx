@@ -45,6 +45,9 @@ import { WebPlatformTabList } from "./WebPlatformChoiceControls";
 import { WebLessonSlideDeck } from "./WebLessonSlideDeck";
 import type { CommunityResource } from "./communityResourcesContracts";
 
+// How long a member reads a lesson before it counts as started.
+const LESSON_START_AFTER_MS = 15_000;
+
 // Only owners and their team edit, so the editor loads when editing starts.
 const LessonEditor = lazy(() => import("./lessonEditor/LessonEditor"));
 
@@ -510,11 +513,16 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   // Once per lesson per page: a failed or refused write puts the status back
   // to not_started, and retrying from here looped thousands of times a minute
   // (2026-10-28). Mark as done still writes on click.
+  // A lesson counts as started after a short read, so opening a course (which
+  // lands on its first lesson) to look around doesn't start it (Rashid, 2026-10-28).
   const autoStarted = useRef(new Set<string>());
   useEffect(() => {
     if (!startLesson || lessonStatus !== "not_started" || autoStarted.current.has(lessonRef)) return;
-    autoStarted.current.add(lessonRef);
-    startLesson(resource.id, lessonRef, "in_progress");
+    const timer = window.setTimeout(() => {
+      autoStarted.current.add(lessonRef);
+      startLesson(resource.id, lessonRef, "in_progress");
+    }, LESSON_START_AFTER_MS);
+    return () => window.clearTimeout(timer);
   }, [startLesson, lessonStatus, resource.id, lessonRef]);
   // Every lesson ends with Mark as done, unless its body has its own button for it.
   // It writes the same progress the course outline reads, so the tick shows there at once.

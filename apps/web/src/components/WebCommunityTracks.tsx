@@ -95,7 +95,7 @@ export function formatTrackMinutes(total: number) {
 
 function trackFacts(track: CommunityTrackView) {
   return [
-    plural(track.stages.length, "section"),
+    plural(track.stages.length, "module"),
     plural(track.step_count, "lesson"),
     track.minutes ? `about ${formatTrackMinutes(track.minutes)}` : null,
   ].filter(Boolean).join(" · ");
@@ -343,7 +343,7 @@ export function WebCommunityTrackHeader(props: {
           <h2>{track.title}</h2>
           {track.summary ? <p className="track-hero-promise">{track.summary}</p> : null}
           <p className="track-hero-facts">
-            <span><b>{track.stages.length}</b> {track.stages.length === 1 ? "section" : "sections"}</span>
+            <span><b>{track.stages.length}</b> {track.stages.length === 1 ? "module" : "modules"}</span>
             <span><b>{track.step_count}</b> {track.step_count === 1 ? "lesson" : "lessons"}</span>
             {track.minutes ? <span>about <b>{formatTrackMinutes(track.minutes)}</b></span> : null}
             {checkpoints ? <span><b>{checkpoints}</b> {checkpoints === 1 ? "checkpoint" : "checkpoints"}</span> : null}
@@ -464,7 +464,7 @@ const RULE_LABEL: Record<RuleType, string> = {
   after_checkpoint: "After a lesson is done",
   after_track: "After a track is finished",
   workflow_stage: "When they reach a Workflow stage",
-  client_property: "When a client property is",
+  client_property: "When a member property is",
 };
 
 const slug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "track";
@@ -476,7 +476,7 @@ function blankRule(type: RuleType, data: CommunityBuilderTracks, selfKey: string
   return { type, resource_id: data.lessons[0]?.id ?? "" };
 }
 
-/** The editor's draft as a member's card sees it: counts from its sections, nothing done yet. */
+/** The editor's draft as a member's card sees it: counts from its modules, nothing done yet. */
 function previewOf(draft: CommunityBuilderTrack, data: CommunityBuilderTracks): CommunityTrackView {
   const stages = draft.stages.filter((stage) => stage.steps.length > 0);
   const lessonTitle = new Map(data.lessons.map((lesson) => [lesson.id, lesson.title]));
@@ -521,7 +521,7 @@ export function WebCommunityTrackEditor<SessionT>(props: {
         const existing = loaded.tracks.find((track) => track.key === props.trackKey);
         setDraft(existing ?? {
           key: "", title: "", summary: "", order: loaded.tracks.length, show: "always", opens_when: [],
-          stages: [{ name: "Section 1", steps: [] }], revision: 0, derived: false,
+          stages: [{ name: "Module 1", steps: [] }], revision: 0, derived: false,
         });
       })
       .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : "Tracks are unavailable."); });
@@ -629,7 +629,7 @@ export function WebCommunityTrackEditor<SessionT>(props: {
           </div>
           <input aria-label="Cover image link" value={draft.cover_url ?? ""} onChange={(event) => update({ cover_url: event.target.value })}
             placeholder="Or paste an image link (https://…)" />
-          <em className="track-hint">Built-in covers use your community's colours. The route draws one dot per section.</em>
+          <em className="track-hint">Built-in covers use your community's colours. The route draws one dot per module.</em>
         </div>
         <label className="track-field">
           <span>What they'll be able to do <em>one per line, up to 6</em></span>
@@ -650,7 +650,7 @@ export function WebCommunityTrackEditor<SessionT>(props: {
           </label>
           <label className="track-access">
             <input type="radio" name="track-access" checked={access === "earn"} onChange={() => setAccess("earn")} />
-            <span><strong>Members who earn it</strong><em>After a lesson, another track, a Workflow stage or a client property</em></span>
+            <span><strong>Members who earn it</strong><em>After a lesson, another track, a Workflow stage or a member property</em></span>
           </label>
           <label className="track-access">
             <input type="radio" name="track-access" checked={access === "buy"} onChange={() => setAccess("buy")} disabled={isMain} />
@@ -688,7 +688,7 @@ export function WebCommunityTrackEditor<SessionT>(props: {
                 </select>
               ) : (
                 <span className="track-rule-pair">
-                  <select aria-label="Client property" value={rule.property} onChange={(event) => setRule(index, { ...rule, property: event.target.value })}>
+                  <select aria-label="Member property" value={rule.property} onChange={(event) => setRule(index, { ...rule, property: event.target.value })}>
                     {data.client_properties.map((property) => <option key={property.key} value={property.key}>{property.name}</option>)}
                   </select>
                   <input aria-label="Value" value={String(rule.equals)} onChange={(event) => setRule(index, { ...rule, equals: event.target.value })} />
@@ -710,12 +710,12 @@ export function WebCommunityTrackEditor<SessionT>(props: {
 
         {editsStages ? (
           <fieldset className="track-fieldset">
-            <legend>Sections and lessons</legend>
+            <legend>Modules and lessons</legend>
             {draft.stages.map((stage, stageIndex) => (
               <div className="track-stage" key={stageIndex}>
                 <div className="track-stage-head">
                   <span className="track-stage-number">{stageIndex + 1}</span>
-                  <input aria-label="Section name" value={stage.name} onChange={(event) => setStages(draft.stages.map((current, i) => (i === stageIndex ? { ...current, name: event.target.value } : current)))} />
+                  <input aria-label="Module name" value={stage.name} onChange={(event) => setStages(draft.stages.map((current, i) => (i === stageIndex ? { ...current, name: event.target.value } : current)))} />
                   <button type="button" className="track-icon" aria-label="Move stage up" onClick={() => setStages(move(draft.stages, stageIndex, stageIndex - 1))}><ArrowUp size={14} /></button>
                   <button type="button" className="track-icon" aria-label="Move stage down" onClick={() => setStages(move(draft.stages, stageIndex, stageIndex + 1))}><ArrowDown size={14} /></button>
                   <button type="button" className="track-icon" aria-label="Remove stage" onClick={() => setStages(draft.stages.filter((_, i) => i !== stageIndex))}><Trash2 size={14} /></button>
@@ -752,8 +752,8 @@ export function WebCommunityTrackEditor<SessionT>(props: {
                 </select>
               </div>
             ))}
-            <button type="button" className="track-add" onClick={() => setStages([...draft.stages, { name: `Section ${draft.stages.length + 1}`, steps: [] }])}>
-              <Plus size={14} /> Add a section
+            <button type="button" className="track-add" onClick={() => setStages([...draft.stages, { name: `Module ${draft.stages.length + 1}`, steps: [] }])}>
+              <Plus size={14} /> Add a module
             </button>
             <p className="track-hint">A lesson can be in several tracks. Members who finished it in one track have it done in all of them.</p>
           </fieldset>
@@ -765,7 +765,7 @@ export function WebCommunityTrackEditor<SessionT>(props: {
         <aside className="track-editor-preview" aria-label="How members see it">
           <span className="track-editor-preview-label">Live card</span>
           <ul className="track-grid"><TrackCard track={{ ...previewOf(draft, data), outcomes }} onOpen={() => {}} /></ul>
-          <span className="track-hint">Lessons, sections and minutes are counted for you. Your agent can fill all of this too.</span>
+          <span className="track-hint">Lessons, modules and minutes are counted for you. Your agent can fill all of this too.</span>
         </aside>
         </div>
         {error ? <p className="track-error" role="alert">{error}</p> : null}
