@@ -282,16 +282,16 @@ export function WebCommunityOffersSettings<SessionT>(props: {
 
       <section className="settings-section pn-settings-card" aria-labelledby="settings-offer-channels-title">
         <header className="pn-settings-card-header">
-          <h2 className="settings-section-title" id="settings-offer-channels-title">Private channels</h2>
+          <h2 className="settings-section-title" id="settings-offer-channels-title">Pods</h2>
           <p className="settings-section-desc">
-            Choose who&rsquo;s in each private channel. For example, set a &ldquo;Consulting calls&rdquo; channel to
+            Choose who&rsquo;s in each pod. For example, set a &ldquo;Consulting calls&rdquo; pod to
             &ldquo;Everyone on {live[1]?.name ?? "Consulting"}&rdquo;: people join it when they buy that offer and leave it if they cancel.
           </p>
         </header>
         <div className="pn-settings-card-body">
           {data && !privateChannels.length ? (
             <p className="pn-settings-note">
-              {sharedCount ? "Every channel here is open to all members. " : ""}Make a channel invite-only in its settings, then choose who&rsquo;s in it here.
+              {sharedCount ? "Every channel here is open to all members. " : ""}Make a pod with New pod, then choose who&rsquo;s in it here.
             </p>
           ) : null}
           {privateChannels.map((channel) => {

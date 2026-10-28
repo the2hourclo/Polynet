@@ -58,10 +58,10 @@ function workflowErrorMessage(error: unknown): string {
   }
   if (message.includes("workflow_delay_invalid")) return "Choose a duration from 1 minute to 365 days.";
   if (message.includes("welcome_gate_requires_join_form")) return "Add a Member joins rule that requests a form to the first milestone, or a welcome lesson, then turn on the welcome flow.";
-  if (message.includes("client_property_not_found")) return "That client property no longer exists. Choose another one.";
-  if (message.includes("client_property_value_invalid")) return "That value doesn't fit the client property. Pick one of its options or enter the right kind of value.";
-  if (message.includes("client_property_required")) return "Choose the client property to set.";
-  if (message.includes("lesson_trigger_action_invalid")) return "When a lesson or course is done, a rule can request a form or set a client property.";
+  if (message.includes("client_property_not_found")) return "That member property no longer exists. Choose another one.";
+  if (message.includes("client_property_value_invalid")) return "That value doesn't fit the member property. Pick one of its options or enter the right kind of value.";
+  if (message.includes("client_property_required")) return "Choose the member property to set.";
+  if (message.includes("lesson_trigger_action_invalid")) return "When a lesson or course is done, a rule can request a form or set a member property.";
   if (message.includes("welcome_lesson_unavailable")) return "A chosen lesson is no longer published. Pick another lesson.";
   if (message.includes("welcome_lessons_too_many")) return "Choose up to 5 welcome lessons.";
   if (message.includes("welcome_media_url_invalid")) return "Enter a full video or image link, starting with https://.";

@@ -552,7 +552,7 @@ export function WebCommunityAccessSettings({ gateway }: { gateway: CommunityAcce
     </AccessCard>
     <AccessCard title="Give someone access" description={<>
       For a trial, a comp or a partner. They need a Polynet account with a verified email. Access ends on the date you pick and
-      connected services hear about it. Change or end it later from their row in Workflows → Clients.
+      connected services hear about it. Change or end it later from their row in Members.
     </>}>
       <GrantForm withEmail submitLabel="Give access" busy={granting} offers={offers} onSubmit={async (input) => {
         setGranting(true); setGrantError(null); setGrantNotice(null);

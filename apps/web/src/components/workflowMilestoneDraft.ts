@@ -20,7 +20,7 @@ export function workflowAutomationIssue(automation: CommunityMemberWorkflowAutom
   if ((automation.trigger.type === "lesson_completed" || automation.trigger.type === "course_completed" || automation.trigger.type === "track_completed"
       || automation.trigger.type === "offer_started" || automation.trigger.type === "offer_ended")
     && automation.action.type !== "request_form" && !workflowActionIsInstant(automation.action.type)) return "Choose Request form, Send an email, Update member record or a pod step";
-  if (automation.action.type === "set_client_property" && !automation.action.propertyKey) return "Choose a client property";
+  if (automation.action.type === "set_client_property" && !automation.action.propertyKey) return "Choose a member property";
   if (automation.action.type === "send_email" && (!automation.action.subject.trim() || !automation.action.body.trim())) return "Add a subject and a message";
   if (automation.action.type === "set_pod_member" && !automation.action.channelId) return "Choose a pod";
   const triggerIssue = workflowTriggerIssue(automation, channels, unavailable);

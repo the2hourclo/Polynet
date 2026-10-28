@@ -34,7 +34,7 @@ type Option = { icon: LucideIcon; label: string; hint?: string; type?: string; a
 // community's accent marks only what's selected (polynet-ui/airtable-study).
 const TRIGGERS: Array<{ name: string; options: Option[] }> = [
   { name: "Members", options: [
-    { icon: DoorOpen, label: "Someone joins", hint: "Only the first stage starts here", type: "member_joined" },
+    { icon: DoorOpen, label: "Member joins", hint: "Only the first stage starts here", type: "member_joined" },
     { icon: Flag, label: "Reaches this stage", hint: "The moment they arrive", type: "milestone_elapsed", arrival: true },
     { icon: ShoppingBag, label: "Starts an offer", hint: "Joins on it or upgrades to it", type: "offer_started" },
     { icon: CreditCard, label: "Leaves an offer", hint: "Downgrades or their paid time ends", type: "offer_ended" },

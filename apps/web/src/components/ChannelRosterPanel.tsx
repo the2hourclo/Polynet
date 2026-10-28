@@ -270,7 +270,7 @@ function RosterSurface(props: RosterProps & {
     <CommunityPresenceFacepile faces={props.presenceSummary?.online_faces} onlineCount={props.presenceSummary?.online_count}
       onlineCountCapped={Boolean(props.presenceSummary?.online_count_capped)} isLoading={props.isLoadingPresence} />
     <div className="community-context-memory">
-      <div className="community-context-memory-head"><div className="community-context-section">Memory{memory ? ` — ${memory.memory.total_visible_nodes}${memory.memory.node_counts_are_lower_bound ? "+" : ""}` : ""}</div></div>
+      <div className="community-context-memory-head"><div className="community-context-section">Memory{memory ? ` · ${memory.memory.total_visible_nodes}${memory.memory.node_counts_are_lower_bound ? "+" : ""}` : ""}</div></div>
       {memoryError ? <div role="status">Could not load memory. <button type="button" onClick={() => setMemoryRetry(value => value + 1)}>Retry</button></div>
         : memory ? <div className="community-context-memory-summary">
           <div className="community-context-memory-preview"><CommunityMemoryGraphPreview overview={memory} /></div>
@@ -314,7 +314,7 @@ function RosterSurface(props: RosterProps & {
             if (sideRowsLeft <= 0) return null;
             const rows = groupRows.slice(0, sideRowsLeft);
             sideRowsLeft -= rows.length;
-            const heading = <h4 className="community-context-section" title="Online status reflects activity in this community">{searching ? "Community matches" : group === "unknown" ? "Presence unavailable" : group === "online" ? "Online" : "Offline"} — {groupRows.length}{!searching && !complete ? " loaded" : ""}</h4>;
+            const heading = <h4 className="community-context-section" title="Online status reflects activity in this community">{searching ? "Community matches" : group === "unknown" ? "Presence unavailable" : group === "online" ? "Online" : "Offline"} · {groupRows.length}{!searching && !complete ? "+" : ""}</h4>;
             return <Fragment key={group}>
               {heading}
               {rows.map(member => {
