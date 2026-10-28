@@ -85,6 +85,11 @@ async function deleteTestMemberData(ctx: any, row: TestMemberRow, nowMs: number)
     if (channel && String(channel.communityId) === String(communityId) && channel.status === "active"
       && !channel.systemRole && (channel.createdAt ?? 0) >= row.createdAt) {
       await archiveActiveCommunityChannel({ ctx, communityId, channelId: channel._id, actorUserId: row.ownerUserId, nowMs });
+      // Its other seats (the community agent) go with it.
+      for (const seat of await ctx.db.query("communityChannelParticipants")
+        .withIndex("by_channel_principal", (q: any) => q.eq("channelId", channel._id)).take(CLEANUP_BATCH)) {
+        if (seat.status === "active") await ctx.db.patch(seat._id, { status: "revoked", updatedAt: nowMs });
+      }
     }
     await ctx.db.delete(membershipId);
     await adjustCommunityActiveMemberCountForMembershipTransition({
