@@ -248,7 +248,7 @@ export function WebProfileSettingsSection(props: WebProfileSettingsSectionProps)
       <footer className="pn-settings-card-footer">
         <span className={`pn-profile-editor-status${isProfileDirty ? " is-dirty" : ""}`} role="status">{syncLabel}</span>
         <button
-          className="pn-settings-button is-primary"
+          className="pn-settings-button is-primary platform-save-button"
           type="button"
           onClick={() => void saveProfileToCloud()}
           disabled={!session || isSavingProfile || !profileNeedsSave}

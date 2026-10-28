@@ -588,7 +588,7 @@ export function WebCommunityEventsSection(props: WebCommunityEventsSectionProps)
         ) : eventDayGroups.length === 0 && state.eventsError ? null : eventDayGroups.length === 0 ? (
           // One "New event" button is enough: the header already has it.
           <div className="community-events-state">
-            <div>Nothing scheduled in {formatMonthLabel(monthDate)}.</div>
+            <div>No events in {formatMonthLabel(monthDate)}.</div>
           </div>
         ) : (
           <div className="community-events-list">
