@@ -83,16 +83,34 @@ export function useCommunityOfferChoice(params: {
     // A member: moving up happens here; their own offer (or a lower one) needs nothing.
     if (selected.rank > current.rank) {
       button = data?.can_upgrade_here
-        ? { label: busy ? "Upgrading…" : `Upgrade to ${selected.name}`, disabled: busy, onClick: () => void upgrade(selected) }
+        ? { label: busy ? "Upgrading…" : offerButtonLabel("Upgrade", selected, params.preferredPeriod), disabled: busy, onClick: () => void upgrade(selected) }
         : { label: `Ask the owner for ${selected.name}`, disabled: true, onClick: () => {} };
     }
   } else if (!selected.is_base) {
-    button = { label: `Join with ${selected.name}`, disabled: !params.onStartOfferCheckout,
+    button = { label: offerButtonLabel("Join", selected, params.preferredPeriod), disabled: !params.onStartOfferCheckout,
       onClick: () => params.onStartOfferCheckout?.(selected.key, periodFor(selected, params.preferredPeriod)) };
   }
   const askOwner = Boolean(current && selected.rank > current.rank && !data?.can_upgrade_here);
   return { offers, selected, current, onSelect, button,
     note: note ?? (askOwner ? "Your access was given by the owner, so they change your offer. Send them a message." : null) };
+}
+
+function offerPrice(offer: CommunityVisitorOffer, preferred: CommunityBillingPeriod | null) {
+  return offer.prices.find((price) => price.billing_period === preferred) ?? offer.prices[0] ?? null;
+}
+
+// "$130/month", tight, for buttons; the cards set the amount and period apart.
+function compactPrice(price: NonNullable<ReturnType<typeof offerPrice>>): string {
+  return formatCommunityOfferPrice(price).replace(" / ", "/");
+}
+
+// The join button names the price, not the offer: the picked card above it
+// already names the offer, and "Join with Membership + Plugin Access" ran to
+// two lines in the narrow card (Rashid, 2026-10-28).
+export function offerButtonLabel(verb: "Join" | "Upgrade", offer: CommunityVisitorOffer, preferred: CommunityBillingPeriod | null): string {
+  const price = offerPrice(offer, preferred);
+  if (!price) return verb === "Join" ? "Join free" : `Upgrade to ${offer.name}`;
+  return `${verb} for ${compactPrice(price)}`;
 }
 
 function periodFor(offer: CommunityVisitorOffer, preferred: CommunityBillingPeriod | null): CommunityBillingPeriod {
@@ -125,7 +143,8 @@ export function WebCommunityOfferChooser(props: { choice: CommunityOfferChoice; 
     <fieldset className="pn-offer-chooser" data-offers-anchor="">
       <legend>Choose your offer</legend>
       {choice.offers.map((offer, index) => {
-        const price = offer.prices.find((item) => item.billing_period === props.preferredPeriod) ?? offer.prices[0] ?? null;
+        const price = offerPrice(offer, props.preferredPeriod);
+        const [amount, period] = price ? formatCommunityOfferPrice(price).split(" / ") : [];
         const below = index > 0 ? choice.offers[index - 1] : null;
         const isCurrent = choice.current?.key === offer.key;
         return (
@@ -139,7 +158,9 @@ export function WebCommunityOfferChooser(props: { choice: CommunityOfferChoice; 
                   <strong>{offer.name}</strong>
                   {isCurrent ? <span className="pn-offer-choice-tag">Your offer</span> : null}
                 </span>
-                {price ? <span className="pn-offer-choice-price">{formatCommunityOfferPrice(price)}</span> : null}
+                <span className="pn-offer-choice-price">
+                  {price ? <>{amount}{period ? <span className="pn-offer-choice-period">/{period}</span> : null}</> : offer.is_base ? "Free" : null}
+                </span>
               </span>
               {below ? <span className="pn-offer-choice-plus">Everything in {below.name}, plus</span> : null}
               {offer.blurb ? <span className="pn-offer-choice-blurb">{offer.blurb}</span> : null}

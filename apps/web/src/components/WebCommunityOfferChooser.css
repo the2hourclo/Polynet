@@ -11,3 +11,4 @@
 .pn-offer-choice-plus { font-size: 12px; font-weight: 600; color: var(--pn-button, var(--accent-brand)); }
 .pn-offer-choice-blurb { font-size: 13px; line-height: 1.4; color: var(--text-secondary); }
 .pn-offer-choice-price { flex-shrink: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pn-offer-choice-period { margin-left: 1px; font-weight: 500; font-size: 0.86em; color: var(--text-secondary); }
