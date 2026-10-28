@@ -273,6 +273,8 @@ test("every site gets the widget helper (embed.js), loadable from a sandboxed fr
   expect(source).toContain("window.polynetEmbed = {");
   expect(source).toContain("event.source !== window.parent");
   expect(source).not.toContain("https://");
+});
+
 // Stands in for Cloudflare's HTMLRewriter (absent outside Workers) over a whole document.
 class FakeRewriter {
   scripts?: (element: any) => void;
