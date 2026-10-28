@@ -1,0 +1,17 @@
+head: d136054d (claude/local-combined); Convex functions ready 17:41:42 local; web 200
+guard on: /api/auth/* + six session mutations only; ?layout= overrides only, no saved setting touched
+
+  classroom-1440-chat.png: {"bg":"rgba(0, 0, 0, 0)","attrs":{"data-theme":"dark"},"newEventTop":null,"iconsBottom":59}
+saved classroom-1440-chat.png
+  classroom-1440-knowledge.png: {"bg":"rgba(0, 0, 0, 0)","attrs":{"data-theme":"dark"},"newEventTop":null,"iconsBottom":59}
+saved classroom-1440-knowledge.png
+  channels-1440-events.png: {"bg":"rgba(0, 0, 0, 0)","attrs":{"data-theme":"dark"},"newEventTop":93,"iconsBottom":49}
+saved channels-1440-events.png
+  390-chat.png: {"bg":"rgba(0, 0, 0, 0)","attrs":{"data-theme":"dark"},"newEventTop":null,"iconsBottom":0}
+saved 390-chat.png
+  skool-style-demo-channels-1440-chat.png: {"bg":"rgba(0, 0, 0, 0)","attrs":{"data-theme":"dark"},"newEventTop":null,"iconsBottom":49}
+saved skool-style-demo-channels-1440-chat.png
+ALLOWED {"auth:bootstrapActor":10,"businessAnalytics:identifyBusinessVisitor":10,"profiles:resolveOnboardingProfileDetail":86,"communityCommerce:redeemPendingPurchaseClaims":21,"communityPublic:heartbeatCommunityPresence":9,"communityAttention:markCommunitySurfaceSeen":5}
+BLOCKED {"communityAttention:acknowledgeCommunityChatRead":2}
+OTHER ["POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT","POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT","POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT","POST https://www.youtube.com/youtubei/v1/log_event?alt=json","POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT","POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT"]
+LEAKS []

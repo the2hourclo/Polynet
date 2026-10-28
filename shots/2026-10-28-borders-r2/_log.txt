@@ -1,0 +1,40 @@
+first shot signed in: ok
+saved feel-current-1440-chat
+saved feel-current-1440-knowledge
+saved feel-current-1440-events
+saved feel-current-1440-members-db
+saved feel-current-1440-settings
+saved feel-quiet-1440-chat
+saved feel-quiet-1440-knowledge
+saved feel-quiet-1440-events
+saved feel-quiet-1440-members-db
+saved feel-quiet-1440-settings
+saved feel-reader-1440-chat
+saved feel-reader-1440-knowledge
+saved feel-reader-1440-events
+saved feel-reader-1440-members-db
+saved feel-reader-1440-settings
+saved feel-publication-1440-chat
+saved feel-publication-1440-knowledge
+saved feel-publication-1440-events
+saved feel-publication-1440-members-db
+saved feel-publication-1440-settings
+
+ALLOW-LIST: /api/auth/* + auth:bootstrapActor, businessAnalytics:identifyBusinessVisitor, profiles:resolveOnboardingProfileDetail, communityCommerce:redeemPendingPurchaseClaims, communityPublic:heartbeatCommunityPresence, communityAttention:markCommunitySurfaceSeen
+
+ALLOWED:
+190 × profiles:resolveOnboardingProfileDetail
+42 × communityCommerce:redeemPendingPurchaseClaims
+21 × auth:bootstrapActor
+21 × businessAnalytics:identifyBusinessVisitor
+21 × communityPublic:heartbeatCommunityPresence
+5 × communityAttention:markCommunitySurfaceSeen
+
+BLOCKED WRITES:
+5 × communityAttention:acknowledgeCommunityChatRead
+
+OTHER BLOCKED:
+none
+
+LEAK CHECK:
+none
