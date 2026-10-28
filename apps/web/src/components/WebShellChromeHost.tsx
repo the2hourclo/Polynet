@@ -354,7 +354,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     .sort((a, b) => podRank(a.id) - podRank(b.id) || a.position - b.position);
   // Both layouts show pods: Classroom as a card and a room, Channels as their
   // own group in the channel list. Opening one shows the same pod panel.
-  const podsPlace = PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "aside";
+  const podsPlace = PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "tab";
   const showPodsHome = Boolean(isTopCommunityNav && podsPlace === "tab" && podsHome && props.communityShell.communityTab === "chat");
   const selectedPodSlug = props.communityShell.communityTab === "chat" && !showPodsHome ? props.communityShell.selectedCommunityChannelSlug || null : null;
   const podOpenInAside = Boolean(isTopCommunityNav && selectedPodSlug && podChannels.some((channel) => channel.slug === selectedPodSlug));

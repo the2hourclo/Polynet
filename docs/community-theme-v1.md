@@ -74,7 +74,7 @@ look; both follow the member's own Light/Dark choice.
 | `sibling_communities` | `hide` (default), `show` (lists the owner's other communities, "More from this creator", at the foot of the chat's members panel) |
 | `edges` | How panels and cards stand apart in the light scheme: `soft` (the old faint lines), `sharp` (same tones, lines about twice as visible), `clean` (every panel in the card colour, crisp lines, a faint lift on cards), `framed` (each column its own rounded panel on a canvas tinted with the accent). Dark schemes keep their own look |
 | `classroom_chat` | `posts` (default: Classroom's Community tab is the post cards, with the Pods card and side blocks) or `chat` (a chat timeline instead). Channels always shows the Wide chat |
-| `pods_place` | `aside` (default: a "Your pods" card at the top of Classroom's right column), `header` (a stack of faces in the Classroom header that opens the pods list), `tab` (a Pods tab right after Community that opens a page of the member's pods) |
+| `pods_place` | `aside` (a "Your pods" card at the top of Classroom's right column), `header` (a stack of faces in the Classroom header that opens the pods list), `tab` (default: a Pods tab right after Community that opens a page of the member's pods) |
 | `rail_color` | Draft. `polynet` (Polynet's rail), `blend` (the page colour), `tint` (a wash of the accent), `brand` (solid accent) |
 
 Ready-made course card looks (Classroom, the default, plus Classic, Lifted,

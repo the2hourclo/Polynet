@@ -93,8 +93,8 @@ export type CommunityThemeV1 = {
   sibling_communities: "hide" | "show";
   // Where Classroom shows a member's pods (their invite-only rooms): a card
   // at the top of the right column, or a stack of faces in the header that
-  // opens the list, or "tab": a Pods tab right after Community that opens a
-  // page of the member's pods. Channels lists them with the other channels
+  // opens the list, or "tab" (the default since 2026-10-28, Rashid's pick):
+  // a Pods tab right after Community that opens a page of the member's pods. Channels lists them with the other channels
   // either way.
   pods_place: "aside" | "header" | "tab";
   // Classroom's Community tab: "posts" (the default: post cards with the
@@ -197,7 +197,7 @@ export const DEFAULT_COMMUNITY_THEME: CommunityThemeV1 = {
   rail_size: "standard",
   rail_color: "polynet",
   sibling_communities: "hide",
-  pods_place: "aside",
+  pods_place: "tab",
   classroom_chat: "posts",
   // Clean white is the light default (Rashid, 2026-10-28).
   edges: "clean",
