@@ -47,3 +47,6 @@
   .pn-chg-choices > button { text-align: left; }
   .pn-runs-seg.pn-chg-choices > button + button { border-left: 0; border-top: 1px solid var(--border-default); }
 }
+/* The chosen permission reads at a glance: the accent outline and a check. */
+.pn-runs-seg.pn-chg-choices > button[aria-checked="true"] { position: relative; z-index: 1; box-shadow: inset 0 0 0 2px var(--accent-selection, var(--text-primary)); background: color-mix(in srgb, var(--accent-selection, var(--text-primary)) 8%, var(--bg-card)); color: var(--text-primary); font-weight: 600; }
+.pn-runs-seg.pn-chg-choices > button[aria-checked="true"]::before { content: "✓ "; color: var(--accent-selection, var(--text-primary)); font-weight: 700; }
