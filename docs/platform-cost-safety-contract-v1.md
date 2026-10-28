@@ -119,7 +119,7 @@ One-second elapsed-time and typing-expiry display timers do not call a backend
 and are excluded. Focus/animation/toast/image-cleanup timers are also excluded.
 #### Fixed-interval source inventory
 
-CI admits exactly these twelve first-party `setInterval` call sites:
+CI admits exactly these fourteen first-party `setInterval` call sites:
 
 | Canonical call site | Classification | Required lifetime bound |
 | --- | --- | --- |
@@ -134,6 +134,8 @@ CI admits exactly these twelve first-party `setInterval` call sites:
 | `apps/web/src/components/WebCommunitySettingProposals.tsx` | backend pending agent-proposal check (proposed) | owner settings open only; visible tab, 20-second interval; cleared on unmount |
 | `apps/web/src/components/WebCommunityWelcome.tsx` | backend welcome-access check (proposed) | member held on the welcome page only; visible tab, 2 seconds while forms are prepared then 15 seconds; cleared when released |
 | `apps/web/src/components/WebTestRunBar.tsx` | backend test-run status check (proposed) and a UI-only element finder | active owner test run only; visible tab, 30-second interval; the finder stops after 10 tries |
+| `apps/web/src/components/WebCommunityWorkflowChanges.tsx` | backend workflow change-history and waiting-change refresh (proposed) | owner workflow changes view only; visible tab, 15-second interval; cleared on unmount |
+| `apps/web/src/components/WebCommunityWorkflowsSection.tsx` | backend waiting agent-change check (proposed) | owner workflows section only; visible tab, 20-second interval; cleared on unmount |
 
 The executable contract scans the first-party source corpus. A new interval or
 a second interval in an allowlisted file fails CI until it is deleted or

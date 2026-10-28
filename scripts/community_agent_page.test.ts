@@ -48,7 +48,7 @@ test("the old floating controls stay retired; only the Classroom layout floats t
   // The one floating mode is opt-in from the shell, for a top-nav (Classroom) layout.
   expect(component).toContain("props.floating && !props.floating.open");
   expect(read("apps/web/src/App.tsx")).toContain('const floatingCommunityAgent = !showMobileShell && communityLayoutPosition === "top";');
-  const styles = read("apps/web/src/components/WebMemberAgentDock.css");
+  const styles = read("apps/web/src/components/WebCommunityAgentDock.css");
   expect(styles).not.toMatch(/community-agent-dock-launcher|working-pulse/);
   expect(styles).toContain(".community-agent-launcher");
   expect(styles).toContain(".community-agent-dock.mobile-root");

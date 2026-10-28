@@ -183,7 +183,7 @@ export function WebCommunityWorkflowChanges(props: {
       .catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [changes, tick]);
-  useEffect(() => { const timer = window.setInterval(() => setTick(n => n + 1), REFRESH_MS); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { const timer = window.setInterval(() => { if (document.visibilityState !== "hidden") setTick(n => n + 1); }, REFRESH_MS); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     let alive = true;
     props.gateway.load().then(rows => { if (alive) setForms(rows); }).catch(() => undefined);

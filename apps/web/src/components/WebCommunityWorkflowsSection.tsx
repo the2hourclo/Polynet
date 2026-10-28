@@ -179,7 +179,7 @@ export function WebCommunityWorkflowsSection(
     let alive = true;
     const load = () => changes.waiting().then(rows => { if (alive) setWaiting(rows); }).catch(() => undefined);
     void load();
-    const timer = window.setInterval(load, 20_000);
+    const timer = window.setInterval(() => { if (document.visibilityState !== "hidden") void load(); }, 20_000);
     return () => { alive = false; window.clearInterval(timer); };
   }, [props.forms?.changes, waitingTick, section]);
   // Edit first: the suggestion opens in Automations as unsaved changes, and

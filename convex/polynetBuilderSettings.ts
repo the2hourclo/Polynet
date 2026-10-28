@@ -669,7 +669,6 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   "communityAdmin:syncCommunityMembershipCount": "plumbing: a count refresh",
   "communityAttention:acknowledgeCommunityChatRead": "plumbing: read markers",
   "communityAttention:markCommunitySurfaceSeen": "plumbing: read markers",
-  "communityChat:createThreadUserMessage": "plumbing: the agent dock's message to its own runtime",
   "communityChat:setCommunityTyping": "plumbing: typing dots",
   "communityChat:clearCommunityTyping": "plumbing: typing dots",
   "communityPublic:heartbeatCommunityPresence": "plumbing: presence",

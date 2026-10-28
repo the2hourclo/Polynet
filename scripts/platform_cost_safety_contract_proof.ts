@@ -84,6 +84,8 @@ const costBearingIntervalFiles = [
   "apps/web/src/components/WebCommunitySettingProposals.tsx",
   "apps/web/src/components/WebCommunityWelcome.tsx",
   "apps/web/src/components/WebTestRunBar.tsx",
+  "apps/web/src/components/WebCommunityWorkflowChanges.tsx",
+  "apps/web/src/components/WebCommunityWorkflowsSection.tsx",
 ] as const;
 const expectedIntervalFiles = [...uiOnlyIntervalFiles, ...costBearingIntervalFiles].sort();
 const actualIntervalCallSites = listSetIntervalCallSites();
