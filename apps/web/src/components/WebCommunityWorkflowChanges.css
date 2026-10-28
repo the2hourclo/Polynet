@@ -49,4 +49,6 @@
 }
 /* The chosen permission reads at a glance: the accent outline and a check. */
 .pn-runs-seg.pn-chg-choices > button[aria-checked="true"] { position: relative; z-index: 1; box-shadow: inset 0 0 0 2px var(--accent-selection, var(--text-primary)); background: color-mix(in srgb, var(--accent-selection, var(--text-primary)) 8%, var(--bg-card)); color: var(--text-primary); font-weight: 600; }
-.pn-runs-seg.pn-chg-choices > button[aria-checked="true"]::before { content: "✓ "; color: var(--accent-selection, var(--text-primary)); font-weight: 700; }
+/* Every choice keeps room for the check, so choosing one doesn't shift the others. */
+.pn-runs-seg.pn-chg-choices > button::before { content: "✓ "; color: transparent; font-weight: 700; }
+.pn-runs-seg.pn-chg-choices > button[aria-checked="true"]::before { color: var(--accent-selection, var(--text-primary)); }
