@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Pencil, Plus } from "lucide-react";
 import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
 import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
 import { createBrowserCommunityEmbedStorage } from "../../../../shared/communityEmbedUi";
 import { CommunityMemoryGraph } from "./CommunityMemoryGraph";
-import { WebCommunityLessonBoard, communityBoardLessons, type RoadmapEditing } from "./WebCommunityLessonBoard";
+import { WebCommunityLessonBoard, communityBoardLessons, type RoadmapEditing, type RoadmapTrackAbout } from "./WebCommunityLessonBoard";
 import { updateCloudCommunityLessonBoard } from "../../../../shared/cloudCommunityAdminGateway";
 import { resolveUsableSession } from "../../../../shared/ensureUsableSession";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
@@ -75,6 +75,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const [trackEditor, setTrackEditor] = useState<{ key: string | null } | null>(null);
   // A lesson open on the Roadmap lays the page out for reading, like Resources.
   const [roadmapReading, setRoadmapReading] = useState(false);
+  const [roadmapLessonOpen, setRoadmapLessonOpen] = useState(false);
   const activeTrack = tracks.length === 1 ? tracks[0] : tracks.find((track) => track.key === trackKey) ?? null;
   // A lesson to open on the board from outside it (the free preview, "Go to the next lesson").
   const [openRequest, setOpenRequest] = useState<{ ref: string; key: number } | null>(null);
@@ -170,9 +171,13 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const courseProgress = useMemo(
     () =>
       progress.loaded
-        ? computeCommunityCourseProgress({ lessons: resources.state.resources, statusByRef: progress.statusByRef })
+        ? computeCommunityCourseProgress({
+          lessons: resources.state.resources,
+          statusByRef: progress.statusByRef,
+          courseTitles: Object.fromEntries(resources.state.modules.map((module) => [module.id, module.name])),
+        })
         : undefined,
-    [progress.loaded, progress.statusByRef, resources.state.resources],
+    [progress.loaded, progress.statusByRef, resources.state.resources, resources.state.modules],
   );
   const session = context.session as AuthSession | null;
   const embedStorage = useMemo(
@@ -217,15 +222,31 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     ? (resources.state.modules.find((module) => module.id === resources.state.selectedModuleId)?.lesson_style === "video" ? "video" : "article")
     : undefined;
   const reading = Boolean((activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapReading));
+  const trackAbout: RoadmapTrackAbout | undefined = activeTrack && (activeTrack.open || !activeTrack.paid) ? {
+    eyebrow: activeTrack.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track",
+    summary: activeTrack.summary,
+    outcomes: activeTrack.outcomes,
+    audience: activeTrack.audience,
+    onAllTracks: tracks.length > 1 ? () => setTrackKey(null) : undefined,
+    actions: canManage ? (
+      <>
+        <button type="button" className="lesson-journey-edit" onClick={() => setTrackEditor({ key: activeTrack.key })}><Pencil size={14} aria-hidden="true" /> Edit track</button>
+        {tracks.length === 1 ? <button type="button" className="lesson-journey-edit" onClick={() => setTrackEditor({ key: null })}><Plus size={14} aria-hidden="true" /> New track</button> : null}
+      </>
+    ) : undefined,
+    footer: <WebCommunityTrackOpens track={activeTrack} tracks={tracks} onOpenTrack={setTrackKey} />,
+  } : undefined;
+  // Focus mode is for reading a lesson, not a track's own page.
+  const lessonOpen = Boolean((activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapLessonOpen));
   // Resources · Roadmap · Graph belong to Knowledge's main view; inside a
   // course, lesson or track they step aside (Rashid, 2026-10-27), and a lesson
   // offers Focus mode in their place.
   const insideKnowledge = reading || Boolean(boardOpen && activeTrack && tracks.length > 1);
   const [focus, setFocus] = useState(false);
-  const focusOn = focus && reading;
+  const focusOn = focus && lessonOpen;
   useEffect(() => {
-    if (!reading) setFocus(false);
-  }, [reading]);
+    if (!lessonOpen) setFocus(false);
+  }, [lessonOpen]);
   useEffect(() => {
     if (!focusOn) return;
     const root = document.documentElement;
@@ -265,7 +286,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     >
       <div className="community-knowledge-header">
         <h1>Knowledge</h1>
-        {reading ? (
+        {lessonOpen ? (
           <button
             type="button"
             className="community-knowledge-focus-button"
@@ -331,9 +352,12 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                 editing={roadmapEditing}
                 title={activeTrack?.title}
                 onReadingChange={setRoadmapReading}
+                onLessonOpenChange={setRoadmapLessonOpen}
+                about={trackAbout}
                 extraLocked={trackLocks}
                 openRequest={openRequest}
-                header={activeTrack && (tracks.length > 1 || canManage || activeTrack.paid) ? (
+                // A sold track keeps its sales page; every open track opens like a course.
+                header={activeTrack && !trackAbout && (tracks.length > 1 || canManage || activeTrack.paid) ? (
                   <WebCommunityTrackHeader
                     tracks={tracks}
                     track={activeTrack}
@@ -346,7 +370,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                   />
                 ) : undefined}
               />
-              {activeTrack && !roadmapReading ? <WebCommunityTrackOpens track={activeTrack} tracks={tracks} onOpenTrack={setTrackKey} /> : null}
+              {activeTrack && !trackAbout && !roadmapReading ? <WebCommunityTrackOpens track={activeTrack} tracks={tracks} onOpenTrack={setTrackKey} /> : null}
             </>
           )}
           {trackEditor && context.session && context.communityId ? (

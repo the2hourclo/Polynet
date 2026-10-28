@@ -31,7 +31,7 @@ export type WebLessonElementProps = {
 
 function messageFor(result: SetCommunityLessonResponseResult): string | null {
   if (result.ok) return null;
-  if (result.code === "lesson_locked") return "Finish the earlier stage first.";
+  if (result.code === "lesson_locked") return "Finish the module before this one first.";
   return result.message || "That didn't save. Try again.";
 }
 

@@ -1130,7 +1130,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   {selectedModule.name}
                 </span>
                 <span className="resource-course-outline-count">
-                  {state.resourceRead.hasData ? lessonCountLabel(selectedModuleSection?.lessonResources.length ?? 0) : <span aria-label="Lesson count not loaded">—</span>}
+                  {state.resourceRead.hasData ? lessonCountLabel(selectedModuleSection?.lessonResources.length ?? 0) : <span aria-label="Loading lesson count">—</span>}
                   <ChevronDown aria-hidden="true" />
                 </span>
               </button>
@@ -1194,7 +1194,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                         <path d="M14 11a5 5 0 0 0-7.07 0L3.4 14.54a5 5 0 0 0 7.07 7.07L14 19" />
                       </svg>
                     </div>
-                    <div className="chat-empty-title">{state.resourceRead.hasData ? "No lessons yet" : "Lessons not loaded"}</div>
+                    <div className="chat-empty-title">{state.resourceRead.hasData ? "No lessons yet" : "Loading lessons…"}</div>
                     <div className="chat-empty-text">
                       {!state.resourceRead.hasData ? "Lessons will appear once loading succeeds." : canManageResources
                         ? "Add the first lesson to begin building this course."
