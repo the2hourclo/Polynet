@@ -198,14 +198,16 @@ export function WebCommunityLessonBoard(props: {
         lesson={opened}
         title={title}
         outline={stages.map((stage, index) => {
-          const blockedAt = stage.locked ? stageNumberOf(stage.blocked_by) : 0;
+          // Only the first locked module says what opens it; the lock on the rest is enough.
+          const blockedAt = stage.locked && stage === stages.find((candidate) => candidate.locked) ? stageNumberOf(stage.blocked_by) : 0;
           return {
             name: stage.name,
             number: index + 1,
             doneCount: stage.done_count,
             lessonCount: stage.lesson_count,
             // Names the module, never a lesson the member hasn't reached yet.
-            lockNote: stage.locked ? (blockedAt ? `Opens after the Module ${blockedAt} checkpoint` : "Opens after the module before") : null,
+            lockNote: blockedAt ? `Opens after the Module ${blockedAt} checkpoint` : null,
+            locked: stage.locked,
             lessons: inStage(stage.name).map((lesson) => ({
               ref: lesson.ref, title: lesson.resource.title, done: statusOf(lesson.ref) === "done",
               started: statusOf(lesson.ref) === "in_progress", locked: isLocked(lesson.ref),
@@ -658,6 +660,7 @@ type StepOutline = Array<{
   doneCount: number;
   lessonCount: number;
   lockNote: string | null;
+  locked: boolean;
   lessons: Array<{ ref: string; title: string; done: boolean; started: boolean; locked: boolean }>;
 }>;
 
@@ -696,17 +699,24 @@ function WebCommunityLessonStep(props: {
     const top = topRef.current;
     if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: "start" });
   }, [resource?.id]);
-  const firstOpen = props.outline.find((module) => !module.lockNote)?.name ?? null;
+  const firstOpen = props.outline.find((module) => !module.locked)?.name ?? null;
   const focusModule = props.currentStage ?? firstOpen;
   return (
     <div className="community-panel community-utility-panel resources-panel lesson-board-step-page" ref={topRef}>
+      {/* The same top row as a course in Resources ("All courses"), so the
+          page keeps its header space under the shell's icons. */}
+      <div className="feed-header-row lesson-step-header-row">
+        <div className="feed-header-copy">
+          {props.onBack ? (
+            <button className="resources-back-btn" type="button" onClick={props.onBack}>
+              <ArrowLeft aria-hidden="true" />
+              <span>{props.backLabel}</span>
+            </button>
+          ) : null}
+        </div>
+      </div>
       <div className="knowledge-workspace resource-course-workspace">
         <aside className={`knowledge-resource-rail resource-course-outline lesson-step-outline${outlineOpen ? " is-open" : ""}`} aria-label={`${props.title} lessons`}>
-          {props.onBack ? (
-            <button className="lesson-step-back" type="button" onClick={props.onBack}>
-              <ArrowLeft aria-hidden="true" /> <span>{props.backLabel}</span>
-            </button>
-          ) : <span aria-hidden="true" />}
           <button className="resource-course-outline-header" type="button" aria-expanded={outlineOpen}
             aria-controls="lesson-step-navigation" onClick={() => setOutlineOpen((current) => !current)}>
             <span className="resource-course-outline-title" title={props.title}>{props.title}</span>
@@ -734,22 +744,22 @@ function WebCommunityLessonStep(props: {
                 const isOpen = !(folded[module.name] ?? module.name !== focusModule);
                 const complete = module.lessonCount > 0 && module.doneCount === module.lessonCount;
                 return (
-                  <div className="lesson-step-outline-stage" data-open={isOpen ? "" : undefined} data-locked={module.lockNote ? "" : undefined} key={module.name}>
+                  <div className="lesson-step-outline-stage" data-open={isOpen ? "" : undefined} data-locked={module.locked ? "" : undefined} key={module.name}>
                     <button type="button" className="lesson-step-module" aria-expanded={isOpen} aria-controls={panelId}
                       onClick={() => setFolded((current) => ({ ...current, [module.name]: isOpen }))}>
                       <span className="lesson-step-module-copy">
                         <span className="lesson-step-outline-stage-name">Module {module.number}</span>
                         <span className="lesson-step-module-name">{module.name}</span>
+                        {module.lockNote ? <span className="lesson-step-module-lock">{module.lockNote}</span> : null}
                       </span>
                       <span className="lesson-step-module-count">
-                        {complete ? <Check aria-label="Done" /> : module.lockNote ? <Lock aria-label="Not open yet" /> : null}
+                        {complete ? <Check aria-label="Done" /> : module.locked ? <Lock aria-label="Not open yet" /> : null}
                         {module.doneCount ? `${module.doneCount}/${module.lessonCount}` : module.lessonCount}
                       </span>
                       <ChevronDown className="lesson-step-module-chevron" aria-hidden="true" />
                     </button>
                     {isOpen ? (
                       <div id={panelId} className="lesson-step-module-lessons">
-                        {module.lockNote ? <p className="lesson-step-module-lock">{module.lockNote}</p> : null}
                         {module.lessons.map((item) => {
                           const active = item.ref === props.lesson?.ref;
                           return (
