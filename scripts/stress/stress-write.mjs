@@ -102,18 +102,41 @@ async function testsTab(page) {
 }
 // Answers whatever the welcome screen asks (only the test member's own form answers; End deletes them).
 async function answerScreen(tab) {
-  await tab.evaluate(() => {
-    const setVal = (el, v) => { const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
-    for (const el of document.querySelectorAll(".community-welcome textarea, .community-welcome input[type=text], .community-welcome input:not([type]), .community-welcome input[type=url], .community-welcome input[type=email], .community-welcome input[type=number]")) {
-      if (el.offsetParent && !el.value) setVal(el, el.type === "url" ? "https://example.com" : el.type === "email" ? "stress.test@example.com" : el.type === "number" ? "3" : "Stress test answer");
-    }
-    const groups = new Set([...document.querySelectorAll(".community-welcome input[type=radio]")].map((r) => r.name));
-    for (const g of groups) { const rs = [...document.querySelectorAll(`.community-welcome input[type=radio][name="${g}"]`)]; if (!rs.some((r) => r.checked)) rs[0]?.click(); }
-    for (const sel of document.querySelectorAll(".community-welcome select")) if (!sel.value && sel.options.length > 1) { sel.value = sel.options[1].value; sel.dispatchEvent(new Event("change", { bubbles: true })); }
-  }).catch(() => {});
-  // Option cards rendered as buttons (role=radio / aria-pressed) count as an answer too.
+  // Real typing (fill) so React and the form's own validation see it; numbers where the question asks for one.
+  const fields = tab.locator(".community-welcome textarea:visible, .community-welcome input:visible:not([type=radio]):not([type=checkbox]):not([type=hidden])");
+  for (let i = 0; i < await fields.count(); i++) {
+    const f = fields.nth(i);
+    if ((await f.inputValue().catch(() => "x")) !== "") continue;
+    const type = (await f.getAttribute("type")) ?? "";
+    const near = await tab.locator(".community-welcome").innerText().catch(() => "");
+    const value = type === "url" ? "https://example.com" : type === "email" ? "stress.test@example.com"
+      : type === "number" || /answer with a number|enter a number|how many|hours|number/i.test(near) ? "3" : "Stress test answer";
+    await f.fill(value).catch(() => {});
+  }
+  // A number question that already holds text gets a number instead.
+  if (/enter a number/i.test(await tab.locator(".community-welcome").innerText().catch(() => ""))) {
+    await tab.locator(".community-welcome input:visible").first().fill("3").catch(() => {});
+  }
+  for (const name of await tab.$$eval(".community-welcome input[type=radio]", (rs) => [...new Set(rs.map((r) => r.name))]).catch(() => [])) {
+    const group = tab.locator(`.community-welcome input[type=radio][name="${name}"]`);
+    if (!(await group.evaluateAll((rs) => rs.some((r) => r.checked)).catch(() => true))) await group.first().check({ force: true }).catch(() => {});
+  }
+  const cbs = tab.locator(".community-welcome input[type=checkbox]:visible");
+  if ((await cbs.count()) && !(await cbs.evaluateAll((c) => c.some((x) => x.checked)).catch(() => true))) await cbs.first().check().catch(() => {});
+  const sel = tab.locator(".community-welcome select:visible");
+  for (let i = 0; i < await sel.count(); i++) if (!(await sel.nth(i).inputValue().catch(() => "x"))) await sel.nth(i).selectOption({ index: 1 }).catch(() => {});
   const card = tab.locator(".community-welcome [role=radio][aria-checked=false]").first();
   if ((await tab.locator(".community-welcome [role=radio][aria-checked=true]").count()) === 0 && (await card.count())) await card.click().catch(() => {});
+}
+
+// Where the welcome page sits on the page (for the phone layout fix).
+async function welcomeDom(tab, tag) {
+  const chain = await tab.evaluate(() => {
+    const out = []; let el = document.querySelector(".community-welcome");
+    while (el && out.length < 8) { const st = getComputedStyle(el); const r = el.getBoundingClientRect(); out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(" ").slice(0, 2).join(".")} display=${st.display} h=${Math.round(r.height)} top=${Math.round(r.top)} pad-top=${st.paddingTop} overflow=${st.overflowY}`); el = el.parentElement; }
+    return out;
+  }).catch(() => []);
+  note(`${tag} welcome DOM: ${chain.join("  <  ")}`);
 }
 
 async function ownerTestRun(vpName, vp) {
@@ -142,6 +165,7 @@ async function ownerTestRun(vpName, vp) {
   try {
     // 1. Welcome page: shows, has the Continue with Polynet step, can be walked through.
     await shot(tab, `${vpName}-welcome-1`);
+    await welcomeDom(tab, vpName);
     const t = await text(tab);
     const welcomeProblems = [];
     if (!/welcome|get set up|getting started|set up/i.test(t)) welcomeProblems.push("no welcome page on first open");
@@ -183,6 +207,8 @@ async function ownerTestRun(vpName, vp) {
 
     // 3. Chat: post a message with a pasted image as the test member.
     await tab.goto(tab.url().replace(/\/c\/[^/]+\/[^?]*/, `/c/${SLUG}/chat`)); await settle(tab);
+    if (!(await tab.locator("textarea.chat-input").count())) await tab.locator(".community-posts-composer-bar").first().click().catch(() => {});
+    await settle(tab, 800);
     const pasteErr = await pasteImage(tab, "textarea.chat-input");
     const chip = pasteErr ? false : await chipShown(tab);
     await tab.locator("textarea.chat-input").first().fill("Stress test message from a test run, please ignore").catch(() => {});
