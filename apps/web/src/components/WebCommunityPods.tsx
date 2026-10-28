@@ -14,7 +14,8 @@ import "./WebCommunityPods.css";
 // Pods (Rashid, 2026-10-26): in Classroom, a member's invite-only channels are
 // pods, not topic chips. Each shows the faces of everyone who can see it, so
 // it reads as a small private room. The owner picks where they sit in
-// Customize (theme pods_place): the top of the right column or the header.
+// Customize (theme pods_place): the top of the right column, the header, or
+// their own tab after Community, which opens the Pods page.
 // Opening one turns the chat into the pod's room, with the pod panel
 // (WebCommunityPodPanel) beside it. Channels lists them as their own group.
 
@@ -22,12 +23,16 @@ export type CommunityPod = { id: string; slug: string; name: string; is_general:
 
 export type WebCommunityPodsFrame = {
   mode: "classroom" | "channels";
-  place: "aside" | "header";
+  place: "aside" | "header" | "tab";
   pods: CommunityPod[];
   unread: Record<string, boolean>;
   selectedSlug: string | null;
   onOpen: (pod: CommunityPod) => void;
   onLeave: () => void;
+  // "tab" placement: the Pods page (every pod as a card) is open in place of
+  // the chat. Opening a pod, another tab or another channel closes it.
+  home: boolean;
+  setHome: (open: boolean) => void;
   // Classroom: the right column's element while a pod is open. The pod panel
   // is portalled into it, so it replaces the community card and blocks.
   panelSlot: HTMLElement | null;
@@ -243,6 +248,53 @@ export function WebCommunityPodsCard({ pods }: { pods: WebCommunityPodsFrame }) 
   );
 }
 
+/** The Pods page (theme pods_place "tab"): every pod the member is in as a
+ *  card, with New pod for owners and admins. A card opens the pod's room. */
+export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) {
+  const agentName = useCommunityAgentName("the agent");
+  const ordered = pods.pods.map((pod, index) => ({ pod, index }))
+    .sort((a, b) => Number(Boolean(pods.unread[b.pod.slug])) - Number(Boolean(pods.unread[a.pod.slug])) || a.index - b.index)
+    .map(({ pod }) => pod);
+  const people = usePodPeople(ordered.map((pod) => pod.id));
+  return (
+    <section className="community-pods-home" aria-labelledby="community-pods-home-title">
+      <header className="community-pods-home-head">
+        <div>
+          <h1 id="community-pods-home-title">Pods</h1>
+          <p><Lock size={13} aria-hidden="true" /> Private rooms for a few members. Only the people in a pod can see it.</p>
+        </div>
+        {pods.createPod ? <NewPodButton pods={pods} /> : null}
+      </header>
+      {ordered.length ? (
+        <ul className="community-pods-home-grid">
+          {ordered.map((pod) => {
+            const unread = Boolean(pods.unread[pod.slug]);
+            return (
+              <li key={pod.id}>
+                <button type="button" className="community-pods-home-card" onClick={() => pods.onOpen(pod)}>
+                  <span className="community-pods-home-card-top">
+                    <PodFaces people={people[pod.id]} agent size="large" />
+                    {unread ? <span className="community-pods-home-new">New</span> : null}
+                  </span>
+                  <span className="community-pods-home-card-name">
+                    <span>{pod.name}</span>
+                    <Lock size={13} aria-label="Private" />
+                  </span>
+                  <span className="community-pods-home-card-meta">{podSummary(people[pod.id], agentName)}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="community-pods-home-empty">
+          No pods yet. A pod is a private room for a few members, like a cohort or a mastermind.
+        </p>
+      )}
+    </section>
+  );
+}
+
 /** "+ New pod" for owners and admins, in Classroom's pod card, switcher and
  *  header list. The same flow as the + beside PODS in Channels. */
 export function NewPodButton({ pods, onOpened }: { pods: WebCommunityPodsFrame; onOpened?: () => void }) {
@@ -398,8 +450,9 @@ export function WebCommunityPodRoomHead({ pods, podId, onShowDetails }: { pods: 
   const audience = withAgent.length > 1 ? `${withAgent.slice(0, -1).join(", ")} and ${withAgent.at(-1)}` : withAgent[0] ?? "";
   return (
     <div className="community-pod-room-head">
-      <button type="button" className="community-pod-room-back" onClick={pods.onLeave}>
-        <ArrowLeft size={14} aria-hidden="true" /> Community
+      {/* With a Pods tab, back goes to the Pods page; otherwise to the community. */}
+      <button type="button" className="community-pod-room-back" onClick={pods.place === "tab" ? () => pods.setHome(true) : pods.onLeave}>
+        <ArrowLeft size={14} aria-hidden="true" /> {pods.place === "tab" ? "All pods" : "Community"}
       </button>
       <div className="community-pod-room-identity">
         <PodFaces people={people} agent size="large" />

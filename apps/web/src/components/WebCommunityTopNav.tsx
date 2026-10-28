@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Check, Link2, Search, X } from "lucide-react";
 import type { CommunityTab } from "../../../../shared/appShellNavigation";
 import { communityLayoutTabLabel, visibleCommunityLayoutTabs } from "../../../../shared/communityLayout";
@@ -12,7 +12,8 @@ import { WebCommunityPodsButton } from "./WebCommunityPods";
 // navigation.position "top". Same tabs, channels, indicators and owner tools
 // as the side column (shared/CommunityNav.tsx); only the arrangement differs.
 // Shared channels show as category chips under the tabs on the chat tab;
-// invite-only ones are pods (WebCommunityPods), never chips.
+// invite-only ones are pods (WebCommunityPods), never chips. With the theme's
+// pods_place "tab", pods get their own tab after Community (WebCommunityPodsHome).
 // The first row is the header: the community, a search across its posts, and
 // the member's tools (invite, messages, notifications).
 
@@ -51,7 +52,11 @@ export function WebCommunityTopNav({
   const channels = [...communityShell.communityChannels].sort((a, b) => a.position - b.position);
   const topics = channels.filter((channel) => channel.access_mode !== "restricted");
   const inPod = Boolean(pods?.selectedSlug && pods.pods.some((pod) => pod.slug === pods.selectedSlug));
-  const showChips = activeTab === "chat" && topics.length > 1 && !inPod;
+  // "tab" placement: Pods is its own tab after Community, lit on the Pods page
+  // and inside a pod, and the header has no pods button.
+  const podsTab = Boolean(pods && pods.place === "tab" && (pods.pods.length > 0 || pods.createPod));
+  const inPodsTab = Boolean(podsTab && (pods?.home || inPod));
+  const showChips = activeTab === "chat" && topics.length > 1 && !inPod && !pods?.home;
   const mentionChannels = channels.filter((channel) => communityShell.communityChannelIndicators[channel.slug]?.mentions);
   const search = (query: string) => {
     onPostSearch(query);
@@ -65,9 +70,16 @@ export function WebCommunityTopNav({
     window.setTimeout(() => setCopied(false), 1800);
   };
 
+  const selectTab = (tab: CommunityTab) => {
+    if (pods?.home) pods.setHome(false);
+    // Community leaves the pod for the community's main chat.
+    if (tab === "chat" && inPodsTab && inPod) pods?.onLeave();
+    communityShell.onSelectCommunityTab(tab);
+  };
+
   const renderTab = (tab: CommunityTab, label: string) => {
     const locked = Boolean(communityShell.lockedCommunityNavTabs?.[tab]);
-    const isActive = activeTab === tab;
+    const isActive = activeTab === tab && !(tab === "chat" && inPodsTab);
     return (
       <button
         key={tab}
@@ -75,7 +87,7 @@ export function WebCommunityTopNav({
         role="tab"
         aria-selected={isActive}
         className={`community-top-nav-tab${isActive ? " is-active" : ""}${locked ? " is-locked" : ""}`}
-        onClick={() => communityShell.onSelectCommunityTab(tab)}
+        onClick={() => selectTab(tab)}
       >
         <span>{label}</span>
         {!isActive && communityShell.communityTabIndicators[tab] ? <span className="nav-item-dot" aria-hidden="true" /> : null}
@@ -149,7 +161,7 @@ export function WebCommunityTopNav({
               <span>{copied ? "Copied" : "Invite"}</span>
             </button>
           ) : null}
-          {pods ? <WebCommunityPodsButton pods={pods} /> : null}
+          {pods && pods.place !== "tab" ? <WebCommunityPodsButton pods={pods} /> : null}
           {communityShell.directMessagesButton ?? null}
           <WebCommunityNotificationsMenu
             communityId={community?.id ?? null}
@@ -159,6 +171,7 @@ export function WebCommunityTopNav({
             onSelectChannel={(slug) => {
               const channel = channels.find((candidate) => candidate.slug === slug);
               if (!channel) return;
+              pods?.setHome(false);
               communityShell.onSelectCommunityTab("chat");
               communityShell.onSelectCommunityChannel(channel);
             }}
@@ -167,7 +180,23 @@ export function WebCommunityTopNav({
         </div>
       </div>
       <nav className="community-top-nav-tabs" role="tablist" aria-label={`${community?.name ?? "Community"} sections`}>
-        {tabs.map((entry) => renderTab(entry.tab, communityLayoutTabLabel(layout, entry.tab)))}
+        {tabs.map((entry) => (
+          <Fragment key={entry.tab}>
+            {renderTab(entry.tab, communityLayoutTabLabel(layout, entry.tab))}
+            {entry.tab === "chat" && podsTab && pods ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={inPodsTab}
+                className={`community-top-nav-tab${inPodsTab ? " is-active" : ""}`}
+                onClick={() => pods.setHome(true)}
+              >
+                <span>Pods</span>
+                {!inPodsTab && pods.pods.some((pod) => pods.unread[pod.slug]) ? <span className="nav-item-dot" aria-hidden="true" /> : null}
+              </button>
+            ) : null}
+          </Fragment>
+        ))}
         {ownerTabs.length > 0 ? <span className="community-top-nav-divider" aria-hidden="true" /> : null}
         {ownerTabs.map((entry) => renderTab(entry.tab, entry.label(communityShell)))}
       </nav>

@@ -83,7 +83,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   channels_look: ["Page style", [["current", "Polynet (today)"], ["quiet", "Quiet: plain menu, one column"], ["reader", "Reader: reading column, post lists"], ["publication", "Publication: masthead, editorial cards"]]],
   sibling_communities: ["Your other communities", [["hide", "Hidden"], ["show", "Show them under members"]]],
   classroom_chat: ["Classroom's Community tab", [["posts", "Post cards (default)"], ["chat", "A chat"]]],
-  pods_place: ["Where pods show", [["aside", "Top of the right column"], ["header", "In the header"]]],
+  pods_place: ["Where pods show", [["aside", "Top of the right column"], ["header", "In the header"], ["tab", "As a tab after Community"]]],
   rail_size: ["Icon size", [["standard", "Standard"], ["large", "Bigger"]]],
   rail_color: ["Colour", [["polynet", "Polynet (today)"], ["blend", "Blend with the page"], ["tint", "Soft brand tint"], ["brand", "Solid brand colour"]]],
 };
