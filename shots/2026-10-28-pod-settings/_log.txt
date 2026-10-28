@@ -1,0 +1,24 @@
+head: d4b37c1d (claude/local-combined); Convex functions ready 19:02:42 local after the pull; web 200
+Owner, guard on, 1440. Menus and dialogs opened only, then closed with Escape. Nothing in them was pressed (no Save name, no Delete pod, no checkbox, no select).
+
+  channels: in pod, url /c/ai-employee-builders/chat/agency-owners-test
+  header icon buttons: [{"label":"Open direct messages","top":15,"left":1220},{"label":"Notifications","top":15,"left":1262},{"label":"Display","top":15,"left":1304},{"label":"Community settings","top":15,"left":1346},{"label":"Pod options for Agency owners (test)","top":77,"left":1066}]
+  menu: ["Pod settings | Delete pod"]
+saved channels-pod-menu.png
+  pod settings: ["Pod settings | Name the pod and choose who's in it. The pinned post and calls are in the pod's panel. | Pod name | Who can see it | Everyone in the community (makes it a channel) | Only the people in this pod | Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately. | Let the community agent in this pod | In this pod | Ava Builder | Ben Coach | Cara Agency | Test Member | New Path c | TM | Test member 24 | TM | Test member 29 | TM | Test member 30 | Close | Save name"]
+    "Pod settings": true
+    "Who can see it": true
+    "In this pod": true
+    "Let the community agent in this pod": true
+    any "Channel" in dialog: false
+saved channels-pod-settings.png
+  classroom: pod cards matching 1
+  card controls: []
+  classroom panel: ["Pod settings | Name the pod and choose who's in it. The pinned post and calls are in the pod's panel. | Pod name | Who can see it | Everyone in the community (makes it a channel) | Only the people in this pod | Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately. | Let the community agent in this pod | In this pod | Ava Builder | Ben Coach | Cara Agency | Test Member | New Path c | TM | Test member 24 | TM | Test member 29 | TM | Test member 30 | Close | Save name"]
+saved classroom-pod-settings.png
+ALLOWED {"auth:bootstrapActor":4,"businessAnalytics:identifyBusinessVisitor":4,"profiles:resolveOnboardingProfileDetail":39,"communityCommerce:redeemPendingPurchaseClaims":12,"communityPublic:heartbeatCommunityPresence":4,"communityAttention:markCommunitySurfaceSeen":2}
+BLOCKED {"communityAttention:acknowledgeCommunityChatRead":3}
+OTHER []
+LEAKS []
+
+RESULT: the header menu reads "Pod settings | Delete pod". The dialog title is "Pod settings" and includes "Who can see it", "In this pod" and "Let the community agent in this pod". The word "Channel" appears only in the visibility option "Everyone in the community (makes it a channel)". In Classroom (Pods tab, then the pod card) the same Pod settings dialog opens.
