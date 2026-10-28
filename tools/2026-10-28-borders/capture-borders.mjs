@@ -108,6 +108,26 @@ async function memberView(page, on) {
 const DESK_PAGES = [["chat", "chat"], ["knowledge", "resources"], ["events", "events"], ["members-tab", "members"], ["members-db", "people"], ["workflows", "workflows?section=workflows"], ["settings", "settings/community"]];
 const PHONE_PAGES = [["chat", "chat"], ["knowledge", "resources"], ["settings", "settings/community"]];
 
+// --feels: Framed review pass. Channels at 1440 in each page style (the
+// read-only ?feel= override), owner only, a few pages each.
+if (args.feels) {
+  try {
+    const s = await newPage(DESKTOP);
+    await signedIn(s);
+    for (const feel of ["current", "quiet", "reader", "publication"]) {
+      for (const [name, path] of [["chat", "chat"], ["knowledge", "resources"], ["events", "events"], ["members-db", "people"], ["settings", "settings/community"]]) {
+        await s.page.goto(withLayout(path, "channels", `&feel=${feel}`)).catch(() => {}); await settle(s.page);
+        await snap(s.page, `feel-${feel}-1440-${name}`);
+      }
+    }
+    await s.context.close();
+  } finally {
+    writeFileSync(join(out, "_log.txt"), log.join("\n") + "\n\nBLOCKED WRITES:\n" + blocked.join("\n"));
+    await browser.close();
+  }
+  process.exit(0);
+}
+
 try {
   for (const layout of ["channels", "classroom"]) {
     for (const [vpName, vp, pages] of [["1440", DESKTOP, DESK_PAGES], ["390", PHONE, PHONE_PAGES]]) {
