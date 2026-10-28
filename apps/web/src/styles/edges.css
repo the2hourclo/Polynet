@@ -68,6 +68,13 @@
   padding-right: 1.5rem;
 }
 
+/* Quiet and Reader: the members panel's title row is where the top-right
+   buttons sit, so it carries no title (as in the Polynet look); the panel
+   starts at Creator. Rashid, 2026-10-28. */
+.product-shell-surface:is([data-channels-feel="quiet"], [data-channels-feel="reader"]) .community-context-rail-name {
+  visibility: hidden;
+}
+
 /* Classroom: one left edge. The logo, tabs, page titles, cards and Events
    all start on the header's gutter. */
 .product-shell-surface--community-top .community-knowledge-page:not([data-reading]) { margin-inline: -1.25rem; }
