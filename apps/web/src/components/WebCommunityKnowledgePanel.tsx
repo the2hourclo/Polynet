@@ -36,6 +36,10 @@ import type { WebCommunitySettingsSection } from "./WebCommunitySettingsSection"
 import { useWebCommunityPolynetController } from "../controllers/useWebCommunityPolynetController";
 import "./WebCommunityKnowledgePanel.css";
 
+// Bars that keep Messages, Display and Settings: Channels' top bar,
+// Classroom's identity row, and the phone's top bar.
+const LESSON_FOCUS_KEEP_BARS = ".app-topbar, .community-top-nav-identity, .mobile-topbar";
+
 type Props = {
   resources: ComponentProps<typeof CommunityResourcesPanel>;
   context: {
@@ -224,13 +228,29 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     if (!focusOn) return;
     const root = document.documentElement;
     root.dataset.lessonFocus = "on";
+    // The page lifts over the community's rails but stops under the bar that
+    // holds Messages, Display and Settings, so those stay in reach
+    // (Rashid, 2026-10-28: focus covered the top-right buttons).
+    const placeUnderBar = () => {
+      let top = 0;
+      for (const bar of document.querySelectorAll<HTMLElement>(LESSON_FOCUS_KEEP_BARS)) {
+        if (getComputedStyle(bar).visibility === "hidden") continue;
+        const rect = bar.getBoundingClientRect();
+        if (rect.height > 0) top = Math.max(top, rect.bottom);
+      }
+      root.style.setProperty("--lesson-focus-top", `${Math.max(0, Math.round(top))}px`);
+    };
+    placeUnderBar();
+    window.addEventListener("resize", placeUnderBar);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !event.defaultPrevented) setFocus(false);
     };
     window.addEventListener("keydown", onKey);
     return () => {
       delete root.dataset.lessonFocus;
+      root.style.removeProperty("--lesson-focus-top");
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", placeUnderBar);
     };
   }, [focusOn]);
   return (

@@ -1244,7 +1244,10 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 .community-knowledge-page[data-reading][data-focus] {
   position: fixed;
   inset: 0;
-  /* Above the community rail and bars, below dialogs (9999). */
+  /* Starts under the bar with Messages, Display and Settings (measured in
+     WebCommunityKnowledgePanel), so focus never covers them. */
+  top: var(--lesson-focus-top, 0px);
+  /* Above the community rail, below dialogs (9999). */
   z-index: 1000;
   overflow-y: auto;
   background: var(--bg-workspace);
