@@ -41,11 +41,14 @@ const browser = await playwright.chromium.launch({ channel: "chrome" }).catch(()
 
 const DENY = /delete|archive|remove|publish|Theme|Appearance|Settings|saveCommunityResource|updateCommunity|setCommunity|Offer|grantAccess|revoke|ban|kick/i;
 const ALLOW = /communityTestMembers:(startTestMember|endTestMember)/;
+// The test member may delete its OWN stress message, once, right after posting it.
+let allowOneDelete = false;
+const allowed = (p) => { if (ALLOW.test(p)) return true; if (allowOneDelete && /communityInteractions:deleteCommunityInteractionMessage/.test(p)) { allowOneDelete = false; return true; } return false; };
 const pathOf = (s) => (s.match(/"(?:udfPath|path)"\s*:\s*"([^"]+)"/) ?? [])[1] ?? "";
 async function guard(context, who) {
   await context.route(/\/api\/(mutation|action)/, (route) => {
     const p = pathOf(route.request().postData() ?? "");
-    if (DENY.test(p) && !ALLOW.test(p)) { dropped.push(`${who} HTTP ${p}`); return route.abort(); }
+    if (DENY.test(p) && !allowed(p)) { dropped.push(`${who} HTTP ${p}`); return route.abort(); }
     writes.push(`${who} HTTP ${p}`); return route.continue();
   });
   if (typeof context.routeWebSocket !== "function") throw new Error("routeWebSocket unavailable: refusing to run unguarded");
@@ -55,7 +58,7 @@ async function guard(context, who) {
       const s = typeof m === "string" ? m : "";
       if (/"type"\s*:\s*"(Mutation|Action)"/.test(s)) {
         const p = pathOf(s);
-        if (DENY.test(p) && !ALLOW.test(p)) { dropped.push(`${who} WS ${p}`); return; }
+        if (DENY.test(p) && !allowed(p)) { dropped.push(`${who} WS ${p}`); return; }
         if (!/heartbeat|markCommunitySurfaceSeen|bootstrapActor/i.test(p)) writes.push(`${who} WS ${p}`);
       }
       server.send(m);
@@ -164,6 +167,28 @@ async function ownerTestRun(vpName, vp) {
     const posted = /Stress test message from a test run/.test(await text(tab));
     await shot(tab, `${vpName}-chat-posted`);
     result(`${vpName}-chat-post-with-image`, [...(pasteErr ? [pasteErr] : []), ...(chip ? [] : ["pasted image chip did not show"]), ...(posted ? [] : ["message did not appear after Send"]), ...takeErrs()]);
+    // Delete that one message again (End keeps chat posts). Exact text, own message, confirm checked.
+    if (posted) {
+      const MSG = "Stress test message from a test run, please ignore";
+      const row = tab.locator("li, article, div").filter({ hasText: MSG }).filter({ has: tab.getByRole("button", { name: "More actions" }) }).last();
+      const delProblems = [];
+      if (!(await row.count())) delProblems.push("could not find the posted message with a More actions button");
+      else {
+        await row.hover().catch(() => {});
+        await row.getByRole("button", { name: "More actions" }).last().click({ timeout: 5000 }).catch((e) => delProblems.push(`More actions: ${e.message.split("\n")[0]}`));
+        const del = tab.locator(".community-interaction-overflow-item.is-danger").filter({ hasText: /^\s*Delete\s*$/ });
+        if (!(await del.count())) delProblems.push("no Delete in the message menu (test member can't delete own message?)");
+        else {
+          tab.once("dialog", (d) => { if (d.message() === "Delete this message?") { allowOneDelete = true; d.accept(); } else { note(`delete confirm text unexpected, dismissed: ${d.message()}`); d.dismiss(); } });
+          await del.first().click(); await settle(tab, 3000);
+          allowOneDelete = false;
+          if (/Stress test message from a test run/.test(await text(tab))) delProblems.push("message still shows after Delete");
+        }
+      }
+      await shot(tab, `${vpName}-chat-deleted`);
+      if (delProblems.length) note(`LEFTOVER: the stress message in AIEB chat was not deleted (${vpName}); remove it by hand`);
+      result(`${vpName}-chat-delete-own-message`, [...delProblems, ...takeErrs()]);
+    }
     // Pods tab for a brand-new member (Classroom).
     const pods = tab.locator("[role=tab]").filter({ hasText: /^\s*Pods\s*$/ });
     if (await pods.count()) { await pods.first().click(); await settle(tab); await shot(tab, `${vpName}-pods-new-member`); result(`${vpName}-pods-new-member`, takeErrs()); }
