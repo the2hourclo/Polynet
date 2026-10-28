@@ -3,7 +3,7 @@ import { useActiveCommunityLayout } from "../controllers/useWebCommunityLayout";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { PodDetailsSheet, WebCommunityPodRoomHead } from "./WebCommunityPods";
+import { PodDetailsSheet, WebCommunityPodRoomHead, WebCommunityPodsHome } from "./WebCommunityPods";
 import { WebCommunityPodPanel } from "./WebCommunityPodPanel";
 import { WebCommunityChatPanel, type WebCommunityChatPanelProps } from "./WebCommunityChatPanel";
 import type { CommunityAdmissionControl } from "./CommunityAutoJoinControl";
@@ -41,7 +41,9 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
   return (
     <div className="community-body">
       {isCommunityChatBackedTab(communityTab) ? (
-        podId && pods ? (
+        communityTab === "chat" && pods?.home ? (
+          <WebCommunityPodsHome pods={pods} />
+        ) : podId && pods ? (
           <div className="community-pod-room">
             <WebCommunityPodRoomHead pods={pods} podId={podId} onShowDetails={() => setPodDetailsOpen(podId)} />
             {chatPanel}

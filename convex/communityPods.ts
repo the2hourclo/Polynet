@@ -143,7 +143,7 @@ export const listBuilderPods = query({
         + "community.channel.participant.set (target { kind: \"member\", userId }) and the agent with target { kind: \"community_agent\" }. "
         + "Under its chat a pod shows its shelf: the pinned post (community.channel.pin) and every file and video posted in it, read from the pod's messages. "
         + "The owner and admins can see every pod. Where Classroom shows pods is the theme token pods_place "
-        + "(\"aside\": top of the right column, \"header\": a faces button in the header): change it in /builder/theme.json with community.theme.save_draft, then community.theme.publish.",
+        + "(\"aside\": top of the right column, \"header\": a faces button in the header, \"tab\": a Pods tab after Community): change it in /builder/theme.json with community.theme.save_draft, then community.theme.publish.",
       pods,
       truncated: channels.length === MAX_BUILDER_PODS,
     };

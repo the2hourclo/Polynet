@@ -111,7 +111,7 @@ const ENUMS = {
     rail_size: ["standard", "large"],
     rail_color: ["polynet", "blend", "tint", "brand"],
     sibling_communities: ["hide", "show"],
-    pods_place: ["aside", "header"],
+    pods_place: ["aside", "header", "tab"],
     classroom_chat: ["posts", "chat"],
 };
 const RANGES = {
