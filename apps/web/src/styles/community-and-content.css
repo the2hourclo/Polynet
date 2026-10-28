@@ -14092,3 +14092,21 @@ body:has(.community-knowledge-page[data-reading]) .app-topbar .topbar-right-isla
   border-radius: 10px;
   box-shadow: 0 0 0 6px var(--bg-workspace);
 }
+
+/* ── Phone: owner pages clear the floating pill (2026-10-28 review #2, U2) ──
+   The pill at the top already goes back, so pages drop their own back link,
+   and the page header starts below the pill instead of behind it. */
+.app-root.mobile-shell .pn-wf-back { display: none; }
+.app-root.mobile-shell .pn-page-with-back { padding-top: var(--mobile-topbar-clearance); }
+.app-root.mobile-shell .pn-funnels { padding-top: var(--mobile-topbar-clearance); }
+/* Community Settings on a phone gets the full width, like the other phone
+   pages: no community rail beside it. */
+.app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) > :not(.mobile-global-shell-surface) {
+  display: none;
+}
+.app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) > .mobile-global-shell-surface {
+  margin-left: var(--community-shell-inset);
+}
