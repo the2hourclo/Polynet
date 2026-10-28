@@ -9735,7 +9735,8 @@ button.chat-reply-quote:hover {
 }
 /* Next lesson, on the right of Mark as done, in the community's accent. */
 .lesson-next-button {
-  display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; margin-left: auto;
+  /* A long lesson title stays one short line; the full title is in the tooltip. */
+  display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: min(100%, 22rem); margin-left: auto;
   height: 2.5rem; padding: 0 1rem; border: 1px solid transparent; border-radius: 8px;
   background: var(--accent-brand, var(--bg-button)); color: var(--bg-button-text, #fff);
   font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
@@ -14066,3 +14067,15 @@ button.chat-reply-quote:hover {
 .pn-page-with-back .pn-members-head { padding-right: var(--web-topbar-right-action-safe-inset, 0px); }
 .lesson-toc-compact-label { margin: 0.5rem 0.875rem 0.25rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 .lesson-toc-compact .lesson-chapter-list { padding: 0 0.375rem 0.5rem; }
+
+/* Channels has no header strip over a lesson, so the Messages, Display and
+   Settings buttons float over the text as it scrolls. While a lesson is open
+   they sit on a small solid backing in the page's own colour. */
+body:has(.community-knowledge-page[data-reading]) .app-topbar .topbar-right-island > .community-theme-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px var(--bg-workspace);
+}

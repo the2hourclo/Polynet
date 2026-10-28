@@ -966,6 +966,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
                 <button
                   type="button"
                   className="lesson-next-button"
+                  title={`Next: ${nextLesson.title}`}
                   onClick={(event) => {
                     const top = event.currentTarget.closest(".resource-viewer-content");
                     nextLesson.open();
