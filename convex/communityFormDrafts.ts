@@ -30,7 +30,7 @@ export const formDraftContextInternal = internalQuery({
   },
 });
 
-/** The agent's name for the "Draft with …" button (The Builder on AIEB). */
+/** The agent's name for the "Draft with …" button. */
 export const formDraftAgentName = query({
   args: { communityId: v.id("communities"), authSubject: v.optional(v.string()) },
   handler: async (ctx, args): Promise<string> => {

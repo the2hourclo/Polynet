@@ -1,7 +1,7 @@
 import { buildCommunityResourceEvidenceRef } from "./communityEvidenceContract";
 import type { CommunityLessonFields } from "./communityLessonContract";
 
-// Skill tracks (Rashid, 2026-10-26): a community can show several roadmaps.
+// Skill tracks: a community can show several roadmaps.
 // Each track is an ordered path of stages over the one lesson library, so a
 // lesson can sit in many tracks and a lesson done once counts in all of them.
 // A checkpoint keeps the rest of its own track closed until it is done, and a

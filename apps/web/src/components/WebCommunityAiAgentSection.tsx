@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { WebCommunityAgentEngineCard } from "./WebCommunityAgentEngineCard";
 import {
   WebCommunityAiAgentInstructionsEditor,
   type WebCommunityAiAgentInstructionsEditorProps,
@@ -58,7 +57,6 @@ export function WebCommunityAiAgentSection(props: WebCommunityAiAgentSectionProp
   } else {
     content = <>
       {profileCard}
-      <WebCommunityAgentEngineCard />
       <WebCommunityAiAgentInstructionsEditor {...instructionsEditorProps} />
     </>;
   }

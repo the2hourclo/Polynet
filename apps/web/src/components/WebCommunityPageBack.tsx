@@ -2,8 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 // "← <community>" above an owner page in Channels, back to where the community
-// opens (Rashid, 2026-10-27: "Members settings needs an arrow to back to
-// community"). Classroom has its top tabs for that, so it shows nothing there.
+// opens. Classroom has its top tabs for that, so it shows nothing there.
 export function WebCommunityPageBack() {
   const frame = useWebCommunityFrame();
   if (frame.layout.navigation.position === "top" || !frame.community) return null;

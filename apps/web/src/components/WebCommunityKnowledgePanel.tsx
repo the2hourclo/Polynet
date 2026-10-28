@@ -212,7 +212,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     : undefined;
   const reading = Boolean((activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapReading));
   // Resources · Roadmap · Graph belong to Knowledge's main view; inside a
-  // course, lesson or track they step aside (Rashid, 2026-10-27), and a lesson
+  // course, lesson or track they step aside, and a lesson
   // offers Focus mode in their place.
   const insideKnowledge = reading || Boolean(boardOpen && activeTrack && tracks.length > 1);
   const [focus, setFocus] = useState(false);

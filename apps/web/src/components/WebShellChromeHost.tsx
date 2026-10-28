@@ -79,10 +79,9 @@ const COMMUNITY_THEMED_DESTINATIONS = new Set([
   "community_about",
   "community_agent",
   "community_workflows",
-  "community_funnels",
   "community_people",
   // Your settings take the look of the community you came from, so leaving
-  // a community for your own settings doesn't change colours (Rashid).
+  // a community for your own settings doesn't change colours.
   "global_settings",
 ]);
 
@@ -266,7 +265,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   // Draft Substack-feel looks for Channels (see useDraftLook); off in Classroom.
   const channelsFeelAttribute = desktopCommunityNav && !isTopCommunityNav && draftLook.feel !== "current" ? draftLook.feel : undefined;
   // Channels chat is always Wide: messages full width from the left edge
-  // (Rashid, 2026-10-27, retiring the centred column). Classroom keeps its own.
+  //. Classroom keeps its own.
   const chatViewAttribute = desktopCommunityNav && !isTopCommunityNav ? "wide" : undefined;
   // Draft rail looks, set on <html> so the rail and the frame around the
   // community both see them. The rail reads the community's colours, copied

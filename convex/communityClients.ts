@@ -523,7 +523,7 @@ async function listClients(ctx: any, args: any) {
       // The ref on the join link this member arrived by, first touch.
       referred_by: referral ? referral.ref : null,
       // Plan, what they can use (community, courses, each connected service)
-      // and until when: the same answer the AIEB MCP gets.
+      // and until when: the same answer a paid MCP server gets.
       access,
       facts: facts.slice(0, FACTS_PER_CLIENT).map((fact: any) => ({ kind: fact.kind, body: fact.body, provenance: fact.provenance })),
       properties: Object.fromEntries(definitions.map((property: any) => [property.key, currentValue(property, valueByKey.get(property.key) ?? null)])),

@@ -171,7 +171,7 @@ function parseVimeoId(url: URL): string | null {
 }
 
 // Descript share links (/view/ID) and embeds (/embed/ID) both play in its
-// embed player; the AIEB lessons are recorded there.
+// embed player; plenty of course lessons are recorded there.
 function parseDescriptId(url: URL): string | null {
   if (url.hostname.toLowerCase() !== "share.descript.com") return null;
   const parts = url.pathname.split("/").filter(Boolean);

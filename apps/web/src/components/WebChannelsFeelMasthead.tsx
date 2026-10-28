@@ -17,7 +17,7 @@ function initials(name: string): string {
 
 // The full masthead heads the community's home page only; Knowledge, Events
 // and the rest carry their own title row, so the content starts at the top
-// (Rashid, 2026-10-26). Chat keeps the slim bar wherever it sits.
+//. Chat keeps the slim bar wherever it sits.
 export function WebChannelsFeelMasthead(props: { tab: CommunityTab; home: CommunityTab }) {
   const frame = useWebCommunityFrame();
   const [copied, setCopied] = useState(false);

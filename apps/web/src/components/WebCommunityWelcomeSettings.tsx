@@ -19,8 +19,7 @@ import { ChoiceIconMark, WelcomeScreenView, welcomeMediaMarkdown } from "./WebCo
 import "./WebCommunityWelcomeSettings.css";
 import type { LessonEditorProps } from "./lessonEditor/LessonEditor";
 
-// The same editor as lessons (Rashid, 2026-10-27: the welcome page's editing
-// should be "the same exact idea" as Knowledge), loaded when a block is opened.
+// The same editor as lessons, loaded when a block is opened.
 const LessonEditor = lazy(() => import("./lessonEditor/LessonEditor"));
 
 const TITLE_MAX = 120;

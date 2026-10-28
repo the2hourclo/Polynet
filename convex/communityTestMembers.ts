@@ -111,7 +111,7 @@ async function deleteTestMemberData(ctx: any, row: TestMemberRow, nowMs: number)
     if (root && String(root.actorUserId) === String(userId) && root.status === "live") await ctx.db.patch(root._id, { status: "hidden", updatedAt: nowMs });
   }
   // The user row stays (chat posts point at it) but can no longer sign in as anything.
-  await ctx.db.patch(row._id, { endedAt: nowMs, autoplayUntil: undefined, autoplayPending: undefined, persona: undefined, autoplayDraft: undefined });
+  await ctx.db.patch(row._id, { endedAt: nowMs, autoplayUntil: undefined, autoplayPending: undefined });
 }
 
 function projectRow(row: TestMemberRow, membershipId: string | null, viewerUserId: any) {
@@ -119,7 +119,6 @@ function projectRow(row: TestMemberRow, membershipId: string | null, viewerUserI
     id: String(row._id),
     label: row.label,
     start_milestone_key: row.startMilestoneKey ?? null,
-    persona: row.persona ?? null,
     membership_id: membershipId,
     created_at: new Date(row.createdAt).toISOString(),
     // Only the manager who started a test run can open the community as it.
@@ -141,13 +140,6 @@ export const listTestMembers = query({
   },
 });
 
-export const TEST_MEMBER_PERSONA_MAX = 500;
-
-function normalizePersona(raw: unknown): string | undefined {
-  const text = String(raw ?? "").replace(/\s+/g, " ").trim();
-  return text ? text.slice(0, TEST_MEMBER_PERSONA_MAX) : undefined;
-}
-
 /** Creates a test member that joins like a new member: join rules, welcome flow and all. */
 export const startTestMember = mutation({
   args: {
@@ -155,8 +147,6 @@ export const startTestMember = mutation({
     communityId: v.id("communities"),
     /** Start in this Workflow stage instead of joining at the first, to test that stage's rules. */
     milestoneKey: v.optional(v.string()),
-    /** Who the test member is ("a dentist with two clinics who hates admin"). Autoplay plays them when the agent runs free. */
-    persona: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, ownerAuthSubject } = await requireManagerNotTestMember(ctx, args);
@@ -181,7 +171,7 @@ export const startTestMember = mutation({
     const testMemberId = await ctx.db.insert("communityTestMembers", {
       communityId: args.communityId, userId: testUserId, authSubject, ownerUserId: userId, ownerAuthSubject,
       label, number, ...(laterStage ? { startMilestoneKey: laterStage.key } : {}),
-      ...(normalizePersona(args.persona) ? { persona: normalizePersona(args.persona) } : {}), createdAt: nowMs,
+      createdAt: nowMs,
     });
     const activation = await activateCommunityMembershipCore({
       ctx, communityId: args.communityId, userId: testUserId, role: "member",

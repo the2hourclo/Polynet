@@ -150,7 +150,7 @@ export function describeCommunityDesignContract() {
       positions: ["side", "top"],
       widths: ["wide", "centered"],
       tabs: COMMUNITY_LAYOUT_TABS.map((tab) => ({ tab, default_label: COMMUNITY_LAYOUT_TAB_DEFAULT_LABELS[tab] })),
-      pinned_tabs: ["workflows", "people", "funnels", "analytics", "settings"],
+      pinned_tabs: ["workflows", "people", "analytics", "settings"],
       pages: { chat: { presentations: ["messages", "posts"], aside_blocks: [...COMMUNITY_LAYOUT_ASIDE_BLOCKS] } },
       defaults: DEFAULT_COMMUNITY_LAYOUT,
     },

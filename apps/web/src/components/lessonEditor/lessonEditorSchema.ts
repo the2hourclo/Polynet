@@ -42,8 +42,7 @@ const LessonOrderedList = OrderedList.extend({
 // What a quote, callout or list item may hold: text blocks only. A slide deck,
 // a follow-along card (quiz, checklist, button, form) or a raw Markdown block
 // can't be wrapped into one: Markdown can't hold them there, so on the next
-// save their contents came back as loose text (Rashid, 2026-10-26: slides
-// "collapsed into a callout … and turned into text").
+// save their contents came back as loose text.
 const WRAPPABLE_BLOCKS = "paragraph | heading | bulletList | orderedList | blockquote | codeBlock | horizontalRule | image | video";
 
 const LessonListItem = ListItem.extend({

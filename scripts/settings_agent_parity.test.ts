@@ -1,4 +1,4 @@
-// Rashid (2026-10-25, widened 2026-10-26 to "literally everything"): anything
+// Anything
 // a person can create or change in Polynet, their agent can too, through the
 // Polynet MCP and CLI. This holds the web app to that: every public mutation or
 // action the app calls is an agent operation (convex/polynetBuilderSettings.ts

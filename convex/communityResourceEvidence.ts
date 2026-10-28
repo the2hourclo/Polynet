@@ -13,6 +13,7 @@ import {
   type CommunityResourceModuleLike,
 } from "./communityCore";
 import { hydrateCommunityResourceBody } from "./communityResourceContent";
+import { resolveCommunityResourceEvidenceSource } from "./communityResourceEvidenceCore";
 import { truncateText } from "./communityText";
 import {
   communityEvidenceSurfaceValidator,

@@ -262,8 +262,7 @@ function isRecurringCommunityEvent(event: CommunityEvent | null): boolean {
   return !!event && event.recurrence_frequency !== "none";
 }
 
-// Notion-style event sheet (Rashid, 2026-10-27, "schedule new call should
-// have updated UI"): the title is the heading, then one row per property with
+// Notion-style event sheet: the title is the heading, then one row per property with
 // its icon and label on the left, choices as pills, and notes at the bottom.
 export function EventModal(props: {
   draft: EventDraft;

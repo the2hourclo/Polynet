@@ -1,5 +1,5 @@
 // Hard-to-undo Settings changes an agent proposes and the owner applies
-// (Rashid, 2026-10-25: "Direct, risky ones need Apply"). The agent's
+//. The agent's
 // polynet_call stages a proposal; nothing changes until a manager taps Apply
 // in the app. Apply runs the Settings page's own function as that manager, so
 // the change carries the person's authority, not the agent's.

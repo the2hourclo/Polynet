@@ -145,4 +145,4 @@ Polynet's look too.
 - An editor screen in community settings, and the MCP operations
   `community.theme.get/set` through agent changesets.
 - Serving `/__polynet/theme.css` on community sites.
-- Hosting Excalifont with Polynet (the AIEB preview inlines it today).
+- Hosting Excalifont with Polynet (one preview inlines it today).

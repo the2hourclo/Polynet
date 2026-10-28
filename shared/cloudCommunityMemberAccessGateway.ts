@@ -7,7 +7,7 @@ import type { CommunityClientBulkActionType, CommunityClientField, CommunityClie
 
 // Who can use what, and until when: the Clients list with its Access column,
 // one client's Access panel, the owner's connected services (such as the
-// AIEB MCP) and the member's own license key.
+// a paid MCP server) and the member's own license key.
 
 export type CloudCommunityAccessGrant = {
   id: string;

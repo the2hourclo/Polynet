@@ -258,6 +258,10 @@ function buildAnalyticsRecurringRevenueSeries(params: {
   });
 }
 
+async function resolveCommunityMemberIdentity(ctx: any, userRowId: any) {
+  return await resolveUserProfileDisplayProjection(ctx, userRowId);
+}
+
 async function resolveCommunityAdminMembersContext(args: {
   ctx: any;
   userId?: any;

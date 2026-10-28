@@ -1,5 +1,4 @@
-// Saved views over a community's clients (Rashid, 2026-10-26: "customizable
-// similar to Notion but looks like Substack"). A view is a data record (which
+// Saved views over a community's clients. A view is a data record (which
 // columns, which filters, how it sorts), never code, so the owner edits it on
 // the Members page and their agent edits the same record over MCP. The page
 // and the agent's /builder/clients/ read both filter with clientMatchesView,
@@ -184,7 +183,7 @@ const view = (key: string, name: string, filters: CommunityClientFilter[], sort:
   columns = COMMUNITY_CLIENT_DEFAULT_COLUMNS): CommunityClientView => ({ key, name, columns, filters, match: "all", sort, group: null });
 const STILL_HERE: CommunityClientFilter = { field: "status", op: "is_not", value: ["cancelled", "previous"] };
 
-/** The views every community starts with (Rashid, 2026-10-24). The owner can change or delete any of them. */
+/** The views every community starts with. The owner can change or delete any of them. */
 export const COMMUNITY_CLIENT_DEFAULT_VIEWS: CommunityClientView[] = [
   view("all", "All", [], { field: "joined_at", direction: "desc" }),
   view("stuck", "Stuck", [{ field: "stuck", op: "is_true" }], { field: "last_progress_at", direction: "asc" },

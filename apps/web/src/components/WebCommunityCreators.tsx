@@ -49,7 +49,7 @@ function initials(name: string): string {
 
 // "Created by": the owner first, then the co-creators the owner added. Shown
 // under the community's name in Channels, on its card in Classroom and on
-// About (Rashid, 2026-10-25).
+// About.
 // The "rail" variant is the Members panel in Channels: a section heading and
 // the same rows as the people below it, so faces and names line up.
 export function WebCommunityCreators(props: { communityId: string | null | undefined; onOpenProfile?: (userId: string) => void; onShowChat?: () => void; readOnly?: boolean; className?: string; variant?: "rail"; getAvatarColor?: (id: string) => string; getInitials?: (name: string) => string }) {

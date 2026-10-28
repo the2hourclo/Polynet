@@ -5,7 +5,7 @@ import "./workflowSubjectPills.css";
 
 // Rules read as sentences with the subjects coloured, so "When [Member] submits
 // [Welcome form] · Then [Agent] sends [Member] a message" can be followed at a
-// glance (Rashid picked the seven-colour set on 2026-10-27). Pods share the
+// glance. Pods share the
 // teal of stages: both are places a member is in.
 
 export type WorkflowPill = "member" | "agent" | "owner" | "stage" | "form" | "offer" | "field";

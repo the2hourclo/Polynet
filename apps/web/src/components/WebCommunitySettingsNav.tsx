@@ -51,23 +51,11 @@ export function buildCommunitySettingsNav(params: {
   panes: CommunitySettingsPane[];
   workflowsPath: string | null;
   peoplePath?: string | null;
-  funnelsPath?: string | null;
 }): SettingsNavGroup[] {
   const has = (pane: CommunitySettingsPane) => params.panes.includes(pane);
   const top: SettingsNavItem[] = [];
   if (has("community")) {
     top.push({ kind: "pane", pane: "community", label: "General", icon: <Settings2 {...ICON} />, anchors: GENERAL_ANCHORS });
-  }
-  if (has("sales_page") && params.funnelsPath) {
-    // Edited in Funnels, the community's own section for it.
-    top.push({
-      kind: "link",
-      id: "sales-page",
-      path: params.funnelsPath,
-      label: "Sales page",
-      icon: <Megaphone {...ICON} />,
-      keywords: "public page about funnel landing classroom pitch video vsl website join",
-    });
   }
   if (has("offers")) {
     top.push({ kind: "pane", pane: "offers", label: "Offers", icon: <Tag {...ICON} />, keywords: "offers packages tiers plans pricing consulting upgrade who gets this private channel" });

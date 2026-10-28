@@ -48,8 +48,7 @@
 .community-knowledge-views { display: flex; flex-wrap: wrap; gap: 8px; }
 .community-knowledge-views .community-category-chip.is-active { background: var(--text-primary); color: var(--bg-workspace); }
 .community-knowledge-views .community-category-chip:focus-visible { outline: 2px solid var(--focus-ring, var(--accent-brand)); outline-offset: 2px; }
-/* Resources · Roadmap · Graph as one segmented control (Rashid, 2026-10-26:
-   "the top bar … should have better UI"): a soft track with the open view
+/* Resources · Roadmap · Graph as one segmented control: a soft track with the open view
    raised on it, the way Substack's dashboard switches views. Replaces the
    three loose chips above. */
 .community-knowledge-views {

@@ -1810,7 +1810,6 @@ export default function App() {
     pendingToken,
     handlePrimaryAction: handlePublicLandingPrimaryAction,
     handleCheckoutContinue: handlePublicCheckoutContinue,
-    handleOfferCheckout: handlePublicOfferCheckout,
     handleClaimContinue: handlePublicClaimContinue,
     handleCancelPendingJoinRequest,
   } = useWebPublicFunnelEntryController({
@@ -2649,8 +2648,6 @@ export default function App() {
         publicCommunityUi.isCancellingPublicCommunityJoinRequest,
       onCancelPendingRequest: handleCancelPendingJoinRequest,
       onPrimaryJoinAction: handlePublicLandingPrimaryAction,
-      onStartOfferCheckout: handlePublicOfferCheckout,
-      offerSession: isPublicFunnelPreviewRoute ? null : session,
       publicCommunityError: publicCommunityUi.publicCommunityError,
       publicJoinError: publicCommunityUi.publicJoinError,
       checkoutError,

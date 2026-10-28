@@ -5,7 +5,7 @@ import { setMemberPickEverywhere, useMemberPickEverywhere } from "./communityLoo
 
 // Keeps a signed-in person's Light/Dark pick (and "Use my pick in every
 // community") on their account, so it follows them to every device and their
-// own agent can change it (Rashid, 2026-10-26). The account's pick is read on
+// own agent can change it. The account's pick is read on
 // sign-in and whenever the tab comes back into focus; a pick made here is saved
 // to the account. Signed out, the browser's pick is all there is.
 export function useAccountDisplayPreferences(params: {

@@ -11,8 +11,7 @@ import {
   providerFailureIsKnownPreSpend,
   settleCommunityInferenceFundingSession,
 } from "./founderInferenceRuntime";
-import type { runOpenAiNativeToolCompletion } from "./openAiNativeToolCompletion";
-import { runCommunityFundedCompletion } from "./communityInferenceProvider";
+import { runOpenAiNativeToolCompletion } from "./openAiNativeToolCompletion";
 
 type Claim = Parameters<typeof claimCommunityInferenceFundingSession>[0];
 type ResponseRequest = Parameters<typeof runOpenAiNativeToolCompletion>[0];
@@ -47,7 +46,7 @@ export async function startFundedInferenceRun(args: Claim) {
         providerStarted = true;
       }
       try {
-        const result = await runCommunityFundedCompletion({ ...input, modelId: session.modelId });
+        const result = await runOpenAiNativeToolCompletion({ ...input, modelId: session.modelId });
         observeFounderProviderResult(usage, result,
           !result.ok && providerFailureIsKnownPreSpend(result.code));
         return result;

@@ -815,8 +815,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
   return (
     <div className={`resource-viewer-content${embed ? " is-video-lesson" : ""}`} ref={contentRef}>
       <div className="resource-viewer-header">
-        {/* Course · Lesson 2 of 8 · 4 min read, over the title, as in the
-            Article mock Rashid picked (2026-10-27). */}
+        {/* Course · Lesson 2 of 8 · 4 min read, over the title. */}
         {props.course && !isEditing ? (
           <p className="lesson-kicker">
             <span>{props.course.name}</span>
@@ -888,9 +887,7 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
       </div>
       <div className={`resource-viewer-body${hasRail ? " has-lesson-rail" : ""}`}>
         <div className="resource-viewer-column">
-          {/* The lesson's video, under the title and as wide as the text (Rashid,
-              2026-10-27: "If we're going to have the video wide, then we should
-              have the text be as wide"), with its chapters in the side column. */}
+          {/* The lesson's video, under the title and as wide as the text, with its chapters in the side column. */}
           {embed ? (
             <div className="resource-viewer-hero" ref={heroRef}>
               <div className="resource-viewer-embed" data-resource-media="true">

@@ -4,8 +4,8 @@ import { bootstrapConvexAuthenticatedClient } from "../../../../shared/convexAut
 import { buildLoginTrampolinePath } from "./loginTrampoline";
 import "./AccessSignInRoute.css";
 
-// "Continue with Polynet": a service the community connected (the AIEB
-// plugin's sign-in page) sends the member here. Once they allow it, Polynet
+// "Continue with Polynet": a service the community connected (a plugin's
+// sign-in page, say) sends the member here. Once they allow it, Polynet
 // sends their browser back with a one-time code the service redeems with its
 // own key. Nothing is shared until they press Allow.
 export const ACCESS_SIGN_IN_PATH = "/connect/polynet";

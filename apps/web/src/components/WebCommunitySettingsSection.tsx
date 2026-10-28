@@ -151,7 +151,6 @@ type SharedSettingsProps = Pick<WebCommunitySettingsSectionProps, "state" | "act
 
 const PANE_TITLES: Record<CommunitySettingsPane, string> = {
   community: "General",
-  sales_page: "Sales page",
   offers: "Offers",
   appearance: "Appearance",
   agent: "Agent",
@@ -525,10 +524,9 @@ function CommunityIdentityCard({
 function CommunityProfileCard({
   state,
   actions,
-  onOpenSalesPage,
-}: SharedSettingsProps & { onOpenSalesPage: (() => void) | null }) {
+}: SharedSettingsProps) {
   return (
-    <SettingsCard id="settings-profile" title="Public profile" description="Shown on your sales page, in Discover and in the About tab.">
+    <SettingsCard id="settings-profile" title="Public profile" description="Shown on your join page, in Discover and in the About tab.">
       <SettingsRow label="One-liner" htmlFor="community-settings-one-liner" help="One sentence on who it's for and what they get.">
         <textarea
           id="community-settings-one-liner"
@@ -555,18 +553,6 @@ function CommunityProfileCard({
           }}
         />
       </SettingsRow>
-      {onOpenSalesPage ? (
-        <div className="pn-settings-callout">
-          <span className="pn-settings-callout-icon" aria-hidden="true"><Megaphone size={20} strokeWidth={2} /></span>
-          <span className="pn-settings-callout-text">
-            <strong>Sales page</strong>
-            <small>Pick its style, write the pitch and add a video, with a live preview.</small>
-          </span>
-          <button className="pn-settings-button is-primary" type="button" onClick={onOpenSalesPage}>
-            Edit sales page <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-          </button>
-        </div>
-      ) : null}
     </SettingsCard>
   );
 }
@@ -904,11 +890,9 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
   const resolvedActiveCommunity = activeCommunity as ActiveCommunity;
   const workflowsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "workflows");
   const peoplePath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "people");
-  // The sales page has its own section, Funnels; Settings links to it.
-  const funnelsPath = buildCommunityTabPath(resolvedActiveCommunity?.slug, "funnels");
   const navGroups = useMemo(
-    () => buildCommunitySettingsNav({ panes: availableSettingsPanes, workflowsPath, peoplePath, funnelsPath }),
-    [availableSettingsPaneKey, workflowsPath, peoplePath, funnelsPath],
+    () => buildCommunitySettingsNav({ panes: availableSettingsPanes, workflowsPath, peoplePath }),
+    [availableSettingsPaneKey, workflowsPath, peoplePath],
   );
   const autosave = useCommunitySettingsAutosave({ state, actions });
   const accessGateway = useCommunityAccessGatewayForSession({
@@ -921,13 +905,6 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
       onSelectPane(availableSettingsPanes[0]!, { replace: true });
     }
   }, [activePane, availableSettingsPaneKey, onSelectPane]);
-
-  // Old Settings > Sales page links open Funnels.
-  useEffect(() => {
-    if (selectedSettingsPane !== "sales_page" || !funnelsPath) return;
-    window.history.replaceState(window.history.state, "", funnelsPath);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, [selectedSettingsPane, funnelsPath]);
 
   useEffect(() => {
     if (!state.communitySettingsAvatarUrl && state.isCommunityAvatarFocusModalOpen) {
@@ -1031,7 +1008,6 @@ export function WebCommunitySettingsSection(props: WebCommunitySettingsSectionPr
       <CommunityProfileCard
         state={state}
         actions={actions}
-        onOpenSalesPage={availableSettingsPanes.includes("sales_page") && funnelsPath ? () => openInAppPath(funnelsPath) : null}
       />
       <CommunityAccessAndPaymentsCards
         activeCommunity={resolvedActiveCommunity}

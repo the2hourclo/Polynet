@@ -14,7 +14,6 @@ export type CloudCommunityTestMember = {
   mine: boolean;
   auth_subject: string | null;
   /** Who the owner said this test member is; Autoplay writes in their words when the agent runs free. */
-  persona?: string | null;
 };
 export type CloudCommunityTestMembers = { limit: number; test_members: CloudCommunityTestMember[] };
 export type CloudCommunityTestMemberStarted = { id: string; label: string; auth_subject: string; membership_id: string };
@@ -40,14 +39,11 @@ export async function listCloudCommunityTestMembers(session: unknown, communityI
 
 /**
  * Starts a test member; with a stage key it starts in that Workflow stage instead of joining at the first.
- * A persona ("a dentist with two clinics…") makes Autoplay answer forms and post in that person's words.
  */
-export async function startCloudCommunityTestMember(session: unknown, communityId: string, milestoneKey?: string | null,
-  persona?: string | null): Promise<CloudCommunityTestMemberStarted> {
+export async function startCloudCommunityTestMember(session: unknown, communityId: string, milestoneKey?: string | null): Promise<CloudCommunityTestMemberStarted> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return await client.mutation(api.communityTestMembers.startTestMember, {
     authSubject, communityId: communityId as Id<"communities">, ...(milestoneKey ? { milestoneKey } : {}),
-    ...(persona?.trim() ? { persona: persona.trim() } : {}),
   });
 }
 

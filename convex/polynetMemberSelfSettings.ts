@@ -1,6 +1,4 @@
-// A member's own choices, which only that member changes (Rashid, 2026-10-26:
-// "the Builder Agent online can change members own choices ... for them; we
-// should not change it for members, they can change it for themselves").
+// A member's own choices, which only that member changes.
 // Each operation runs the same public mutation the member's own screen runs,
 // signed in as the caller, so it can only ever change the caller's own
 // profile, notifications or Display pick. There is no owner path: an owner's

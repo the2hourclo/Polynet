@@ -1,4 +1,4 @@
-// The loading screen wears the community's own look (Rashid, 2026-10-27).
+// The loading screen wears the community's own look.
 // Once a community's theme is on screen, its resolved colours, name and logo
 // are kept in this browser under the community's address. On the next visit,
 // index.html sets those colours on the page before the app starts, so the

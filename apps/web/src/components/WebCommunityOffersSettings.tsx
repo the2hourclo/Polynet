@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, Lock, Plus } from "lucide-react";
-import { WebCommunityOfferChooser } from "./WebCommunityOfferChooser";
+import { Lock, Plus } from "lucide-react";
 import {
   fetchCloudCommunityOffers,
   formatCommunityOfferPrice,
@@ -89,7 +88,7 @@ function OfferEditor(props: {
           placeholder="Membership + Consulting" onChange={(event) => props.onChange({ ...draft, name: event.target.value })} />
       </label>
       <label className="pn-offer-field" htmlFor={`offer-${id}-blurb`}>
-        <span className="pn-settings-label">One line for the sales page</span>
+        <span className="pn-settings-label">One line about it</span>
         <input id={`offer-${id}-blurb`} className="pn-settings-input" value={draft.blurb} maxLength={280}
           placeholder="Everything in Membership, plus a private room with me."
           onChange={(event) => props.onChange({ ...draft, blurb: event.target.value })} />
@@ -119,11 +118,6 @@ function OfferEditor(props: {
           <PriceInputs id={id} draft={draft} onChange={props.onChange} />
         </div>
       )}
-      <label className="pn-offer-check" htmlFor={`offer-${id}-show`}>
-        <input id={`offer-${id}-show`} type="checkbox" checked={draft.showOnSalesPage}
-          onChange={(event) => props.onChange({ ...draft, showOnSalesPage: event.target.checked })} />
-        Show on the sales page
-      </label>
       <div className="pn-offer-actions">
         <button type="button" className="pn-settings-button" disabled={props.busy} onClick={props.onCancel}>Cancel</button>
         <button type="submit" className="pn-settings-button is-primary" disabled={props.busy || !draft.name.trim() || ((!props.isBase || draft.paid) && !draft.amount)}>
@@ -234,7 +228,6 @@ export function WebCommunityOffersSettings<SessionT>(props: {
                   <div className="pn-settings-row-text">
                     <span className="pn-offer-name">
                       {offer.name}
-                      {offer.show_on_sales_page ? null : <span className="pn-offer-chip is-muted">Not on sales page</span>}
                     </span>
                     {index > 0 ? <span className="pn-offer-includes">Everything in {live[index - 1]!.name}, plus more</span> : null}
                     <span className="pn-settings-help">
@@ -278,7 +271,6 @@ export function WebCommunityOffersSettings<SessionT>(props: {
           ) : null}
         </div>
       </section>
-      <SalesPagePreview offers={live} communitySlug={props.communitySlug ?? null} />
 
       <section className="settings-section pn-settings-card" aria-labelledby="settings-offer-channels-title">
         <header className="pn-settings-card-header">
@@ -333,47 +325,6 @@ export function WebCommunityOffersSettings<SessionT>(props: {
         </ul>
       </section>
     </div>
-  );
-}
-
-// Rashid 2026-10-26: "offers should show where we can see it on the sales page".
-// The same cards the sales page shows, from the offers above, and a link to the page itself.
-function SalesPagePreview(props: { offers: CommunityBuilderOffer[]; communitySlug: string | null }) {
-  const [picked, setPicked] = useState<string | null>(null);
-  const onSale = props.offers.filter((offer) => offer.is_base || (offer.show_on_sales_page && offer.price));
-  const cards = onSale.map((offer) => ({ key: offer.key, name: offer.name, blurb: offer.blurb, rank: offer.rank, is_base: offer.is_base,
-    prices: offer.price ? [offer.price] : [] }));
-  const selected = cards.find((card) => card.key === picked) ?? cards[0] ?? null;
-  const href = props.communitySlug ? `/c/${encodeURIComponent(props.communitySlug)}/preview#offers` : null;
-  return (
-    <section className="settings-section pn-settings-card" aria-labelledby="settings-offers-sales-title">
-      <header className="pn-settings-card-header is-row">
-        <div>
-          <h2 className="settings-section-title" id="settings-offers-sales-title">On your sales page</h2>
-          <p className="settings-section-desc">
-            {cards.length > 1
-              ? "Visitors pick one of these cards above the join button. Members see their own offer and can upgrade."
-              : "With one offer the sales page shows just the join button. Add a second offer and people choose between cards like these."}
-          </p>
-        </div>
-        {href ? (
-          <a className="pn-settings-button" href={href} target="_blank" rel="noreferrer">
-            Open sales page<ExternalLink size={14} aria-hidden="true" />
-          </a>
-        ) : null}
-      </header>
-      <div className="pn-settings-card-body">
-        <div className="pn-offer-sales-preview" aria-label="Preview of the offer cards">
-          <WebCommunityOfferChooser preferredPeriod={null} choice={{ offers: cards.length ? cards : [], selected, current: null,
-            onSelect: setPicked, button: null, note: null }} />
-          {cards.length ? (
-            <button type="button" className="pn-offer-sales-preview-button" tabIndex={-1} aria-hidden="true">
-              {selected && !selected.is_base ? `Join with ${selected.name}` : "Join"}
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </section>
   );
 }
 

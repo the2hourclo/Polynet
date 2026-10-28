@@ -1053,7 +1053,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   text-decoration-thickness: 1px;
 }
 
-/* ═════════ Lessons: one reading layout in every look (Rashid, 2026-10-26) ═════════
+/* ═════════ Lessons: one reading layout in every look ═════════
    Each look capped Knowledge at its catalog width (46–60rem). With the course
    outline beside it, a lesson then had about 200px left, and while editing the
    title squeezed to one letter per line. A lesson now gets the same room in
@@ -1112,8 +1112,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 /* The Resources · Roadmap · Graph switcher keeps clear of the shell's top-right
    icons (messages, display, view as member, settings, your picture) in every
    look: it sits beside the Knowledge title, on the left, and the header keeps
-   the icons' width free on the right whatever is in the bar (Rashid,
-   2026-10-26: the chat icon sat on Graph). Reading a lesson, the switcher
+   the icons' width free on the right whatever is in the bar. Reading a lesson, the switcher
    stays on the back link's row at the right, inside that same clearance. */
 @media (min-width: 641px) {
   .product-shell-surface .community-knowledge-page .community-knowledge-header,
@@ -1128,7 +1127,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   }
 }
 
-/* ═════════ Lessons in three columns (Rashid, 2026-10-26) ═════════
+/* ═════════ Lessons in three columns ═════════
    Like a Substack post, the lesson sits in the middle of the page, not in the
    middle of what the course outline leaves over. The outline is pinned to the
    left edge and Contents · Files to the right; the reader is padded on the
@@ -1197,8 +1196,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   .community-knowledge-page[data-reading] .resource-viewer-body.has-lesson-rail .lesson-toc-compact { display: none; }
 }
 
-/* The course outline reads more easily (Rashid, 2026-10-26, and again
-   2026-10-27: "a little bit bigger and a little bit wider"): an 18rem column
+/* The course outline reads more easily: an 18rem column
    and titles at the body size, wrapping to three lines before they're cut. */
 .community-knowledge-page[data-reading] { --lesson-outline-width: 18rem; }
 @container lesson-page (min-width: 58.0625rem) and (max-width: 69.9375rem) {
@@ -1214,13 +1212,11 @@ html:root[data-rail-color="blend"] .product-shell-surface {
 .community-knowledge-page[data-reading] .resource-course-outline .resource-course-outline-title { font-size: 1rem; }
 .community-knowledge-page[data-reading] .resource-course-outline .knowledge-resource-item-status { width: 1.125rem; height: 1.125rem; }
 
-/* Lesson style, chosen per course by its owner (Rashid, 2026-10-26).
+/* Lesson style, chosen per course by its owner.
    Article (the default) is the clean newsletter page above. Video course
-   reads like a classic course (Rashid, 2026-10-27: the tinted card "doesn't
-   feel right"): the same clean page with a bigger video. */
+   reads like a classic course: the same clean page with a bigger video. */
 /* Video course: the title, then the video, then the text, all one width
-   with the same margins (Rashid, 2026-10-27: "we should have the text be as
-   wide"; "for a video course, we should always have a title"). The column is
+   with the same margins. The column is
    wider than an article's so the video stays big. */
 .community-knowledge-page[data-reading][data-lesson-style="video"] { --knowledge-reading-measure: 48rem; }
 .community-knowledge-page[data-reading][data-lesson-style="video"] .resource-viewer-hero .resource-viewer-embed {
@@ -1229,8 +1225,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   box-shadow: 0 12px 32px color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
-/* A lesson uses the whole page in every look (Rashid, 2026-10-26: "I don't
-   see … the Table of Contents on the right side and the wider view"). The
+/* A lesson uses the whole page in every look. The
    community's centred pane capped it (1080px under the publication look),
    below the 70rem the three columns need, so Contents never showed. */
 .web-community-centered-pane:has(> .community-knowledge-page[data-reading]) {
@@ -1238,7 +1233,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   max-width: none;
 }
 
-/* Focus mode (Rashid, 2026-10-27): one button in a lesson clears everything
+/* Focus mode: one button in a lesson clears everything
    but the lesson itself. The page lifts over the community's bars, the
    outline and Contents step aside, and Esc or the button brings them back. */
 .community-knowledge-page[data-reading][data-focus] {

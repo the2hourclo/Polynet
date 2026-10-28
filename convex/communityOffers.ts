@@ -260,7 +260,7 @@ export const reorderCommunityOffers = mutation({ args: reorderArgs, handler: reo
 export const setCommunityOfferArchived = mutation({ args: archiveArgs, handler: setOfferArchived });
 export const setCommunityChannelOfferAudience = mutation({ args: audienceArgs, handler: setChannelAudience });
 
-// Rashid 2026-10-26: "we need option to make the membership paid too". The base
+// The membership can be paid too. The base
 // offer's price is the community's own price, so this is the same save as
 // General › Access & pricing, with everything else kept as it is. People who
 // are already members stay members; only new joiners pay.

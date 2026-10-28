@@ -9,7 +9,7 @@ function withPosition(position: "top" | "side", presentation: "messages" | "post
   };
 }
 
-// Rashid (2026-10-27): Classroom shows post cards unless the owner picks a chat.
+// Classroom shows post cards unless the owner picks a chat.
 test("Classroom shows post cards with its side blocks, even when the layout says messages", () => {
   const layout = layoutForClassroomChat(withPosition("top"), "posts");
   expect(layout.pages.chat.presentation).toBe("posts");

@@ -4095,7 +4095,7 @@ test("a long lesson goes up whole in sections, reads back section by section, an
     return result.value as any;
   };
   const community = "canonical-community";
-  // About the size of AIEB's Asset Explorer lesson (27.8k characters), in three sections.
+  // About the size of a long real lesson (27.8k characters), in three sections.
   const part = (title: string) => `## ${title}\n\n${"Each asset has a score and an owner. ".repeat(250)}\n`;
   const long = ["Start by listing what you own.", part("Find your assets"), part("Score them"), part("Pick the first one")].join("\n\n").trim();
   expect(long.length).toBeGreaterThan(27_000);

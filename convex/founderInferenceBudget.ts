@@ -1,5 +1,4 @@
 import { resolveRuntimeModelCapacityProfile } from "../shared/runtimeInputBudget";
-import { readCommunityInferenceProvider } from "./communityInferenceProvider";
 import {
   calculateFounderRequestCosts,
   calculateFounderRunCostMicros,
@@ -18,9 +17,6 @@ export function assertPaidLuna6ProviderHeadroom(args: {
   maxOutputTokens: number;
 }): void {
   if (args.session.modelId !== "gpt-6-luna") return;
-  // The local Claude Code bridge answers with the owner's own login and bills
-  // nothing, so a paid model's context-window headroom doesn't apply to it.
-  if (readCommunityInferenceProvider() === "claude_code_local") return;
   if (!args.usage.complete) throw new Error(FOUNDER_INFERENCE_USAGE_INCOMPLETE);
   const { reservedCostMicros, pricingSnapshot } = args.session;
   if (!Number.isSafeInteger(reservedCostMicros) || (reservedCostMicros ?? 0) <= 0 || !pricingSnapshot) {

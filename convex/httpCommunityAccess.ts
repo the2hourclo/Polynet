@@ -1,7 +1,7 @@
 import { internal } from "./_generated/api";
 
 // The read-only access lookup for a registered outside service (an access
-// integration such as the AIEB MCP), authenticated with its server API key:
+// integration such as a paid MCP server), authenticated with its server API key:
 //
 //   GET  /access/v1/communities/<slug>/members?email=<verified email>
 //   GET  /access/v1/communities/<slug>/members/<member id>

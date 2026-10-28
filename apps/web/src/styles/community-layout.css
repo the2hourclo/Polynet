@@ -1777,7 +1777,7 @@
 .app-root:not(.mobile-shell) .app-topbar .account-settings-bar-button { transform: translate(-4px, 4px); }
 
 /* Your picture sits after the gear (WebAccountSettingsButton) and opens your
-   settings on your profile (Rashid, 2026-10-26). */
+   settings on your profile. */
 .community-profile-button .community-profile-avatar {
   display: grid;
   place-items: center;
@@ -1805,7 +1805,7 @@
 /* View as member sits first in that group, on pages that offer it (today
    Knowledge's Resources tab). On, it keeps its icon size, so nothing in the
    bar moves onto the page's tabs, and gets a tinted ring; the page shows a
-   "Member view" banner with an Exit button (Rashid, 2026-10-26). */
+   "Member view" banner with an Exit button. */
 .community-member-view-button.is-on {
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent-brand, var(--text-primary)) 14%, transparent);

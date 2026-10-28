@@ -560,7 +560,7 @@ export function useCommunityResourceController<
     [loadCommunityResources],
   );
 
-  // Article or Video course, switched from the lesson page (Rashid, 2026-10-26).
+  // Article or Video course, switched from the lesson page.
   const handleSetCommunityResourceModuleLessonStyle = useCallback(
     async (module: ResourceModuleT, lessonStyle: "article" | "video") => {
       const current = argsRef.current;

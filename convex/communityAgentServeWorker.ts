@@ -14,7 +14,7 @@ import {
   internalQuery,
 } from "./_generated/server";
 import { v } from "convex/values";
-import { runCommunityFundedCompletion } from "./communityInferenceProvider";
+import { runOpenAiNativeToolCompletion } from "./openAiNativeToolCompletion";
 import {
   communityMembershipRowIsActive,
   getUniqueCommunityMembershipByPair,
@@ -2087,7 +2087,7 @@ export const processQueuedCommunityAgentServeRequestsInternal = internalAction({
                 });
                 providerStarted = true;
               }
-              toolCompletion = await runCommunityFundedCompletion({
+              toolCompletion = await runOpenAiNativeToolCompletion({
                 modelId: fundingSession.modelId,
                 messages: kernelMessages,
                 maxTokens: SERVE_REPLY_MAX_TOKENS,

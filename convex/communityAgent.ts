@@ -8,6 +8,7 @@ import {
 import {
   type CommunityAgentConfigLike,
   getCommunityAndMembership,
+  requireCommunityChatAccess,
   requireCommunityManager,
   resolveCommunityAccessBundle,
   resolveUserIdForAuthenticatedRequest,

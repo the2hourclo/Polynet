@@ -11,10 +11,9 @@ import {
   normalizeCommunityLayout,
   visibleCommunityLayoutTabs,
 } from "../shared/communityLayout";
-import { isSupportedCommunityFunnelVideoUrl } from "../shared/communityFunnel";
 
-const SKOOL_LAYOUT = JSON.parse(
-  readFileSync(join(__dirname, "..", "packages", "polynet-cli", "templates", "skool", "layout.json"), "utf8"),
+const CLASSROOM_LAYOUT = JSON.parse(
+  readFileSync(join(__dirname, "..", "packages", "polynet-cli", "templates", "classroom", "layout.json"), "utf8"),
 );
 
 function problemsOf(raw: unknown) {
@@ -29,8 +28,8 @@ describe("community layout v1", () => {
     expect(DEFAULT_COMMUNITY_LAYOUT.navigation.position).toBe("side");
   });
 
-  test("the skool template's layout is valid: top tabs, posts feed, centred", () => {
-    const result = normalizeCommunityLayout(SKOOL_LAYOUT);
+  test("the classroom template's layout is valid: top tabs, posts feed, centred", () => {
+    const result = normalizeCommunityLayout(CLASSROOM_LAYOUT);
     if (!result.ok) throw new Error(JSON.stringify(result.problems));
     expect(result.layout.navigation.position).toBe("top");
     expect(result.layout.width).toBe("centered");
@@ -82,18 +81,18 @@ describe("community layout v1", () => {
     expect(paths({ show_members: "yes" })).toEqual(["pages.about.show_members"]);
   });
 
-  test("the gallery accepts the same video links as the funnel", () => {
-    for (const url of [
-      "https://youtu.be/dQw4w9WgXcQ",
-      "https://www.youtube.com/shorts/abc123",
-      "https://vimeo.com/123456789",
-      "https://www.loom.com/share/abcdef123456",
-      "https://fast.wistia.net/embed/iframe/abc123",
-      "https://example.com/video.mp4",
-      "http://youtu.be/dQw4w9WgXcQ",
-      "https://vimeo.com/channels/staff",
-    ]) {
-      expect(isCommunityLayoutVideoUrl(url), url).toBe(isSupportedCommunityFunnelVideoUrl(url));
+  test("the gallery plays YouTube, Vimeo, Loom and Wistia links over https", () => {
+    for (const [url, ok] of [
+      ["https://youtu.be/dQw4w9WgXcQ", true],
+      ["https://www.youtube.com/shorts/abc123", true],
+      ["https://vimeo.com/123456789", true],
+      ["https://www.loom.com/share/abcdef123456", true],
+      ["https://fast.wistia.net/embed/iframe/abc123", true],
+      ["https://example.com/video.mp4", false],
+      ["http://youtu.be/dQw4w9WgXcQ", false],
+      ["https://vimeo.com/channels/staff", false],
+    ] as const) {
+      expect(isCommunityLayoutVideoUrl(url), url).toBe(ok);
     }
     // Plus Descript share links, which the gallery plays through the same embed.
     expect(isCommunityLayoutVideoUrl("https://share.descript.com/view/AbC123xyz")).toBe(true);
@@ -102,17 +101,17 @@ describe("community layout v1", () => {
   });
 
   test("members may pick Classroom or Channels where the owner offers it", () => {
-    const skool = normalizeCommunityLayout(SKOOL_LAYOUT);
-    if (!skool.ok) throw new Error("skool");
-    expect(skool.layout.navigation.member_choice).toEqual(["top", "side"]);
+    const template = normalizeCommunityLayout(CLASSROOM_LAYOUT);
+    if (!template.ok) throw new Error("template");
+    expect(template.layout.navigation.member_choice).toEqual(["top", "side"]);
     expect(DEFAULT_COMMUNITY_LAYOUT.navigation.member_choice).toEqual([]);
 
-    const channels = layoutForMemberChoice(skool.layout, "side");
+    const channels = layoutForMemberChoice(template.layout, "side");
     expect(channels.navigation.position).toBe("side");
     expect(channels.pages.chat).toEqual({ presentation: "messages", aside: [] });
-    expect(channels.navigation.tabs).toEqual(skool.layout.navigation.tabs);
-    expect(channels.pages.about).toEqual(skool.layout.pages.about);
-    expect(layoutForMemberChoice(skool.layout, null)).toBe(skool.layout);
+    expect(channels.navigation.tabs).toEqual(template.layout.navigation.tabs);
+    expect(channels.pages.about).toEqual(template.layout.pages.about);
+    expect(layoutForMemberChoice(template.layout, null)).toBe(template.layout);
     // Not offered: the owner's layout.
     expect(layoutForMemberChoice(DEFAULT_COMMUNITY_LAYOUT, "top")).toBe(DEFAULT_COMMUNITY_LAYOUT);
 

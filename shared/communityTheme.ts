@@ -97,7 +97,7 @@ export type CommunityThemeV1 = {
   pods_place: "aside" | "header";
   // Classroom's Community tab: "posts" (the default: post cards with the
   // Pods card and side blocks) or "chat" (a chat timeline, opted into in
-  // Customize). Channels always shows the Wide chat (Rashid, 2026-10-27).
+  // Customize). Channels always shows the Wide chat.
   classroom_chat: "posts" | "chat";
 };
 
@@ -245,7 +245,7 @@ const RANGES = {
 
 // Settings that no longer exist. Saved themes may still carry them, so they
 // load without a problem and are dropped. chat_view: every Channels chat is
-// Wide now (Rashid, 2026-10-27).
+// Wide now.
 const RETIRED_KEYS = ["chat_view"];
 
 const KNOWN_KEYS = new Set<string>([
@@ -600,7 +600,7 @@ function courseCardPanel(
     }
     default: break;
   }
-  // A clear step down from the card (Rashid, 2026-10-26: "a darker shade").
+  // A clear step down from the card.
   return { background: mix(c.text, scheme === "dark" ? 14 : 10, c.surface), ...own };
 }
 

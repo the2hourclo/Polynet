@@ -52,12 +52,6 @@
   padding: 8px 10px; font: inherit; font-size: var(--pn-type-ui, 14px); color: var(--text-primary); background: var(--surface-input, transparent);
   border: 1px solid var(--border-default); border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
-.test-run-persona { flex: 1 1 280px; }
-.test-run-persona input {
-  width: 100%; padding: 8px 10px; font: inherit; font-size: var(--pn-type-ui, 14px); color: var(--text-primary); background: var(--surface-input, transparent);
-  border: 1px solid var(--border-default); border-radius: calc(8px * var(--pn-radius-scale, 1));
-}
-.test-run-persona input:focus-visible,
 .test-run-field select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .test-run-error { margin: 0; color: var(--accent-error); font-size: var(--pn-type-ui, 14px); }
 .test-run-sequence { display: flex; flex-direction: column; gap: 10px; }

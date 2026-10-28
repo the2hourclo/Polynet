@@ -287,7 +287,7 @@
 .pn-display-everywhere { border-top: 1px solid var(--border-default); }
 
 /* Billing: a row per community with its plan as a badge and its one action
-   on the right; the price sits in the card's header (Rashid, 2026-10-26). */
+   on the right; the price sits in the card's header. */
 .pn-billing-price { display: flex; flex-direction: column; align-items: flex-end; gap: 0.125rem; text-align: right; }
 .pn-billing-price strong { font-size: 1.0625rem; font-weight: 700; line-height: 1.5rem; color: var(--text-primary); }
 .pn-billing-price span { font-size: 0.75rem; color: var(--text-secondary); }

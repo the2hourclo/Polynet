@@ -55,7 +55,7 @@ import {
 
 // Who can use what, and until when: the owner's dated access grants, each
 // member's license key, and the access integrations (an outside service such
-// as the AIEB MCP) that learn about every change through a signed webhook and
+// as a paid MCP server) that learn about every change through a signed webhook and
 // can look a member up. Access itself is never stored here; it is read from
 // the membership, subscription and grant every time (communityAccessSync.ts).
 
@@ -839,7 +839,7 @@ export const lookupCommunityAccessInternal = internalMutation({
 
 // ---------------------------------------------------------------------------
 // "Continue with Polynet": the member, signed in here, lets a connected
-// service (the AIEB MCP) learn who they are. Polynet hands their browser a
+// service (a paid MCP server) learn who they are. Polynet hands their browser a
 // one-time code for the service's own return address; the service redeems it
 // with its API key (POST …/sign-in/redeem) and gets the usual lookup answer.
 

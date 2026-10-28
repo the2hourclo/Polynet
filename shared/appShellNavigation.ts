@@ -55,7 +55,6 @@ export const COMMUNITY_TABS = [
   "settings",
   "workflows",
   "people",
-  "funnels",
   "analytics",
 ] as const;
 
@@ -69,7 +68,6 @@ export function isCommunityChatBackedTab(tab: CommunityTab): boolean {
 
 export const COMMUNITY_SETTINGS_PANES = [
   "community",
-  "sales_page",
   "offers",
   "appearance",
   "agent",
@@ -84,7 +82,6 @@ const COMMUNITY_ROUTE_MANAGED_TAB_SET: ReadonlySet<CommunityTab> = new Set([
   "settings",
   "workflows",
   "people",
-  "funnels",
   "analytics",
 ]);
 
@@ -107,7 +104,6 @@ export function isCommunityTabAllowedForAccess(
       return access.canViewSettings;
     case "workflows":
     case "people":
-    case "funnels":
       return access.canManageMembers;
     case "analytics":
       return access.canViewAnalytics;
@@ -165,9 +161,7 @@ export function parseCommunityTab(
     case "ai_agent":
       return "settings";
     case "funnel":
-    case "funnels":
-    case "site":
-      return "funnels";
+      return "settings";
     case "analytics":
       return "analytics";
     default:
@@ -184,10 +178,6 @@ export function parseCommunitySettingsPane(
       return "agent";
     case "danger":
       return "danger";
-    case "sales_page":
-    case "sales-page":
-    case "sales":
-      return "sales_page";
     // "look" is the pane's earlier name; old links still open it.
     case "appearance":
     case "look":
@@ -223,13 +213,10 @@ export function isCommunitySettingsPaneAllowedForAccess(
       return access.canViewSettings;
     case "agent":
       return access.canManageMembers;
-    // The public page: its layout draft and funnel copy are managers' to edit.
-    case "sales_page":
-      return access.canManageMembers;
     // Fonts, sizing and colours: the theme draft, which managers may edit.
     case "appearance":
       return access.canManageMembers;
-    // Connected services (such as the AIEB MCP) and access given by hand.
+    // Connected services (such as a paid MCP server) and access given by hand.
     case "access":
       return access.canManageMembers;
     // Who builds the community with its owner; only the owner changes it.

@@ -1,7 +1,6 @@
 // Chapters of a YouTube video, read the way YouTube reads them: timestamp lines
 // in the video's description ("0:00 Intro", "02:15 - Set up the map"). Lessons
-// show them beside the video so members can jump (Rashid, 2026-10-27: "it
-// should be able to extract it automatically when Videos are uploaded").
+// show them beside the video so members can jump.
 
 export type VideoChapter = { seconds: number; time: string; label: string };
 

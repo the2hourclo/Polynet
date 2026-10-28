@@ -122,9 +122,8 @@ function isWebAddress(value) {
         return false;
     }
 }
-// The funnel's video rule (isSupportedCommunityFunnelVideoUrl in
-// shared/communityFunnel.ts), repeated here because this file is copied into
-// the CLI on its own, plus Descript share links. A test keeps the two in step.
+// The video links the gallery plays: YouTube, Vimeo, Loom and Wistia over
+// https, plus Descript share links.
 export function isCommunityLayoutVideoUrl(raw) {
     let url;
     try {
@@ -351,8 +350,7 @@ export function layoutForMemberChoice(layout, choice) {
     };
 }
 // Classroom's Community tab follows the theme's classroom_chat, whatever the
-// layout record says (Rashid, 2026-10-27: post cards by default, a chat only
-// when the owner picks it in Customize). A layout moved to the top without
+// layout record says. A layout moved to the top without
 // side blocks gets Classroom's usual ones.
 export function layoutForClassroomChat(layout, style) {
     if (layout.navigation.position !== "top")

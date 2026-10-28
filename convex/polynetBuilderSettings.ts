@@ -1,5 +1,5 @@
 // Every setting an owner can change in Polynet's Settings can also be changed
-// by the owner's own agent (Rashid, 2026-10-25). Each operation below is a
+// by the owner's own agent. Each operation below is a
 // polynet_call capability for the external MCP, and it runs the same public
 // mutation the Settings page runs, as the signed-in owner. Validation, revisions,
 // audit and side effects therefore stay in one place, the page's own backend.
@@ -15,12 +15,11 @@
 import { api, internal } from "./_generated/api";
 import { COMMUNITY_THEME_PALETTES } from "../shared/communityThemePalettes";
 import { buildAgentLedJourneyPlan } from "../shared/agentLedJourneyTemplate";
-import { describeCommunityInferenceEngine } from "./communityInferenceProvider";
 
 export type BuilderSettingOperation = {
   operation: string;
   // Which Settings page it belongs to.
-  area: "general" | "pricing" | "sales_page" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members" | "appearance" | "knowledge"
+  area: "general" | "pricing" | "welcome" | "workflows" | "forms" | "access" | "agent" | "channels" | "members" | "appearance" | "knowledge"
     | "events" | "testing" | "posts" | "self";
   name: string;
   // The public function the Settings page calls ("module:function").
@@ -76,39 +75,9 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     effects: ["issue_upload_url"],
   }),
   op({
-    operation: "community.sales_page.external_url.set", area: "sales_page", name: "Use your own sales page",
-    calls: "communityFunnel:setCommunityExternalFunnelUrl", ref: api.communityFunnel.setCommunityExternalFunnelUrl, kind: "mutation",
-    fields: { expected_settings_revision: "settings_revision from /builder/settings.json", url: "https URL of your own sales page, or null" },
-    required: ["expected_settings_revision", "url"], effects: ["set_external_sales_page"],
-  }),
-  op({
-    operation: "community.sales_page.external_url.activate", area: "sales_page", name: "Send visitors to your own sales page",
-    calls: "communityFunnel:setCommunityExternalFunnelActive", ref: api.communityFunnel.setCommunityExternalFunnelActive, kind: "mutation",
-    fields: { expected_settings_revision: "settings_revision from /builder/settings.json", expected_url: "the URL you set", active: "true or false" },
-    required: ["expected_settings_revision", "expected_url", "active"], effects: ["switch_sales_page"],
-  }),
-  op({
-    operation: "community.sales_page.video.set", area: "sales_page", name: "Sales page video",
-    calls: "communityFunnel:setCommunityFunnelDraftVsl", ref: api.communityFunnel.setCommunityFunnelDraftVsl, kind: "mutation",
-    fields: { expected_draft_revision: "the funnel draft_revision from /builder/settings.json", url: "video URL, or null", slot: "optional funnel slot" },
-    required: ["expected_draft_revision", "url"], effects: ["set_sales_page_video_draft"],
-  }),
-  op({
-    operation: "community.sales_page.about.save", area: "sales_page", name: "Sales page About text",
+    operation: "community.about.save", area: "general", name: "About text",
     calls: "communityLifecycle:saveCommunityAbout", ref: api.communityLifecycle.saveCommunityAbout, kind: "mutation",
     fields: { about: "the About text (Markdown), or null" }, required: ["about"], effects: ["update_about"],
-  }),
-  op({
-    operation: "community.sales_page.publish", area: "sales_page", name: "Publish the sales page draft",
-    calls: "communityFunnel:publishCommunityFunnelDraft", ref: api.communityFunnel.publishCommunityFunnelDraft, kind: "mutation",
-    fields: { expected_draft_revision: "the draft_revision you checked", slot: "optional funnel slot" },
-    required: ["expected_draft_revision"], effects: ["publish_sales_page"],
-  }),
-  op({
-    operation: "community.sales_page.activate", area: "sales_page", name: "Choose which sales page visitors see",
-    calls: "communityFunnel:setActiveCommunityFunnel", ref: api.communityFunnel.setActiveCommunityFunnel, kind: "mutation",
-    fields: { target: '{ "slot": "default" }, or { "slot": "<custom slot>", "expectedPublishedDraftRevision": <n> }' },
-    required: ["target"], effects: ["switch_sales_page"],
   }),
   op({
     operation: "community.welcome.save", area: "welcome", name: "Welcome page",
@@ -283,7 +252,7 @@ BUILDER_SETTING_OPERATIONS.push(
   }),
 );
 
-// Hard-to-undo changes (Rashid, 2026-10-25: "Direct, risky ones need Apply").
+// Hard-to-undo changes.
 const proposal = (spec: Omit<BuilderSettingOperation, "review">) => op({ ...spec, review: "owner_apply" });
 BUILDER_SETTING_OPERATIONS.push(
   proposal({
@@ -373,7 +342,7 @@ BUILDER_SETTING_OPERATIONS.push(
   }),
 );
 
-// The Members page (Rashid, 2026-10-26). Views are direct; removing a view or a
+// The Members page. Views are direct; removing a view or a
 // property, and changing many members at once, wait for the owner's Apply.
 BUILDER_SETTING_OPERATIONS.push(
   op({
@@ -491,8 +460,7 @@ BUILDER_SETTING_OPERATIONS.push(
     fields: { channel_id: "an invite-only channel from /builder/offers.json", offer_keys: "offers that get it (higher offers are included); [] for only people you add" },
     required: ["channel_id", "offer_keys"], effects: ["set_channel_offer_audience"],
   }),
-  // Everything else an owner does in the app (Rashid, 2026-10-26: "literally
-  // everything" is agent-editable): events, test runs, the member board and posts.
+  // Everything else an owner does in the app: events, test runs, the member board and posts.
   op({
     operation: "community.event.save", area: "events", name: "Create or change an event",
     calls: "communityEvents:saveCommunityEvent", ref: api.communityEvents.saveCommunityEvent, kind: "mutation",
@@ -514,7 +482,7 @@ BUILDER_SETTING_OPERATIONS.push(
     operation: "community.test_member.start", area: "testing", name: "Start a test run",
     calls: "communityTestMembers:startTestMember", ref: api.communityTestMembers.startTestMember, kind: "mutation",
     fields: { milestone_key: "optional: start in this Workflow stage instead of joining at the first",
-      persona: "optional: who the test member is, in a sentence; with the local Claude Code engine, Autoplay answers forms and posts as them" },
+      },
     required: [], effects: ["start_test_member"],
   }),
   op({
@@ -594,8 +562,7 @@ BUILDER_SETTING_OPERATIONS.push(
 // Writes the web app makes that are not an operation above, and why. A public
 // mutation or action the app calls that is in neither list (nor in
 // convex/polynetMemberSelfSettings.ts) fails the parity test
-// (scripts/settings_agent_parity.test.ts). Rashid (2026-10-26): literally
-// everything in Polynet is agent-editable, so each reason starts with one of:
+// (scripts/settings_agent_parity.test.ts). Everything in Polynet is agent-editable, so each reason starts with one of:
 //   "agent path:"  another MCP path does it; the test checks each community.* /
 //                  member.* operation and /builder/ path it names exists;
 //   "human only:"  money, sign-ins and one-time secrets, which stay with a person;
@@ -761,9 +728,8 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
   const read = async (ref: any, extra: Record<string, unknown> = {}) => {
     try { return await ctx.runQuery(ref, { ...scope, ...extra }); } catch { return null; }
   };
-  const [general, sales_page, workflows, forms, access_integrations, agent, channels, proposals, saved_themes, agent_profile] = await Promise.all([
+  const [general, workflows, forms, access_integrations, agent, channels, proposals, saved_themes, agent_profile] = await Promise.all([
     read(api.communityLifecycle.getCommunitySettings),
-    read(api.communityFunnel.getCommunityFunnelConfig),
     read(api.communityMemberWorkflows.getBuilderWorkflowBoardPage, { pageSize: 1 }).then(board => board ? board.workflow : null),
     Promise.all([read(api.communityForms.listBuilderForms), read(api.communityForms.listDeletedBuilderForms)])
       .then(([live, deleted]) => live && deleted?.length ? [...live, ...deleted] : live),
@@ -782,7 +748,7 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     operations: BUILDER_SETTING_OPERATIONS.map(spec => ({ operation: spec.operation, area: spec.area, name: spec.name,
       ...(spec.review ? { review: spec.review } : {}) })),
     // workflows holds the welcome page and gate too, with the revision both use.
-    general, sales_page, workflows, forms, access_integrations, agent, channels,
+    general, workflows, forms, access_integrations, agent, channels,
     // The agent's name and photo (avatar_url null: it wears the community's icon).
     agent_profile,
     // Looks saved under a name, and the ready-made colour palettes (each has a
@@ -800,9 +766,6 @@ export async function readBuilderSettings(ctx: any, caller: { authSubject: strin
     pods: { path: "/builder/pods.json" },
     // Workflows → Run history: the latest automation runs with their steps.
     workflow_runs: { path: "/builder/workflow-runs.json" },
-    // Which AI engine answers for the community agent. Set by whoever runs the
-    // platform (OpenAI, OpenRouter, or Claude Code for local tests), not here.
-    agent_engine: describeCommunityInferenceEngine(),
     // Changes waiting for the owner's Apply, and recent outcomes.
     proposals,
   };

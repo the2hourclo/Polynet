@@ -35,7 +35,7 @@ const baseInput = {
   subscription: null,
   pricePoint: null,
   grant: null,
-  integrations: [{ id: "int1", name: "AIEB MCP", pricePointIds: [], includeOwnerGrants: true }],
+  integrations: [{ id: "int1", name: "Course MCP", pricePointIds: [], includeOwnerGrants: true }],
 };
 const monthly = { id: "pp1", name: "Monthly", billingPeriod: "month", amountBaseUnits: 13000, currency: "usd", currencyDecimals: 2 };
 
@@ -47,7 +47,7 @@ describe("the access rule", () => {
       subscription: { status: "active", cancelAtPeriodEnd: false, currentPeriodEndAt: NOW + 20 * DAY },
     });
     expect(paid).toMatchObject({ entitled: true, source: "paid_subscription", status: "active", renews_at: new Date(NOW + 20 * DAY).toISOString(), ends_at: null });
-    expect(paid.can_use.map((use) => [use.label, use.included])).toEqual([["Community", true], ["Courses", true], ["AIEB MCP", true]]);
+    expect(paid.can_use.map((use) => [use.label, use.included])).toEqual([["Community", true], ["Courses", true], ["Course MCP", true]]);
     expect(describeCommunityAccess(paid)).toBe("Paid · Monthly");
 
     const cancelling = deriveCommunityMemberAccess({
@@ -90,7 +90,7 @@ describe("the access rule", () => {
     expect(free).toMatchObject({ entitled: true, status: "free" });
     expect(free.can_use[2]).toMatchObject({ included: false, why: "Free members aren't included" });
 
-    const onlyAnnual = [{ id: "int1", name: "AIEB MCP", pricePointIds: ["pp2"], includeOwnerGrants: false }];
+    const onlyAnnual = [{ id: "int1", name: "Course MCP", pricePointIds: ["pp2"], includeOwnerGrants: false }];
     const paidMonthly = deriveCommunityMemberAccess({
       ...baseInput, integrations: onlyAnnual, pricePoint: monthly,
       membership: { active: true, accessSource: "paid_subscription" }, subscription: { status: "active", cancelAtPeriodEnd: false },
@@ -214,7 +214,7 @@ describe("access integrations, grants and license keys", () => {
   test("a new integration hears about everyone with access, signed, and the lookup answers by email, member id and list", async () => {
     const f = await fixture();
     const created = await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
-      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+      communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     expect(created.api_key).toMatch(/^pna_/);
     expect(created.signing_secret).toMatch(/^pnws_/);
@@ -271,7 +271,7 @@ describe("access integrations, grants and license keys", () => {
   test("a cancelled subscription reaches the integration in the same write, with the next sequence", async () => {
     const f = await fixture();
     await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
-      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+      communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     await settle(f);
     await f.t.mutation(internal.communityCommerce.syncCommunitySubscriptionLifecycleInternal, {
@@ -286,7 +286,7 @@ describe("access integrations, grants and license keys", () => {
   test("an owner grant gives dated access by verified email, can be extended, and ends on the date", async () => {
     const f = await fixture();
     await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
-      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+      communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     await settle(f);
 
@@ -310,7 +310,7 @@ describe("access integrations, grants and license keys", () => {
 
     const deanAccess = await f.asOwner.query(api.communityAccess.getClientAccess, { communityId: f.communityId, membershipId: granted.membership_id });
     expect(deanAccess.access).toMatchObject({ entitled: true, status: "granted" });
-    expect(deanAccess.integrations[0]).toMatchObject({ name: "AIEB MCP", entitled: true, last_event: { status: "delivered", entitled: true } });
+    expect(deanAccess.integrations[0]).toMatchObject({ name: "Course MCP", entitled: true, last_event: { status: "delivered", entitled: true } });
 
     // Extending ends the old grant and starts a new one: the history keeps both.
     const later = new Date(Date.now() + 60 * DAY).toISOString().slice(0, 10);
@@ -338,8 +338,8 @@ describe("access integrations, grants and license keys", () => {
     const summaries = timeline.entries.map((entry: any) => entry.summary);
     expect(summaries).toContain(`Owner gave access until ${later}: Two more weeks`);
     expect(summaries).toContain("Access the owner gave ended on its date");
-    expect(summaries).toContain("AIEB MCP was told they can't use it");
-    expect(summaries).toContain("AIEB MCP was told they can use it");
+    expect(summaries).toContain("Course MCP was told they can't use it");
+    expect(summaries).toContain("Course MCP was told they can use it");
   });
 
   test("ending a grant now revokes the membership; paid plans can't be ended here", async () => {
@@ -358,7 +358,7 @@ describe("access integrations, grants and license keys", () => {
   test("a member's license key is valid only while they have access; rotating kills the old one", async () => {
     const f = await fixture();
     const created = await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
-      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+      communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     await settle(f);
     const mine = await f.asThomas.query(api.communityAccess.getMyCommunityAccess, { communityId: f.communityId });
@@ -393,12 +393,12 @@ describe("access integrations, grants and license keys", () => {
   test("Continue with Polynet: a member's one-time code reaches only the connected service, once, in time", async () => {
     const f = await fixture();
     const created = await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
-      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+      communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     await settle(f);
     const back = "https://mcp.example.com/oauth/polynet/callback";
     const target = await f.asThomas.query(api.communityAccess.getAccessSignInTarget, { slug: "aieb", returnUrl: back });
-    expect(target).toMatchObject({ found: true, service: { name: "AIEB MCP" }, member: { email: "thomas@example.com", is_member: true, entitled: true } });
+    expect(target).toMatchObject({ found: true, service: { name: "Course MCP" }, member: { email: "thomas@example.com", is_member: true, entitled: true } });
     // Another site can't receive a code.
     expect(await f.asThomas.query(api.communityAccess.getAccessSignInTarget, { slug: "aieb", returnUrl: "https://evil.example.com/cb" }))
       .toMatchObject({ found: true, service: null });
@@ -429,7 +429,7 @@ describe("access integrations, grants and license keys", () => {
     const f = await fixture();
     respond = () => 503;
     const created = await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
-      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+      communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     await settle(f);
     const events = await f.asOwner.query(api.communityAccess.listAccessIntegrationEvents, { communityId: f.communityId, integrationId: created.integration.id });
@@ -448,13 +448,13 @@ describe("access integrations, grants and license keys", () => {
   test("the Clients list shows each client's access", async () => {
     const f = await fixture();
     await f.asOwner.mutation(api.communityAccess.createAccessIntegration, {
-      communityId: f.communityId, name: "AIEB MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
+      communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     await settle(f);
     const list = await f.asOwner.query(api.communityClients.listClientsForOwner, { communityId: f.communityId });
     const byName = Object.fromEntries(list.clients.map((client: any) => [client.name, client]));
     expect(byName.thomas.access).toMatchObject({ entitled: true, status: "active", license_key: null });
-    expect(byName.thomas.access.can_use.map((use: any) => use.label)).toEqual(["Community", "Courses", "AIEB MCP"]);
+    expect(byName.thomas.access.can_use.map((use: any) => use.label)).toEqual(["Community", "Courses", "Course MCP"]);
     expect(byName.matt.access).toMatchObject({ status: "cancelling" });
   });
 });

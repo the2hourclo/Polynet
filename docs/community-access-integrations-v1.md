@@ -1,6 +1,6 @@
 # Community access integrations, v1
 
-An outside service (for example the AIEB gated MCP) can ask Polynet who may use
+An outside service (for example a paid MCP server) can ask Polynet who may use
 it, and hear the moment that changes. Polynet stays the one place access is
 decided: the membership, its subscription and any access the owner gave by hand.
 Nothing here stores a second copy of access.

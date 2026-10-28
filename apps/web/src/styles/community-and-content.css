@@ -5064,7 +5064,7 @@
   font-size: 12px;
 }
 
-/* Replying is one obvious step (Rashid, 2026-10-25): Reply leads the hover
+/* Replying is one obvious step: Reply leads the hover
    toolbar with its name on it; the "N replies" row is one click target that
    frames itself on hover and says where it goes; touch screens, which have no
    hover toolbar, get a visible Reply link under messages with no replies. */
@@ -9681,7 +9681,7 @@ button.chat-reply-quote:hover {
   border-bottom: 0;
 }
 
-/* ── The lesson page (Rashid, 2026-10-26): Substack's reading rhythm ──
+/* ── The lesson page: Substack's reading rhythm ──
    A video lesson leads with its video, wider than the text. The title and
    text share one centred column; Contents and Files sit in a side column
    where there is room, and Contents folds into a menu above the text where
@@ -9714,7 +9714,7 @@ button.chat-reply-quote:hover {
 .lesson-done-button:focus-visible { outline: 2px solid var(--border-active, var(--text-primary)); outline-offset: 2px; }
 /* Mark as done and Next stay in reach while reading: the row sits at the end
    of the lesson and, until the reader gets there, sticks to the bottom of the
-   window (Rashid, 2026-10-27: "should be visible as we scroll down or up"). */
+   window. */
 .lesson-done-row:has(> button) {
   position: sticky;
   bottom: 0;
@@ -11039,7 +11039,7 @@ button.chat-reply-quote:hover {
 }
 
 /* The title edits in place: same size, weight and wrapping as when read,
-   no box around it, a faint placeholder when empty (Rashid, 2026-10-26). */
+   no box around it, a faint placeholder when empty. */
 .resource-viewer-title-input {
   display: block;
   border: 0;
@@ -11314,7 +11314,7 @@ button.chat-reply-quote:hover {
 }
 
 /* Readers see an icon and the author's own title, never the type's name
-   (Rashid, 2026-10-26). */
+  . */
 .md-callout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -13626,7 +13626,7 @@ button.chat-reply-quote:hover {
   }
 }
 
-/* ═════════ Lesson reading type (Rashid, 2026-10-26) ═════════
+/* ═════════ Lesson reading type ═════════
    Medium and Substack set body text near 18–20px on a ~1.6–1.7 line, with a
    line's worth of space between paragraphs, headings that sit closer to the
    text they introduce than to the text before, and list items with air
@@ -13642,7 +13642,7 @@ button.chat-reply-quote:hover {
 .knowledge-resource-reader .resource-viewer-prose :is(.md-paragraph, .lesson-editor-content > p) {
   margin: 0 0 1.25em;
 }
-/* Headings step down like Notion's (Rashid, 2026-10-26): the editor's
+/* Headings step down like Notion's: the editor's
    Heading 1, 2 and 3 are "##", "###" and "####" in the Markdown, which the
    read view renders as h3, h4 and h5 and the editor as h2, h3 and h4. */
 .knowledge-resource-reader .resource-viewer-prose :is(h3.md-header, .lesson-editor-content > h2):not(.lesson-editor-platform-heading) {
@@ -13662,8 +13662,7 @@ button.chat-reply-quote:hover {
   color: var(--text-primary);
 }
 /* Heading 3: the :not() lifts it over the theme's "h5 = body size" rule, which
-   made it read as bold text (Rashid, 2026-10-27: "it feels too similar to the
-   text but just bolded"). */
+   made it read as bold text. */
 .knowledge-resource-reader .resource-viewer-prose :is(h5.md-header, h6.md-header, .lesson-editor-content > h4, .lesson-editor-content > h5):not(.lesson-editor-platform-heading) {
   margin: 1.6em 0 0.4em;
   font-size: 1.375rem;
@@ -13787,7 +13786,7 @@ button.chat-reply-quote:hover {
 .resource-course-style-options button:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
 
 /* Undo after Done: a quiet toast at the bottom of the page for a few seconds
-   after a lesson's edits are saved (Rashid, 2026-10-26). */
+   after a lesson's edits are saved. */
 .lesson-undo-toast {
   position: fixed;
   left: 50%;
@@ -13927,7 +13926,7 @@ button.chat-reply-quote:hover {
 }
 .members-view-all.members-view-all-footer:hover { color: var(--text-primary); background: var(--bg-hover, transparent); }
 
-/* Lesson code, Notion style (Rashid, 2026-10-27): a soft grey card, colours
+/* Lesson code, Notion style: a soft grey card, colours
    that tell the parts apart (blue words, yellow-brown text in quotes, red
    names, grey notes), and Copy at the top right, like Claude's own UI. Each
    colour is mixed with the page's text colour, so it darkens on a light page
@@ -14008,7 +14007,7 @@ button.chat-reply-quote:hover {
 /* Copy-ready blocks (```prompt / ```copy, e.g. the welcome page's setup steps)
    wear the same card as code: a clearly shaded box (darker on a light page,
    lighter on a dark one) with its label and Copy icon inside at the top right
-   (Rashid, 2026-10-27). */
+  . */
 .resource-viewer-prose .md-artifact-block {
   margin: 1.1em 0;
   border: 1px solid var(--lesson-code-line);
@@ -14043,7 +14042,7 @@ button.chat-reply-quote:hover {
 .pn-page-back:hover { background: var(--hover-overlay); color: var(--text-primary); }
 .pn-page-back:focus-visible { outline: 2px solid var(--border-active); outline-offset: 1px; }
 
-/* Video chapters (Rashid, 2026-10-27): in the right panel, each timestamp
+/* Video chapters: in the right panel, each timestamp
    plays the lesson's video from there; the same lines in the lesson do too. */
 .lesson-chapter-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .lesson-chapter-list button {

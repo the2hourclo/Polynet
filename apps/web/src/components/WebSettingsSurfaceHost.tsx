@@ -67,7 +67,7 @@ export function WebSettingsSurfaceHost(props: WebSettingsSurfaceHostProps) {
     </div>
   ) : (
     // Desktop: laid out like Community settings, Substack-style, in the
-    // colours of the community you came from (Rashid, 2026-10-25).
+    // colours of the community you came from.
     <div className="settings-panel pn-settings pn-your-settings">
       <div className="pn-settings-layout">
         <WebYourSettingsNav page={props.settingsGroup} onSelectPage={props.onSelectMobileSettingsPage} />

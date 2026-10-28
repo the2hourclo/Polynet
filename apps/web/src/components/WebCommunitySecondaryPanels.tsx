@@ -16,7 +16,6 @@ import { WebCommunitySettingsSection } from "./WebCommunitySettingsSection";
 import { WebCommunityWorkflowsSection } from "./WebCommunityWorkflowsSection";
 import { WebCommunityMembers } from "./WebCommunityMembers";
 import { WebCommunityPageBack } from "./WebCommunityPageBack";
-import { WebCommunityFunnelsSection } from "./WebCommunityFunnelsSection";
 
 export type WebCommunitySecondaryPanelsProps = {
   communityTab: CommunityTab;
@@ -125,18 +124,6 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
         renderWorkspacePane(props.workflows.access
           ? <div className="pn-page-with-back"><WebCommunityPageBack /><WebCommunityMembers key={props.workflows.access.scopeKey} gateway={props.workflows.access} /></div>
           : <p role="status">Only the community's owner and admins can see members.</p>)}
-
-      {props.communityTab === "funnels" &&
-        renderWorkspacePane(
-          <WebCommunityFunnelsSection
-            communityId={props.funnel.editorProps.previewCommunity.id || null}
-            communitySlug={props.funnel.editorProps.previewCommunity.slug ?? null}
-            session={props.funnel.editorProps.session}
-            ensureSession={props.funnel.editorProps.ensureSession}
-            funnel={props.funnel}
-            externalWebsite={settingsSectionProps.externalWebsite}
-          />,
-        )}
 
       {props.communityTab === "analytics" &&
         renderCenteredPane(<WebCommunityAnalyticsSection {...props.analytics} />)}

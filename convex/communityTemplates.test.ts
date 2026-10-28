@@ -18,8 +18,8 @@ function readJson(name: string, file: string): unknown {
 }
 
 describe("CLI community templates", () => {
-  test("the skool template exists", () => {
-    expect(templateNames).toContain("skool");
+  test("the classroom template exists", () => {
+    expect(templateNames).toContain("classroom");
   });
 
   test.each(templateNames)("%s has a template.json naming itself", (name) => {
@@ -47,11 +47,11 @@ describe("template apply rules", () => {
   });
 });
 
-describe("skool template scope", () => {
+describe("classroom template scope", () => {
   // Only blocks backed by a system Polynet already has (posts, resources,
   // events, members, funnel, agent). No points, levels or map.
   test("asks for no block Polynet has no system for", () => {
-    const text = readFileSync(join(TEMPLATES_DIR, "skool", "template.json"), "utf8");
+    const text = readFileSync(join(TEMPLATES_DIR, "classroom", "template.json"), "utf8");
     expect(text).not.toMatch(/leaderboard|level|points|map"/i);
   });
 });

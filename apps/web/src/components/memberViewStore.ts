@@ -1,7 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 
-// "View as member": an owner's look at a page as members see it (Rashid,
-// 2026-10-26). The page that can show it (today the Knowledge page) offers
+// "View as member": an owner's look at a page as members see it. The page that can show it (today the Knowledge page) offers
 // it while mounted, and the top bar's button switches it, next to Display and
 // your picture. Where the top bar isn't drawn (narrow screens), the page
 // shows its own button instead.

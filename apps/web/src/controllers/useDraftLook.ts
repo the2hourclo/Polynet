@@ -95,7 +95,7 @@ export function communityDraftLook(theme: CommunityThemeV1 | null): DraftLook {
 }
 
 /** The look in force: the address, then this browser's pick, then the community's default.
- *  Only the owner's team can try other looks (Rashid, 2026-10-26), so a member's
+ *  Only the owner's team can try other looks, so a member's
  *  old pick from before that is ignored. */
 export function useDraftLook(theme: CommunityThemeV1 | null, options: { canPick?: boolean } = {}): { look: DraftLook; picked: boolean } {
   const canPick = options.canPick ?? true;

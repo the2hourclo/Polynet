@@ -129,7 +129,7 @@ function WebCommunityAboutSalesPage() {
                   <RotateCcw size={14} aria-hidden="true" /> Discard
                 </button>
               ) : null}
-              <button type="button" className="community-sales-edit-link" onClick={() => frame.onSelectTab("funnels")}>More settings</button>
+              <button type="button" className="community-sales-edit-link" onClick={() => frame.onSelectTab("settings")}>More settings</button>
               <button type="button" className="community-sales-edit-button" onClick={() => setEditing(false)}>Done</button>
               <button
                 type="button"

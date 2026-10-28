@@ -4,6 +4,7 @@ import { normalizeCommunityReferralRef } from "../shared/communityClients";
 import { v } from "convex/values";
 import {
   type CommunityLike,
+  type CommunityMembershipLike,
   type CommunityPricePointLike,
   type CommunityResourceModuleLike,
   type PublicPlanSummaryLike,

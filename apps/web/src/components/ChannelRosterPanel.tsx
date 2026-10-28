@@ -29,8 +29,7 @@ import { resolveAuthSubject, type AuthSessionLike } from "../../../../shared/aut
 type Page = FunctionReturnType<typeof api.communityChannelParticipants.listChannelRoster>;
 
 // The side panel shows a short list, online people first, and "View all" opens
-// the full directory as a panel from the right (Rashid, 2026-10-27: "if we have
-// too many members we should have an option to view all").
+// the full directory as a panel from the right.
 export const ROSTER_SIDE_PANEL_LIMIT = 10;
 
 // The memory card's one-line agent status, in plain words. A run that failed

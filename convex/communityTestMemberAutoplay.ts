@@ -8,9 +8,7 @@ import { createCommunityInteractionComposerMessageCore } from "./communityIntera
 import { getCommunityMemberWorkflowByCommunity, getMemberMilestone, resolveCurrentMilestone } from "./communityMemberWorkflowReadCore";
 import { runWorkflowTimerNow } from "./communityMemberWorkflows";
 import { lessonElements, listMemberVisibleLessonPages, readProgressRows, saveOwnLessonResponse, setOwnResourceProgress } from "./communityResourceProgress";
-import { communityAgentRunsFree, findTestMemberByUserId, type TestMemberRow } from "./communityTestMemberCore";
-import { mergePersonaAnswers, type PersonaRequest } from "./communityTestMemberPersona";
-import { internal } from "./_generated/api";
+import { findTestMemberByUserId, type TestMemberRow } from "./communityTestMemberCore";
 import { durationText, requireMyTestMember } from "./communityTestMembers";
 import type { CommunityFormQuestion } from "../shared/communityForms";
 import { communityTrackLessonIds } from "./communityLessonTracks";
@@ -19,9 +17,7 @@ import { communityTrackLessonIds } from "./communityLessonTracks";
 // call, doing what a member would do: answer forms, click through lessons,
 // post, and wait out timed steps (skipped). The page calls it on a timer, so
 // Play, Pause, Step and speed are the page's; the server only does the next
-// thing. While it plays, agent steps are previewed, not sent, unless the agent
-// runs free (the local Claude Code engine): then they run for real, and with a
-// persona Autoplay writes its form answers and posts as that person.
+// thing. While it plays, agent steps are previewed, not sent.
 //
 // In the background the server does each step itself. On screen, it hands the
 // step to the test member's own tab, which does it in the real member screens
@@ -93,23 +89,6 @@ async function currentVisit(scope: Scope) {
   return { workflow, current: resolveCurrentMilestone({ workflow, membership, state }) };
 }
 
-const GUIDE_POST = { visit: "guide", ruleKey: "intro" };
-
-/**
- * With a persona and the free engine, the test member posts once in its own
- * guide channel (when it has one), even if no rule waits for a post: that's
- * where the agent leads it, and the agent replies for real.
- */
-async function personaGuidePost(scope: Scope): Promise<Plan | null> {
-  const { ctx, row, membership, base, done } = scope;
-  if (!row.persona || !communityAgentRunsFree() || done.has(`post:${GUIDE_POST.visit}:${GUIDE_POST.ruleKey}`)) return null;
-  const fresh: any = await ctx.db.get(membership._id);
-  const channel: any = fresh?.serviceChannelId ? await ctx.db.get(fresh.serviceChannelId) : null;
-  if (!channel) return null;
-  return { kind: "post", text: `Posted an intro in #${channel.name ?? "their guide channel"}`, target: "Send",
-    path: `${base}/chat${channel.slug && channel.slug !== "general" ? `/${encodeURIComponent(channel.slug)}` : ""}`,
-    ...GUIDE_POST, channelId: String(channel._id), message: POST_TEXT(row.label) };
-}
 
 /** What the test member would do next, or why there's nothing: finished, or waiting on rules still running. */
 async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
@@ -132,7 +111,7 @@ async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
   }
 
   const visit = await currentVisit(scope);
-  if (!visit || visit.current.completedAt) return await personaGuidePost(scope) ?? "finished";
+  if (!visit || visit.current.completedAt) return "finished";
   const { workflow, current } = visit;
   const visitKey = `${current.milestone.key}:${current.milestoneEnteredAt}`;
   const runs = await ctx.db.query("communityMemberWorkflowRuns")
@@ -205,10 +184,6 @@ async function planNext(scope: Scope): Promise<Plan | "finished" | "idle"> {
       ruleKey: rule.key, visit: visitKey, channelId: channelId ? String(channelId) : null, message: POST_TEXT(row.label) };
   }
 
-  // 3b. A persona says hello to its guide, so the agent has someone to talk to.
-  const hello = await personaGuidePost(scope);
-  if (hello) return hello;
-
   // 4. Timed steps: skip the wait on the next one due.
   const timers = (await ctx.db.query("communityMemberWorkflowTimers")
     .withIndex("by_member_entry", (q: any) => q.eq("workflowId", workflow._id).eq("membershipId", membership._id)).take(100))
@@ -252,7 +227,7 @@ async function runInBackground(scope: Scope, plan: Plan): Promise<AutoplayBeat> 
       const channelId = plan.channelId ? ctx.db.normalizeId("communityChannels", plan.channelId) : null;
       const result: any = await createCommunityInteractionComposerMessageCore(ctx, {
         communityId, ...(channelId ? { channelId } : {}), idempotencyKey: `autoplay:${row._id}:${plan.visit}:${plan.ruleKey}`,
-        text: plan.message, skipAgentIntake: !communityAgentRunsFree(),
+        text: plan.message, skipAgentIntake: true,
       }, userId);
       const rootId = result?.interaction?.root_id;
       await remember(scope, `post:${plan.visit}:${plan.ruleKey}`, ...(rootId ? [`posted:${rootId}`] : []));
@@ -293,37 +268,6 @@ async function screenStepHappened(scope: Scope, plan: Plan, issuedAt: number): P
 }
 
 type StepResult = { status: "acted" | "acting" | "idle" | "finished" | "stopped"; beat: AutoplayBeat | null };
-
-/** How long persona text may take before Autoplay uses the sample answers instead. */
-const PERSONA_WAIT_MS = 60_000;
-
-/**
- * With a persona and the free local engine, a form or post step waits for the
- * persona's words (written by an action) before it's issued, so the member's
- * tab and the background fallback do the same thing. Any trouble: sample text.
- */
-async function withPersona(scope: Scope, plan: Plan, community: any, nowMs: number): Promise<Plan | StepResult> {
-  const { ctx, row } = scope;
-  if (!row.persona || !communityAgentRunsFree() || (plan.kind !== "form" && plan.kind !== "post")) return plan;
-  const key = plan.kind === "form" ? `form:${plan.requestId}` : `post:${plan.visit}:${plan.ruleKey}`;
-  const draft = row.autoplayDraft?.key === key ? row.autoplayDraft : null;
-  const writing: StepResult = { status: "acting", beat: { kind: plan.kind, ok: true,
-    text: plan.kind === "form" ? `Writing ${plan.formName} answers as ${row.label}…` : `Writing ${row.label}'s intro…` } };
-  if (!draft) {
-    const request: PersonaRequest = plan.kind === "form"
-      ? { kind: "form", formName: plan.formName, questions: plan.questions }
-      : { kind: "post", channelName: plan.text.match(/#(\S+)/)?.[1] ?? "general" };
-    await ctx.db.patch(row._id, { autoplayDraft: { key, status: "pending", startedAt: nowMs } });
-    await ctx.scheduler.runAfter(0, internal.communityTestMemberPersona.writePersonaDraftInternal, {
-      testMemberId: row._id, key, persona: row.persona, communityName: String(community?.name ?? ""), request });
-    return writing;
-  }
-  if (draft.status === "pending" && nowMs - draft.startedAt < PERSONA_WAIT_MS) return writing;
-  if (draft.status !== "ready") return plan;
-  if (plan.kind === "post") return draft.message ? { ...plan, message: draft.message, text: plan.text.replace("an intro", `${row.label}'s intro`) } : plan;
-  return { ...plan, answers: mergePersonaAnswers(plan.answers, draft.answers, plan.questions),
-    text: `Filled in the ${plan.formName} form as ${row.label}` };
-}
 
 export const autoplayTestMemberStep = mutation({
   args: {
@@ -370,8 +314,7 @@ export const autoplayTestMemberStep = mutation({
 
     const planned = await planNext(scope);
     if (planned === "finished" || planned === "idle") return { status: planned, beat: null };
-    const plan = await withPersona(scope, planned, community, nowMs);
-    if ("status" in plan) return plan;
+    const plan = planned;
     if (args.onScreenPace === undefined || plan.kind === "wait") return await settle(await runInBackground(scope, plan));
     const pace = Math.max(40, Math.min(2_000, Math.round(args.onScreenPace)));
     await ctx.db.patch(row._id, { autoplayPending: { id: `${nowMs.toString(36)}${Math.random().toString(36).slice(2, 6)}`, plan, pace, issuedAt: nowMs } });

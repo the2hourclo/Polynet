@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronUp,
   GitFork,
-  Megaphone,
   GripVertical,
   Hash,
   Plus,
@@ -223,9 +222,9 @@ export const CommunityNav = memo(function CommunityNav({
   const inviteTitle = didCopyJoinLink ? "Copied invite link" : "Copy invite link";
   const showChannelLoadingSkeleton =
     isLoadingAccess || (isLoadingChannels && channels.every((channel) => !channel.id));
-  // Pods (Rashid, 2026-10-27): invite-only channels sit in their own group
+  // Pods: invite-only channels sit in their own group
   // under the shared ones, the same Pods as in Classroom.
-  // A member's personal pod is a pod too (Rashid, 2026-10-27); with many
+  // A member's personal pod is a pod too; with many
   // members they follow the group pods and fold away so they don't bury them.
   const personalPods = new Set(personalPodIds ?? []);
   const isPod = (channel: CommunityNavChannel) => channel.access_mode === "restricted";
@@ -237,7 +236,7 @@ export const CommunityNav = memo(function CommunityNav({
   ];
   const firstPodId = groupedChannels.find(isPod)?.id ?? null;
   // Owners and admins add a channel or a pod from the + beside its group's
-  // label (Rashid, 2026-10-27), not from one shared "Add Channel" row.
+  // label, not from one shared "Add Channel" row.
   const canCreateChannels = Boolean(!showChannelLoadingSkeleton && canManageMembersActiveCommunity && onCreateChannel);
   const openCreate = (accessMode: "all_members" | "restricted", trigger: HTMLButtonElement) => {
     addChannelTriggerRef.current = trigger;
@@ -700,19 +699,6 @@ export const CommunityNav = memo(function CommunityNav({
                 <Users size={18} strokeWidth={1.7} />
               </span>
               Members
-            </button>
-          )}
-          {canManageMembersActiveCommunity && (
-            <button
-              className={showActiveSelection && communityTab === "funnels" ? "nav-item active" : "nav-item"}
-              type="button"
-              onClick={() => onSelectTab("funnels")}
-              title="Funnels"
-            >
-              <span className="nav-icon" aria-hidden="true">
-                <Megaphone size={18} strokeWidth={1.7} />
-              </span>
-              Funnels
             </button>
           )}
           {canViewActiveCommunityAnalytics && (

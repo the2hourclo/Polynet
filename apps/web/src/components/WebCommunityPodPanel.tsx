@@ -25,7 +25,7 @@ import {
 } from "./WebCommunityPods";
 import "./WebCommunityPods.css";
 
-// Pod Panel (Rashid, 2026-10-27, option A): beside a pod's chat, in both
+// Pod Panel: beside a pod's chat, in both
 // layouts, the column is the pod's own: who's in it, the pinned post as
 // itself, files and videos shared there, and the pod's calls. Nothing about
 // the wider community, which members already know.

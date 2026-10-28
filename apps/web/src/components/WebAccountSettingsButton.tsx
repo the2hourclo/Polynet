@@ -3,7 +3,7 @@ import type { WebCommunityShellProps } from "./webShellChromeShared";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { setMemberViewOn, useMemberView, useMemberViewInTopBar } from "./memberViewStore";
 
-// The top right holds two buttons, like Substack (Rashid, 2026-10-26): inside
+// The top right holds two buttons, like Substack: inside
 // a community the gear opens that community's settings (Your membership for
 // members), and your own picture opens your settings, starting on your
 // profile. Styled like the Display trigger next to them.
@@ -29,7 +29,7 @@ export function WebAccountSettingsButton(props: { communityShell: WebCommunitySh
   return (
     <>
       {/* Owners see the page as members do. On, it stays an icon so the bar
-          doesn't shift; the page itself says "Member view" (Rashid, 2026-10-26). */}
+          doesn't shift; the page itself says "Member view". */}
       {showMemberView ? (
         <button
           type="button"

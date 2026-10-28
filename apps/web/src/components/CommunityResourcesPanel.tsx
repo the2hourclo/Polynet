@@ -952,7 +952,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
       !actions.resourceEditor.isSaving,
   );
   // The course's lesson style, for owners only: in the outline, and in the
-  // lesson editor's bar, where Rashid looked for it (2026-10-27). Members see
+  // lesson editor's bar. Members see
   // the style the owner picked.
   const lessonStyleSwitch = (place: "outline" | "editor") => {
     if (!canManageResources || !actions.handleSetModuleLessonStyle || !selectedModule || selectedModule.is_virtual) return null;
@@ -1173,7 +1173,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                 </nav>
               </div>
               {/* Owners switch how this course reads, right where they see it
-                  (Rashid, 2026-10-26); Edit course has the same choice. */}
+                 ; Edit course has the same choice. */}
               {lessonStyleSwitch("outline")}
             </aside>
             <div className="knowledge-resource-reader">

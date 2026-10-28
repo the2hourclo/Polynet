@@ -6,7 +6,7 @@ import { resolveAuthorizedCommunityChannel } from "./communityChannelCore";
 import { getCommunityChannelCapabilities, resolveCommunityChannelActor } from "./communityChannelAccess";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
 
-// Pods (Rashid, 2026-10-26): Classroom shows each invite-only room as a pod,
+// Pods: Classroom shows each invite-only room as a pod,
 // with the faces of everyone who can see it. A read model over the existing
 // channel policy and grants, never another access list:
 // the owner, admins (they can open every room) and members with an exact,

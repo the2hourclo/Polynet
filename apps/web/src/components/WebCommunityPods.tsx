@@ -11,7 +11,7 @@ import { MemberAvatarStack, type MemberAvatarStackFace } from "./MemberAvatarSta
 import { useWebCommunityFrame, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import "./WebCommunityPods.css";
 
-// Pods (Rashid, 2026-10-26): in Classroom, a member's invite-only channels are
+// Pods: in Classroom, a member's invite-only channels are
 // pods, not topic chips. Each shows the faces of everyone who can see it, so
 // it reads as a small private room. The owner picks where they sit in
 // Customize (theme pods_place): the top of the right column or the header.

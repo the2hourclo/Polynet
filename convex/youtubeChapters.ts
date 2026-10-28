@@ -5,7 +5,7 @@ import { resolveUserIdForAuthenticatedRequest } from "./authActor";
 import { isYouTubeVideoId, parseYouTubeChapters, youTubeDescriptionFromWatchPage, type VideoChapter } from "../shared/youtubeChapters";
 
 // Chapters for a lesson's YouTube video, without the owner pasting anything
-// (Rashid, 2026-10-27). They come from the video's public description: with the
+//. They come from the video's public description: with the
 // YouTube Data API when YOUTUBE_API_KEY is set, otherwise from the watch page.
 // One read serves every lesson and member for a day; a video without chapters
 // is asked again after an hour, so chapters added on YouTube show up soon.

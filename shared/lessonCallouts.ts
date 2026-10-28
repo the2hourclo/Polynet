@@ -7,7 +7,7 @@
 //
 // Text after the marker on its first line is the callout's title, as in
 // Obsidian; the type only sets the colour and icon, and readers never see its
-// name (Rashid, 2026-10-26).
+// name.
 
 export type LessonCalloutType = "tip" | "note" | "important" | "action" | "warning";
 

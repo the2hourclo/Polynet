@@ -122,7 +122,7 @@ const RANGES = {
 };
 // Settings that no longer exist. Saved themes may still carry them, so they
 // load without a problem and are dropped. chat_view: every Channels chat is
-// Wide now (Rashid, 2026-10-27).
+// Wide now.
 const RETIRED_KEYS = ["chat_view"];
 const KNOWN_KEYS = new Set([
     "version", "schemes", "font_body", "font_heading", "font_mono", "course_card_panel_color",
@@ -447,7 +447,7 @@ function courseCardPanel(theme, c, scheme) {
         }
         default: break;
     }
-    // A clear step down from the card (Rashid, 2026-10-26: "a darker shade").
+    // A clear step down from the card.
     return { background: mix(c.text, scheme === "dark" ? 14 : 10, c.surface), ...own };
 }
 // The variables a community area gets for one scheme: the public --pn-* set

@@ -5,7 +5,7 @@
 // access grants; nothing here stores a second copy of access.
 //
 // A member is entitled to the community while their membership is active.
-// An outside service (an access integration such as the AIEB MCP) sees a
+// An outside service (an access integration such as a paid MCP server) sees a
 // member as entitled only while the membership is active AND it comes from a
 // paid plan the integration covers, an owner grant (when the integration takes
 // grants) or the community owner. Free members are never entitled outside.

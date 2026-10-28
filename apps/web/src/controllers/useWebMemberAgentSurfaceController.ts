@@ -36,7 +36,7 @@ export function useWebMemberAgentSurfaceController(params: {
           // name; they read as the community itself and its public page.
           section: params.communityTab === "members"
             ? "chat"
-            : params.communityTab === "about" || params.communityTab === "funnels"
+            : params.communityTab === "about"
               ? "funnel"
               // The members database is an owner page beside Workflows.
               : params.communityTab === "people"

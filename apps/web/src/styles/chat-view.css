@@ -1,5 +1,4 @@
-/* Wide chat: every Channels chat (Rashid, 2026-10-27; the centred reading
-   column and the chat_view choice are retired). Messages run the full width
+/* Wide chat: every Channels chat. Messages run the full width
    of the chat from the left edge: avatar and name on the left, messages
    stacked under the name, and joins, dates and the message box lined up on
    the same left edge. Rows highlight across the whole width on hover.

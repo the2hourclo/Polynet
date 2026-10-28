@@ -341,7 +341,7 @@
 /* A cover-less course in Overlay: the letter sits above the words' dark wash. */
 :root[data-course-cards~="overlay"] [data-community-theme] .resource-course-card-cover-initial { transform: translateY(-30%); }
 
-/* Split card (Rashid, 2026-10-26): the picture on top, then the words on
+/* Split card: the picture on top, then the words on
    their own panel, so the cover and the text read as two parts of one card.
    The panel colour is the theme's Card panel choice (a clear shade by
    default, like a classic course card). Boxed cover cards only: the list,
@@ -355,7 +355,7 @@
   color: var(--text-primary);
 }
 
-/* The default Classroom card, after Rashid's reference (2026-10-26): a bold
+/* The default Classroom card: a bold
    title, two lines of description and a rounded progress bar with the % in
    it. */
 :root[data-course-cards~="classroom"] [data-community-theme] .resource-course-card:not([data-channels-feel="reader"] *) .resource-course-card-body {

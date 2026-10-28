@@ -4,7 +4,7 @@ import { CommunityAvatar } from "./CommunityAvatar";
 import { useCommunityVisualIdentity } from "./CommunityVisualIdentityRegistry";
 import { fetchCloudCommunityAgentProfile, type CloudCommunityAgentProfile } from "./cloudCommunityAgentGateway";
 
-// The community agent's face and name (Rashid, 2026-10-25): the owner can set
+// The community agent's face and name: the owner can set
 // both in Settings > Agent. With no photo it wears its community's icon, and
 // with no icon the Sparkles; with no name it goes by the community's name.
 // Chat messages, mentions, the Ask AI button and the agent panel all read it

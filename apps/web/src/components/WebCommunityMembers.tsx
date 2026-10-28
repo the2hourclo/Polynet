@@ -30,7 +30,7 @@ import { AccessBadge, ClientTimeline, GrantForm, WebCommunityClientAccessPanel }
 import "./WebCommunityAccess.css";
 import "./WebCommunityMembers.css";
 
-// Workflows → Members (Rashid, 2026-10-26): every member as a row of a
+// Workflows → Members: every member as a row of a
 // database you shape yourself (Notion), laid out like Substack's Subscribers.
 // Views are saved records (columns, filters, sort) the owner's agent edits too;
 // select members to set a property, message, flag or note them all at once.

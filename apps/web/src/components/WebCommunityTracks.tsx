@@ -16,7 +16,7 @@ import {
 import type { CommunityResource } from "./communityResourcesContracts";
 import "./WebCommunityTracks.css";
 
-// Knowledge → Roadmap with skill tracks (Rashid, 2026-10-26). One track shows
+// Knowledge → Roadmap with skill tracks. One track shows
 // the Roadmap board as before; several get a calm home: a Continue card, the
 // member's tracks, and "Coming up" for tracks a checkpoint will open. The
 // board itself is the Roadmap's own (WebCommunityLessonBoard), handed one

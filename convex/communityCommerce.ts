@@ -488,7 +488,7 @@ export const syncCommunitySubscriptionLifecycleInternal = internalMutation({
         nowMs,
       });
     }
-    // Access integrations (the AIEB MCP) learn about the change in this same
+    // Access integrations (a paid MCP server) learn about the change in this same
     // transaction; this adds an outbox write and never changes the decision above.
     await syncCommunityAccessForUser(ctx, {
       communityId: args.communityId,

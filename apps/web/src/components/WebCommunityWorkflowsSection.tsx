@@ -162,7 +162,7 @@ export function WebCommunityWorkflowsSection(
   const milestones = props.board?.milestones ?? [];
   // In Channels this page has a
   // way back to the community, like Settings' own menu; Classroom has its
-  // owner bar (Rashid, 2026-10-27).
+  // owner bar.
   const frame = useWebCommunityFrame();
   const back = frame.layout.navigation.position !== "top" && frame.community
     ? { label: frame.community.name, onBack: () => frame.onSelectTab(frame.layout.navigation.home === "agent" ? "chat" : frame.layout.navigation.home) }

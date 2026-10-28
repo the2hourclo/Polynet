@@ -39,7 +39,7 @@ type WebCommunityResourceModuleModalProps = {
   onRemoveBanner: () => void;
 };
 
-// Owners pick per course how its lessons read (Rashid, 2026-10-26).
+// Owners pick per course how its lessons read.
 const LESSON_STYLES: { id: "article" | "video"; name: string; description: string }[] = [
   { id: "article", name: "Article", description: "A clean reading page, like a newsletter post." },
   { id: "video", name: "Video course", description: "Video on top, the lesson text on a card below." },

@@ -5,8 +5,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { highlightCodeHtml } from "../../../../../shared/markdownUi";
 
 // Code blocks in the lesson editor wear the same colours members see, and have
-// the same Copy button at the top right (Rashid, 2026-10-27: "like the Claude
-// Code UI, where you can copy code"). The colours are decorations over the
+// the same Copy button at the top right. The colours are decorations over the
 // text, so the block stays plain text that saves to Markdown unchanged.
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", "#x27": "'", "#39": "'" };

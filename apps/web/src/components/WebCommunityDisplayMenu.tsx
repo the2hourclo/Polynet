@@ -53,7 +53,7 @@ const PANEL_WIDTH = 288;
 const VIEWPORT_MARGIN = 12;
 
 // Members get Light/Dark and Classroom/Channels; the draft look and left-rail
-// choices are the owner's tools for comparing looks (Rashid, 2026-10-26).
+// choices are the owner's tools for comparing looks.
 export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look: { look: DraftLook; picked: boolean }; canTryLooks: boolean }) {
   const { community, layoutChoice, displayMode } = useWebCommunityFrame();
   const draftLook = props.look.look;

@@ -18,8 +18,8 @@ import "./WebCommunityWorkflowsSection.css";
 import "./WebCommunityAccess.css";
 
 // Who can use what, and until when. The owner sees it per client (Workflows →
-// Clients and the member dossier), connects outside services such as the AIEB
-// MCP in Settings → Access, and each member makes their own license key.
+// Clients and the member dossier), connects outside services such as a paid MCP
+// server in Settings → Access, and each member makes their own license key.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" }) : "");
@@ -273,7 +273,7 @@ export function WebCommunityClientAccessPanel(props: { gateway: CommunityAccessG
       <div className="access-actions">
         <button type="button" className="workflow-secondary-button access-danger" disabled={busy} onClick={() => void act(() => gateway.revokeKey(membershipId))}>Revoke key</button>
       </div>
-    </> : <p className="access-muted">No key yet. They make one in this community's Settings, then paste it into a connected service such as the AIEB MCP.</p>}
+    </> : <p className="access-muted">No key yet. They make one in this community's Settings, then paste it into a connected service such as a paid MCP server.</p>}
 
     {detail.integrations.length ? <>
       <h4>Connected services</h4>
@@ -342,7 +342,7 @@ export function WebCommunityMyAccessCard({ gateway, title = "Your access" }: { g
     <UsesList uses={access.can_use} />
     {mine.license_key_available && access.entitled ? <div className="access-key-block">
       <h4>License key</h4>
-      <p className="access-muted">Paste this key into a connected tool, such as the AIEB MCP, so it knows you're a member of {mine.community.name}. Keep it to yourself.</p>
+      <p className="access-muted">Paste this key into a connected tool, such as a paid MCP server, so it knows you're a member of {mine.community.name}. Keep it to yourself.</p>
       {newKey ? <>
         <CopyField label="Your key" value={newKey} />
         <p className="access-muted">Copy it now. Polynet won't show it again.</p>
@@ -373,7 +373,7 @@ function IntegrationForm(props: {
   onSubmit: (input: CloudCommunityIntegrationInput) => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(props.initial?.name ?? "AIEB MCP");
+  const [name, setName] = useState(props.initial?.name ?? "");
   const [webhookUrl, setWebhookUrl] = useState(props.initial?.webhook_url ?? "");
   const [allPlans, setAllPlans] = useState(!props.initial?.price_point_ids.length);
   const [plans, setPlans] = useState<string[]>(props.initial?.price_point_ids ?? []);
@@ -526,7 +526,7 @@ export function WebCommunityAccessSettings({ gateway }: { gateway: CommunityAcce
   }, [gateway, reload]);
   return <div className="access-settings pn-settings-stack">
     <AccessCard title="Connected services" description={<>
-      An outside tool, such as the AIEB MCP, checks here who can use it. Polynet tells it the moment someone's access starts or stops,
+      An outside tool, such as a paid MCP server, checks here who can use it. Polynet tells it the moment someone's access starts or stops,
       and it can look anyone up by email, member id or license key.
     </>}>
       {failed ? <p className="workflow-error" role="alert">Couldn't load connected services. <button type="button" className="workflow-secondary-button" onClick={() => setReload((n) => n + 1)}>Try again</button></p>
