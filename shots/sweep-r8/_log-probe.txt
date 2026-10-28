@@ -1,0 +1,13 @@
+saved channels-390-k-cardcrop-course3 (Your first skill | What a skill is, the three levels, and turning one real process into a skill that runs on real data.)
+saved channels-390-k-cardcrop-course1 (Get set up | Install the plugin, connect your tools and say hi. Everything you need before your first build.)
+saved classroom-1440-k-cardcrop-course7 (Business X-Ray course | The full Business X-Ray course: map, diagnose and optimise how your business runs.)
+saved classroom-1440-k-cardcrop-course3 (Your first skill | What a skill is, the three levels, and turning one real process into a skill that runs on real data.)
+A course card open (Business X-Ray, lands on Welcome): 0 calls in 60s; first at +-ms; median gap -ms; min -; max -; first 20 at []
+B lesson click (Why Map Your Business): 0 calls in 60s; first at +-ms; median gap -ms; min -; max -; first 20 at []
+C resources grid, no lesson open (control): 0 calls in 35s; first at +-ms; median gap -ms; min -; max -; first 20 at []
+
+BLOCKED:
+{"youtubeChapters:loadYouTubeChapters":1}
+
+LEAK CHECK:
+none

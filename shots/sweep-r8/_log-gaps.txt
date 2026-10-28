@@ -1,0 +1,73 @@
+channels-390 card DOM: [{"text":"Get set up Install the plugin, connect your tools and say hi. Everything you need before your first build. 0%","aria":null,"title":null,"heading":null,"imgs":["age/a34281ce-912f-4cf1-b94e-fcf95caa6cb2"],"firstLineEl":{"cls":"","text":"Get set up","fs":"18px","w":90,"h":23,"aria":null}},{"text":"Map the business Run your Business X-Ray, read what it finds and lock your first target. Finish \"Connect & onboard\" firs","aria":null,"title":null,"heading":null,"imgs":["age/feeb13dd-5866-4f95-85ff-d567ae7f20ec"],"firstLineEl":{"cls":"","text":"Map the business","fs":"18px","w":153,"h":23,"aria":null}},{"text":"Y Your first skill What a skill is, the three levels, and turning one real process into a skill that runs on real data. ","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"Y","fs":"72px","w":44,"h":72,"aria":null}},{"text":"A A skill system Chain your skills into a system that runs a whole business function. Finish \"Connect & onboard\" first","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"A","fs":"72px","w":48,"h":72,"aria":null}},{"text":"M Make it reliable Turn the rules in your head into gates and checks so your system does not quietly fail. Finish \"Conne","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"M","fs":"72px","w":62,"h":72,"aria":null}},{"text":"Y Your AI employee Graduate a proven system to run on a schedule: an AI Employee that shows up on its own. Finish \"Conne","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"Y","fs":"72px","w":44,"h":72,"aria":null}},{"text":"B Business X-Ray course The full Business X-Ray course: map, diagnose and optimise how your business runs. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"B","fs":"72px","w":45,"h":72,"aria":null}},{"text":"C Claude Code 101 How Claude Code works and how to use it to build and run your AI Employees. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"C","fs":"72px","w":53,"h":72,"aria":null}},{"text":"R Reference Prompts and the skill library to copy from while you build. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"R","fs":"72px","w":48,"h":72,"aria":null}}]
+FAILED channels-390 cards: page.screenshot: Clipped area is either empty or outside the resulting image
+card #3 "Your first skill": card text match=true, opened page shows title=true
+saved channels-390-k-course3-your-first-skill
+card #5 "Make it reliable": card text match=true, opened page shows title=true
+saved channels-390-k-course5-make-it-reliable
+card #6 "Your AI employee": card text match=true, opened page shows title=true
+saved channels-390-k-course6-your-ai-employee
+classroom-390 card DOM: [{"text":"Get set up Install the plugin, connect your tools and say hi. Everything you need before your first build. 0%","aria":null,"title":null,"heading":null,"imgs":["age/a34281ce-912f-4cf1-b94e-fcf95caa6cb2"],"firstLineEl":{"cls":"","text":"Get set up","fs":"18px","w":90,"h":23,"aria":null}},{"text":"Map the business Run your Business X-Ray, read what it finds and lock your first target. Finish \"Connect & onboard\" firs","aria":null,"title":null,"heading":null,"imgs":["age/feeb13dd-5866-4f95-85ff-d567ae7f20ec"],"firstLineEl":{"cls":"","text":"Map the business","fs":"18px","w":153,"h":23,"aria":null}},{"text":"Y Your first skill What a skill is, the three levels, and turning one real process into a skill that runs on real data. ","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"Y","fs":"72px","w":44,"h":72,"aria":null}},{"text":"A A skill system Chain your skills into a system that runs a whole business function. Finish \"Connect & onboard\" first","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"A","fs":"72px","w":48,"h":72,"aria":null}},{"text":"M Make it reliable Turn the rules in your head into gates and checks so your system does not quietly fail. Finish \"Conne","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"M","fs":"72px","w":62,"h":72,"aria":null}},{"text":"Y Your AI employee Graduate a proven system to run on a schedule: an AI Employee that shows up on its own. Finish \"Conne","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"Y","fs":"72px","w":44,"h":72,"aria":null}},{"text":"B Business X-Ray course The full Business X-Ray course: map, diagnose and optimise how your business runs. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"B","fs":"72px","w":45,"h":72,"aria":null}},{"text":"C Claude Code 101 How Claude Code works and how to use it to build and run your AI Employees. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"C","fs":"72px","w":53,"h":72,"aria":null}},{"text":"R Reference Prompts and the skill library to copy from while you build. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"R","fs":"72px","w":48,"h":72,"aria":null}}]
+FAILED classroom-390 cards: page.screenshot: Clipped area is either empty or outside the resulting image
+card #3 "Your first skill": card text match=true, opened page shows title=true
+saved classroom-390-k-course3-your-first-skill
+card #5 "Make it reliable": card text match=true, opened page shows title=true
+saved classroom-390-k-course5-make-it-reliable
+card #6 "Your AI employee": card text match=true, opened page shows title=true
+saved classroom-390-k-course6-your-ai-employee
+classroom-1440 card DOM: [{"text":"Get set up Install the plugin, connect your tools and say hi. Everything you need before your first build. 0%","aria":null,"title":null,"heading":null,"imgs":["age/a34281ce-912f-4cf1-b94e-fcf95caa6cb2"],"firstLineEl":{"cls":"","text":"Get set up","fs":"18px","w":90,"h":23,"aria":null}},{"text":"Map the business Run your Business X-Ray, read what it finds and lock your first target. Finish \"Connect & onboard\" firs","aria":null,"title":null,"heading":null,"imgs":["age/feeb13dd-5866-4f95-85ff-d567ae7f20ec"],"firstLineEl":{"cls":"","text":"Map the business","fs":"18px","w":153,"h":23,"aria":null}},{"text":"Your first skill What a skill is, the three levels, and turning one real process into a skill that runs on real data. Fi","aria":null,"title":null,"heading":null,"imgs":["age/651acc02-eb59-4cdc-bfcc-651f765b6190"],"firstLineEl":{"cls":"","text":"Your first skill","fs":"18px","w":117,"h":23,"aria":null}},{"text":"A skill system Chain your skills into a system that runs a whole business function. Finish \"Connect & onboard\" first","aria":null,"title":null,"heading":null,"imgs":["age/6e78c586-2216-43d2-9a37-d23305ccb445"],"firstLineEl":{"cls":"","text":"A skill system","fs":"18px","w":117,"h":23,"aria":null}},{"text":"Make it reliable Turn the rules in your head into gates and checks so your system does not quietly fail. Finish \"Connect","aria":null,"title":null,"heading":null,"imgs":["age/ec833820-b4e7-4de1-80d1-f44096cf2673"],"firstLineEl":{"cls":"","text":"Make it reliable","fs":"18px","w":131,"h":23,"aria":null}},{"text":"Your AI employee Graduate a proven system to run on a schedule: an AI Employee that shows up on its own. Finish \"Connect","aria":null,"title":null,"heading":null,"imgs":["age/7389a75c-5c47-4ade-855d-46a838aa7d3c"],"firstLineEl":{"cls":"","text":"Your AI employee","fs":"18px","w":148,"h":23,"aria":null}},{"text":"B Business X-Ray course The full Business X-Ray course: map, diagnose and optimise how your business runs. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"B","fs":"72px","w":45,"h":72,"aria":null}},{"text":"C Claude Code 101 How Claude Code works and how to use it to build and run your AI Employees. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"C","fs":"72px","w":53,"h":72,"aria":null}},{"text":"R Reference Prompts and the skill library to copy from while you build. 0%","aria":null,"title":null,"heading":null,"imgs":[],"firstLineEl":{"cls":"resource-course-card-cover-initial","text":"R","fs":"72px","w":48,"h":72,"aria":null}}]
+FAILED classroom-1440 cards: page.screenshot: Clipped area is either empty or outside the resulting image
+card #7 "Business X-Ray course": card text match=true, opened page shows title=true
+lesson v576w27d5hwd442n4f3d0hbg3h8gtkdv opened: "Welcome" | heading with title visible: true
+saved classroom-1440-lesson1-welcome-top
+saved classroom-1440-lesson1-welcome-mid
+PROGRESS TIMING one open of "Welcome": 0 setOwnResourceProgressStatus calls in 60s; first at +-ms; median gap nullms; min -ms; max -ms; first 15 gaps []
+card #7 "Business X-Ray course": card text match=true, opened page shows title=true
+lesson v57091hry0es6n6fkm8dndbrb18gt5mt opened: "Why Map Your Business" | heading with title visible: true
+saved classroom-1440-lesson2-why-map-your-business-top
+saved classroom-1440-lesson2-why-map-your-business-mid
+card #7 "Business X-Ray course": card text match=true, opened page shows title=true
+lesson v57dd97hapjbd30z6yrmzp65z18gt5j8 opened: "Set Up the Skill" | heading with title visible: true
+saved classroom-1440-lesson3-set-up-the-skill-top
+saved classroom-1440-lesson3-set-up-the-skill-mid
+
+ALLOW-LIST: /api/auth/* + auth:bootstrapActor, businessAnalytics:identifyBusinessVisitor, profiles:resolveOnboardingProfileDetail, communityCommerce:redeemPendingPurchaseClaims, communityPublic:heartbeatCommunityPresence, communityAttention:markCommunitySurfaceSeen
+
+ALLOWED (count):
+148 × profiles:resolveOnboardingProfileDetail
+34 × communityCommerce:redeemPendingPurchaseClaims
+16 × communityPublic:heartbeatCommunityPresence
+15 × auth:bootstrapActor
+15 × businessAnalytics:identifyBusinessVisitor
+14 × communityAttention:markCommunitySurfaceSeen
+
+BLOCKED MUTATIONS/ACTIONS (count):
+684 × communityResourceProgress:setOwnResourceProgressStatus
+1 × youtubeChapters:loadYouTubeChapters
+
+OTHER BLOCKED REQUESTS:
+none
+
+LEAK CHECK (non-allow-listed calls that reached the server):
+none
+
+CONSOLE ERRORS (first 20):
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED

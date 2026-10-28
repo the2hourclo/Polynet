@@ -1,0 +1,477 @@
+saved channels-1440-chat
+saved channels-1440-knowledge
+saved channels-1440-events
+saved channels-1440-members-tab
+saved channels-1440-about
+saved channels-1440-agent
+saved channels-1440-members-db
+saved channels-1440-wf-automations
+saved channels-1440-wf-runs
+saved channels-1440-wf-changes
+saved channels-1440-wf-forms
+saved channels-1440-wf-welcome
+saved channels-1440-funnels
+saved channels-1440-analytics
+saved channels-1440-set-general
+saved channels-1440-set-offers
+saved channels-1440-set-appearance
+saved channels-1440-set-sales
+saved channels-1440-set-access
+saved channels-1440-set-creators
+saved channels-1440-set-agent
+saved channels-1440-k-resources
+channels-1440-k courses: ["Get set up","Map the business","Your first skill","A skill system","Make it reliable","Your AI employee","Business X-Ray course","Claude Code 101","Reference"]
+saved channels-1440-k-roadmap
+saved channels-1440-k-graph
+saved channels-1440-k-course1-get-set-up
+saved channels-1440-k-course2-map-the-business
+saved channels-1440-k-course3-your-first-skill
+saved channels-1440-k-course4-a-skill-system
+saved channels-1440-k-course5-make-it-reliable
+saved channels-1440-k-course6-your-ai-employee
+saved channels-1440-k-course7-business-x-ray-course
+saved channels-1440-k-course8-claude-code-101
+saved channels-1440-k-course9-reference
+saved channels-390-chat
+saved channels-390-knowledge
+saved channels-390-events
+saved channels-390-members-tab
+saved channels-390-about
+saved channels-390-agent
+saved channels-390-members-db
+saved channels-390-wf-automations
+saved channels-390-wf-forms
+saved channels-390-funnels
+saved channels-390-set-general
+saved channels-390-set-offers
+saved channels-390-k-resources
+channels-390-k courses: ["Get set up","Map the business","Y","A","M","Y","B","C","R"]
+saved channels-390-k-roadmap
+saved channels-390-k-graph
+saved channels-390-k-course1-get-set-up
+saved channels-390-k-course2-map-the-business
+FAILED channels-390-k-course3: course lookup "Y" = 2
+saved channels-390-k-course4-a
+FAILED channels-390-k-course5: course lookup "M" = 2
+FAILED channels-390-k-course6: course lookup "Y" = 2
+saved channels-390-k-course7-b
+saved channels-390-k-course8-c
+saved channels-390-k-course9-r
+lesson v576w27d5hwd442n4f3d0hbg3h8gtkdv opened: "Welcome" | page h1: "Knowledge"
+saved channels-1440-lesson1-welcome-top
+  mid-scroll: community-tab-scroll -> 671
+saved channels-1440-lesson1-welcome-mid
+lesson v57091hry0es6n6fkm8dndbrb18gt5mt opened: "Why Map Your Business" | page h1: "Knowledge"
+saved channels-1440-lesson2-why-map-your-business-top
+  mid-scroll: community-tab-scroll -> 1352
+saved channels-1440-lesson2-why-map-your-business-mid
+lesson v57dd97hapjbd30z6yrmzp65z18gt5j8 opened: "Set Up the Skill" | page h1: "Knowledge"
+saved channels-1440-lesson3-set-up-the-skill-top
+  mid-scroll: community-tab-scroll -> 3064
+saved channels-1440-lesson3-set-up-the-skill-mid
+lesson v570jrznmc522qk0admb962n8s8gt56y opened: "Watch: how your AI Employee actually works" | page h1: "Knowledge"
+saved channels-1440-lesson4-watch-how-your-ai-employee-a-top
+  mid-scroll: community-tab-scroll -> 984
+saved channels-1440-lesson4-watch-how-your-ai-employee-a-mid
+lesson v57dtvhy71ccyewpz3bmx1vqgx8gvr5z opened: "Install Claude Code" | page h1: "Knowledge"
+saved channels-1440-lesson5-install-claude-code-top
+  mid-scroll: community-tab-scroll -> 404
+saved channels-1440-lesson5-install-claude-code-mid
+lesson v57dpa3gpmz9mmgxzx8w1bm1gs8gvef2 opened: "Connect & onboard" | page h1: "Knowledge"
+saved channels-1440-lesson6-connect-onboard-top
+  mid-scroll: community-tab-scroll -> 1367
+saved channels-1440-lesson6-connect-onboard-mid
+saved channels-1440-x-display-menu
+saved channels-1440-x-pod
+saved channels-1440-x-automation-open
+saved channels-1440-x-form-open
+saved channels-1440-x-member-open
+saved channels-1440-x-run-open
+saved classroom-1440-chat
+saved classroom-1440-knowledge
+saved classroom-1440-events
+saved classroom-1440-members-tab
+saved classroom-1440-about
+saved classroom-1440-agent
+saved classroom-1440-members-db
+saved classroom-1440-wf-automations
+saved classroom-1440-wf-runs
+saved classroom-1440-wf-changes
+saved classroom-1440-wf-forms
+saved classroom-1440-wf-welcome
+saved classroom-1440-funnels
+saved classroom-1440-analytics
+saved classroom-1440-set-general
+saved classroom-1440-set-offers
+saved classroom-1440-set-appearance
+saved classroom-1440-set-sales
+saved classroom-1440-set-access
+saved classroom-1440-set-creators
+saved classroom-1440-set-agent
+saved classroom-1440-k-resources
+classroom-1440-k courses: ["Get set up","Map the business","Your first skill","A skill system","Make it reliable","Your AI employee","B","C","R"]
+saved classroom-1440-k-roadmap
+saved classroom-1440-k-graph
+saved classroom-1440-k-course1-get-set-up
+saved classroom-1440-k-course2-map-the-business
+saved classroom-1440-k-course3-your-first-skill
+saved classroom-1440-k-course4-a-skill-system
+saved classroom-1440-k-course5-make-it-reliable
+saved classroom-1440-k-course6-your-ai-employee
+saved classroom-1440-k-course7-b
+saved classroom-1440-k-course8-c
+saved classroom-1440-k-course9-r
+saved classroom-390-chat
+saved classroom-390-knowledge
+saved classroom-390-events
+saved classroom-390-members-tab
+saved classroom-390-about
+saved classroom-390-agent
+saved classroom-390-members-db
+saved classroom-390-wf-automations
+saved classroom-390-wf-forms
+saved classroom-390-funnels
+saved classroom-390-set-general
+saved classroom-390-set-offers
+saved classroom-390-k-resources
+classroom-390-k courses: ["Get set up","Map the business","Y","A","M","Y","B","C","R"]
+saved classroom-390-k-roadmap
+saved classroom-390-k-graph
+saved classroom-390-k-course1-get-set-up
+saved classroom-390-k-course2-map-the-business
+FAILED classroom-390-k-course3: course lookup "Y" = 2
+saved classroom-390-k-course4-a
+FAILED classroom-390-k-course5: course lookup "M" = 2
+FAILED classroom-390-k-course6: course lookup "Y" = 2
+saved classroom-390-k-course7-b
+saved classroom-390-k-course8-c
+saved classroom-390-k-course9-r
+FAILED lesson Welcome: course lookup "Business X-Ray course" = 0
+FAILED lesson Why Map Your Business: course lookup "Business X-Ray course" = 0
+FAILED lesson Set Up the Skill: course lookup "Business X-Ray course" = 0
+lesson v570jrznmc522qk0admb962n8s8gt56y opened: "Watch: how your AI Employee actually works" | page h1: "Knowledge"
+saved classroom-1440-lesson4-watch-how-your-ai-employee-a-top
+  mid-scroll: community-tab-scroll -> 999
+saved classroom-1440-lesson4-watch-how-your-ai-employee-a-mid
+lesson v57dtvhy71ccyewpz3bmx1vqgx8gvr5z opened: "Install Claude Code" | page h1: "Knowledge"
+saved classroom-1440-lesson5-install-claude-code-top
+  mid-scroll: community-tab-scroll -> 451
+saved classroom-1440-lesson5-install-claude-code-mid
+lesson v57dpa3gpmz9mmgxzx8w1bm1gs8gvef2 opened: "Connect & onboard" | page h1: "Knowledge"
+saved classroom-1440-lesson6-connect-onboard-top
+  mid-scroll: community-tab-scroll -> 1471
+saved classroom-1440-lesson6-connect-onboard-mid
+saved classroom-1440-x-display-menu
+saved classroom-1440-x-pod
+saved classroom-1440-x-pods-grid
+saved classroom-1440-x-pods-room
+saved classroom-1440-x-automation-open
+saved classroom-1440-x-form-open
+saved classroom-1440-x-member-open
+saved classroom-1440-x-run-open
+saved public-signedout-1440
+saved public-signedout-390
+
+ALLOW-LIST: /api/auth/* + auth:bootstrapActor, businessAnalytics:identifyBusinessVisitor, profiles:resolveOnboardingProfileDetail, communityCommerce:redeemPendingPurchaseClaims, communityPublic:heartbeatCommunityPresence, communityAttention:markCommunitySurfaceSeen
+
+ALLOWED (count):
+1412 × profiles:resolveOnboardingProfileDetail
+325 × communityCommerce:redeemPendingPurchaseClaims
+143 × auth:bootstrapActor
+143 × businessAnalytics:identifyBusinessVisitor
+143 × communityPublic:heartbeatCommunityPresence
+62 × communityAttention:markCommunitySurfaceSeen
+
+BLOCKED MUTATIONS/ACTIONS (count):
+2513 × communityResourceProgress:setOwnResourceProgressStatus
+45 × communityAttention:acknowledgeCommunityChatRead
+15 × youtubeChapters:loadYouTubeChapters
+4 × threads:ensureCommunityAgentConversation
+4 × communityPublic:recordPublicFunnelVisitBySlug
+
+OTHER BLOCKED REQUESTS:
+POST https://www.youtube.com/api/stats/qoe?cpn=GC9TKVJCfD5qbSYi&el=embedded&ns=yt&fexp=v1%2C100673025%2C1884%2C-76670265%2C49
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=GC9TKVJCfD5qbSYi&el=embedded&ns=yt&fexp=v1%2C100673025%2C1884%2C-76670265%2C49
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=sQDDD7gr_navaNH1&ver=2&cmt=0&fs=0&rt=2.545&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=JB3cxu4v8XcLFNTr&ver=2&cmt=0&fs=0&rt=2.685&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=2XdLLcTM5QNTMIyC&ver=2&cmt=0&fs=0&rt=2.368&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=jWDyvzyJrdXCeRHj&ver=2&cmt=0&fs=0&rt=15.135&euri=http%3A%2F%
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=DbHymbmGT7kncGpv&ver=2&cmt=0&fs=0&rt=2.626&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=bTbSD85Dzvz2Fl8v&ver=2&cmt=0&fs=0&rt=2.618&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://api.stytch.com/sdk/v1/events
+POST https://sdk.iad-05.braze.com/api/v3/data/
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://www.google.com/rmkt/collect/384481089/?random=1793177540362&cv=11&fst=1793177540362&fmt=8&bg=ffffff&guid=ON&asyn
+POST https://www.google.com/ccm/collect?rcb=13&frm=2&apvc=1&ae=g&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20B
+POST https://www.google.com/ccm/collect?rcb=9&frm=2&apvc=0&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Builder
+POST https://api.sprig.com/sdk/1/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/attributes
+POST https://api.segment.io/v1/p
+POST https://api.sprig.com/sdk/1/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.sprig.com/sdk/1/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/events
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/d8ebe12e-898b-4519-b0bb-0e44bdbd30bb/attributes
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://www.youtube.com/api/stats/qoe?cpn=Vou8uqvUbRMKlIHz&el=embedded&ns=yt&fexp=v1%2C100673025%2C1883%2C-76670264%2C27
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/qoe?cpn=Vou8uqvUbRMKlIHz&el=embedded&ns=yt&fexp=v1%2C100673025%2C1883%2C-76670264%2C27
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=jB0j74YOa6QWFxLR&ver=2&cmt=0&fs=0&rt=2.55&euri=http%3A%2F%2F
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=ynIwweDu2YAY7u0v&ver=2&cmt=0&fs=0&rt=2.525&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=D_dTb_SeW98G1GVr&ver=2&cmt=0&fs=0&rt=2.419&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=X0lHizwKBtkEc0A1&ver=2&cmt=0&fs=0&rt=16.027&euri=http%3A%2F%
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=8-5CXAKolCf5zA9u&ver=2&cmt=0&fs=0&rt=2.595&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=cmQ1fZaEJYu4WChD&ver=2&cmt=0&fs=0&rt=2.661&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://api.stytch.com/sdk/v1/events
+POST https://sdk.iad-05.braze.com/api/v3/data/
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://www.google.com/ccm/collect?rcb=2&frm=2&apvc=1&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Builder
+POST https://www.google.com/ccm/collect?rcb=6&frm=2&apvc=0&ae=g&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Bu
+POST https://www.google.com/rmkt/collect/384481089/?random=1793178179906&cv=11&fst=1793178179906&fmt=8&bg=ffffff&guid=ON&asyn
+POST https://www.google.com/ccm/collect?rcb=2&frm=2&apvc=0&dt=Onboarding%20and%20Setting%20Up%20the%20AI%20Employee%20Builder
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/attributes
+POST https://api.sprig.com/sdk/1/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/events
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/attributes
+POST https://api.sprig.com/sdk/1/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/events
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/attributes
+POST https://api.sprig.com/sdk/1/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/events
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/p
+PUT https://api.sprig.com/sdk/1/environments/2xc7AkouG6/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/attributes
+POST https://api.sprig.com/sdk/1/visitors/ba53b0e2-043b-445e-a466-37f0afd3aa05/events
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/t
+POST https://api.segment.io/v1/i
+POST https://api.segment.io/v1/p
+
+LEAK CHECK (non-allow-listed calls that reached the server):
+none
+
+CONSOLE ERRORS (first 20):
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
+Failed to load resource: net::ERR_FAILED
