@@ -57,6 +57,16 @@ describe("co-creators", () => {
     expect((await f.t.query(api.communityPublic.listCommunityCreators, { communityId: f.communityId })).creators).toHaveLength(1);
   });
 
+  test("admins are listed after the creators, and a co-creator admin shows once", async () => {
+    const f = await fixture();
+    const list = () => f.t.query(api.communityPublic.listCommunityCreators, { communityId: f.communityId });
+    expect((await list()).admins.map((c) => [c.display_name, c.role])).toEqual([["ada", "admin"]]);
+    await f.asOwner.mutation(api.communityAdmin.setCommunityMemberRole, { communityId: f.communityId, targetMembershipId: f.adminMembership, role: "co_creator" });
+    const after = await list();
+    expect(after.creators.map((c) => c.display_name)).toEqual(["rashid", "ada"]);
+    expect(after.admins).toEqual([]);
+  });
+
   test("an admin cannot make anyone a co-creator", async () => {
     const f = await fixture();
     await expect(f.asAdmin.mutation(api.communityAdmin.setCommunityMemberRole, { communityId: f.communityId, targetMembershipId: f.janeMembership, role: "co_creator" }))

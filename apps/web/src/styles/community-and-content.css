@@ -4598,6 +4598,11 @@
 .community-interaction-member-arrival-faces {
   --member-avatar-stack-face-size: 24px;
 }
+/* One face per join line: two small faces with initials read as a collision
+   (Rashid, 2026-10-28), and the words already say "and 3 others". */
+.community-interaction-member-arrival-faces > :nth-child(n + 2) {
+  display: none;
+}
 
 .community-interaction-member-arrivals > span {
   overflow: hidden;
@@ -9732,6 +9737,14 @@ button.chat-reply-quote:hover {
   .lesson-done-row .lesson-next-button { flex: 1 1 0; min-width: 0; margin-left: 0; justify-content: center; padding: 0 0.75rem; }
   body:has(.lesson-done-row > button) .member-agent-launcher { bottom: 5.25rem; }
   .lesson-next-title { display: none; }
+  /* The phone's bottom tab bar is fixed over the page: the row sticks just
+     above it instead of half under it. */
+  body:has(.mobile-bottom-rail) .lesson-done-row:has(> button) {
+    bottom: calc(var(--mobile-bottom-rail-height) + env(safe-area-inset-bottom, 0px));
+  }
+  body:has(.mobile-bottom-rail):has(.lesson-done-row > button) .member-agent-launcher {
+    bottom: calc(5.25rem + var(--mobile-bottom-rail-height) + env(safe-area-inset-bottom, 0px));
+  }
 }
 /* Next lesson, on the right of Mark as done, in the community's accent. */
 .lesson-next-button {

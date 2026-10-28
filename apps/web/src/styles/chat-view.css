@@ -79,15 +79,11 @@
   content: "";
   flex: 0 0 var(--wide-chat-gutter);
 }
-/* At most two faces, so they fit the avatar column; the words already say
-   "and 10 others". */
+/* One face (see community-and-content.css), centred in the avatar column. */
 .product-shell-surface[data-chat-view="wide"] .community-interaction-member-arrival-faces {
   flex: 0 0 var(--wide-chat-gutter);
   justify-content: center;
   overflow: hidden;
-}
-.product-shell-surface[data-chat-view="wide"] .community-interaction-member-arrival-faces > :nth-child(n + 3) {
-  display: none;
 }
 
 .product-shell-surface[data-chat-view="wide"] .community-interaction-unread-divider,

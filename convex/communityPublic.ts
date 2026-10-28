@@ -637,9 +637,9 @@ export const listCommunityCreators = query({
   args: { communityId: v.id("communities") },
   handler: async (ctx, args) => {
     const community = (await ctx.db.get(args.communityId)) as CommunityLike | null;
-    if (!community || !communityIsActive(community)) return { creators: [] };
+    if (!community || !communityIsActive(community)) return { creators: [], admins: [] };
     const userIdCache = new Map<string, string | null>();
-    const describe = async (userRowId: any, role: "owner" | "co_creator") => {
+    const describe = async (userRowId: any, role: "owner" | "co_creator" | "admin") => {
       const user = (await ctx.db.get(userRowId)) as { handle?: string } | null;
       return {
         user_id: (await resolvePublicUserId(ctx, userRowId, userIdCache)) ?? String(userRowId),
@@ -656,7 +656,18 @@ export const listCommunityCreators = query({
       .sort((a, b) => a.updatedAt - b.updatedAt);
     const creators = [await describe(community.ownerId, "owner")];
     for (const row of coCreators) creators.push(await describe(row.userId, "co_creator"));
-    return { creators };
+    // Admins come after the creators so members can find and message them
+    // (Rashid, 2026-10-28). A co-creator who is also an admin shows once.
+    const { rows: activeMemberships } = await listCanonicalCommunityMemberMembershipRows({ ctx, communityId: args.communityId, community });
+    const shown = new Set([String(community.ownerId), ...coCreators.map((row) => String(row.userId))]);
+    const admins = [];
+    for (const row of activeMemberships) {
+      if (String(row.role ?? "").trim().toLowerCase() !== "admin" || shown.has(String(row.userId))) continue;
+      shown.add(String(row.userId));
+      admins.push(await describe(row.userId, "admin"));
+      if (admins.length >= 20) break;
+    }
+    return { creators, admins };
   },
 });
 
