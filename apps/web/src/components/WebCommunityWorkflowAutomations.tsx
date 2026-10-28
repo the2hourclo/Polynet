@@ -2,7 +2,7 @@ import {
   BookOpen, Bot, CalendarDays, ChevronDown, Clock, CreditCard, DoorOpen, FileText, GitBranch, Hourglass, Lock, Mail,
   Flag, MessageSquare, MoreHorizontal, PenLine, Play, Plus, Repeat, Route, ShoppingBag, Trash2, Trophy, UserCog, Users, Webhook, X, type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { openCommunityTab } from "../controllers/openCommunityTab";
 import {
   workflowRuleIsNudge,
@@ -117,6 +117,9 @@ type Props = {
   onEditStage: (milestoneKey: string) => void;
   onAddStage: () => void;
   onTestStage?: (milestoneKey: string, index: number) => void;
+  /** An agent's suggestion opened with Edit first: its rules, as unsaved changes to that stage. */
+  seed?: { stageKey: string; token: string; rules: CommunityMemberWorkflowAutomation[]; by: string } | null;
+  onSeedSaved?: () => void;
 };
 
 export function WebCommunityWorkflowAutomations(props: Props) {
@@ -127,7 +130,17 @@ export function WebCommunityWorkflowAutomations(props: Props) {
   const [saveIssue, setSaveIssue] = useState<string | null>(null);
   // The panel shows the trigger or action list in place of the settings while choosing.
   const [picking, setPicking] = useState(false);
+  // Where Edit first lands, applied once the seeded rules are in the list.
+  const seedSelection = useRef<Selection | null>(null);
 
+  useEffect(() => {
+    if (!props.seed) return;
+    const rules = props.seed.rules.map((rule) => ({ ...toWorkflowAutomationDraft(rule), ...((rule as { paused?: boolean }).paused ? { paused: true } : {}) }));
+    setDrafts((current) => ({ ...current, [props.seed!.stageKey]: rules }));
+    const first = automationChains(rules.filter((rule) => !rule.paused))[0];
+    seedSelection.current = first ? { stageKey: props.seed.stageKey, ruleKey: first.root.key, part: "trigger" } : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.seed?.token]);
   const rulesOf = (milestone: CommunityMemberWorkflowMilestone): WorkflowAutomationDraft[] =>
     drafts[milestone.key] ?? workflowStageDrafts(milestone);
   const stages = props.milestones.filter((milestone) => milestone.key);
@@ -137,6 +150,10 @@ export function WebCommunityWorkflowAutomations(props: Props) {
 
   // Open the first automation, and recover when the selected one is gone.
   useEffect(() => {
+    const wanted = seedSelection.current;
+    if (wanted && chainsByStage.get(wanted.stageKey)?.some((chain) => chain.root.key === wanted.ruleKey)) {
+      seedSelection.current = null; setSelection(wanted); return;
+    }
     const current = selection && chainsByStage.get(selection.stageKey)?.some((chain) => chain.steps.some((rule) => rule.key === selection.ruleKey));
     if (current) return;
     for (const stage of stages) {
@@ -243,6 +260,7 @@ export function WebCommunityWorkflowAutomations(props: Props) {
         ...rule, key: rule.key.startsWith("draft-") ? "" : rule.key })) as CommunityMemberWorkflowAutomation[]);
       if (!saved) return;
       setDrafts((current) => { const next = { ...current }; delete next[key]; return next; });
+      if (props.seed?.stageKey === key) props.onSeedSaved?.();
     }
   };
 
@@ -358,7 +376,9 @@ export function WebCommunityWorkflowAutomations(props: Props) {
           <Play size={14} strokeWidth={2} aria-hidden="true" /> Test</button> : null}
       </header> : null}
       {dirtyStages.length || saveIssue || props.error ? <div className="pn-au-savebar" role="status">
-        <span>{saveIssue ?? props.error ?? "You changed this automation. Members keep the live version until you update."}</span>
+        <span>{saveIssue ?? props.error ?? (props.seed && drafts[props.seed.stageKey]
+          ? `${props.seed.by}'s suggestion for ${stages.find((item) => item.key === props.seed?.stageKey)?.name ?? "this stage"} is open to tweak. Update puts it live.`
+          : "You changed this automation. Members keep the live version until you update.")}</span>
         <button type="button" className="pn-au-ghost" disabled={props.isSaving} onClick={() => { setDrafts({}); setSaveIssue(null); }}>Discard changes</button>
         <button type="button" className="pn-wf-primary is-small" disabled={props.isSaving || !dirtyStages.length} onClick={() => void saveAll()}>{props.isSaving ? "Updating…" : "Update"}</button>
       </div> : null}

@@ -2,6 +2,8 @@ import { useMemo, useRef } from "react";
 import type { AuthSession } from "../auth";
 import type { CommunityFormDraft } from "../../../../shared/communityForms";
 import { deleteCloudCommunityForm, draftCloudCommunityFormWithAgent, loadCloudCommunityFormDraftAgentName, listCloudWorkflowGuideChannelIds, listDeletedCloudCommunityForms, reorderCloudCommunityForms, restoreCloudCommunityForm, listCloudCommunityForms, saveCloudCommunityForm, publishCloudCommunityForm, listCloudCommunityFormResponses, listCloudCommunityClientProperties, type CloudCommunityClientProperty } from "../../../../shared/cloudCommunityFormsGateway";
+import { listCloudWorkflowChanges, setCloudWorkflowAgentChangeReview, undoCloudWorkflowChange, type WorkflowAgentChangeReview, type WorkflowStageChanges } from "../../../../shared/cloudCommunityWorkflowChangesGateway";
+import { applyCloudCommunitySettingProposal, listCloudCommunitySettingProposals, rejectCloudCommunitySettingProposal, type CommunitySettingProposal } from "../../../../shared/cloudCommunitySettingProposalsGateway";
 import { fetchCloudMemberProgressReport, type CommunityMemberProgressReport } from "../../../../shared/cloudCommunityResourceProgressGateway";
 
 export type CommunityFormsGateway = {
@@ -22,6 +24,15 @@ export type CommunityFormsGateway = {
   /** Members' personal pods, which pod pickers list after the group pods. */
   guideChannelIds?: () => Promise<string[]>;
   draftWithAgent?: (brief: string) => Promise<{ name: string; questions: CommunityFormDraft["questions"] }>;
+  /** Workflows › Recent changes: what agents and admins changed, Undo, the agents' permission, and changes waiting for the owner. */
+  changes?: {
+    list: () => Promise<WorkflowStageChanges>;
+    undo: (changeId: string) => Promise<unknown>;
+    setReview: (review: WorkflowAgentChangeReview) => Promise<unknown>;
+    waiting: () => Promise<CommunitySettingProposal[]>;
+    approve: (proposalId: string) => Promise<CommunitySettingProposal>;
+    decline: (proposalId: string) => Promise<CommunitySettingProposal>;
+  };
   /** Client properties a question can fill. */
   clientProperties?: () => Promise<CloudCommunityClientProperty[]>;
 };
@@ -54,6 +65,14 @@ export function useWebCommunityFormsGateway(params: {
       guideChannelIds: () => run(s => listCloudWorkflowGuideChannelIds(s, communityId)),
       agentName: () => run(s => loadCloudCommunityFormDraftAgentName(s, communityId)),
       draftWithAgent: (brief: string) => run(s => draftCloudCommunityFormWithAgent(s, communityId, brief)),
+      changes: {
+        list: () => run(s => listCloudWorkflowChanges(s, communityId)),
+        undo: (changeId: string) => run(s => undoCloudWorkflowChange(s, communityId, changeId)),
+        setReview: (review: WorkflowAgentChangeReview) => run(s => setCloudWorkflowAgentChangeReview(s, communityId, review)),
+        waiting: () => run(async s => (await listCloudCommunitySettingProposals(s, communityId)).pending.filter(proposal => proposal.workflow)),
+        approve: (proposalId: string) => run(s => applyCloudCommunitySettingProposal(s, communityId, proposalId)),
+        decline: (proposalId: string) => run(s => rejectCloudCommunitySettingProposal(s, communityId, proposalId)),
+      },
       clientProperties: () => run(s => listCloudCommunityClientProperties(s, communityId)) };
   }, [params.activeCommunityId, params.canManageMembers, params.session, params.ensureSession]);
 }

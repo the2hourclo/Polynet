@@ -63,7 +63,7 @@ test("board keeps fixed lanes and uses defined canonical surfaces", () => {
 test("Workflows has one row of tabs and stages are set up from the automations list", () => {
   // The old Automations | Members switch under the tabs is gone: Members is the Members database tab.
   expect(component).not.toContain("pn-wf-view-switch");
-  expect(component).toContain('workflows: "Automations", runs: "Run history", forms: "Forms", welcome: "Welcome page"');
+  expect(component).toContain('workflows: "Automations", runs: "Run history", changes: "Recent changes", forms: "Forms", welcome: "Welcome page"');
   const automations = readFileSync(new URL("../apps/web/src/components/WebCommunityWorkflowAutomations.tsx", import.meta.url), "utf8");
   expect(automations).toContain("aria-label={`Stage settings for ${milestone.name}`}");
   expect(automations).toContain("onClick={props.onAddStage}");

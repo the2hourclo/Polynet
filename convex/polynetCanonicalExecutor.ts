@@ -136,6 +136,7 @@ const designKindAt = (localPath: string) => DESIGN_KINDS.find(kind => DESIGN_REC
 const BUILDER_SETTINGS_PATH = "/builder/settings.json";
 const BUILDER_WORKFLOW_TEMPLATES_PATH = "/builder/workflow-templates.json";
 const BUILDER_WORKFLOW_RUNS_PATH = "/builder/workflow-runs.json";
+const BUILDER_WORKFLOW_CHANGES_PATH = "/builder/workflow-changes.json";
 const BUILDER_TRACKS_PATH = "/builder/tracks.json";
 const BUILDER_OFFERS_PATH = "/builder/offers.json";
 const BUILDER_PODS_PATH = "/builder/pods.json";
@@ -160,7 +161,7 @@ export const POLYNET_CALL_OPERATIONS: string[] = [...MEMBER_CAPABILITIES, REACT_
   POST_FORM_SHARE_OPERATION, RESOURCE_PROGRESS_OPERATION, LESSON_RESPONSE_OPERATION, FORM_SUBMIT_OPERATION, APPROVE_MILESTONE_OPERATION,
   ...ADMISSION_OPERATIONS, SITE_DEPLOY_OPERATION, ...CLIENT_OPERATIONS, ...DESIGN_OPERATIONS, ...SETTING_OPERATIONS, ...SELF_OPERATIONS];
 export const POLYNET_BUILDER_DOCUMENT_PATHS: string[] = [...DESIGN_KINDS.map(kind => DESIGN_RECORDS[kind].path), BUILDER_SETTINGS_PATH,
-  BUILDER_WORKFLOW_TEMPLATES_PATH, BUILDER_WORKFLOW_RUNS_PATH, BUILDER_TRACKS_PATH, BUILDER_OFFERS_PATH, BUILDER_PODS_PATH, BUILDER_EVENTS_PATH,
+  BUILDER_WORKFLOW_TEMPLATES_PATH, BUILDER_WORKFLOW_RUNS_PATH, BUILDER_WORKFLOW_CHANGES_PATH, BUILDER_TRACKS_PATH, BUILDER_OFFERS_PATH, BUILDER_PODS_PATH, BUILDER_EVENTS_PATH,
   BUILDER_TEST_RUNS_PATH, BUILDER_PROGRESS_DIRECTORY, BUILDER_CLIENTS_DIRECTORY, POLYNET_BUILDER_RESOURCES_DIRECTORY_PATH];
 
 const COMMUNITY_FUNNEL_UPDATE_OPERATION =
@@ -1420,6 +1421,7 @@ async function executeCanonicalList(args: {
           { path: mountedPath(target.communitySlug, BUILDER_SETTINGS_PATH), kind: "document", type: "builder", name: "Settings: general, sales page, welcome, workflows, forms, access, agent and channels" },
           { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_TEMPLATES_PATH), kind: "document", type: "builder", name: "Workflow templates: ready-made stage plans (agent-led journey)" },
           { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_RUNS_PATH), kind: "document", type: "builder", name: "Run history: the latest automation runs, each with its steps, status and errors (Workflows → Run history)" },
+          { path: mountedPath(target.communitySlug, BUILDER_WORKFLOW_CHANGES_PATH), kind: "document", type: "builder", name: "Recent changes: every saved workflow stage change (who, before and after, whether it can be undone) and whether agents' changes wait for the owner (Workflows → Recent changes)" },
           { path: mountedPath(target.communitySlug, BUILDER_TRACKS_PATH), kind: "document", type: "builder", name: "Skill tracks: the community's roadmaps, their stages, steps and opening rules" },
           { path: mountedPath(target.communitySlug, BUILDER_OFFERS_PATH), kind: "document", type: "builder", name: "Offers: the ladder from the base membership up, prices, members on each, and which private channels each opens" },
           { path: mountedPath(target.communitySlug, BUILDER_PODS_PATH), kind: "document", type: "builder", name: "Pods: each invite-only channel with who's in it, and how to start one, add people and set where Classroom shows pods" },
@@ -1682,6 +1684,16 @@ async function executeCanonicalRead(args: {
     if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     const payload = await args.ctx.runQuery(api.communityWorkflowRunHistory.listBuilderWorkflowRunHistory,
+      { authSubject: args.authSubject, userId: args.userId, communityId: target.communityId });
+    return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
+      writable: false, searchable: false } };
+  }
+
+  // Workflows → Recent changes, the same read the owner's list uses.
+  if (target.localPath === BUILDER_WORKFLOW_CHANGES_PATH) {
+    if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
+      return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
+    const payload = await args.ctx.runQuery((api as any).communityWorkflowChanges.listBuilderWorkflowChanges,
       { authSubject: args.authSubject, userId: args.userId, communityId: target.communityId });
     return { ok: true, value: { ...canonicalJsonDocument({ target, localPath: target.localPath, payload }),
       writable: false, searchable: false } };
@@ -2918,13 +2930,19 @@ async function executeCanonicalCall(args: {
     const call = builderSettingArgs(setting, rawInput, { authSubject: args.authSubject, userId: args.userId,
       communityId: target.communityId, current });
     if (!call.ok) return canonicalError("invalid_tool_args", `${call.message} Read ${BUILDER_SETTINGS_PATH} for current values.`);
-    if (setting.review === "owner_apply") {
+    // A stage change waits for the owner when the Workflows permission says so.
+    const heldStageChange = operation === "community.workflow.stage.update"
+      && await args.ctx.runQuery((internal as any).communityWorkflowChanges.agentStageChangeNeedsOwnerInternal,
+        { communityId: target.communityId, userId: args.userId });
+    if (setting.review === "owner_apply" || heldStageChange) {
       // Proposed only: the owner applies it in the app.
       const { authSubject: _authSubject, userId: _userId, ...proposed } = call.args;
       try {
         const proposal = await args.ctx.runMutation((internal as any).communitySettingProposals.stageSettingProposalInternal, {
-          userId: args.userId, communityId: target.communityId, operation, args: proposed,
+          userId: args.userId, communityId: target.communityId,
+          operation: heldStageChange ? "community.workflow.stage.propose" : operation, args: proposed,
           ...(typeof rawInput.note === "string" && rawInput.note.trim() ? { note: rawInput.note.trim() } : {}),
+          ...(typeof rawInput.proposed_by === "string" && rawInput.proposed_by.trim() ? { proposedBy: rawInput.proposed_by.trim() } : {}),
           idempotencyKey: idempotencyKey || `${operation}:${JSON.stringify(proposed)}` });
         return { ok: true, value: { ok: true, operation, kind: "community_setting_change_proposed", review: "owner_apply",
           result: proposal, guidance: "Nothing has changed yet. The owner applies or rejects this in the app within 24 hours." } };
