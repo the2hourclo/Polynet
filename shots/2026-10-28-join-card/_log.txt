@@ -1,0 +1,35 @@
+== BEFORE on d136054d Merge remote-tracking branch 'origin/claude/project-thread-5fj0ep' into claude/local-combined as a visitor (no sign-in), guard on ==
+  1440: offers ["Membership","Membership + Plugin Access"]
+  1440 free: {"selected":["Membership"],"button":"Join free","offers":["Membership","Membership + Plugin Access Everything in Membership, plus Everything $130 / month"]} | non-GET requests on selection: []
+saved join-before-free-1440.png
+  1440 paid: {"selected":["Membership + Plugin Access Everything in Membership, plus Everything $130 / mont"],"button":"Join with Membership + Plugin Access","offers":["Membership","Membership + Plugin Access Everything in Membership, plus Everything $130 / month"]} | non-GET requests on selection: []
+saved join-before-paid-1440.png
+  390: offers ["Membership","Membership + Plugin Access"]
+  390 free: {"selected":["Membership"],"button":"Join free","offers":["Membership","Membership + Plugin Access Everything in Membership, plus Everything $130 / month"]} | non-GET requests on selection: []
+saved join-before-free-390.png
+  390 paid: {"selected":["Membership + Plugin Access Everything in Membership, plus Everything $130 / mont"],"button":"Join with Membership + Plugin Access","offers":["Membership","Membership + Plugin Access Everything in Membership, plus Everything $130 / month"]} | non-GET requests on selection: []
+saved join-before-paid-390.png
+[before] ALLOWED {} | BLOCKED {"communityPublic:recordPublicFunnelVisitBySlug":4} | OTHER [] | LEAKS []
+
+== AFTER on 9403d709 Merge commit '8c9d6f3' into claude/local-combined as a visitor (no sign-in), guard on ==
+FAILED 1440: page.goto: Timeout 30000ms exceeded.
+  390: offers ["Membership","Membership + Plugin Access"]
+  390 free: {"selected":["Membership Free"],"button":"Join free","offers":["Membership Free","Membership + Plugin Access $130/month Everything in Membership, plus Everything"]} | non-GET requests on selection: []
+saved join-after-free-390.png
+  390 paid: {"selected":["Membership + Plugin Access $130/month Everything in Membership, plus Everything"],"button":"Join for $130/month","offers":["Membership Free","Membership + Plugin Access $130/month Everything in Membership, plus Everything"]} | non-GET requests on selection: []
+saved join-after-paid-390.png
+[after] ALLOWED {} | BLOCKED {"communityPublic:recordPublicFunnelVisitBySlug":2} | OTHER [] | LEAKS []
+
+== AFTER retake on 9403d709 Merge commit '8c9d6f3' into claude/local-combined (first 1440 load timed out while Vite rebuilt) ==
+  1440: offers ["Membership","Membership + Plugin Access"]
+  1440 free: {"selected":["Membership Free"],"button":"Join free","offers":["Membership Free","Membership + Plugin Access $130/month Everything in Membership, plus Everything"]} | non-GET requests on selection: []
+saved join-after-free-1440.png
+  1440 paid: {"selected":["Membership + Plugin Access $130/month Everything in Membership, plus Everything"],"button":"Join for $130/month","offers":["Membership Free","Membership + Plugin Access $130/month Everything in Membership, plus Everything"]} | non-GET requests on selection: []
+saved join-after-paid-1440.png
+  390: offers ["Membership","Membership + Plugin Access"]
+  390 free: {"selected":["Membership Free"],"button":"Join free","offers":["Membership Free","Membership + Plugin Access $130/month Everything in Membership, plus Everything"]} | non-GET requests on selection: []
+saved join-after-free-390.png
+  390 paid: {"selected":["Membership + Plugin Access $130/month Everything in Membership, plus Everything"],"button":"Join for $130/month","offers":["Membership Free","Membership + Plugin Access $130/month Everything in Membership, plus Everything"]} | non-GET requests on selection: []
+saved join-after-paid-390.png
+[after] ALLOWED {} | BLOCKED {"communityPublic:recordPublicFunnelVisitBySlug":4} | OTHER [] | LEAKS []
+
