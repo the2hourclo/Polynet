@@ -7810,6 +7810,12 @@ button.settings-primary-action svg {
   padding: calc(var(--mobile-topbar-clearance) + 12px) 12px 12px;
 }
 
+/* Classroom's post cards start below the floating top bar too, so the
+   "Write something" bar isn't under the channel pill. */
+.app-root.mobile-shell .community-chat .community-posts-feed {
+  padding: calc(var(--mobile-topbar-clearance) + 8px) 12px 32px;
+}
+
 .app-root.mobile-shell .community-chat .community-channel-header {
   flex: 0 0 var(--mobile-topbar-clearance);
   height: var(--mobile-topbar-clearance);
