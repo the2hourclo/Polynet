@@ -576,7 +576,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
                 </td>
                 {columns.map((field) => {
                   const property = field.source === "owner" ? properties.find((item) => `prop:${item.key}` === field.key) : null;
-                  return <td key={field.key} className={property ? "is-editable" : undefined}>
+                  return <td key={field.key} className={property ? "is-editable" : undefined} data-label={field.name}>
                     {property ? <PropertyEditor property={property} value={client.properties?.[property.key] ?? null}
                       onSave={(value) => setValue(client.membership_id, property.key, value)} />
                       : <FieldValue client={client} field={field} nowMs={nowMs} />}
