@@ -132,14 +132,18 @@ export function WebCommunityOfferChooser(props: { choice: CommunityOfferChoice; 
           <label key={offer.key} className={`pn-offer-choice${choice.selected?.key === offer.key ? " is-selected" : ""}`}>
             <input type="radio" name="pn-offer-choice" checked={choice.selected?.key === offer.key} onChange={() => choice.onSelect(offer.key)} />
             <span className="pn-offer-choice-body">
-              <span className="pn-offer-choice-head">
-                <strong>{offer.name}</strong>
-                {isCurrent ? <span className="pn-offer-choice-tag">Your offer</span> : null}
+              {/* The price shares the name's row, so the lines under it get the
+                  card's full width rather than a squeezed column (2026-10-28). */}
+              <span className="pn-offer-choice-top">
+                <span className="pn-offer-choice-head">
+                  <strong>{offer.name}</strong>
+                  {isCurrent ? <span className="pn-offer-choice-tag">Your offer</span> : null}
+                </span>
+                {price ? <span className="pn-offer-choice-price">{formatCommunityOfferPrice(price)}</span> : null}
               </span>
               {below ? <span className="pn-offer-choice-plus">Everything in {below.name}, plus</span> : null}
               {offer.blurb ? <span className="pn-offer-choice-blurb">{offer.blurb}</span> : null}
             </span>
-            <span className="pn-offer-choice-price">{price ? formatCommunityOfferPrice(price) : ""}</span>
           </label>
         );
       })}
