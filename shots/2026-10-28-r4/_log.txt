@@ -1,0 +1,31 @@
+head: f72acdba (claude/local-combined); Convex functions ready 17:01:01 local; web 200; local codegen api.d.ts kept
+guard on: /api/auth/* + six session mutations only
+
+== tracks + edit page ==
+  classroom-390 track: {"allTracks":{"top":82,"bottom":114},"backButton":{"top":12,"bottom":42},"pill":{"top":8,"bottom":46}}
+saved classroom-390-track-r4.png
+  channels-390 track: {"allTracks":{"top":82,"bottom":114},"backButton":{"top":12,"bottom":42},"pill":{"top":8,"bottom":46}}
+saved channels-390-track-r4.png
+FAILED about-after2-1440.png: next arrow 0
+FAILED about-after2-390.png: next arrow 0
+  classroom edit mode: {"bars":[{"cls":"community-sales-edit-bar is-editing","top":173,"bottom":223,"text":"Everything is live. Member count More settings Done Publish"}],"floatingIconsBottom":59} | non-GET/non-query requests on press: [] | guard before {"blocked":{},"other":0} after {"blocked":{},"other":0}
+saved about-editpage-1440.png
+  classroom: after re-navigate url=/c/skool-style-demo/about | Edit page button back=1 | dialogs=[]
+  channels edit mode: {"bars":[{"cls":"community-sales-edit-bar is-editing","top":65,"bottom":115,"text":"Everything is live. Member count More settings Done Publish"}],"floatingIconsBottom":49} | non-GET/non-query requests on press: [] | guard before {"blocked":{},"other":0} after {"blocked":{},"other":0}
+saved about-editpage-channels-1440.png
+  channels: after re-navigate url=/c/skool-style-demo/about | Edit page button back=1 | dialogs=[]
+ALLOWED {"auth:bootstrapActor":14,"businessAnalytics:identifyBusinessVisitor":14,"profiles:resolveOnboardingProfileDetail":136,"communityCommerce:redeemPendingPurchaseClaims":32,"communityPublic:heartbeatCommunityPresence":14,"communityAttention:markCommunitySurfaceSeen":8}
+BLOCKED {}
+OTHER []
+LEAKS []
+== gallery (rerun with new arrow selector) ==
+  about-after2-1440.png: {"counter":"2 / 3","alt":"","img":{"left":363,"top":204,"w":722,"h":226,"fit":"cover","natural":[1600,500]},"stage":{"w":628,"h":196},"arrows":[{"cls":"","left":410,"top":492,"w":32},{"cls":"","left":1006,"top":492,"w":32}],"thumbRow":{"top":482,"bottom":534}}
+saved about-after2-1440.png
+  about-after2-390.png: {"counter":"2 / 3","alt":"","img":{"left":9,"top":239,"w":373,"h":116,"fit":"cover","natural":[1600,500]},"stage":{"w":324,"h":101},"arrows":[{"cls":"","left":33,"top":447,"w":32},{"cls":"","left":325,"top":447,"w":32}],"thumbRow":{"top":437,"bottom":489}}
+saved about-after2-390.png
+ALLOWED {"auth:bootstrapActor":4,"businessAnalytics:identifyBusinessVisitor":4,"profiles:resolveOnboardingProfileDetail":37,"communityCommerce:redeemPendingPurchaseClaims":10,"communityPublic:heartbeatCommunityPresence":4,"communityAttention:markCommunitySurfaceSeen":2}
+BLOCKED {}
+OTHER []
+LEAKS []
+tables: communityLayouts identical before/after; communities identical apart from updatedAt/activeMemberCount
+Edit page: no Save/Publish/Done/Discard pressed; left edit mode by navigating to the URL again; no unsaved-changes prompt
