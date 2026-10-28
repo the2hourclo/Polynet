@@ -112,11 +112,11 @@ function videoThumbnail(url: string): string | null {
 }
 
 // A picture on the gallery shows whole. The slide takes the picture's own
-// shape, kept between portrait 4:5 and wide 21:9 so a very tall or very wide
+// shape, kept between portrait 4:5 and wide 4:1 so a very tall or very wide
 // one can't swamp the page; whatever room is left is filled by a soft, blurred
 // copy of the picture rather than bars (Rashid, 2026-10-28: "too zoomed in").
 const GALLERY_RATIO_MIN = 4 / 5;
-const GALLERY_RATIO_MAX = 21 / 9;
+const GALLERY_RATIO_MAX = 4;
 
 function GallerySlidePicture(props: { url: string; alt: string }) {
   const [ratio, setRatio] = useState<number | null>(null);
@@ -179,23 +179,21 @@ export function SalesPageGallery(props: {
             ? <div className="community-sales-media">{renderHeroMediaDefault("video", current.url, { eager: index === 0, playHint: "Watch" })}</div>
             : <GallerySlidePicture url={current.url} alt={current.caption || ""} />}
         </div>
-        {many ? (
-          <>
-            <button type="button" className="community-sales-gallery-arrow is-prev" aria-label="Previous" onClick={() => go(-1)}>
-              <ChevronLeft size={20} aria-hidden="true" />
-            </button>
-            <button type="button" className="community-sales-gallery-arrow is-next" aria-label="Next" onClick={() => go(1)}>
-              <ChevronRight size={20} aria-hidden="true" />
-            </button>
-            <span className="community-sales-gallery-count" aria-hidden="true">{index + 1} / {items.length}</span>
-          </>
-        ) : null}
+        {many ? <span className="community-sales-gallery-count" aria-hidden="true">{index + 1} / {items.length}</span> : null}
         {props.stageOverlay}
       </div>
       {props.caption !== undefined
         ? props.caption
         : current.caption ? <figcaption className="community-sales-gallery-caption">{current.caption}</figcaption> : null}
       {many || props.afterThumbs ? (
+        <div className="community-sales-gallery-nav">
+        {/* The arrows sit beside the thumbnails, not on the slide, so they
+            never cover part of a picture (2026-10-28). */}
+        {many ? (
+          <button type="button" className="community-sales-gallery-arrow" aria-label="Previous" onClick={() => go(-1)}>
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
+        ) : null}
         <div className="community-sales-gallery-thumbs" role="tablist" aria-label="Choose a slide">
           {items.map((item, itemIndex) => {
             const picture = item.kind === "image" ? item.url : videoThumbnail(item.url);
@@ -215,6 +213,12 @@ export function SalesPageGallery(props: {
             );
           })}
           {props.afterThumbs}
+        </div>
+        {many ? (
+          <button type="button" className="community-sales-gallery-arrow" aria-label="Next" onClick={() => go(1)}>
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        ) : null}
         </div>
       ) : null}
     </figure>
