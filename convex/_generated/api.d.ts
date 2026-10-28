@@ -163,8 +163,10 @@ import type * as communityWeeklyDigestSchedule from "../communityWeeklyDigestSch
 import type * as communityWeeklyDigestValidators from "../communityWeeklyDigestValidators.js";
 import type * as communityWeeklyDigestWorker from "../communityWeeklyDigestWorker.js";
 import type * as communityWikiArchitect from "../communityWikiArchitect.js";
+import type * as communityWorkflowAgentInputs from "../communityWorkflowAgentInputs.js";
 import type * as communityWorkflowAssessmentCore from "../communityWorkflowAssessmentCore.js";
 import type * as communityWorkflowCompletionCore from "../communityWorkflowCompletionCore.js";
+import type * as communityWorkflowEmailCore from "../communityWorkflowEmailCore.js";
 import type * as communityWorkflowGoalReviewCore from "../communityWorkflowGoalReviewCore.js";
 import type * as communityWorkflowGuideChannels from "../communityWorkflowGuideChannels.js";
 import type * as communityWorkflowRunHistory from "../communityWorkflowRunHistory.js";
@@ -246,6 +248,7 @@ import type * as platformSkillRuntime from "../platformSkillRuntime.js";
 import type * as polynetBuilderSettings from "../polynetBuilderSettings.js";
 import type * as polynetCanonicalExecutor from "../polynetCanonicalExecutor.js";
 import type * as polynetCanonicalReceipts from "../polynetCanonicalReceipts.js";
+import type * as polynetMemberSelfSettings from "../polynetMemberSelfSettings.js";
 import type * as probe from "../probe.js";
 import type * as profileCore from "../profileCore.js";
 import type * as profileRelationshipCore from "../profileRelationshipCore.js";
@@ -446,8 +449,10 @@ declare const fullApi: ApiFromModules<{
   communityWeeklyDigestValidators: typeof communityWeeklyDigestValidators;
   communityWeeklyDigestWorker: typeof communityWeeklyDigestWorker;
   communityWikiArchitect: typeof communityWikiArchitect;
+  communityWorkflowAgentInputs: typeof communityWorkflowAgentInputs;
   communityWorkflowAssessmentCore: typeof communityWorkflowAssessmentCore;
   communityWorkflowCompletionCore: typeof communityWorkflowCompletionCore;
+  communityWorkflowEmailCore: typeof communityWorkflowEmailCore;
   communityWorkflowGoalReviewCore: typeof communityWorkflowGoalReviewCore;
   communityWorkflowGuideChannels: typeof communityWorkflowGuideChannels;
   communityWorkflowRunHistory: typeof communityWorkflowRunHistory;
@@ -529,6 +534,7 @@ declare const fullApi: ApiFromModules<{
   polynetBuilderSettings: typeof polynetBuilderSettings;
   polynetCanonicalExecutor: typeof polynetCanonicalExecutor;
   polynetCanonicalReceipts: typeof polynetCanonicalReceipts;
+  polynetMemberSelfSettings: typeof polynetMemberSelfSettings;
   probe: typeof probe;
   profileCore: typeof profileCore;
   profileRelationshipCore: typeof profileRelationshipCore;
