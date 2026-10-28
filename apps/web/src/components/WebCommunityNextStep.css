@@ -131,7 +131,9 @@
 
 /* Phone: the full-page welcome fills the shell (no dark band under it) and
    starts below the floating top bar (stress test 2026-10-28). */
-.app-root.mobile-shell .mobile-global-shell-surface > .community-welcome { height:100%; min-height:0; padding-top:calc(var(--mobile-topbar-clearance) + 12px); }
+/* The welcome stands in for .workspace there (its theme wrapper is display:contents), so it takes .workspace's phone sizing. */
+.app-root.mobile-shell .community-welcome:not(.welcome-settings-page):not(.community-welcome-popup .community-welcome) { min-height:100dvh; padding-top:calc(var(--mobile-topbar-clearance) + 12px); padding-bottom:calc(env(safe-area-inset-bottom, 0px) + var(--mobile-bottom-rail-height, 0px) + 24px); }
+.app-root.mobile-shell .mobile-global-shell-surface > .community-welcome { min-height:0; height:100%; }
 /* Next / Mark done on a welcome screen are the page's main action: community button colours, not the white settings Save. */
 .community-welcome :is(.community-welcome-next, .community-welcome-lesson) .platform-save-button { background:var(--bg-button, var(--accent-brand)); color:var(--bg-button-text, #fff); border-color:transparent; }
 .community-welcome :is(.community-welcome-next, .community-welcome-lesson) .platform-save-button:hover:not(:disabled) { background:color-mix(in srgb, var(--bg-button, var(--accent-brand)) 88%, #000); }
