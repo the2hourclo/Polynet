@@ -1,0 +1,14 @@
+head: 898a762b (claude/local-combined), web-only change; web 200
+visitor (no sign-in), guard on; Join never clicked
+
+  1440: [{"label":"Membership","selected":false,"inputChecked":false,"inputName":"pn-offer-choice-:r3:","bg":"none"},{"label":"Membership + Plugin Access","selected":true,"inputChecked":true,"inputName":"pn-offer-choice-:r3:","bg":"radial-gradient(circle, rgb(242, 242, 238) 0px, rgb(242, 242, 238) 3.5"}] | non-GET on selection: []
+saved join-paid-1440.png
+  390: [{"label":"Membership","selected":false,"inputChecked":false,"inputName":"pn-offer-choice-:r3:","bg":"none"},{"label":"Membership + Plugin Access","selected":true,"inputChecked":true,"inputName":"pn-offer-choice-:r3:","bg":"radial-gradient(circle, rgb(242, 242, 238) 0px, rgb(242, 242, 238) 3.5"}] | non-GET on selection: []
+saved join-paid-390.png
+ALLOWED {}
+BLOCKED {"communityPublic:recordPublicFunnelVisitBySlug":4}
+OTHER []
+LEAKS []
+
+CHECK: PASS at both widths. The paid card shows a filled dot (screenshot checked by eye). input.checked: Membership=false, Membership + Plugin Access=true. Both radios share one name per chooser (pn-offer-choice-:r3:). Selecting sent no writes.
+The recordPublicFunnelVisitBySlug x4 block is the visitor page-view write; nothing was recorded.
