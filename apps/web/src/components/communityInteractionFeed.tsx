@@ -15,7 +15,7 @@ import { EmojiPickerButton, QUICK_REACTIONS, ReactionSummary } from "./community
 import { PostCardView } from "./CommunityPostCard";
 import { MessageLinkMedia } from "./MessageLinkMedia";
 import { PdfDocumentCard } from "./PdfDocumentCard";
-import { confirmInPage } from "./confirmInPage";
+import { confirmInPage, toastInPage } from "./confirmInPage";
 import { useProtectedImage } from "./protectedImageStore";
 import { isPdfDocument, safeDocumentUrl } from "../../../../shared/messagePdf";
 import { groupInteractionFeed } from "./groupInteractionFeed";
@@ -1138,12 +1138,15 @@ export function CommunityInteractionFeedList(
                                 onPin={
                                   props.canManagePinnedRoot && props.onSetPinnedRoot
                                     ? () => {
+                                        const place = props.activeChannel?.access_mode === "restricted" ? "pod" : "channel";
+                                        const setPin = (rootId: string | null) => void Promise.resolve(props.onSetPinnedRoot?.(rootId)).then((done) => {
+                                          if (done !== false) toastInPage(rootId ? `Pinned to ${place}` : `Unpinned from ${place}`);
+                                        });
                                         if (props.pinnedRoot?.root.id === root.id) {
-                                          void props.onSetPinnedRoot?.(null);
+                                          setPin(null);
                                           return;
                                         }
                                         // One pin per channel or pod: say so before replacing it.
-                                        const place = props.activeChannel?.access_mode === "restricted" ? "pod" : "channel";
                                         const replace = props.pinnedRoot
                                           ? confirmInPage({
                                               title: "Replace the pinned message?",
@@ -1151,7 +1154,7 @@ export function CommunityInteractionFeedList(
                                               confirmLabel: "Pin this instead",
                                             })
                                           : Promise.resolve(true);
-                                        void replace.then((ok) => { if (ok) void props.onSetPinnedRoot?.(root.id); });
+                                        void replace.then((ok) => { if (ok) setPin(root.id); });
                                       }
                                     : undefined
                                 }

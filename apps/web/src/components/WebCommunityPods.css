@@ -943,3 +943,7 @@
     grid-template-columns: 1fr;
   }
 }
+
+.community-pod-unpin {
+  font-size: 0.8125rem;
+}
