@@ -1775,6 +1775,12 @@
 .app-root:has(.app-topbar .account-settings-bar-button):has(.app-topbar .community-display-bar-button) {
   --web-topbar-right-action-safe-inset: 146px;
 }
+/* And one more for Notifications. */
+.app-root:has(.app-topbar .account-settings-bar-button):has(.app-topbar .community-display-bar-button):has(.app-topbar .community-notifications-bar-button) {
+  --web-topbar-right-action-safe-inset: 186px;
+}
+.app-topbar .community-notifications-bar-button { position: relative; }
+.app-topbar .community-notifications-bar-button .community-top-nav-icon-badge { position: absolute; top: -2px; right: -4px; }
 .app-topbar .icon-button.account-settings-bar-button { width: 34px; height: 34px; }
 .app-topbar .icon-button.account-settings-bar-button svg { width: 20px; height: 20px; }
 .app-root:not(.mobile-shell) .app-topbar .account-settings-bar-button { transform: translate(-4px, 4px); }
