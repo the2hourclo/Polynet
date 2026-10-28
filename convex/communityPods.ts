@@ -234,6 +234,10 @@ export const listPodSpaces = query({
   args: { communityId: v.id("communities"), userId: v.optional(v.id("users")), authSubject: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    // Pods are private (Rashid, 2026-10-28): only members of the community
+    // get an answer, and only the owner and admins learn other members'
+    // personal pods.
+    const actor = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId });
     const rows = await ctx.db.query("communityMemberships")
       .withIndex("by_community", (q: any) => q.eq("communityId", args.communityId)).take(MAX_MEMBERSHIPS_READ);
     let mine: string | null = null;
@@ -241,7 +245,7 @@ export const listPodSpaces = query({
     for (const row of rows) {
       if (!row.serviceChannelId) continue;
       if (row.userId === userId) { if (communityMembershipRowIsActive(row)) mine = String(row.serviceChannelId); }
-      else others.push(String(row.serviceChannelId));
+      else if (actor.isManager) others.push(String(row.serviceChannelId));
     }
     return { mine, member_spaces: others };
   },
