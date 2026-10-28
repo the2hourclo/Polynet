@@ -1064,7 +1064,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           <span>{collection === "modules" ? "Courses" : "Lessons"} could not be refreshed. {message}</span>{" "}
           <button type="button" onClick={() => void actions.retryRead(collection)}>Retry {collection === "modules" ? "courses" : "lessons"}</button>
         </div>)}
-        {isRefreshingResources && hasResourceContent ? <div role="status">Refreshing resources…</div> : null}
+        {isRefreshingResources && hasResourceContent ? <div role="status">Refreshing…</div> : null}
         {showInitialResourceLoading ? (
           <div className="community-panel-state-shell">
             <div className="community-chat-page-loading-card" aria-busy="true" aria-live="polite">

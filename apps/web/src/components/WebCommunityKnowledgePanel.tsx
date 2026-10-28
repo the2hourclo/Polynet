@@ -163,7 +163,9 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
       },
     };
   }, [canManage, rawSession, ensureSession, communityId, retryRead, handleCreateBlankPageDraft, resourceList, firstModuleId, activeTrack, reloadProgress]);
-  const graphOpen = view === "graph" && context.canViewGraph;
+  // Graph is an owner's tool: to a member it's unlabelled dots.
+  const showGraph = context.canViewGraph && canManage;
+  const graphOpen = view === "graph" && showGraph;
   const boardOpen = view === "board" && hasBoard;
   const activeView: KnowledgeView = graphOpen ? "graph" : boardOpen ? "board" : "resources";
   const courseProgress = useMemo(
@@ -203,7 +205,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const tabs: { id: KnowledgeView; label: string; buttonClassName: string }[] = [
     { id: "resources", label: "Resources", buttonClassName: chip },
     ...(hasBoard ? [{ id: "board" as const, label: "Roadmap", buttonClassName: chip }] : []),
-    ...(context.canViewGraph ? [{ id: "graph" as const, label: "Graph", buttonClassName: chip }] : []),
+    ...(showGraph ? [{ id: "graph" as const, label: "Graph", buttonClassName: chip }] : []),
   ];
   const graph = useWebCommunityPolynetController({
     activePage: "community",
