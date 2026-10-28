@@ -66,3 +66,9 @@
 .product-shell-surface--community-top .community-knowledge-page:not([data-reading]) { margin-inline: -1.25rem; }
 .product-shell-surface--community-top .web-community-centered-pane:has(> .community-events-panel) { justify-content: flex-start; }
 .product-shell-surface--community-top .community-events-panel { margin-inline: 0.25rem auto; }
+
+/* Framed: the top-right buttons move in with the panels, so they sit inside
+   the top panel's bar instead of on its edge. */
+.app-topbar .topbar-right-island > [data-community-theme] > * {
+  translate: calc(-1 * var(--pn-edge-gap, 0rem)) calc(var(--pn-edge-gap, 0rem) * 1.5);
+}
