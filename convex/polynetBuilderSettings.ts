@@ -258,9 +258,9 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     required: ["channel_id", "target", "active"], effects: ["set_channel_participant"],
   }),
   op({
-    operation: "community.pod.visibility.set", area: "channels", name: "Make a pod private or open to join",
+    operation: "community.pod.visibility.set", area: "channels", name: "Make a pod private or public",
     calls: "communityPods:setPodVisibility", ref: api.communityPods.setPodVisibility, kind: "mutation",
-    fields: { channel_id: "the pod (a restricted channel)", visibility: '"private" (only its people see it) or "open" (every member sees it and can join)' },
+    fields: { channel_id: "the pod (a restricted channel)", visibility: '"private" (only its people see it) or "open" (public: everyone in the community sees it and can join)' },
     required: ["channel_id", "visibility"], effects: ["set_pod_visibility"],
   }),
 ];

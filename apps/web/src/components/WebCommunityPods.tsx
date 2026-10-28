@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, DoorOpen, FileText, Image as ImageIcon, Info, Lock, Pin, Play, Plus, X } from "lucide-react";
+import { ArrowLeft, DoorOpen, Globe, FileText, Image as ImageIcon, Info, Lock, Pin, Play, Plus, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -322,7 +322,7 @@ export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) 
       <header className="community-pods-home-head">
         <div>
           <h1 id="community-pods-home-title">Pods</h1>
-          <p><Lock size={13} aria-hidden="true" /> Small rooms for a few members. A private pod is seen only by its people; an open one anyone can join.</p>
+          <p><Lock size={13} aria-hidden="true" /> Small rooms for a few members. A private pod is seen only by its people; anyone can join a public one.</p>
         </div>
         {pods.createPod ? <NewPodButton pods={pods} /> : null}
       </header>
@@ -340,7 +340,7 @@ export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) 
                   <span className="community-pods-home-card-name">
                     <span>{pod.name}</span>
                     {pod.pod_visibility === "open"
-                      ? <span className="community-pods-home-open">Open</span>
+                      ? <span className="community-pods-home-open">Public</span>
                       : <Lock size={13} aria-label="Private" />}
                   </span>
                   <span className="community-pods-home-card-meta">{podSummary(people[pod.id], agentName)}</span>
@@ -352,13 +352,13 @@ export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) 
       ) : (
         <p className="community-pods-home-empty">
           {openPods.length
-            ? "You're not in a pod yet. Join an open one below."
+            ? "You're not in a pod yet. Join a public one below."
             : "No pods yet. A pod is a private room for a few members, like a cohort or a mastermind."}
         </p>
       )}
       {openPods.length ? (
         <>
-          <h2 className="community-pods-home-section">Open to join</h2>
+          <h2 className="community-pods-home-section">Public pods you can join</h2>
           <ul className="community-pods-home-grid">
             {openPods.map((pod) => (
               <li key={pod.channel_id}>
@@ -555,10 +555,17 @@ export function WebCommunityPodRoomHead({ pods, podId, onShowDetails }: { pods: 
         <PodFaces people={people} agent size="large" />
         <div className="community-pod-room-title">
           <h1>{pod.name}</h1>
-          <p className="community-pod-room-privacy">
-            <Lock size={12} aria-hidden="true" />
-            {people ? <span>Only {audience} can see this pod</span> : <span>Private pod</span>}
-          </p>
+          {pod.pod_visibility === "open" ? (
+            <p className="community-pod-room-privacy">
+              <Globe size={12} aria-hidden="true" />
+              <span>Public pod · anyone in the community can join</span>
+            </p>
+          ) : (
+            <p className="community-pod-room-privacy">
+              <Lock size={12} aria-hidden="true" />
+              {people ? <span>Private pod · only {audience} can see it</span> : <span>Private pod</span>}
+            </p>
+          )}
         </div>
         {/* Narrow windows have no right column: the pod panel opens from here. */}
         {onShowDetails ? (
