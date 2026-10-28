@@ -12,6 +12,7 @@ import {
   listActiveTestMemberUserIds,
   listCanonicalCommunityMemberMembershipRows,
   pickMostRelevantCommunityMembership,
+  readCommunityActiveMemberCount,
   resolveCommunityMembershipEntitlementState,
   resolvePublicUserId,
 } from "./communityCore";
@@ -267,13 +268,22 @@ export async function resolveMemberCommunityPresenceSummary(
   }
 
   // Same people-facing count as the public stats: owner and test members excluded.
-  const { rows: activeMemberships } = await listCanonicalCommunityMemberMembershipRows({
-    ctx,
-    communityId: community._id,
-    community,
-  });
+  // The durable count keeps this hot path off a full membership scan; it includes the owner.
   const testUserIds = await listActiveTestMemberUserIds(ctx, community._id);
-  const memberCount = countPeopleFacingMembers(activeMemberships, testUserIds);
+  const durableMemberCount = readCommunityActiveMemberCount(community);
+  const memberCount =
+    durableMemberCount !== null
+      ? Math.max(0, durableMemberCount - 1 - testUserIds.size)
+      : countPeopleFacingMembers(
+          (
+            await listCanonicalCommunityMemberMembershipRows({
+              ctx,
+              communityId: community._id,
+              community,
+            })
+          ).rows,
+          testUserIds,
+        );
   return {
     memberCount,
     onlineCount: onlineUserEntries.length,
