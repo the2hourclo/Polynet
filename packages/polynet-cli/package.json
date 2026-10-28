@@ -1,6 +1,6 @@
 {
   "name": "@polynet/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Build a Polynet community from a folder: site, courses and lessons, theme",
   "type": "module",
   "bin": { "polynet": "bin/polynet.mjs" },

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// polynet create [dir] --community <slug>     a site folder set up for your AI agent
+// polynet create [dir] --community <slug>     a site folder set up for your AI agent (add --staging for Polynet's staging)
 // polynet check [dir]                          the checks a site passes before going live
 // polynet deploy [dir] [--community <slug>]   check, then put a site live at <slug>.polynet.page
 // polynet push [dir] [--dry-run] [--wait]     stage courses and lessons for the owner to apply
@@ -19,8 +19,8 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import {
-  CALLBACK_PORT, DEFAULT_API_URL, REDIRECT_URI, buildManifest, collectFiles, formatBytes, installGuide, installSkills, isDirectory, pkce,
-  readCheckedFiles, siteConfigPaths, uploadBuckets,
+  CALLBACK_PORT, REDIRECT_URI, apiUrlFor, buildManifest, collectFiles, formatBytes, installGuide, installSkills, isDirectory, pkce,
+  readCheckedFiles, siteAddress, siteConfigPaths, uploadBuckets,
 } from "../lib.mjs";
 import { checkSite, formatProblems } from "../checks.mjs";
 import { checkBrand, checkCourses, checkLayout, checkTheme, checkThemeAgainstBrand, describeOperation, lessonEmbeds, planContentPush, readCourses, resolveCourses, stageChangeset } from "../content.mjs";
@@ -29,7 +29,9 @@ import { createMcpClient, PolynetToolError } from "../mcp.mjs";
 import { readProject, siteFiles } from "../project.mjs";
 import { formatReview, latestReview, reviewCommunity } from "../review.mjs";
 
-const API_URL = (process.env.POLYNET_API_URL || DEFAULT_API_URL).replace(/\/+$/, "");
+const STAGING_FLAG = process.argv.includes("--staging");
+// Set again by deploy once it has read the folder's polynet.json.
+let API_URL = apiUrlFor({ env: process.env, staging: STAGING_FLAG });
 const AUTH_FILE = join(homedir(), ".polynet", "auth.json");
 const APP_URL = (process.env.POLYNET_APP_URL || "https://www.polynet.ai").replace(/\/+$/, "");
 
@@ -207,7 +209,7 @@ async function create(args) {
   const existing = await readdir(dir).catch(() => null);
   if (existing && existing.length) fail(dir + " isn't empty. Choose a new folder.");
   await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, "polynet.json"), JSON.stringify({ community }, null, 2) + "\n");
+  await writeFile(join(dir, "polynet.json"), JSON.stringify(STAGING_FLAG ? { community, staging: true } : { community }, null, 2) + "\n");
   await installGuide(dir);
   console.log([
     "✓ Set up " + dir + " for " + community + "'s site",
@@ -216,7 +218,7 @@ async function create(args) {
     "  \"Design our community's site.\"",
     "It reads AGENTS.md and Polynet's skills: it will ask about your community, show you",
     "three different directions live, then build the one you pick at",
-    "https://" + community + ".polynet.page",
+    siteAddress(community, STAGING_FLAG),
   ].join("\n"));
 }
 
@@ -314,6 +316,8 @@ async function deploy(args) {
   const flag = args.indexOf("--community");
   const community = (flag >= 0 ? args[flag + 1] : config.community)?.trim().toLowerCase();
   if (!community) fail("Which community is this site for? Run: polynet deploy --community <slug>");
+  const staging = STAGING_FLAG || config.staging === true;
+  API_URL = apiUrlFor({ env: process.env, staging });
 
   const files = await siteFiles(await readProject(dir, { community }));
   if (!files.some((file) => file.path === "/index.html")) fail(`${dir} has no index.html yet. Ask your AI agent to design the site first.`);
@@ -330,7 +334,9 @@ async function deploy(args) {
     community, completion_jwt: completion, files: site.files, bytes: site.bytes,
   });
   const saved = (await readJson(paths.save)) ?? {};
-  if (saved.community !== community) await writeFile(paths.save, JSON.stringify({ ...config, ...saved, community }, null, 2) + "\n");
+  if (saved.community !== community || (staging && saved.staging !== true)) {
+    await writeFile(paths.save, JSON.stringify({ ...config, ...saved, community, ...(staging ? { staging: true } : {}) }, null, 2) + "\n");
+  }
   console.log(`✓ Live: ${published.url}`);
 }
 
@@ -595,6 +601,8 @@ try {
       "  polynet login     Sign in with Polynet in the browser.",
       "  polynet logout    Forget the sign-in (kept in ~/.polynet/auth.json).",
       "",
+      "  --staging         Use Polynet's staging (sites at https://<slug>-staging.polynet.page).",
+      "                    A folder created or deployed with it remembers it in polynet.json.",
       "  --json prints one JSON result (for CI and agents). POLYNET_TOKEN sets the",
       "  access token instead of a browser sign-in.",
       "",
