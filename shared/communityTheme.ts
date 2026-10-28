@@ -689,11 +689,14 @@ export function communityThemeVariables(
     "--pn-siblings-display": theme.sibling_communities === "show" ? "flex" : "none",
     // With no name to carry, the dark fade only has to hold the icons.
     "--pn-banner-scrim": theme.banner_name === "hide" ? "0.45" : "1",
-    // <polynet-account> on community sites.
+    // The site tokens community sites read (<polynet-account> and the rails).
     "--polynet-accent": c.accent,
     "--polynet-on-accent": c.on_accent,
     "--polynet-surface": c.surface,
     "--polynet-text": c.text,
+    "--polynet-muted": grey.muted,
+    "--polynet-border": c.border,
+    "--polynet-font": font(theme.font_body),
     "--polynet-radius": `${Math.min(theme.radius, 16)}px`,
   };
 
