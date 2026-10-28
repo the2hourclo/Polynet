@@ -95,6 +95,27 @@ async function chipShown(page) {
   return page.evaluate(() => [...document.querySelectorAll("[class*=attachment], [class*=chip], img[src^='blob:']")].some((el) => /stress-test|blob:/.test(el.outerHTML)));
 }
 
+// Run history lists test runs (and their End buttons) only under its "Tests" filter.
+async function testsTab(page) {
+  const t = page.getByRole("tab", { name: /^\s*tests\s*$/i });
+  if (await t.count()) { await t.first().click().catch(() => {}); await settle(page, 1200); } else note("no Tests filter on Run history");
+}
+// Answers whatever the welcome screen asks (only the test member's own form answers; End deletes them).
+async function answerScreen(tab) {
+  await tab.evaluate(() => {
+    const setVal = (el, v) => { const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
+    for (const el of document.querySelectorAll(".community-welcome textarea, .community-welcome input[type=text], .community-welcome input:not([type]), .community-welcome input[type=url], .community-welcome input[type=email], .community-welcome input[type=number]")) {
+      if (el.offsetParent && !el.value) setVal(el, el.type === "url" ? "https://example.com" : el.type === "email" ? "stress.test@example.com" : el.type === "number" ? "3" : "Stress test answer");
+    }
+    const groups = new Set([...document.querySelectorAll(".community-welcome input[type=radio]")].map((r) => r.name));
+    for (const g of groups) { const rs = [...document.querySelectorAll(`.community-welcome input[type=radio][name="${g}"]`)]; if (!rs.some((r) => r.checked)) rs[0]?.click(); }
+    for (const sel of document.querySelectorAll(".community-welcome select")) if (!sel.value && sel.options.length > 1) { sel.value = sel.options[1].value; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+  }).catch(() => {});
+  // Option cards rendered as buttons (role=radio / aria-pressed) count as an answer too.
+  const card = tab.locator(".community-welcome [role=radio][aria-checked=false]").first();
+  if ((await tab.locator(".community-welcome [role=radio][aria-checked=true]").count()) === 0 && (await card.count())) await card.click().catch(() => {});
+}
+
 async function ownerTestRun(vpName, vp) {
   const context = await browser.newContext({ viewport: vp, isMobile: vp.width < 500, hasTouch: vp.width < 500 });
   const page = await context.newPage();
@@ -103,6 +124,7 @@ async function ownerTestRun(vpName, vp) {
   await page.waitForURL((u) => u.toString().startsWith(base), { timeout: 30000 });
   await guard(context, "owner");
   await page.goto(`${base}/c/${SLUG}/workflows?section=runs`); await settle(page);
+  await testsTab(page);
   const before = new Set(await page.$$eval(".test-run-member-name strong", (els) => els.map((e) => e.textContent.trim())).catch(() => []));
   note(`${vpName}: existing test runs (left alone): ${[...before].join(", ") || "none"}`);
   const startBtn = page.getByRole("button", { name: /try it yourself in a new tab|test as a new member/i });
@@ -111,7 +133,7 @@ async function ownerTestRun(vpName, vp) {
   watch(tab, "test");
   await tab.waitForURL(/test_run|\/c\//, { timeout: 30000 }).catch(() => {});
   await settle(tab, 3000);
-  await page.reload(); await settle(page);
+  await page.reload(); await settle(page); await testsTab(page);
   const after = await page.$$eval(".test-run-member-name strong", (els) => els.map((e) => e.textContent.trim())).catch(() => []);
   const label = after.find((l) => !before.has(l)) ?? null;
   note(`${vpName}: new test run = ${label ?? "NOT FOUND"}`);
@@ -125,13 +147,16 @@ async function ownerTestRun(vpName, vp) {
     if (!/welcome|get set up|getting started|set up/i.test(t)) welcomeProblems.push("no welcome page on first open");
     if (!/continue with polynet/i.test(t)) welcomeProblems.push("'Continue with Polynet' not visible on the first welcome screen (may be on a later card)");
     result(`${vpName}-welcome-shows`, [...welcomeProblems, ...takeErrs()]);
-    for (let step = 2; step <= 8; step++) {
-      const next = tab.getByRole("button", { name: /^(mark done and continue|mark done and open the community|next|continue|skip for now)$/i });
+    for (let step = 2; step <= 20; step++) {
+      await answerScreen(tab);
+      const next = tab.getByRole("button", { name: /^(mark done and continue|mark done and open the community|next|continue|finish|submit|done|skip for now)$/i });
       if (!(await next.count())) break;
       const label2 = (await next.first().innerText()).trim();
       await next.first().click({ timeout: 5000 }).catch((e) => errs.push(`click ${label2}: ${e.message.split("\n")[0]}`));
       await settle(tab);
       await shot(tab, `${vpName}-welcome-${step}`);
+      const err = (await text(tab)).match(/please answer this question|required/i);
+      if (err && step > 2) note(`${vpName}: welcome step ${step} still asks for an answer`);
       if (/continue with polynet/i.test(await text(tab))) note(`${vpName}: Continue with Polynet seen at welcome step ${step}`);
       if (/open the community/i.test(label2)) break;
     }
@@ -197,7 +222,7 @@ async function ownerTestRun(vpName, vp) {
     await tab.close().catch(() => {});
     if (!label) note("NOT ENDING anything: the new run's label was not found. Rashid/owner can End it by hand.");
     else {
-      await page.goto(`${base}/c/${SLUG}/workflows?section=runs`); await settle(page);
+      await page.goto(`${base}/c/${SLUG}/workflows?section=runs`); await settle(page); await testsTab(page);
       const endBtn = page.getByRole("button", { name: `End ${label}`, exact: true });
       if ((await endBtn.count()) !== 1) note(`NOT ENDING: expected exactly one "End ${label}" button, found ${await endBtn.count()}`);
       else {
