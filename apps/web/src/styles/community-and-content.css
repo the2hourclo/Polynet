@@ -14098,6 +14098,7 @@ body:has(.community-knowledge-page[data-reading]) .app-topbar .topbar-right-isla
    and the page header starts below the pill instead of behind it. */
 .app-root.mobile-shell .pn-wf-back { display: none; }
 .app-root.mobile-shell .pn-page-with-back { padding-top: var(--mobile-topbar-clearance); }
+.app-root.mobile-shell .workflow-page.pn-wf { padding-top: var(--mobile-topbar-clearance); }
 /* Community Settings on a phone gets the full width, like the other phone
    pages: no community rail beside it. */
 .app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) {
@@ -14122,4 +14123,9 @@ body:has(.community-knowledge-page[data-reading]) .app-topbar .topbar-right-isla
   letter-spacing: 0;
   text-transform: none;
   color: var(--text-primary);
+}
+/* Channels: the Events header's New event button stays clear of the
+   top-right buttons (they float over the page there). */
+.app-root:not(.mobile-shell) .community-events-panel > .feed-header-row {
+  padding-right: var(--web-topbar-right-action-safe-inset, 0px);
 }
