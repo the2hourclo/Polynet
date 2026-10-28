@@ -82,3 +82,8 @@
 @media (max-width: 640px) {
   .community-knowledge-header .community-knowledge-views { flex: 0 1 auto; max-width: 100%; }
 }
+/* Focus mode shares its row with the shell's floating icons on desktop
+   (Messages, Display, Settings…), so it keeps clear of them. */
+.app-root:not(.mobile-shell) .community-knowledge-page[data-reading] .community-knowledge-header {
+  padding-right: max(64px, var(--web-topbar-right-action-safe-inset, 0px));
+}
