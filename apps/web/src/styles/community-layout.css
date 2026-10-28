@@ -1008,9 +1008,12 @@
 }
 
 .community-card-block-banner img {
+  /* The banner keeps its own shape, so wide art isn't cut to 16:9 and loses
+     its edges (2026-10-28 review #20); a very tall one stops at 12rem. */
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: auto;
+  max-height: 12rem;
   object-fit: cover;
 }
 
