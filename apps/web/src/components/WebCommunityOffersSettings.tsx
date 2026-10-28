@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Lock, Plus } from "lucide-react";
-import { WebCommunityOfferChooser } from "./WebCommunityOfferChooser";
+import { offerButtonLabel, WebCommunityOfferChooser } from "./WebCommunityOfferChooser";
 import {
   fetchCloudCommunityOffers,
   formatCommunityOfferPrice,
@@ -368,7 +368,7 @@ function SalesPagePreview(props: { offers: CommunityBuilderOffer[]; communitySlu
             onSelect: setPicked, button: null, note: null }} />
           {cards.length ? (
             <button type="button" className="pn-offer-sales-preview-button" tabIndex={-1} aria-hidden="true">
-              {selected && !selected.is_base ? `Join with ${selected.name}` : "Join"}
+              {selected && !selected.is_base ? offerButtonLabel("Join", selected, null) : "Join free"}
             </button>
           ) : null}
         </div>

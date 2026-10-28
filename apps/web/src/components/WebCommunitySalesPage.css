@@ -432,7 +432,7 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 18px;
   border: 0;
   border-radius: 8px;
@@ -440,8 +440,9 @@
   color: var(--pn-on-button, var(--text-on-accent, #fff));
   font: inherit;
   font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: filter 120ms ease;
 }
