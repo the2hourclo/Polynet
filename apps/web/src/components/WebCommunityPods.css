@@ -947,3 +947,56 @@
 .community-pod-unpin {
   font-size: 0.8125rem;
 }
+
+/* Open pods: anyone in the community can find and join them. */
+.community-pods-home-section {
+  margin: 0.75rem 0 0;
+  font-family: var(--pn-font-heading, inherit);
+  font-size: 1.125rem;
+}
+
+.community-pods-home-card.is-open {
+  cursor: default;
+  border-style: dashed;
+}
+
+.community-pods-home-card.is-open:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.community-pods-home-open {
+  flex: none;
+  padding: 0.0625rem 0.4375rem;
+  border: 1px solid color-mix(in srgb, var(--accent-brand) 45%, transparent);
+  border-radius: 999px;
+  color: var(--accent-brand);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.community-pods-home-join {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-brand);
+  color: var(--text-on-accent);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.community-pods-home-join:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.community-pods-home-join:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-brand));
+  outline-offset: 2px;
+}

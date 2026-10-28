@@ -5,6 +5,9 @@ import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext
 import { communityChannelCapacityError } from "../../../../shared/communityChannelCapacity";
 
 type AccessMode = "all_members" | "restricted";
+// What the "Who can see it" choice shows: a channel ("all_members"), or a pod
+// that is private or open for every member to join.
+type Audience = "all_members" | "private" | "open";
 type Member = { user_id: string; role: string; active: boolean; profile: {
   display_name: string | null; avatar_url: string | null; avatar_focus_x: number; avatar_focus_y: number; avatar_zoom: number;
 } };
@@ -16,7 +19,8 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
   const [agent, setAgent] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [pendingMode, setPendingMode] = useState<AccessMode | null>(null);
+  const [podVisibility, setPodVisibility] = useState<"private" | "open">("private");
+  const [pendingMode, setPendingMode] = useState<Audience | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const generation = useRef(0);
@@ -27,10 +31,10 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
     const { client, authSubject } = await bootstrapConvexAuthenticatedClient(scope.session);
     const page = await client.query("communityChannelParticipants:listMemberAccess" as any, {
       authSubject, communityId: scope.communityId, channelId, paginationOpts: { cursor: nextCursor, numItems: 50 },
-    }) as { page: Member[]; access_mode: AccessMode; community_agent_enabled: boolean; continueCursor: string; isDone: boolean };
+    }) as { page: Member[]; access_mode: AccessMode; pod_visibility: "private" | "open" | null; community_agent_enabled: boolean; continueCursor: string; isDone: boolean };
     if (generation.current !== epoch) return;
     setMembers(current => nextCursor ? [...current, ...page.page] : page.page);
-    setAccess(page.access_mode); setAgent(page.community_agent_enabled); setCursor(page.continueCursor); setHasMore(!page.isDone);
+    setAccess(page.access_mode); setPodVisibility(page.pod_visibility === "open" ? "open" : "private"); setAgent(page.community_agent_enabled); setCursor(page.continueCursor); setHasMore(!page.isDone);
   };
 
   useEffect(() => {
@@ -41,7 +45,7 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
     return () => { ++generation.current; };
   }, [scope?.session, scope?.communityId, channelId, refresh]);
 
-  const mutate = async (method: "communityChannels:setChannelAccess" | "communityChannelParticipants:setParticipant", args: Record<string, unknown>) => {
+  const mutate = async (method: "communityChannels:setChannelAccess" | "communityChannelParticipants:setParticipant" | "communityPods:setPodVisibility", args: Record<string, unknown>) => {
     if (!scope?.session || busy) return;
     const epoch = generation.current;
     setBusy(true); setError(null);
@@ -59,22 +63,43 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
   if (!scope) return null;
   // An invite-only channel is a pod: its settings speak of the pod and who's in it.
   const pod = access === "restricted";
+  const audience: Audience | null = access === "all_members" ? "all_members" : access ? podVisibility : null;
+  const confirmText: Record<Audience, string> = {
+    all_members: "All community members will be able to read this channel’s history and files.",
+    open: "Every member will see this pod and can join it. Whoever joins can read its history and files.",
+    private: pod
+      ? "Only the people in this pod will see it. Members who joined stay in; nobody else can find it."
+      : "Only invited members and owners/admins will have future access. Previously shared messages, file links and copies cannot be recalled.",
+  };
+  const apply = (next: Audience) => {
+    if (next === "all_members") return mutate("communityChannels:setChannelAccess", {
+      accessMode: "all_members", expectedAccessMode: access, acknowledgeHistoryExposure: true });
+    if (access !== "restricted") return mutate("communityChannels:setChannelAccess", {
+      accessMode: "restricted", expectedAccessMode: access, acknowledgeHistoryExposure: true });
+    return mutate("communityPods:setPodVisibility", { visibility: next });
+  };
   return <section className="community-channel-access-settings" aria-label={pod ? "Who's in this pod" : "Channel access"} aria-busy={busy}>
     <label className="community-channel-modal-field"><span>{pod ? "Who can see it" : "Access"}</span>
-      <select value={pendingMode ?? access ?? "all_members"} disabled={busy || !access}
-        onChange={event => setPendingMode(event.target.value === access ? null : event.target.value as AccessMode)}>
-        <option value="all_members">{pod ? "Everyone in the community (makes it a channel)" : "All community members"}</option><option value="restricted">{pod ? "Only the people in this pod" : "Invite-only (a pod)"}</option>
+      <select value={pendingMode ?? audience ?? "all_members"} disabled={busy || !access}
+        onChange={event => setPendingMode(event.target.value === audience ? null : event.target.value as Audience)}>
+        {pod ? <>
+          <option value="private">Private: only the people in this pod</option>
+          <option value="open">Open: every member can find and join it</option>
+          <option value="all_members">Everyone in the community (makes it a channel)</option>
+        </> : <>
+          <option value="all_members">All community members</option>
+          <option value="private">Invite-only (a pod)</option>
+        </>}
       </select>
     </label>
-    <p>{pod
-      ? "Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately."
-      : "Community owners and admins always have access. The community agent follows the member’s access in their private conversations. Access changes save immediately."}</p>
+    <p>{!pod
+      ? "Community owners and admins always have access. The community agent follows the member’s access in their private conversations. Access changes save immediately."
+      : podVisibility === "open"
+        ? "Open: every member sees this pod on the Pods page and can join it. Only the people in it can read it. Changes save immediately."
+        : "Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately."}</p>
     {pendingMode ? <div className="community-channel-access-confirm" role="status">
-      <p>{pendingMode === "all_members" ? "All community members will be able to read this channel’s history and files."
-        : "Only invited members and owners/admins will have future access. Previously shared messages, file links and copies cannot be recalled."}</p>
-      <button type="button" disabled={busy} onClick={() => void mutate("communityChannels:setChannelAccess", {
-        accessMode: pendingMode, expectedAccessMode: access, acknowledgeHistoryExposure: true,
-      })}>Confirm access change</button>
+      <p>{confirmText[pendingMode]}</p>
+      <button type="button" disabled={busy} onClick={() => void apply(pendingMode)}>Confirm access change</button>
       <button type="button" disabled={busy} onClick={() => setPendingMode(null)}>Cancel</button>
     </div> : null}
     {access === "restricted" ? <>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, FileText, Image as ImageIcon, Info, Lock, Pin, Play, Plus, X } from "lucide-react";
+import { ArrowLeft, DoorOpen, FileText, Image as ImageIcon, Info, Lock, Pin, Play, Plus, X } from "lucide-react";
 import type { CommunityInteractionRootBundle } from "../../../../shared/cloudCommunityInteractionsGateway";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -9,6 +9,7 @@ import { communityPresenceLeaseIsActive } from "../../../../shared/communityPres
 import { CommunityAgentIcon, useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import { MemberAvatarStack, type MemberAvatarStackFace } from "./MemberAvatarStack";
 import { useWebCommunityFrame, type WebCommunityFrame } from "../controllers/useWebCommunityFrame";
+import { toastInPage } from "./confirmInPage";
 import "./WebCommunityPods.css";
 
 // Pods (Rashid, 2026-10-26): in Classroom, a member's invite-only channels are
@@ -19,7 +20,9 @@ import "./WebCommunityPods.css";
 // Opening one turns the chat into the pod's room, with the pod panel
 // (WebCommunityPodPanel) beside it. Channels lists them as their own group.
 
-export type CommunityPod = { id: string; slug: string; name: string; is_general: boolean; position: number; access_mode?: "all_members" | "restricted" };
+export type CommunityPod = { id: string; slug: string; name: string; is_general: boolean; position: number; access_mode?: "all_members" | "restricted";
+  // "open": every member can find and join it (Pod settings › Who can see it).
+  pod_visibility?: "private" | "open" | null };
 
 export type WebCommunityPodsFrame = {
   mode: "classroom" | "channels";
@@ -108,6 +111,58 @@ export function usePodSpaces(communityId: string | null, session: WebCommunityFr
     return () => { alive = false; };
   }, [communityId, session]);
   return spaces;
+}
+
+// Open pods the member isn't in yet (listOpenPods), per community.
+export type OpenPod = { channel_id: string; slug: string; name: string; people: PodPerson[]; people_count: number };
+const openPodsCache = new Map<string, OpenPod[]>();
+const openPodsListeners = new Set<() => void>();
+
+/** Open pods the member can join, re-read after a join or leave. */
+export function useOpenPods(): OpenPod[] {
+  const frame = useWebCommunityFrame();
+  const communityId = frame.community?.id ?? null;
+  const session = frame.session;
+  const [pods, setPods] = useState<OpenPod[]>(() => (communityId ? openPodsCache.get(communityId) ?? [] : []));
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setVersion((value) => value + 1);
+    openPodsListeners.add(bump);
+    return () => { openPodsListeners.delete(bump); };
+  }, []);
+  useEffect(() => {
+    setPods(communityId ? openPodsCache.get(communityId) ?? [] : []);
+    if (!communityId || !session) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+        const result = await client.query(api.communityPods.listOpenPods, { authSubject, communityId: communityId as Id<"communities"> });
+        openPodsCache.set(communityId, result.pods as OpenPod[]);
+        if (alive) setPods(result.pods as OpenPod[]);
+      } catch {
+        // No open pods to offer.
+      }
+    })();
+    return () => { alive = false; };
+  }, [communityId, session, version]);
+  return pods;
+}
+
+/** Join or leave an open pod as yourself. True when it worked. */
+export async function setOpenPodMembership(session: WebCommunityFrame["session"], communityId: string, channelId: string, join: boolean): Promise<boolean> {
+  if (!session) return false;
+  try {
+    const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
+    const args = { authSubject, communityId: communityId as Id<"communities">, channelId: channelId as Id<"communityChannels"> };
+    if (join) await client.mutation(api.communityPods.joinOpenPod, args);
+    else await client.mutation(api.communityPods.leaveOpenPod, args);
+    openPodsListeners.forEach((bump) => bump());
+    return true;
+  } catch {
+    toastInPage(join ? "Couldn't join the pod. Try again." : "Couldn't leave the pod. Try again.");
+    return false;
+  }
 }
 
 /** Who can see each pod, refreshed while the pods are on screen. */
@@ -252,6 +307,10 @@ export function WebCommunityPodsCard({ pods }: { pods: WebCommunityPodsFrame }) 
  *  card, with New pod for owners and admins. A card opens the pod's room. */
 export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) {
   const agentName = useCommunityAgentName("the agent");
+  const { session, community } = useWebCommunityFrame();
+  const communityId = community?.id ?? null;
+  const openPods = useOpenPods();
+  const [joining, setJoining] = useState<string | null>(null);
   const ordered = pods.pods.map((pod, index) => ({ pod, index }))
     .sort((a, b) => Number(Boolean(pods.unread[b.pod.slug])) - Number(Boolean(pods.unread[a.pod.slug])) || a.index - b.index)
     .map(({ pod }) => pod);
@@ -261,7 +320,7 @@ export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) 
       <header className="community-pods-home-head">
         <div>
           <h1 id="community-pods-home-title">Pods</h1>
-          <p><Lock size={13} aria-hidden="true" /> Private rooms for a few members. Only the people in a pod can see it.</p>
+          <p><Lock size={13} aria-hidden="true" /> Small rooms for a few members. A private pod is seen only by its people; an open one anyone can join.</p>
         </div>
         {pods.createPod ? <NewPodButton pods={pods} /> : null}
       </header>
@@ -278,7 +337,9 @@ export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) 
                   </span>
                   <span className="community-pods-home-card-name">
                     <span>{pod.name}</span>
-                    <Lock size={13} aria-label="Private" />
+                    {pod.pod_visibility === "open"
+                      ? <span className="community-pods-home-open">Open</span>
+                      : <Lock size={13} aria-label="Private" />}
                   </span>
                   <span className="community-pods-home-card-meta">{podSummary(people[pod.id], agentName)}</span>
                 </button>
@@ -288,9 +349,43 @@ export function WebCommunityPodsHome({ pods }: { pods: WebCommunityPodsFrame }) 
         </ul>
       ) : (
         <p className="community-pods-home-empty">
-          No pods yet. A pod is a private room for a few members, like a cohort or a mastermind.
+          {openPods.length
+            ? "You're not in a pod yet. Join an open one below."
+            : "No pods yet. A pod is a private room for a few members, like a cohort or a mastermind."}
         </p>
       )}
+      {openPods.length ? (
+        <>
+          <h2 className="community-pods-home-section">Open to join</h2>
+          <ul className="community-pods-home-grid">
+            {openPods.map((pod) => (
+              <li key={pod.channel_id}>
+                <div className="community-pods-home-card is-open">
+                  <span className="community-pods-home-card-top">
+                    <PodFaces people={{ channel_id: pod.channel_id, people: pod.people, people_count: pod.people_count, agent: false }} size="large" />
+                    <button
+                      type="button"
+                      className="community-pods-home-join"
+                      disabled={joining === pod.channel_id}
+                      onClick={() => {
+                        setJoining(pod.channel_id);
+                        void setOpenPodMembership(session, communityId ?? "", pod.channel_id, true).then((ok) => {
+                          setJoining(null);
+                          if (ok) toastInPage(`You joined ${pod.name}`);
+                        });
+                      }}
+                    >
+                      <DoorOpen size={14} aria-hidden="true" /> {joining === pod.channel_id ? "Joining…" : "Join"}
+                    </button>
+                  </span>
+                  <span className="community-pods-home-card-name"><span>{pod.name}</span></span>
+                  <span className="community-pods-home-card-meta">{pod.people_count} {pod.people_count === 1 ? "person" : "people"}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </section>
   );
 }

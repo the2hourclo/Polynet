@@ -1,8 +1,9 @@
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, normalizeIdValue, requireCommunityManager,
   resolvePublicUserId, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 import { resolveAuthorizedCommunityChannel } from "./communityChannelCore";
+import { setChannelParticipantCore } from "./communityChannelParticipants";
 import { getCommunityChannelCapabilities, resolveCommunityChannelActor } from "./communityChannelAccess";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
 
@@ -133,7 +134,7 @@ export const listBuilderPods = query({
         // role "member" was invited; the owner and admins see every pod anyway.
         people.push({ user_id: String(entry.id), name: profile.display_name, role: entry.role });
       }
-      pods.push({ channel_id: String(channel._id), slug: channel.slug, name: channel.name, people, agent_in_pod: agent,
+      pods.push({ channel_id: String(channel._id), slug: channel.slug, name: channel.name, people, agent_in_pod: agent, visibility: channel.podVisibility ?? "private",
         pinned_root_id: channel.pinnedRootId ? String(channel.pinnedRootId) : null });
     }
     return {
@@ -141,6 +142,7 @@ export const listBuilderPods = query({
       guidance: "Pods are the invite-only channels, shown in Classroom with the faces of everyone who can see them. "
         + "Start one with community.channel.create (access_mode \"restricted\"); add or remove a member with "
         + "community.channel.participant.set (target { kind: \"member\", userId }) and the agent with target { kind: \"community_agent\" }. "
+        + "A pod is private (only its people see it) unless community.pod.visibility.set makes it \"open\": then every member sees it and can join it. "
         + "Under its chat a pod shows its shelf: the pinned post (community.channel.pin) and every file and video posted in it, read from the pod's messages. "
         + "The owner and admins can see every pod. Where Classroom shows pods is the theme token pods_place "
         + "(\"aside\": top of the right column, \"header\": a faces button in the header, \"tab\": a Pods tab after Community): change it in /builder/theme.json with community.theme.save_draft, then community.theme.publish.",
@@ -248,5 +250,87 @@ export const listPodSpaces = query({
       else if (actor.isManager) others.push(String(row.serviceChannelId));
     }
     return { mine, member_spaces: others };
+  },
+});
+
+// Open pods (Rashid, 2026-10-28: "you can also have public pods"). A pod is
+// private unless its owner opens it. An open pod is listed for every member
+// (name and faces, never its messages or files) and a member can join it
+// themselves; joining is an ordinary grant, so reading it follows the same
+// rules as an invited member. Private pods stay invisible to non-members.
+
+const MAX_OPEN_PODS = 50;
+
+async function openPodForMember(ctx: any, args: { communityId: any; channelId: any; userId: any }) {
+  const actor = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId: args.userId });
+  const channel = await ctx.db.get(args.channelId);
+  if (!channel || normalizeIdValue(channel.communityId) !== normalizeIdValue(args.communityId) || channel.status !== "active"
+    || channel.accessMode !== "restricted" || channel.podVisibility !== "open") throw new Error("community_pod_not_open");
+  return { actor, channel };
+}
+
+export const setPodVisibility = mutation({
+  args: { communityId: v.id("communities"), channelId: v.id("communityChannels"),
+    visibility: v.union(v.literal("private"), v.literal("open")),
+    userId: v.optional(v.id("users")), authSubject: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    await requireCommunityManager({ ctx, communityId: args.communityId, userId });
+    const actor = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId });
+    const channel = await resolveAuthorizedCommunityChannel({ ctx, communityId: args.communityId, channelId: args.channelId, actor, capability: "canManage" });
+    if (channel.accessMode !== "restricted") throw new Error("community_pod_required");
+    const current = (channel as { podVisibility?: string }).podVisibility ?? "private";
+    if (current === args.visibility) return { changed: false, visibility: current };
+    await ctx.db.patch(args.channelId, { podVisibility: args.visibility, updatedAt: Date.now() });
+    return { changed: true, visibility: args.visibility };
+  },
+});
+
+/** Open pods the caller isn't in yet, for the Pods page's "Open to join". */
+export const listOpenPods = query({
+  args: { communityId: v.id("communities"), userId: v.optional(v.id("users")), authSubject: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    const actor = await resolveCommunityChannelActor({ ctx, communityId: args.communityId, userId });
+    const community = (await ctx.db.get(args.communityId))!;
+    const channels = await ctx.db.query("communityChannels")
+      .withIndex("by_community_access_status_position", (q) => q.eq("communityId", args.communityId).eq("accessMode", "restricted").eq("status", "active"))
+      .take(MAX_BUILDER_PODS);
+    const loadAdmins = adminsReader(ctx, args.communityId, community.ownerId);
+    const pods = [];
+    for (const channel of channels) {
+      if (channel.podVisibility !== "open") continue;
+      if ((await getCommunityChannelCapabilities({ ctx, channel, actor })).canRead) continue;
+      const { everyone } = await podAudience(ctx, { community, channel, userId, loadAdmins });
+      const people = [];
+      for (const entry of everyone.slice(0, 4)) people.push(await podPerson(ctx, args.communityId, entry.id, entry.role));
+      pods.push({ channel_id: String(channel._id), slug: channel.slug, name: channel.name, people, people_count: everyone.length });
+      if (pods.length >= MAX_OPEN_PODS) break;
+    }
+    return { pods };
+  },
+});
+
+/** A member joins an open pod themselves. */
+export const joinOpenPod = mutation({
+  args: { communityId: v.id("communities"), channelId: v.id("communityChannels"),
+    userId: v.optional(v.id("users")), authSubject: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    await openPodForMember(ctx, { ...args, userId });
+    return setChannelParticipantCore(ctx, { communityId: args.communityId, channelId: args.channelId,
+      target: { kind: "member", userId }, active: true, createdByUserId: userId });
+  },
+});
+
+/** A member leaves an open pod they joined. Private pods are left through the owner. */
+export const leaveOpenPod = mutation({
+  args: { communityId: v.id("communities"), channelId: v.id("communityChannels"),
+    userId: v.optional(v.id("users")), authSubject: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
+    await openPodForMember(ctx, { ...args, userId });
+    return setChannelParticipantCore(ctx, { communityId: args.communityId, channelId: args.channelId,
+      target: { kind: "member", userId }, active: false, createdByUserId: userId });
   },
 });

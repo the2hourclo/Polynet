@@ -64,7 +64,7 @@ test("the owner's agent reads every pod with the user ids participant.set takes;
   await owner.mutation(set, { communityId: f.communityId, channelId: f.podId, target: { kind: "member", userId: f.memberId }, active: true });
   const result: any = await owner.query("communityPods:listBuilderPods" as any, { communityId: f.communityId });
   expect(result.contract).toBe("polynet.builder_pods.v1");
-  expect(result.pods).toEqual([{ channel_id: String(f.podId), slug: "agency-owners", name: "Agency owners", agent_in_pod: false, pinned_root_id: null, people: [
+  expect(result.pods).toEqual([{ channel_id: String(f.podId), slug: "agency-owners", name: "Agency owners", agent_in_pod: false, visibility: "private", pinned_root_id: null, people: [
     { user_id: String(f.memberId), name: "member", role: "member" },
     { user_id: String(f.adminId), name: "admin", role: "admin" },
     { user_id: String(f.ownerId), name: "owner", role: "owner" },
@@ -139,4 +139,33 @@ test("a pod's call is seen only by the pod, and only the pod's ids can be used",
   expect(await titles(member, { channelId: f.podId })).toEqual(["Cohort call"]);
   await expect(owner.mutation("communityEvents:saveCommunityEvent" as any, { communityId: f.communityId,
     payload: { title: "Bad", starts_at: startsAt, timezone: "UTC", channel_id: String(f.topicId) } })).rejects.toThrow("community_event_channel_invalid");
+});
+
+test("an open pod is listed for every member to join; a private one never is", async () => {
+  const { t, f, owner, member, outsider } = await fixture();
+  const open = (who: typeof owner) => who.query("communityPods:listOpenPods" as any, { communityId: f.communityId });
+  const join = (who: typeof owner) => who.mutation("communityPods:joinOpenPod" as any, { communityId: f.communityId, channelId: f.podId });
+  // Private (the default): not listed, and joining is refused.
+  expect((await open(outsider)).pods).toEqual([]);
+  await expect(join(outsider)).rejects.toThrow(/community_pod_not_open/);
+  // Only the owner and admins can open it.
+  await expect(member.mutation("communityPods:setPodVisibility" as any, { communityId: f.communityId, channelId: f.podId, visibility: "open" })).rejects.toThrow();
+  await owner.mutation("communityPods:setPodVisibility" as any, { communityId: f.communityId, channelId: f.podId, visibility: "open" });
+  await expect(owner.mutation("communityPods:setPodVisibility" as any, { communityId: f.communityId, channelId: f.topicId, visibility: "open" })).rejects.toThrow();
+  const listed = (await open(outsider)).pods;
+  expect(listed.map((pod: any) => pod.name)).toEqual(["Agency owners"]);
+  expect(Object.keys(listed[0]).sort()).toEqual(["channel_id", "name", "people", "people_count", "slug"]);
+  // The owner already reads it, so it isn't offered to them.
+  expect((await open(owner)).pods).toEqual([]);
+  await join(outsider);
+  expect((await open(outsider)).pods).toEqual([]);
+  expect(((await outsider.query("communityChannels:listCommunityChannels" as any, { communityId: f.communityId })).channels as any[])
+    .map((channel) => channel.slug)).toContain("agency-owners");
+  await outsider.mutation("communityPods:leaveOpenPod" as any, { communityId: f.communityId, channelId: f.podId });
+  expect((await open(outsider)).pods.length).toBe(1);
+  // Made private again: it disappears for anyone not in it.
+  await owner.mutation("communityPods:setPodVisibility" as any, { communityId: f.communityId, channelId: f.podId, visibility: "private" });
+  expect((await open(outsider)).pods).toEqual([]);
+  await expect(join(outsider)).rejects.toThrow(/community_pod_not_open/);
+  void t;
 });

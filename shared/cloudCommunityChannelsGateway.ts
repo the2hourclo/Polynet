@@ -17,6 +17,8 @@ export type CloudCommunityChannel = {
   name: string;
   position: number;
   access_mode?: "all_members" | "restricted";
+  // Pods only: "open" lets every member find and join it.
+  pod_visibility?: "private" | "open" | null;
   capabilities?: { canRead: boolean; canPost: boolean; canReply: boolean; canManage: boolean };
 };
 

@@ -157,6 +157,12 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     if (communityTabNow !== "chat") setPodsHome(false);
   }, [communityTabNow]);
   useEffect(() => setPodsHome(false), [activeCommunityId]);
+  // In Channels, picking any channel in the list leaves the Pods page.
+  const selectedChannelNow = props.communityShell.selectedCommunityChannelSlug;
+  const isTopNavNow = communityLayout.navigation.position === "top";
+  useEffect(() => {
+    if (!isTopNavNow) setPodsHome(false);
+  }, [selectedChannelNow, isTopNavNow]);
   // Personal pods: one member's own pod, set up for them by a workflow.
   const podSpaces = usePodSpaces(activeCommunityId, props.memberSession ?? null);
   const personalPodIds = useMemo(
@@ -333,7 +339,8 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   // Both layouts show pods: Classroom as a card and a room, Channels as their
   // own group in the channel list. Opening one shows the same pod panel.
   const podsPlace = PODS_PLACE_OVERRIDE ?? communityTheme.theme?.pods_place ?? "tab";
-  const showPodsHome = Boolean(isTopCommunityNav && podsPlace === "tab" && podsHome && props.communityShell.communityTab === "chat");
+  // Classroom with the Pods tab, or Channels' "open pods to join" row.
+  const showPodsHome = Boolean((isTopCommunityNav ? podsPlace === "tab" : true) && podsHome && props.communityShell.communityTab === "chat");
   const selectedPodSlug = props.communityShell.communityTab === "chat" && !showPodsHome ? props.communityShell.selectedCommunityChannelSlug || null : null;
   const podOpenInAside = Boolean(isTopCommunityNav && selectedPodSlug && podChannels.some((channel) => channel.slug === selectedPodSlug));
   communityFrame.pods = props.communityShell.activeCommunity ? {

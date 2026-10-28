@@ -230,6 +230,12 @@ export const BUILDER_SETTING_OPERATIONS: BuilderSettingOperation[] = [
     fields: { channel_id: "the channel", target: '{ "kind": "member", "userId": "<id>" } or { "kind": "community_agent" }', active: "true adds, false removes" },
     required: ["channel_id", "target", "active"], effects: ["set_channel_participant"],
   }),
+  op({
+    operation: "community.pod.visibility.set", area: "channels", name: "Make a pod private or open to join",
+    calls: "communityPods:setPodVisibility", ref: api.communityPods.setPodVisibility, kind: "mutation",
+    fields: { channel_id: "the pod (a restricted channel)", visibility: '"private" (only its people see it) or "open" (every member sees it and can join)' },
+    required: ["channel_id", "visibility"], effects: ["set_pod_visibility"],
+  }),
 ];
 
 // Saved themes and colour palettes (Settings → Appearance → Customize). Each
@@ -661,6 +667,8 @@ export const SETTINGS_UI_WRITES_WITHOUT_AGENT_PATH: Record<string, string> = {
   // A person acting as themselves.
   "communityTestMemberAutoplay:reportAutoplayScreenStep": "member's own: a test member's open tab reporting the step it did on screen",
   "communityPublic:joinPublicCommunity": "member's own: a visitor joining",
+  "communityPods:joinOpenPod": "member's own: a member joining an open pod themselves",
+  "communityPods:leaveOpenPod": "member's own: a member leaving an open pod they joined",
   "communityPublic:joinPublicCommunityBySlug": "member's own: a visitor joining",
   "communityPublic:cancelMyJoinRequestBySlug": "member's own: a visitor taking back their request",
   "communityAdmin:leaveCommunity": "member's own: a member leaving (owners remove with community.member.remove)",
