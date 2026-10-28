@@ -60,6 +60,7 @@ import {
   normalizeOptionalUrl,
   welcomeLessonIsLive,
   type CommunityMembershipLike,
+  listActiveTestMemberUserIds,
 } from "./communityCore";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
 import { recordWorkflowStageChange } from "./communityWorkflowChangeLog";
@@ -934,6 +935,7 @@ export const getBuilderWorkflowBoardPage = query({
       }),
     );
     const activeMemberCount = readCommunityActiveMemberCount(community);
+    const testCount = (await listActiveTestMemberUserIds(ctx, args.communityId)).size;
     return {
       workflow: {
         id: String(workflow._id),
@@ -954,8 +956,10 @@ export const getBuilderWorkflowBoardPage = query({
       page: members,
       continueCursor: rawPage.isDone ? null : rawPage.continueCursor,
       isDone: rawPage.isDone,
+      // Members as people see them (no owner, no test members); tests apart.
       totalCount:
-        activeMemberCount === null ? null : Math.max(0, activeMemberCount - 1),
+        activeMemberCount === null ? null : Math.max(0, activeMemberCount - 1 - testCount),
+      testCount,
     };
   },
 });

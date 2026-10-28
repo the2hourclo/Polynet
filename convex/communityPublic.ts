@@ -13,7 +13,8 @@ import {
   communityUserIsBlocked,
   communityResourceIsLiveModulePage,
   communityResourceModuleIsLive,
-  countCanonicalCommunityMembersFromRows,
+  countPeopleFacingMembers,
+  listActiveTestMemberUserIds,
   getUniqueCommunityMembershipByPair,
   listCanonicalCommunityMemberMembershipRows,
   mapActivePlanSummaries,
@@ -216,7 +217,9 @@ async function resolvePublicCommunityStats(ctx: any, community: CommunityLike): 
       adminUserIds.add(String(membership.userId));
     }
   }
-  const memberCount = countCanonicalCommunityMembersFromRows(activeMemberships);
+  const testUserIds = await listActiveTestMemberUserIds(ctx, community._id);
+  const realMemberships = activeMemberships.filter((membership) => !testUserIds.has(String(membership.userId)));
+  const memberCount = countPeopleFacingMembers(activeMemberships, testUserIds);
   const presenceWindow = await resolveAuthorizedCommunityPresenceWindow(
     ctx,
     community,
@@ -241,7 +244,7 @@ async function resolvePublicCommunityStats(ctx: any, community: CommunityLike): 
   ).filter(Boolean) as CommunityPublicFace[];
 
   const joinedSinceMs = Date.now() - PUBLIC_JOINED_RECENTLY_WINDOW_MS;
-  const joinedLast30dCount = activeMemberships.reduce(
+  const joinedLast30dCount = realMemberships.reduce(
     (count, membership) => count + (membership.createdAt >= joinedSinceMs ? 1 : 0),
     0,
   );
@@ -250,7 +253,7 @@ async function resolvePublicCommunityStats(ctx: any, community: CommunityLike): 
      Same public exposure as online_faces (display name + avatar only). */
   const previewUserIds: any[] = [community.ownerId];
   const seenPreviewIds = new Set<string>([String(community.ownerId)]);
-  for (const membership of [...activeMemberships].sort((a, b) => b.createdAt - a.createdAt)) {
+  for (const membership of [...realMemberships].sort((a, b) => b.createdAt - a.createdAt)) {
     if (previewUserIds.length >= PUBLIC_MEMBER_FACES_PREVIEW_LIMIT) break;
     const normalizedUserId = String(membership.userId);
     if (seenPreviewIds.has(normalizedUserId)) continue;

@@ -1,6 +1,6 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { communityMembershipRowIsActive, getUniqueCommunityMembershipByPair, normalizeIdValue, requireCommunityManager,
+import { communityMembershipRowIsActive, listActiveTestMemberUserIds, getUniqueCommunityMembershipByPair, normalizeIdValue, requireCommunityManager,
   resolvePublicUserId, resolveUserIdForAuthenticatedRequest } from "./communityCore";
 import { resolveAuthorizedCommunityChannel } from "./communityChannelCore";
 import { getCommunityChannelCapabilities, resolveCommunityChannelActor } from "./communityChannelAccess";
@@ -52,7 +52,8 @@ export const listPodPeople = query({
       if (channel.accessMode !== "restricted") continue;
       const { everyone, agent } = await podAudience(ctx, { community, channel, userId, loadAdmins });
       const people = [];
-      for (const entry of everyone.slice(0, MAX_FACES)) people.push(await podPerson(ctx, args.communityId, entry.id, entry.role));
+      // is_you lets the card say who else is here, not the viewer themselves.
+      for (const entry of everyone.slice(0, MAX_FACES)) people.push({ ...(await podPerson(ctx, args.communityId, entry.id, entry.role)), is_you: String(entry.id) === String(userId) });
       pods.push({ channel_id: String(channel._id), people, people_count: everyone.length, agent });
     }
     return { pods };
@@ -238,11 +239,15 @@ export const listPodSpaces = query({
       .withIndex("by_community", (q: any) => q.eq("communityId", args.communityId)).take(MAX_MEMBERSHIPS_READ);
     let mine: string | null = null;
     const others: string[] = [];
+    // Test members' own pods stay out of the owner's lists (they open from the test run).
+    const testUserIds = await listActiveTestMemberUserIds(ctx, args.communityId, { includeEnded: true });
+    const tests: string[] = [];
     for (const row of rows) {
       if (!row.serviceChannelId) continue;
       if (row.userId === userId) { if (communityMembershipRowIsActive(row)) mine = String(row.serviceChannelId); }
       else others.push(String(row.serviceChannelId));
+      if (row.userId !== userId && testUserIds.has(String(row.userId))) tests.push(String(row.serviceChannelId));
     }
-    return { mine, member_spaces: others };
+    return { mine, member_spaces: others, test_spaces: tests };
   },
 });

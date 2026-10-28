@@ -163,6 +163,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
     () => [...(podSpaces?.mine ? [podSpaces.mine] : []), ...(podSpaces?.member_spaces ?? [])],
     [podSpaces],
   );
+  const testPodIds = podSpaces?.test_spaces;
   const postSearch = postSearchState.communityId === activeCommunityId ? postSearchState.query : "";
   const setPostSearch = useCallback(
     (query: string) => setPostSearchState({ communityId: activeCommunityId, query }),
@@ -267,6 +268,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
         communityShell={props.communityShell}
         presentation="desktop"
         personalPodIds={personalPodIds}
+        hiddenPodIds={testPodIds}
       />
     )
   ) : null;
@@ -327,8 +329,11 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
   // personal pods (only owners and admins see those), so they don't bury the rest.
   const otherPersonalPods = new Set(podSpaces?.member_spaces ?? []);
   const podRank = (id: string) => (id === podSpaces?.mine ? 0 : otherPersonalPods.has(id) ? 2 : 1);
+  // Test members' personal pods stay hidden unless one is open.
+  const hiddenTestPods = new Set(podSpaces?.test_spaces ?? []);
   const podChannels = props.communityShell.communityChannels
     .filter((channel) => channel.access_mode === "restricted")
+    .filter((channel) => !hiddenTestPods.has(channel.id) || channel.slug === props.communityShell.selectedCommunityChannelSlug)
     .sort((a, b) => podRank(a.id) - podRank(b.id) || a.position - b.position);
   // Both layouts show pods: Classroom as a card and a room, Channels as their
   // own group in the channel list. Opening one shows the same pod panel.
@@ -383,6 +388,7 @@ export function WebShellChromeHost(props: WebShellChromeHostProps) {
       communityShell={props.communityShell}
       presentation="mobile-home"
       personalPodIds={personalPodIds}
+      hiddenPodIds={testPodIds}
     />
   ) : isMobileDedicatedRoot ? null : pageSurface);
   const mobileGlobalShellLabel = isMobileCommunityHome
