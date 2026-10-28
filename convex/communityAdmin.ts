@@ -20,7 +20,6 @@ import {
   mapCommunityMemberSettingsRow,
   normalizeCommunityRoleForOutput,
   normalizeRoleAssignment,
-  communityMembershipIsCoCreator,
   parseIsoMs,
   pickMostRelevantCommunityMembership,
   requireCommunityChatAccess,
@@ -53,7 +52,6 @@ import {
   PLATFORM_HOME_MEMBER_LEFT_REVOKED_REASON,
 } from "./platformHomeCommunity";
 import { cancelStripeSubscriptionIfActive } from "./stripeSubscriptionCancellation";
-import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
 import { syncCommunityAccessForUser } from "./communityAccessSync";
 import {
   activateCommunityMembershipCore,

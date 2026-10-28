@@ -34,7 +34,6 @@ const ALLOWED = new Map<string, string>([
   ["communityChannelBackfill:backfillGeneralChannelBatch", "hand-run: General channel migration (residue map R-009)"],
   ["communityChannels:inspectChannelNamesInternal", "hand-run: channel name backfill"],
   ["communityChannels:backfillChannelNamesInternal", "hand-run: channel name backfill"],
-  ["communityChannels:listCommunityChannels", "channel access tests read through it; replace in the channel slice"],
   ["communityChannels:reorderCommunityChannels", "channel ordering tests use it; replace in the channel slice"],
   ["communityCompilerEvidence:measureCommunityCompilerEvidenceInternal", "operator diagnostic, run by hand"],
   ["communityFounderBrief:setFounderBriefSettingsInternal", "operator tool: brief settings for the staging lab"],

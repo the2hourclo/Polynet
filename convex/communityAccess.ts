@@ -925,9 +925,6 @@ async function signedInArgs(ctx: any, args: { authSubject?: string } & Record<st
 }
 
 export const grantCommunityAccessInternal = internalMutation({ args: grantArgs, handler: grantAccess });
-export const endCommunityAccessInternal = internalMutation({ args: endAccessArgs, handler: endAccess });
-export const readClientAccessInternal = internalQuery({ args: clientAccessArgs, handler: readClientAccess });
-
 export const grantCommunityAccess = mutation({
   args: signedIn(grantArgs), handler: async (ctx, args) => grantAccess(ctx, { ...(await signedInArgs(ctx, args)), via: "web" }),
 });

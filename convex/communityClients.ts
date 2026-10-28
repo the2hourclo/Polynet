@@ -753,7 +753,6 @@ async function readBulkAction(ctx: any, args: any) {
   };
 }
 
-export const listClientPropertiesInternal = internalQuery({ args: managerArgs, handler: listProperties });
 // An agent's change can carry its reserved MCP receipt, completed in the same
 // transaction: the change and its retry answer commit together or not at all,
 // so a retry can never write twice.
@@ -766,7 +765,6 @@ function withReceipt<A extends Record<string, unknown>>(handler: (ctx: any, args
 }
 export const createClientPropertyInternal = internalMutation({ args: { ...createPropertyArgs, ...receiptArgs }, handler: withReceipt(createProperty) });
 export const updateClientPropertyInternal = internalMutation({ args: { ...updatePropertyArgs, ...receiptArgs }, handler: withReceipt(updateProperty) });
-export const archiveClientPropertyInternal = internalMutation({ args: { ...archivePropertyArgs, ...receiptArgs }, handler: withReceipt(archiveProperty) });
 export const setClientPropertyValueInternal = internalMutation({ args: { ...setValueArgs, ...receiptArgs }, handler: withReceipt(setValue) });
 export const recordClientEventInternal = internalMutation({ args: { ...recordEventArgs, ...receiptArgs }, handler: withReceipt(recordEvent) });
 export const readClientTimelineInternal = internalQuery({ args: readTimelineArgs, handler: readTimeline });
@@ -774,8 +772,6 @@ export const setClientSettingsInternal = internalMutation({ args: { ...setSettin
 export const listClientsInternal = internalQuery({ args: listClientsArgs, handler: listClients });
 export const listClientViewsInternal = internalQuery({ args: managerArgs, handler: listViews });
 export const saveClientViewInternal = internalMutation({ args: { ...saveViewArgs, ...receiptArgs }, handler: withReceipt(saveView) });
-export const readClientBulkActionInternal = internalQuery({ args: readBulkArgs, handler: readBulkAction });
-
 
 // The same reads and writes for the signed-in owner or admin in the web app.
 function signedIn<A extends { userId: unknown }>(validators: A) {

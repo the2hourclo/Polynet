@@ -13,7 +13,6 @@ import {
   type CommunityResourceModuleLike,
 } from "./communityCore";
 import { hydrateCommunityResourceBody } from "./communityResourceContent";
-import { resolveCommunityResourceEvidenceSource } from "./communityResourceEvidenceCore";
 import { truncateText } from "./communityText";
 import {
   communityEvidenceSurfaceValidator,
@@ -218,44 +217,6 @@ export const searchRecentCommunityResourceEvidenceInternal = internalQuery({
       matches,
       truncated: rankedMatches.length > limit,
     };
-  },
-});
-
-export const readCommunityResourceEvidenceItemsInternal = internalQuery({
-  args: {
-    userId: v.id("users"),
-    communityId: v.id("communities"),
-    refs: v.array(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await requireCommunityChatAccess({ ctx, communityId: args.communityId, userId: args.userId });
-    const community = (await ctx.db.get(args.communityId)) as CommunityRow | null;
-    if (!community) throw new Error("community_not_found");
-    const items = [];
-    const paid = await readCommunityPaidLockedLessonIds(ctx, args.communityId, args.userId);
-    for (const ref of args.refs.slice(0, 40)) {
-      const resourceId = parseCommunityResourceEvidenceRef(ref);
-      if (!resourceId || paid.has(normalizeIdValue(resourceId))) continue;
-      const resolved = await resolveCommunityResourceEvidenceSource({
-        ctx,
-        communityId: args.communityId,
-        resourceId,
-      });
-      if (!resolved) continue;
-      const resource =
-        (await hydrateCommunityResourceBody(ctx, resolved.resource)) ?? resolved.resource;
-      items.push(
-        await mapResourceEvidenceItem({
-          ctx,
-          community,
-          resource,
-          module: resolved.module,
-          score: null,
-          source: "archive",
-        }),
-      );
-    }
-    return items;
   },
 });
 

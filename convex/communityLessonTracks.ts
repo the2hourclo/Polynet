@@ -1,4 +1,4 @@
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import {
   communityMembershipRowIsActive,
@@ -247,44 +247,6 @@ async function saveTrack(ctx: any, userId: any, args: any) {
 export const saveCommunityLessonTrack = mutation({
   args: saveTrackArgs,
   handler: async (ctx, args) => saveTrack(ctx, await requireManager(ctx, args), args),
-});
-
-/** The same save for setup scripts run with the deployment's admin key (npx convex run). */
-export const saveCommunityLessonTrackInternal = internalMutation({
-  args: saveTrackArgs,
-  handler: async (ctx, args) => {
-    if (!args.userId) throw new ConvexError({ code: "track_user_required" });
-    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
-    return await saveTrack(ctx, args.userId, args);
-  },
-});
-
-/** Courses and their lessons in order, with ids, for setup scripts that build tracks. */
-export const listCommunityLessonLibraryInternal = internalQuery({
-  args: { slug: v.string() },
-  handler: async (ctx, args) => {
-    const community: any = await ctx.db.query("communities").withIndex("by_slug", (q: any) => q.eq("slug", args.slug)).first();
-    if (!community) throw new ConvexError({ code: "community_not_found" });
-    const communityId = community._id;
-    const modules = await ctx.db.query("communityResourceModules").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).collect();
-    const pages = (await ctx.db.query("communityResources").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).take(1000))
-      .filter((row: any) => (row.role ?? "page") === "page");
-    const tracks = await readStoredCommunityTracks(ctx, communityId);
-    const revisions = Object.fromEntries((await listRows(ctx, communityId)).map((row) => [row.key, row.revision]));
-    return {
-      community_id: String(communityId),
-      owner_id: String(community.ownerId),
-      // Whole stored tracks, so a script can change their dressing and leave stages and rules as the owner set them.
-      tracks: tracks.map((track) => ({ ...track, revision: revisions[track.key] ?? 0 })),
-      courses: modules.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((module: any) => ({
-        id: String(module._id),
-        name: module.name ?? null,
-        lessons: pages.filter((page: any) => String(page.moduleId) === String(module._id))
-          .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-          .map((page: any) => ({ id: String(page._id), title: page.title, stage: page.lesson?.stage ?? null })),
-      })),
-    };
-  },
 });
 
 /** Puts the tracks in this order; keys not listed keep their place after them. */

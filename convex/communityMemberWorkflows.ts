@@ -668,35 +668,6 @@ export const saveBuilderWelcomePage = mutation({
   },
 });
 
-/** The same save for setup scripts run on a deployment (npx convex run), as a named manager. */
-export const saveBuilderWelcomePageInternal = internalMutation({
-  args: { userId: v.id("users"), ...welcomePageArgs },
-  handler: async (ctx, args) => {
-    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.userId });
-    return await saveWelcomePage(ctx, args.userId, args);
-  },
-});
-
-/** A community's welcome page and the revision to save it at, by slug, for setup scripts. */
-export const getBuilderWelcomePageBySlugInternal = internalQuery({
-  args: { slug: v.string() },
-  handler: async (ctx, args) => {
-    const community: any = await ctx.db.query("communities").withIndex("by_slug", (q: any) => q.eq("slug", args.slug)).first();
-    if (!community) throw new Error("community_not_found");
-    const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId: community._id });
-    return {
-      community_id: String(community._id), owner_id: String(community.ownerId),
-      revision: workflow?.revision ?? 0, welcome_gate: workflow?.welcomeGate === true,
-      title: workflow?.welcomePage?.title ?? "", layout: workflow?.welcomePage?.layout ?? null,
-      // A page saved before blocks: its words and video, which the layout replaces once saved.
-      message: workflow?.welcomePage?.message ?? "", media_url: workflow?.welcomePage?.mediaUrl ?? "",
-      join_form_keys: (workflow?.milestones[0]?.automations ?? [])
-        .flatMap((a: CommunityMemberWorkflowAutomation) => (a.trigger.type === "member_joined" && a.action.type === "request_form" ? [a.action.formKey] : [])),
-      lesson_ids: (workflow?.welcomeLessonIds ?? []).map(String),
-    };
-  },
-});
-
 async function saveWelcomePage(ctx: MutationCtx, userId: Id<"users">, args: {
   communityId: Id<"communities">; expectedRevision: number; title: string; message: string; mediaUrl: string; lessonIds: string[]; layout?: WelcomeBlock[];
 }) {

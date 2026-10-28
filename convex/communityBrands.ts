@@ -1,7 +1,7 @@
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { EMPTY_COMMUNITY_BRAND, normalizeCommunityBrand, type CommunityBrandV1 } from "../shared/communityBrand";
-import { requireCommunityManager, resolveUserIdForAuthenticatedRequest } from "./communityCore";
+import { requireCommunityManager } from "./communityCore";
 
 // A community's brand (shared/communityBrand.ts): the founder's words, colours
 // and fonts that templates and agents start from. It is a reference for
@@ -46,31 +46,6 @@ async function saveBrand(ctx: any, args: { userId: any; communityId: any; expect
   }
   return projection(await getBrandRow(ctx, args.communityId));
 }
-
-export const getCommunityBrand = query({
-  args: { userId: v.optional(v.id("users")), authSubject: v.optional(v.string()), communityId: v.id("communities") },
-  handler: async (ctx, args) => {
-    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
-    await requireCommunityManager({ ctx, communityId: args.communityId, userId });
-    return projection(await getBrandRow(ctx, args.communityId));
-  },
-});
-
-/** Replaces the brand. An invalid brand is rejected with every problem. */
-export const saveCommunityBrand = mutation({
-  args: {
-    userId: v.optional(v.id("users")),
-    authSubject: v.optional(v.string()),
-    communityId: v.id("communities"),
-    expectedRevision: v.number(),
-    brand: v.any(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await resolveUserIdForAuthenticatedRequest({ ctx, userId: args.userId, authSubject: args.authSubject ?? null });
-    await requireCommunityManager({ ctx, communityId: args.communityId, userId });
-    return await saveBrand(ctx, { userId, communityId: args.communityId, expectedRevision: args.expectedRevision, brand: args.brand });
-  },
-});
 
 // For the founder's own agent and `polynet pull/dev` through the MCP
 // (convex/polynetCanonicalExecutor.ts), in the same shape as the theme and

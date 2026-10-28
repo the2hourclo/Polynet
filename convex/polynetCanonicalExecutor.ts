@@ -121,6 +121,14 @@ const DESIGN_RECORDS = {
     forbidden: ["change_theme", "change_layout"], publishes: false },
 } as const;
 type DesignRecordKind = keyof typeof DESIGN_RECORDS;
+// The modules behind each design record, named so the module checks see who calls them.
+const DESIGN_MODULES: Record<(typeof DESIGN_RECORDS)[DesignRecordKind]["module"], { read: any; save: any; publish?: any }> = {
+  communityThemes: { read: internal.communityThemes.readBuilderThemeInternal, save: internal.communityThemes.saveBuilderThemeDraftInternal,
+    publish: internal.communityThemes.publishBuilderThemeDraftInternal },
+  communityLayouts: { read: internal.communityLayouts.readBuilderLayoutInternal, save: internal.communityLayouts.saveBuilderLayoutDraftInternal,
+    publish: internal.communityLayouts.publishBuilderLayoutDraftInternal },
+  communityBrands: { read: internal.communityBrands.readBuilderBrandInternal, save: internal.communityBrands.saveBuilderBrandDraftInternal },
+};
 const DESIGN_KINDS = Object.keys(DESIGN_RECORDS) as DesignRecordKind[];
 const designPublishes = (kind: DesignRecordKind) => (DESIGN_RECORDS[kind] as { publishes?: boolean }).publishes !== false;
 const designSaveOperation = (kind: DesignRecordKind) => designPublishes(kind) ? `community.${kind}.save_draft` : `community.${kind}.save`;
@@ -1694,8 +1702,8 @@ async function executeCanonicalRead(args: {
     if (!target.authority.canUseBuilderProjection || args.principalKind === "community_agent")
       return canonicalError("semantic_not_found", "Repository path not found or not accessible.");
     try {
-      const { module, internal: name } = DESIGN_RECORDS[designKind];
-      const record = await args.ctx.runQuery((internal as any)[module][`readBuilder${name}Internal`],
+      const { module } = DESIGN_RECORDS[designKind];
+      const record = await args.ctx.runQuery(DESIGN_MODULES[module].read,
         { userId: args.userId, communityId: target.communityId });
       const payload = { contract: describeCommunityDesignContract().version, draft: record.draft, draft_revision: record.draftRevision,
         published: record.published, published_draft_revision: record.publishedDraftRevision,
@@ -2687,8 +2695,8 @@ async function executeCanonicalCall(args: {
       return code ? canonicalError(code, "The client property change was refused.") : canonicalError("client_unavailable", "Client records are not available.");
     };
     const base = { communityId: target.communityId, userId: args.userId };
-    const mutate = (name: string, mutationArgs: Record<string, unknown>) =>
-      (receipt: Record<string, unknown>) => args.ctx.runMutation((internal as any).communityClients[name], { ...base, ...mutationArgs, receipt });
+    const mutate = (ref: any, mutationArgs: Record<string, unknown>) =>
+      (receipt: Record<string, unknown>) => args.ctx.runMutation(ref, { ...base, ...mutationArgs, receipt });
     let run: (receipt: Record<string, unknown>) => Promise<{ deduped?: boolean; result: Record<string, unknown> }>;
     if (operation === CLIENT_EVENT_RECORD_OPERATION) {
       const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
@@ -2697,18 +2705,18 @@ async function executeCanonicalCall(args: {
           (rawInput.channel !== undefined && typeof rawInput.channel !== "string") ||
           Object.keys(rawInput).some(key => !["membership_ref", "type", "body", "channel"].includes(key)))
         return canonicalError("invalid_tool_args", "A membership_ref and a type (flagged, note, drafted or contacted) are required.");
-      run = mutate("recordClientEventInternal", { membershipId: member[1], type: rawInput.type, via: "agent",
+      run = mutate(internal.communityClients.recordClientEventInternal, { membershipId: member[1], type: rawInput.type, via: "agent",
         ...(rawInput.body !== undefined ? { body: rawInput.body } : {}), ...(rawInput.channel !== undefined ? { channel: rawInput.channel } : {}) });
     } else if (operation === CLIENT_SETTINGS_SET_OPERATION) {
       if (typeof rawInput.stuck_days !== "number" || Object.keys(rawInput).some(key => key !== "stuck_days"))
         return canonicalError("invalid_tool_args", "stuck_days (a number of days) is required.");
-      run = mutate("setClientSettingsInternal", { stuckDays: rawInput.stuck_days });
+      run = mutate(internal.communityClients.setClientSettingsInternal, { stuckDays: rawInput.stuck_days });
     } else if (operation === CLIENT_VALUE_SET_OPERATION) {
       const member = typeof rawInput.membership_ref === "string" ? /^membership:([A-Za-z0-9]+)$/.exec(rawInput.membership_ref) : null;
       if (!member || typeof rawInput.key !== "string" || !("value" in rawInput) ||
           Object.keys(rawInput).some(key => !["membership_ref", "key", "value"].includes(key)))
         return canonicalError("invalid_tool_args", "A membership_ref, a property key and a value (or null) are required.");
-      run = mutate("setClientPropertyValueInternal", { membershipId: member[1], key: rawInput.key, value: rawInput.value, via: "agent" });
+      run = mutate(internal.communityClients.setClientPropertyValueInternal, { membershipId: member[1], key: rawInput.key, value: rawInput.value, via: "agent" });
     } else {
       if (Object.keys(rawInput).some(key => !["key", "name", "type", "options", "position", "archive"].includes(key)))
         return canonicalError("invalid_tool_args", "Only key, name, type, options, position and archive are accepted.");
@@ -2716,8 +2724,8 @@ async function executeCanonicalCall(args: {
       if (rawInput.archive === true)
         return canonicalError("invalid_tool_args", "Propose it with community.client.property.archive; the owner applies it in the app.");
       run = typeof rawInput.key !== "string"
-        ? mutate("createClientPropertyInternal", { name: rawInput.name, type: rawInput.type, ...(rawInput.options !== undefined ? { options: rawInput.options } : {}) })
-        : mutate("updateClientPropertyInternal", { key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
+        ? mutate(internal.communityClients.createClientPropertyInternal, { name: rawInput.name, type: rawInput.type, ...(rawInput.options !== undefined ? { options: rawInput.options } : {}) })
+        : mutate(internal.communityClients.updateClientPropertyInternal, { key: rawInput.key, ...(rawInput.name !== undefined ? { name: rawInput.name } : {}),
             ...(rawInput.options !== undefined ? { options: rawInput.options } : {}),
             ...(rawInput.position !== undefined ? { position: rawInput.position } : {}) });
     }
@@ -2869,7 +2877,7 @@ async function executeCanonicalCall(args: {
   const designOperationKind = designKindOf(operation);
   if (designOperationKind) {
     const kind = designOperationKind;
-    const { path, module, internal: name } = DESIGN_RECORDS[kind];
+    const { path, module } = DESIGN_RECORDS[kind];
     const saving = operation === designSaveOperation(kind);
     const allowed = saving ? [kind, "expected_draft_revision"] : ["expected_draft_revision"];
     const revision = rawInput.expected_draft_revision;
@@ -2880,7 +2888,7 @@ async function executeCanonicalCall(args: {
         Object.keys(rawInput).some(key => !allowed.includes(key)))
       return canonicalError("invalid_tool_args", `Send ${allowed.join(" and ")}; read ${path} for the current draft_revision.`);
     try {
-      const value = await args.ctx.runMutation((internal as any)[module][`${saving ? "save" : "publish"}Builder${name}DraftInternal`],
+      const value = await args.ctx.runMutation(saving ? DESIGN_MODULES[module].save : DESIGN_MODULES[module].publish,
         { userId: args.userId, communityId: target.communityId, expectedDraftRevision: revision,
           ...(saving ? { [kind]: record } : {}) });
       if (value.ok === false) {

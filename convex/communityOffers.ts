@@ -1,4 +1,4 @@
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import {
   communityMembershipRowIsActive,
@@ -292,10 +292,3 @@ async function setBaseOfferPrice(ctx: any, args: any) {
 
 export const setCommunityBaseOfferPrice = mutation({ args: basePriceArgs, handler: setBaseOfferPrice });
 
-// The agent path (community.offer.*) runs as the owner it acts for.
-export const readCommunityOffersInternal = internalQuery({
-  args: { communityId: v.id("communities") },
-  handler: async (ctx, args) => await readCommunityOffersForBuilder(ctx, args.communityId),
-});
-export const saveCommunityOfferInternal = internalMutation({ args: saveArgs, handler: saveOffer });
-export const setCommunityChannelOfferAudienceInternal = internalMutation({ args: audienceArgs, handler: setChannelAudience });

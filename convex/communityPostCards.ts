@@ -323,10 +323,6 @@ export const savePostFormAnswersForTrustedUserInternal = internalMutation({
   args: { trustedUserId: v.id("users"), rootId: v.string(), expectedRevision: v.number(), answers: answersValidator, submit: v.boolean() },
   handler: async (ctx, { trustedUserId, ...args }) => savePostFormAnswersCore(ctx, args, trustedUserId),
 });
-export const readPostFormForTrustedUserInternal = internalQuery({
-  args: { trustedUserId: v.id("users"), rootId: v.string() },
-  handler: async (ctx, { trustedUserId, ...args }) => readPostFormForViewerCore(ctx, args, trustedUserId),
-});
 export const readPollForTrustedUserInternal = internalQuery({
   args: { trustedUserId: v.id("users"), rootId: v.string() },
   handler: async (ctx, { trustedUserId, rootId }) => {
