@@ -198,3 +198,31 @@
 .pn-members-grouprow .pn-members-count { margin-left: 0.5rem; font-weight: 500; }
 .pn-members-table .access-badge { max-width: none; overflow: visible; }
 .pn-members-system-value { color: var(--text-secondary); white-space: nowrap; }
+
+/* Phone: each member is a card (name, then the view's first fields with their
+   names), and the header actions sit in one row (2026-10-28 review #23). */
+@media (max-width: 640px) {
+  .pn-members-head h2 { flex: 1 0 100%; }
+  .pn-members-head .pn-members-spacer { display: none; }
+  .pn-members-head .pn-members-button { min-height: 2rem; padding-inline: 0.625rem; font-size: 0.8125rem; }
+  .pn-members-table-wrap { overflow: visible; border: 0; }
+  .pn-members-table, .pn-members-table tbody { display: block; width: 100%; }
+  .pn-members-table thead { display: none; }
+  .pn-members-table tbody tr:not(.pn-members-grouprow) {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.25rem 0.625rem; align-items: center;
+    margin-bottom: 0.5rem; padding: 0.75rem; border: 1px solid var(--pn-members-line); border-radius: var(--pn-members-r);
+  }
+  .pn-members-table tbody tr.pn-members-grouprow { display: block; margin: 0.75rem 0 0.375rem; }
+  .pn-members-table tbody td { display: block; height: auto; padding: 0; border: 0; background: transparent; position: static; }
+  .pn-members-table tbody td.pn-members-check { grid-row: 1; grid-column: 1; }
+  .pn-members-table tbody td.pn-members-who { grid-row: 1; grid-column: 2; }
+  .pn-members-table tbody td[data-label] { grid-column: 2; display: flex; gap: 0.5rem; align-items: center; min-width: 0; font-size: 0.8125rem; }
+  .pn-members-table tbody td[data-label]::before { content: attr(data-label); flex: 0 0 6.5rem; color: var(--text-muted); font-size: 0.75rem; }
+  /* The first four fields of the view; open the member for the rest. */
+  .pn-members-table tbody td[data-label]:nth-child(n + 7) { display: none; }
+}
+
+/* Stage chip: the stage's own colour, as in Automations (2026-10-28 review #14). */
+.pn-members-stage { display: inline-flex; align-items: center; gap: 0.375rem; max-width: 100%; padding: 0.125rem 0.5rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--stage-color, var(--text-muted)) 14%, transparent); color: var(--text-primary); font-size: 0.8125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-members-stage::before { content: ""; flex: none; width: 0.4375rem; height: 0.4375rem; border-radius: 50%; background: var(--stage-color, var(--text-muted)); }

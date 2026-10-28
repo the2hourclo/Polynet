@@ -75,37 +75,63 @@
   height: 100%;
 }
 
-.community-sales-gallery-arrow {
+/* A picture slide shows the whole picture at its own shape (the component
+   sets aspect-ratio once it loads); a blurred copy fills any room left. */
+.community-sales-gallery .community-sales-media.is-picture {
+  position: relative;
+  max-height: 72vh;
+  margin: 0 auto;
+  transition: aspect-ratio 160ms ease;
+}
+
+.community-sales-gallery .community-sales-media.is-picture > img {
+  position: relative;
+  width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+.community-sales-gallery .community-sales-media.is-picture > .community-sales-media-backdrop {
   position: absolute;
-  top: 50%;
+  inset: 0;
+  object-fit: cover;
+  filter: blur(28px) saturate(1.1) brightness(0.92);
+  transform: scale(1.15);
+}
+
+.community-sales-gallery-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.community-sales-gallery-nav > .community-sales-gallery-thumbs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.community-sales-gallery-arrow {
   display: grid;
+  flex: none;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--sales-border, var(--border-default));
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  background: transparent;
+  color: var(--text-primary);
   cursor: pointer;
-  transform: translateY(-50%);
   transition: background 120ms ease;
 }
 
 .community-sales-gallery-arrow:hover {
-  background: rgba(0, 0, 0, 0.75);
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
 }
 
 .community-sales-gallery-arrow:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--accent-brand);
   outline-offset: 2px;
-}
-
-.community-sales-gallery-arrow.is-prev {
-  left: 12px;
-}
-
-.community-sales-gallery-arrow.is-next {
-  right: 12px;
 }
 
 .community-sales-gallery-count {
@@ -406,7 +432,7 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 18px;
   border: 0;
   border-radius: 8px;
@@ -414,8 +440,9 @@
   color: var(--pn-on-button, var(--text-on-accent, #fff));
   font: inherit;
   font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: filter 120ms ease;
 }
@@ -502,6 +529,14 @@
   box-shadow: 0 4px 16px color-mix(in srgb, #000 10%, transparent);
   box-sizing: border-box;
   color: var(--text-primary);
+}
+
+/* Channels: the bar's buttons (Messages, bell, Display, gear, your picture)
+   float over the page's top-right corner, so the edit bar starts and sticks
+   below them. */
+.app-root:has(.app-topbar .topbar-right-island) .community-sales-edit-bar {
+  top: 52px;
+  margin-top: 56px;
 }
 
 .community-tab-scroll > .community-sales-edit-bar {

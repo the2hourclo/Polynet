@@ -20,7 +20,6 @@ import { UserAvatar } from "../../../../shared/UserAvatar";
 import { formatRelativeTimeFromIso } from "../../../../shared/contentFormatting";
 import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext";
 import { useCommunityThemeScope } from "./useCommunityThemeScope";
-import { CommunityPresenceFacepile } from "./CommunityPresenceFacepile";
 import { CommunityMemoryGraphPreview } from "./CommunityMemoryGraphPreview";
 import type { CommunityPresenceSummary } from "../../../../shared/communityTypes";
 import { createCloudCommunityPolynetLiveClient, subscribeCloudCommunityPolynetOverview, type CloudCommunityPolynetOverview } from "../../../../shared/cloudCommunityPolynetGateway";
@@ -265,11 +264,10 @@ function RosterSurface(props: RosterProps & {
       </div> : null}
       <span className="community-context-rail-name">{props.communityName}</span>
     </div>
-    <WebCommunityCreators communityId={scope?.communityId} onOpenProfile={props.onOpenProfile} variant="rail" getAvatarColor={props.getAvatarColor} getInitials={props.getInitials} />
-    <CommunityPresenceFacepile faces={props.presenceSummary?.online_faces} onlineCount={props.presenceSummary?.online_count}
-      onlineCountCapped={Boolean(props.presenceSummary?.online_count_capped)} isLoading={props.isLoadingPresence} />
+    {/* The Online list below names who's here, so no separate face row (it read as a second, nameless "R"). */}
+    <WebCommunityCreators communityId={scope?.communityId} onOpenProfile={props.onOpenProfile} variant="rail" getAvatarColor={props.getAvatarColor} getInitials={props.getInitials} onMessageUser={props.onMessageUser} currentUserId={props.currentUserId} />
     <div className="community-context-memory">
-      <div className="community-context-memory-head"><div className="community-context-section">Memory{memory ? ` — ${memory.memory.total_visible_nodes}${memory.memory.node_counts_are_lower_bound ? "+" : ""}` : ""}</div></div>
+      <div className="community-context-memory-head"><div className="community-context-section">Memory{memory ? ` · ${memory.memory.total_visible_nodes}${memory.memory.node_counts_are_lower_bound ? "+" : ""}` : ""}</div></div>
       {memoryError ? <div role="status">Could not load memory. <button type="button" onClick={() => setMemoryRetry(value => value + 1)}>Retry</button></div>
         : memory ? <div className="community-context-memory-summary">
           <div className="community-context-memory-preview"><CommunityMemoryGraphPreview overview={memory} /></div>
@@ -280,7 +278,7 @@ function RosterSurface(props: RosterProps & {
       {rebuilding ? <p role="status">Updating members…</p> : null}
       {error ? <p role="status">Channel roster unavailable. <button type="button" onClick={() => setRetry(value => value + 1)}>Retry</button></p>
         : !ready ? <p role="status">Loading channel roster…</p> : <>
-          {!props.directory ? <><h3 className="community-context-section">Agents — {pages[0].agents.length}</h3>
+          {!props.directory ? <><h3 className="community-context-section">Agents · {pages[0].agents.length}</h3>
           {pages[0].agents.length ? <div className="community-context-agent-list">
             {pages[0].agents.map(agent => <div className="community-context-member" key={agent.key}>
               <ActorAvatar seed={agent.key} label={agentName} className="community-context-member-avatar"
@@ -313,7 +311,7 @@ function RosterSurface(props: RosterProps & {
             if (sideRowsLeft <= 0) return null;
             const rows = groupRows.slice(0, sideRowsLeft);
             sideRowsLeft -= rows.length;
-            const heading = <h4 className="community-context-section" title="Online status reflects activity in this community">{searching ? "Community matches" : group === "unknown" ? "Presence unavailable" : group === "online" ? "Online" : "Offline"} — {groupRows.length}{!searching && !complete ? " loaded" : ""}</h4>;
+            const heading = <h4 className="community-context-section" title="Online status reflects activity in this community">{searching ? "Community matches" : group === "unknown" ? "Presence unavailable" : group === "online" ? "Online" : "Offline"} · {groupRows.length}{!searching && !complete ? "+" : ""}</h4>;
             return <Fragment key={group}>
               {heading}
               {rows.map(member => {

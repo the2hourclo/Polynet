@@ -206,7 +206,8 @@ function ResourceCourseCard(props: {
           }}
           alt=""
           fallback={<span className="resource-course-card-cover-fallback" style={coverFallback.style} aria-hidden="true">
-            {coverFallback.initial ? <span className="resource-course-card-cover-initial">{coverFallback.initial}</span> : null}
+            {/* The letter stands in for a missing cover only; while a cover loads, the plain colour shows. */}
+            {coverFallback.initial && !module.banner_url ? <span className="resource-course-card-cover-initial">{coverFallback.initial}</span> : null}
           </span>}
           loading="lazy"
           fetchPriority="low"
@@ -252,7 +253,7 @@ function ResourceCourseCard(props: {
             </span>
           ) : (
             <span className={`resource-course-card-meta ${lockedReason ? "is-locked" : "is-count"}`}>
-              {lockedReason ? lockedReason : lessonsText ?? "Lessons not loaded"}
+              {lockedReason ? lockedReason : lessonsText ?? "Loading lessons…"}
             </span>
           )}
         </span>

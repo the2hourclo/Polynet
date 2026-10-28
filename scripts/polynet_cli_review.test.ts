@@ -23,7 +23,7 @@ const page = (body: string, css = "") => `<!doctype html><html><head><meta name=
   ${css}</style></head><body><div data-community-theme="custom"><main>${body}</main></div></body></html>`;
 
 const CLEAN = page(`<h1 style="font-size:32px;margin:0 0 24px">Classroom</h1><button>New post</button>
-  ${[1, 2, 3].map((n) => `<article class="card"><h3>Lesson ${n}: Map the business</h3><p>Two lines of preview that read as plain text.</p><div class="meta">Rashid · 2h · Strategy</div></article>`).join("")}`);
+  ${[1, 2, 3].map((n) => `<article class="card"><h3>Lesson ${n}: Map the business</h3><p>Two lines of preview that read as plain text.</p><div class="meta">Alex Rivera · 2h · Strategy</div></article>`).join("")}`);
 
 let browser: Browser;
 beforeAll(async () => { browser = await chromium.launch(process.env.POLYNET_CHROMIUM ? { executablePath: process.env.POLYNET_CHROMIUM } : {}); });
@@ -121,12 +121,12 @@ test("tuned on the 2-Hour Club run: real findings carry numbers, Polynet's own n
     <div style="display:grid;width:1200px">${[1, 2, 3].map(() => `<div style="width:1200px;height:60px">A chat message</div>`).join("")}</div>
     <p class="meta">Error</p>
     <svg width="40" height="40"><circle cx="20" cy="20" r="10" fill="#22B8F0"></circle></svg>
-    <span style="color:#2B863A;background:#151513;font-size:13px">Rashid</span>
+    <span style="color:#2B863A;background:#151513;font-size:13px">Alex Rivera</span>
   `);
   const result = await audit(html, {}, 1440);
   expect(checks(result.errors)).toEqual(["contrast", "error-state"]);
   const contrast = result.errors.find((f) => f.check === "contrast") as any;
-  expect(contrast.where[0]).toMatch(/Rashid.*\(4\.\d:1, 43,134,58 on 21,21,19, 13px\)/);
+  expect(contrast.where[0]).toMatch(/Alex Rivera.*\(4\.\d:1, 43,134,58 on 21,21,19, 13px\)/);
   expect(checks(result.warnings)).toEqual(["off-palette"]);
   expect((result.warnings[0] as any).where[0]).toContain("(fill)");
 });

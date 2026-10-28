@@ -1645,3 +1645,8 @@ body {
 .community-channel-modal-backdrop.confirm-in-page {
   z-index: 10000;
 }
+
+/* toastInPage: above the community's sheets and dialogs. */
+.toast-in-page {
+  z-index: 10050;
+}

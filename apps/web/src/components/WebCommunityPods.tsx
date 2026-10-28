@@ -51,6 +51,7 @@ export type PodPerson = {
   profile: { display_name: string | null; avatar_url: string | null; avatar_focus_x: number; avatar_focus_y: number; avatar_zoom: number };
   last_seen_at: number | null;
   active_until: number | null;
+  is_you?: boolean;
 };
 export type PodPeople = { channel_id: string; people: PodPerson[]; people_count: number; agent: boolean };
 
@@ -86,7 +87,7 @@ function faces(people: PodPerson[]): MemberAvatarStackFace[] {
 }
 
 const spacesCache = new Map<string, PodSpaces>();
-type PodSpaces = { mine: string | null; member_spaces: string[] };
+type PodSpaces = { mine: string | null; member_spaces: string[]; test_spaces?: string[] };
 
 /** Which invite-only channels are members' guide channels (see listPodSpaces). */
 export function usePodSpaces(communityId: string | null, session: WebCommunityFrame["session"]): PodSpaces | null {
@@ -153,7 +154,7 @@ export function usePodPeople(podIds: string[], refreshKey = 0): Record<string, P
 
 export function PodFaces({ people, agent, size }: { people?: PodPeople; agent?: boolean; size: "small" | "large" }) {
   const now = Date.now();
-  const online = new Set((people?.people ?? []).filter((person) => isOnline(person, now)).map((person) => person.user_id));
+  const online = new Set((people?.people ?? []).filter((person) => !person.is_you && isOnline(person, now)).map((person) => person.user_id));
   return (
     <span className={`community-pod-faces is-${size}`}>
       <MemberAvatarStack
@@ -172,7 +173,8 @@ export function PodFaces({ people, agent, size }: { people?: PodPeople; agent?: 
 function podSummary(people: PodPeople | undefined, agentName: string): string {
   if (!people) return "Private";
   const now = Date.now();
-  const here = people.people.filter((person) => isOnline(person, now));
+  // You being here goes without saying; name someone else who is.
+  const here = people.people.filter((person) => !person.is_you && isOnline(person, now));
   const count = `${people.people_count} ${people.people_count === 1 ? "person" : "people"}${people.agent ? ` + ${agentName}` : ""}`;
   if (here.length === 1) return `${count} · ${personName(here[0]!)} is here`;
   if (here.length > 1) return `${count} · ${here.length} here now`;

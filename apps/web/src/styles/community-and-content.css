@@ -2290,6 +2290,16 @@
   padding-right: var(--web-topbar-right-action-safe-inset);
 }
 
+/* Beside a channel the bar's buttons (Messages, bell, Display, gear, your
+   picture) float over this row, so a longer name was cut to "Classroom …".
+   The sidebar already names the community; the row stays as their clearance.
+   On a phone the people page keeps its name beside its back arrow. */
+@media (min-width: 641px) {
+  .app-root:has(.app-topbar .topbar-right-island) .channel-roster-panel:not([data-channels-feel] *) .community-context-rail-name {
+    visibility: hidden;
+  }
+}
+
 .community-interaction-bootstrap-context {
   display: grid;
   gap: 12px;
@@ -4598,6 +4608,11 @@
 .community-interaction-member-arrival-faces {
   --member-avatar-stack-face-size: 24px;
 }
+/* One face per join line: two small faces with initials read as a collision
+  , and the words already say "and 3 others". */
+.community-interaction-member-arrival-faces > :nth-child(n + 2) {
+  display: none;
+}
 
 .community-interaction-member-arrivals > span {
   overflow: hidden;
@@ -6496,6 +6511,17 @@
   text-align: center;
   background: rgba(0, 0, 0, 0.44);
   pointer-events: none;
+}
+
+/* The remove button stays above the upload overlay, so a failed chip can still be removed. */
+.community-dm-media-grid .community-dm-composer-media-item .chat-media-remove {
+  z-index: 2;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  font-size: 15px;
+  line-height: 20px;
 }
 
 .community-dm-attachment-state {
@@ -9732,10 +9758,19 @@ button.chat-reply-quote:hover {
   .lesson-done-row .lesson-next-button { flex: 1 1 0; min-width: 0; margin-left: 0; justify-content: center; padding: 0 0.75rem; }
   body:has(.lesson-done-row > button) .member-agent-launcher { bottom: 5.25rem; }
   .lesson-next-title { display: none; }
+  /* The phone's bottom tab bar is fixed over the page: the row sticks just
+     above it instead of half under it. */
+  body:has(.mobile-bottom-rail) .lesson-done-row:has(> button) {
+    bottom: calc(var(--mobile-bottom-rail-height) + env(safe-area-inset-bottom, 0px));
+  }
+  body:has(.mobile-bottom-rail):has(.lesson-done-row > button) .member-agent-launcher {
+    bottom: calc(5.25rem + var(--mobile-bottom-rail-height) + env(safe-area-inset-bottom, 0px));
+  }
 }
 /* Next lesson, on the right of Mark as done, in the community's accent. */
 .lesson-next-button {
-  display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; margin-left: auto;
+  /* A long lesson title stays one short line; the full title is in the tooltip. */
+  display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: min(100%, 22rem); margin-left: auto;
   height: 2.5rem; padding: 0 1rem; border: 1px solid transparent; border-radius: 8px;
   background: var(--accent-brand, var(--bg-button)); color: var(--bg-button-text, #fff);
   font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
@@ -14065,3 +14100,52 @@ button.chat-reply-quote:hover {
 .pn-page-with-back .pn-members-head { padding-right: var(--web-topbar-right-action-safe-inset, 0px); }
 .lesson-toc-compact-label { margin: 0.5rem 0.875rem 0.25rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 .lesson-toc-compact .lesson-chapter-list { padding: 0 0.375rem 0.5rem; }
+
+/* Channels has no header strip over a lesson, so the Messages, Display and
+   Settings buttons float over the text as it scrolls. While a lesson is open
+   they sit on a small solid backing in the page's own colour. */
+body:has(.community-knowledge-page[data-reading]) .app-topbar .topbar-right-island > .community-theme-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px var(--bg-workspace);
+}
+
+/* ── Phone: owner pages clear the floating pill (2026-10-28 review #2, U2) ──
+   The pill at the top already goes back, so pages drop their own back link,
+   and the page header starts below the pill instead of behind it. */
+.app-root.mobile-shell .pn-wf-back { display: none; }
+.app-root.mobile-shell .pn-page-with-back { padding-top: var(--mobile-topbar-clearance); }
+.app-root.mobile-shell .workflow-page.pn-wf { padding-top: var(--mobile-topbar-clearance); }
+/* Community Settings on a phone gets the full width, like the other phone
+   pages: no community rail beside it. */
+.app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) > :not(.mobile-global-shell-surface) {
+  display: none;
+}
+.app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) > .mobile-global-shell-surface {
+  margin-left: var(--community-shell-inset);
+}
+
+/* One page title on owner pages in both layouts (2026-10-28 review #8):
+   Events and Analytics were big titles in Channels and small labels in
+   Classroom. Same size as the Workflows title. */
+.community-panel.community-events-panel .resources-header,
+.analytics-header-row .analytics-title-stack .panel-title {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+}
+/* Channels: the Events header's New event button stays clear of the
+   top-right buttons (they float over the page there). */
+.app-root:not(.mobile-shell) .community-events-panel > .feed-header-row {
+  padding-right: var(--web-topbar-right-action-safe-inset, 0px);
+}

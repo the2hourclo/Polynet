@@ -9,18 +9,30 @@ import { action, internalMutation, mutation, query } from "./_generated/server";
 import { resolveUserIdForAuthenticatedRequest } from "./authActor";
 import { requireCommunityManager } from "./communityCore";
 import { builderSettingOperation } from "./polynetBuilderSettings";
+import { updateWorkflowStageCore } from "./communityMemberWorkflows";
+import { getCommunityMemberWorkflowByCommunity } from "./communityMemberWorkflowReadCore";
+import { stageSnapshot } from "./communityWorkflowChangeLog";
 
 export const SETTING_PROPOSAL_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_STAGED_PER_COMMUNITY = 20;
 const RECENT_LIMIT = 20;
+// A workflow stage change an agent (Claude Code over the MCP) suggests. It
+// shows in Workflows, not Settings, as rule sentences plus what the member gets.
+export const WORKFLOW_STAGE_PROPOSAL = "community.workflow.stage.propose";
 
 type ProposalRow = {
   _id: any; communityId: any; createdByUserId: any; operation: string; args: Record<string, unknown>;
   summary: string; details: Array<{ label: string; value: string }>; note?: string; status: string;
   error?: string; createdAt: number; expiresAt: number; decidedAt?: number;
+  proposedBy?: string; baseStage?: string; previewStage?: any;
 };
 
 const isExpired = (row: ProposalRow, nowMs: number) => row.status === "staged" && row.expiresAt <= nowMs;
+
+async function currentStage(ctx: any, communityId: any, milestoneKey: string) {
+  const workflow = await getCommunityMemberWorkflowByCommunity({ ctx, communityId });
+  return { workflow, stage: workflow?.milestones.find((milestone: any) => milestone.key === milestoneKey) ?? null };
+}
 
 function project(row: ProposalRow, nowMs: number) {
   return {
@@ -30,6 +42,8 @@ function project(row: ProposalRow, nowMs: number) {
     summary: row.summary,
     details: row.details,
     note: row.note ?? null,
+    proposed_by: row.proposedBy ?? null,
+    ...(row.previewStage ? { workflow: { milestone_key: row.previewStage.key, proposed: row.previewStage } } : {}),
     status: isExpired(row, nowMs) ? "expired" : row.status,
     error: row.error ?? null,
     created_at: new Date(row.createdAt).toISOString(),
@@ -100,7 +114,7 @@ async function describe(ctx: any, args: Record<string, unknown>) {
 export const stageSettingProposalInternal = internalMutation({
   args: {
     userId: v.id("users"), communityId: v.id("communities"), operation: v.string(),
-    args: v.any(), note: v.optional(v.string()), idempotencyKey: v.string(),
+    args: v.any(), note: v.optional(v.string()), idempotencyKey: v.string(), proposedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const spec = builderSettingOperation(args.operation);
@@ -119,10 +133,30 @@ export const stageSettingProposalInternal = internalMutation({
     const staged = (await ctx.db.query("communitySettingProposals")
       .withIndex("by_community_status_createdAt", q => q.eq("communityId", args.communityId).eq("status", "staged"))
       .take(MAX_STAGED_PER_COMMUNITY + 1) as ProposalRow[]).filter(row => !isExpired(row, nowMs));
-    if (staged.length >= MAX_STAGED_PER_COMMUNITY) throw new Error("setting_proposal_limit_reached");
+    let summary = spec.name;
+    let stageFields: Record<string, unknown> = {};
+    if (args.operation === WORKFLOW_STAGE_PROPOSAL) {
+      // Checked now, exactly as a save would be, so the agent hears what's wrong
+      // straight away instead of the owner finding out at Apply.
+      const { milestone } = await updateWorkflowStageCore(ctx, args.userId,
+        { ...(args.args as any), communityId: args.communityId }, { dryRun: true });
+      const { stage } = await currentStage(ctx, args.communityId, milestone.key);
+      summary = `Change the ${milestone.name} stage`;
+      stageFields = { baseStage: stageSnapshot(stage), previewStage: milestone };
+      // A newer suggestion for the same stage replaces the older one.
+      for (const row of staged) {
+        if (row.operation === WORKFLOW_STAGE_PROPOSAL && row.previewStage?.key === milestone.key)
+          await ctx.db.patch(row._id, { status: "expired", updatedAt: nowMs });
+      }
+    }
+    if (staged.filter(row => !(row.operation === WORKFLOW_STAGE_PROPOSAL && (stageFields.previewStage as any)?.key === row.previewStage?.key))
+      .length >= MAX_STAGED_PER_COMMUNITY) throw new Error("setting_proposal_limit_reached");
     const id = await ctx.db.insert("communitySettingProposals", {
       communityId: args.communityId, createdByUserId: args.userId, operation: args.operation, args: args.args,
-      summary: spec.name, details: await describe(ctx, args.args),
+      summary, details: args.operation === WORKFLOW_STAGE_PROPOSAL ? [] : await describe(ctx, args.args),
+      ...((args.proposedBy ?? (args.args as any)?.changedBy)?.trim()
+        ? { proposedBy: String(args.proposedBy ?? (args.args as any).changedBy).trim().slice(0, 60) } : {}),
+      ...stageFields,
       ...(args.note ? { note: args.note.slice(0, 300) } : {}),
       status: "staged", idempotencyKey: args.idempotencyKey, createdAt: nowMs, updatedAt: nowMs,
       expiresAt: nowMs + SETTING_PROPOSAL_TTL_MS,
@@ -149,7 +183,17 @@ export const listCommunitySettingProposals = query({
     const rows = await ctx.db.query("communitySettingProposals")
       .withIndex("by_community_createdAt", q => q.eq("communityId", args.communityId))
       .order("desc").take(RECENT_LIMIT + MAX_STAGED_PER_COMMUNITY) as ProposalRow[];
-    const projected = rows.map(row => project(row, nowMs));
+    const projected: Array<ReturnType<typeof project>> = [];
+    for (const row of rows) {
+      const shown = project(row, nowMs);
+      // A waiting stage change carries the stage as it is now, for the diff, and
+      // whether it changed since the agent looked (then Apply is refused).
+      if (shown.workflow && shown.status === "staged") {
+        const { stage } = await currentStage(ctx, args.communityId, shown.workflow.milestone_key);
+        Object.assign(shown.workflow, { current: stage, stale: stageSnapshot(stage) !== row.baseStage });
+      }
+      projected.push(shown);
+    }
     return {
       pending: projected.filter(row => row.status === "staged").reverse(),
       recent: projected.filter(row => row.status !== "staged").slice(0, RECENT_LIMIT),
@@ -179,8 +223,16 @@ export const claimSettingProposalInternal = internalMutation({
     const nowMs = Date.now();
     if (isExpired(row, nowMs)) throw new Error("setting_proposal_expired");
     if (row.status !== "staged") throw new Error(`setting_proposal_${row.status}`);
+    let callArgs = row.args;
+    if (row.operation === WORKFLOW_STAGE_PROPOSAL) {
+      // Other stages may have changed since (the revision moved on); this one
+      // must not have, or Apply would overwrite what was done meanwhile.
+      const { workflow, stage } = await currentStage(ctx, args.communityId, row.previewStage?.key);
+      if (!workflow || stageSnapshot(stage) !== row.baseStage) throw new Error("setting_proposal_stale");
+      callArgs = { ...row.args, expectedRevision: workflow.revision };
+    }
     await ctx.db.patch(args.proposalId, { status: "applying", decidedAt: nowMs, decidedByUserId: userId, updatedAt: nowMs });
-    return { operation: row.operation, args: row.args };
+    return { operation: row.operation, args: callArgs, createdByUserId: row.createdByUserId, decidedByUserId: userId };
   },
 });
 
@@ -191,6 +243,17 @@ export const finishSettingProposalInternal = internalMutation({
     await ctx.db.patch(args.proposalId, { status: args.ok ? "applied" : "failed",
       ...(args.error ? { error: args.error.slice(0, 300) } : {}), updatedAt: nowMs });
     return project((await ctx.db.get(args.proposalId)) as ProposalRow, nowMs);
+  },
+});
+
+// An approved stage change is saved as the admin whose agent proposed it,
+// with the owner recorded as the one who approved it.
+export const applyWorkflowStageProposalInternal = internalMutation({
+  args: { communityId: v.id("communities"), args: v.any(), createdByUserId: v.id("users"), decidedByUserId: v.id("users") },
+  handler: async (ctx, args) => {
+    await requireCommunityManager({ ctx, communityId: args.communityId, userId: args.createdByUserId });
+    return await updateWorkflowStageCore(ctx, args.createdByUserId, { ...args.args, communityId: args.communityId },
+      { approvedByUserId: args.decidedByUserId });
   },
 });
 
@@ -210,7 +273,10 @@ export const applyCommunitySettingProposal = action({
     }
     const callArgs = { ...claimed.args, authSubject: args.authSubject, ...(spec.community === false ? {} : { communityId: args.communityId }) };
     try {
-      if (spec.kind === "action") await ctx.runAction(spec.ref, callArgs);
+      if (claimed.operation === WORKFLOW_STAGE_PROPOSAL) {
+        await ctx.runMutation(internal.communitySettingProposals.applyWorkflowStageProposalInternal, { communityId: args.communityId,
+          args: claimed.args, createdByUserId: claimed.createdByUserId, decidedByUserId: claimed.decidedByUserId });
+      } else if (spec.kind === "action") await ctx.runAction(spec.ref, callArgs);
       else await ctx.runMutation(spec.ref, callArgs);
     } catch (error) {
       return await ctx.runMutation(internal.communitySettingProposals.finishSettingProposalInternal,

@@ -1,3 +1,4 @@
+import { toastInPage } from "./confirmInPage";
 import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, FileText, Image as ImageIcon, Lock, Pin, Play, Plus, UserPlus, X } from "lucide-react";
@@ -40,6 +41,8 @@ type PodPanelProps = {
   roots: CommunityInteractionRootBundle[];
   onOpenPost: (rootId: string) => void;
   canManage: boolean;
+  // Owners and admins: take the pin off from the Pinned card itself.
+  onUnpin?: () => void;
 };
 
 export function WebCommunityPodPanel(props: PodPanelProps) {
@@ -51,7 +54,7 @@ export function WebCommunityPodPanel(props: PodPanelProps) {
     <div className="community-pod-panel" aria-label={`${pod.name} pod`}>
       {pods.mode === "classroom" ? <PodSwitcher name={pod.name} /> : null}
       <PodPeopleCard podId={props.podId} podName={pod.name} canManage={props.canManage} />
-      <PodPinnedCard pinnedRoot={props.pinnedRoot} onOpenPost={props.onOpenPost} />
+      <PodPinnedCard pinnedRoot={props.pinnedRoot} onOpenPost={props.onOpenPost} onUnpin={props.onUnpin} />
       <PodSavedCard podId={props.podId} roots={props.roots} pinnedRoot={props.pinnedRoot} onOpenPost={props.onOpenPost} />
       <PodCallsCard podId={props.podId} podName={pod.name} canManage={props.canManage} />
     </div>
@@ -214,7 +217,20 @@ function PodImage({ attachmentId, alt }: { attachmentId: string; alt: string }) 
   return url ? <img src={url} alt={alt} /> : <span className="community-pod-image-placeholder" aria-hidden="true"><ImageIcon size={18} /></span>;
 }
 
-function PodPinnedCard({ pinnedRoot, onOpenPost }: { pinnedRoot: CommunityInteractionRootBundle | null | undefined; onOpenPost: (rootId: string) => void }) {
+/** The Pinned card's Unpin: takes the pin off and says so. */
+export function unpinFromPod(setPinnedRoot: (rootId: string | null) => Promise<boolean> | boolean): void {
+  void Promise.resolve(setPinnedRoot(null)).then((done) => {
+    if (done !== false) toastInPage("Unpinned from pod");
+  });
+}
+
+// A picture pinned on its own reads "Image · Oct 27", not its file name.
+function pinnedDay(createdAt: string): string {
+  const date = new Date(createdAt);
+  return Number.isNaN(date.getTime()) ? "pinned" : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function PodPinnedCard({ pinnedRoot, onOpenPost, onUnpin }: { pinnedRoot: CommunityInteractionRootBundle | null | undefined; onOpenPost: (rootId: string) => void; onUnpin?: () => void }) {
   const pinned = pinnedRoot ?? null;
   const image = pinned?.attachments.find((attachment) => attachment.type === "image" || /^image\//.test(attachment.mime ?? ""));
   const file = pinned?.attachments.find((attachment) => attachment !== image);
@@ -225,13 +241,16 @@ function PodPinnedCard({ pinnedRoot, onOpenPost }: { pinnedRoot: CommunityIntera
     <section className="community-aside-card community-pod-panel-card">
       <div className="community-aside-card-header">
         <h2><Pin size={14} aria-hidden="true" /> Pinned</h2>
+        {pinned && onUnpin ? (
+          <button type="button" className="community-aside-link community-pod-unpin" onClick={onUnpin}>Unpin</button>
+        ) : null}
       </div>
       {pinned ? (
         <button type="button" className="community-pod-pinned" onClick={() => onOpenPost(pinned.root.id)}>
           {image ? <span className="community-pod-pinned-image"><PodImage attachmentId={image.id} alt={image.name} /></span> : null}
           {pinned.root.title ? <strong>{pinned.root.title}</strong> : null}
           {text ? <span className="community-pod-pinned-text">{text}</span> : null}
-          {!text && !pinned.root.title ? <strong>{image?.name ?? file?.name ?? "Pinned post"}</strong> : null}
+          {!text && !pinned.root.title ? <strong>{image ? `Image · ${pinnedDay(pinned.root.created_at)}` : file?.name ?? "Pinned post"}</strong> : null}
           {file && !image ? <span className="community-pod-pinned-file"><FileText size={14} aria-hidden="true" /> {file.name}</span> : null}
         </button>
       ) : (

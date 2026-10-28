@@ -597,7 +597,7 @@ export function validatePolynetSemanticRepositoryOperationInput(args: {
         repositoryPath.localPath === "/builder/theme.json" || repositoryPath.localPath === "/builder/layout.json" ||
         repositoryPath.localPath === "/builder/design-guide.md" || repositoryPath.localPath === "/builder/design-review.md" ||
         repositoryPath.localPath === "/builder/brand.json" || repositoryPath.localPath === "/builder/settings.json" ||
-        repositoryPath.localPath === "/builder/tracks.json" || repositoryPath.localPath === "/builder/offers.json" || repositoryPath.localPath === "/builder/workflow-runs.json" ||
+        repositoryPath.localPath === "/builder/tracks.json" || repositoryPath.localPath === "/builder/offers.json" || repositoryPath.localPath === "/builder/workflow-runs.json" || repositoryPath.localPath === "/builder/workflow-changes.json" ||
         repositoryPath.localPath === "/builder/events.json" || repositoryPath.localPath === "/builder/test-runs.json") {
       const isDirectory = repositoryPath.localPath.endsWith("/");
       const validated = validateCommunitySemanticOperationInput({ ...args,

@@ -152,6 +152,8 @@ import type * as communityWeeklyDigestWorker from "../communityWeeklyDigestWorke
 import type * as communityWikiArchitect from "../communityWikiArchitect.js";
 import type * as communityWorkflowAgentInputs from "../communityWorkflowAgentInputs.js";
 import type * as communityWorkflowAssessmentCore from "../communityWorkflowAssessmentCore.js";
+import type * as communityWorkflowChangeLog from "../communityWorkflowChangeLog.js";
+import type * as communityWorkflowChanges from "../communityWorkflowChanges.js";
 import type * as communityWorkflowCompletionCore from "../communityWorkflowCompletionCore.js";
 import type * as communityWorkflowEmailCore from "../communityWorkflowEmailCore.js";
 import type * as communityWorkflowGoalReviewCore from "../communityWorkflowGoalReviewCore.js";
@@ -404,6 +406,8 @@ declare const fullApi: ApiFromModules<{
   communityWikiArchitect: typeof communityWikiArchitect;
   communityWorkflowAgentInputs: typeof communityWorkflowAgentInputs;
   communityWorkflowAssessmentCore: typeof communityWorkflowAssessmentCore;
+  communityWorkflowChangeLog: typeof communityWorkflowChangeLog;
+  communityWorkflowChanges: typeof communityWorkflowChanges;
   communityWorkflowCompletionCore: typeof communityWorkflowCompletionCore;
   communityWorkflowEmailCore: typeof communityWorkflowEmailCore;
   communityWorkflowGoalReviewCore: typeof communityWorkflowGoalReviewCore;

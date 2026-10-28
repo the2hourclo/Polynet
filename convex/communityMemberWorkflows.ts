@@ -60,8 +60,10 @@ import {
   normalizeOptionalUrl,
   welcomeLessonIsLive,
   type CommunityMembershipLike,
+  listActiveTestMemberUserIds,
 } from "./communityCore";
 import { resolveUserProfileDisplayProjection } from "./userProfileProjection";
+import { recordWorkflowStageChange } from "./communityWorkflowChangeLog";
 import { buildCommunityInteractionEvidenceRef } from "../shared/communityEvidenceContract";
 import { renderCommunityMemberSuccessDossierMarkdown } from "../shared/communityMemberSuccessDossier";
 import {
@@ -85,7 +87,7 @@ import { sendWorkflowEmail } from "./communityWorkflowEmailCore";
 // batch and asks the caller to call again (the gateway does), so any number clears.
 const DEPARTED_POSITIONS_PER_CALL = 1_000;
 
-const managerIdentityArgs = {
+export const managerIdentityArgs = {
   userId: v.optional(v.id("users")),
   authSubject: v.optional(v.string()),
 };
@@ -129,7 +131,7 @@ const workflowConditionClauseValidator = v.object({
   value: v.optional(v.union(v.string(), v.number(), v.boolean())),
 });
 
-const automationInputValidator = v.object({
+export const automationInputValidator = v.object({
   key: v.optional(v.string()),
   condition: v.optional(v.object({
     propertyKey: v.string(),
@@ -197,7 +199,7 @@ function normalizeExpectedRevision(value: unknown): number {
   return Math.floor(revision);
 }
 
-async function requireWorkflowManager(args: {
+export async function requireWorkflowManager(args: {
   ctx: any;
   communityId: any;
   userId?: any;
@@ -469,6 +471,9 @@ export const updateBuilderWorkflowMilestone = mutation({
     milestoneKey: v.string(),
     name: v.string(),
     automations: v.array(automationInputValidator),
+    // Set by the MCP/CLI path (polynetBuilderSettings), never by the app.
+    via: v.optional(v.literal("agent")),
+    changedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireWorkflowManager({
@@ -477,6 +482,20 @@ export const updateBuilderWorkflowMilestone = mutation({
       userId: args.userId,
       authSubject: args.authSubject,
     });
+    return updateWorkflowStageCore(ctx, userId, args);
+  },
+});
+
+export type WorkflowStageUpdate = {
+  communityId: Id<"communities">; expectedRevision: number; milestoneKey: string; name: string;
+  automations: any[]; instructions?: string; goal?: string; requireHumanApproval?: boolean; color?: string;
+  via?: "agent"; changedBy?: string;
+};
+
+/** Validates and saves one stage. With dryRun it validates only and returns the stage as it would be saved
+ *  (proposals from agents are checked this way when they're made, and saved this way when applied). */
+export async function updateWorkflowStageCore(ctx: MutationCtx, userId: Id<"users">, args: WorkflowStageUpdate,
+  options: { dryRun?: boolean; approvedByUserId?: Id<"users"> } = {}) {
     const expectedRevision = normalizeExpectedRevision(args.expectedRevision);
     const workflow = requireWorkflowRevision(
       await getCommunityMemberWorkflowByCommunity({ ctx, communityId: args.communityId }),
@@ -585,6 +604,7 @@ export const updateBuilderWorkflowMilestone = mutation({
         milestone: current,
       };
     }
+    if (options.dryRun) return { workflow_id: String(workflow._id), revision: expectedRevision, milestone };
     const revision = expectedRevision + 1;
     await ctx.db.patch(workflow._id, {
       milestones: workflow.milestones.map((item, index) =>
@@ -594,14 +614,15 @@ export const updateBuilderWorkflowMilestone = mutation({
       updatedByUserId: userId,
       updatedAt: Date.now(),
     });
+    await recordWorkflowStageChange(ctx, { communityId: args.communityId, milestoneKey, userId, revision,
+      via: args.via ?? "app", changedBy: args.changedBy, approvedByUserId: options.approvedByUserId, before: current, after: milestone });
     if (JSON.stringify(current.automations) !== JSON.stringify(milestone.automations)
       && current.automations.some((a) => workflowRuleUsesTimer(a))) {
       await ctx.scheduler.runAfter(0, internal.communityMemberWorkflows.refreshMilestoneTimersInternal,
         { workflowId: workflow._id, milestoneKey, cursor: null });
     }
     return { workflow_id: String(workflow._id), revision, milestone };
-  },
-});
+}
 
 // The welcome flow: new members see only the forms the first stage's "member
 // joins" rules request until they submit them. Off by default; the gate itself
@@ -885,6 +906,7 @@ export const getBuilderWorkflowBoardPage = query({
       }),
     );
     const activeMemberCount = readCommunityActiveMemberCount(community);
+    const testCount = (await listActiveTestMemberUserIds(ctx, args.communityId)).size;
     return {
       workflow: {
         id: String(workflow._id),
@@ -905,8 +927,10 @@ export const getBuilderWorkflowBoardPage = query({
       page: members,
       continueCursor: rawPage.isDone ? null : rawPage.continueCursor,
       isDone: rawPage.isDone,
+      // Members as people see them (no owner, no test members); tests apart.
       totalCount:
-        activeMemberCount === null ? null : Math.max(0, activeMemberCount - 1),
+        activeMemberCount === null ? null : Math.max(0, activeMemberCount - 1 - testCount),
+      testCount,
     };
   },
 });

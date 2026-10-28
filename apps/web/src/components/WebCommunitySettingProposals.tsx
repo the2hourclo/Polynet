@@ -23,7 +23,8 @@ export function WebCommunitySettingProposals(props: { communityId: string; sessi
   const refresh = useCallback(async () => {
     try {
       const result = await listCloudCommunitySettingProposals(props.session, props.communityId);
-      setPending(result.pending);
+      // Workflow stage changes are reviewed in Workflows › Recent changes.
+      setPending(result.pending.filter(proposal => !proposal.workflow));
     } catch {
       // Not a manager, or offline: show nothing rather than a broken card.
       setPending([]);

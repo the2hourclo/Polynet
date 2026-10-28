@@ -9035,6 +9035,8 @@ button.settings-primary-action svg {
   align-items: flex-start;
 }
 
+.community-events-new-btn { display: inline-flex; align-items: center; gap: 6px; }
+
 .community-events-new-btn,
 .community-events-state button,
 .community-event-error button {

@@ -1022,7 +1022,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           <div className="resources-member-view-banner" role="status">
             <EyeOff aria-hidden="true" />
             <span><strong>Member view.</strong> You're seeing this page as your members do.</span>
-            <button type="button" className="resources-preview-pill" onClick={() => setIsPreviewMode(false)}>Exit</button>
+            <button type="button" className="resources-preview-pill" onClick={() => setIsPreviewMode(false)}>Exit member view</button>
           </div>
         ) : null}
         {/* Members on the catalog have nothing here, so the row isn't drawn. */}
@@ -1049,7 +1049,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   type="button"
                   className={`resources-preview-pill${isPreviewMode ? " is-on" : ""}`}
                   aria-pressed={isPreviewMode}
-                  title={isPreviewMode ? "Back to editing" : "See this page as members see it"}
+                  title={isPreviewMode ? "Exit member view" : "See this page as members see it"}
                   onClick={() => setIsPreviewMode(!isPreviewMode)}
                 >
                   {isPreviewMode ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
@@ -1064,7 +1064,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
           <span>{collection === "modules" ? "Courses" : "Lessons"} could not be refreshed. {message}</span>{" "}
           <button type="button" onClick={() => void actions.retryRead(collection)}>Retry {collection === "modules" ? "courses" : "lessons"}</button>
         </div>)}
-        {isRefreshingResources && hasResourceContent ? <div role="status">Refreshing resources…</div> : null}
+        {isRefreshingResources && hasResourceContent ? <div role="status">Refreshing…</div> : null}
         {showInitialResourceLoading ? (
           <div className="community-panel-state-shell">
             <div className="community-chat-page-loading-card" aria-busy="true" aria-live="polite">
@@ -1130,7 +1130,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   {selectedModule.name}
                 </span>
                 <span className="resource-course-outline-count">
-                  {state.resourceRead.hasData ? lessonCountLabel(selectedModuleSection?.lessonResources.length ?? 0) : <span aria-label="Lesson count not loaded">—</span>}
+                  {state.resourceRead.hasData ? lessonCountLabel(selectedModuleSection?.lessonResources.length ?? 0) : <span aria-label="Loading lesson count">—</span>}
                   <ChevronDown aria-hidden="true" />
                 </span>
               </button>
@@ -1194,7 +1194,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                         <path d="M14 11a5 5 0 0 0-7.07 0L3.4 14.54a5 5 0 0 0 7.07 7.07L14 19" />
                       </svg>
                     </div>
-                    <div className="chat-empty-title">{state.resourceRead.hasData ? "No lessons yet" : "Lessons not loaded"}</div>
+                    <div className="chat-empty-title">{state.resourceRead.hasData ? "No lessons yet" : "Loading lessons…"}</div>
                     <div className="chat-empty-text">
                       {!state.resourceRead.hasData ? "Lessons will appear once loading succeeds." : canManageResources
                         ? "Add the first lesson to begin building this course."

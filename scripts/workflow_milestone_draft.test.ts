@@ -24,7 +24,7 @@ describe("workflow milestone editor drafts", () => {
     expect(workflowAutomationIssue(lessonDone, [], false)).toBe("Choose Request form, Send an email, Update member record or a pod step");
     const setTier = replaceWorkflowDraftAction(lessonDone, "set_client_property");
     expect(setTier.action).toEqual({ key: "action-1", type: "set_client_property", propertyKey: "", value: null });
-    expect(workflowAutomationIssue(setTier, [], false)).toBe("Choose a client property");
+    expect(workflowAutomationIssue(setTier, [], false)).toBe("Choose a member property");
     expect(workflowAutomationIssue({ ...setTier, action: { key: "action-1", type: "set_client_property", propertyKey: "tier", value: "VIP" } }, [], false)).toBeNull();
     // Switching away keeps the prompt the builder had typed.
     expect(replaceWorkflowDraftAction(setTier, "prompt_agent").action).toMatchObject({ type: "prompt_agent", prompt: "Help the member prepare." });

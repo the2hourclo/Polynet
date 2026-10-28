@@ -166,7 +166,7 @@ import { CommunityPostsFeed, splitPostTitle } from "./CommunityPostsFeed";
 import { PostCardView, postCardTitle } from "./CommunityPostCard";
 import { useCommunityAgentName } from "../../../../shared/CommunityAgentIcon";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
-import { WebCommunityPodPanel } from "./WebCommunityPodPanel";
+import { WebCommunityPodPanel, unpinFromPod } from "./WebCommunityPodPanel";
 
 export function resolveSelectedCommunityInteractionRoot(
   roots: CommunityInteractionRootBundle[],
@@ -1073,6 +1073,7 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
             roots={props.roots}
             onOpenPost={props.onSelectRoot}
             canManage={Boolean(props.canManageActiveChannel)}
+            onUnpin={props.canManagePinnedRoot && props.onSetPinnedRoot ? () => unpinFromPod(props.onSetPinnedRoot!) : undefined}
           />
         </aside>
       ) : podMode === "classroom" && props.surface !== "members" ? null : props.communityId && props.activeChannel ? <ChannelRosterPanel

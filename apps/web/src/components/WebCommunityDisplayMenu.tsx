@@ -256,10 +256,18 @@ export function WebCommunityDisplayMenu(props: { placement: "top" | "bar"; look:
             {feelOptions.map(renderOption)}
           </div>
         ) : null}
+        {/* Size and colour are two separate choices, each with its own tick
+            (2026-10-28 review #11: one list with two ticks read as broken). */}
         {railOptions.length > 0 ? (
-          <div role="group" aria-label="Left rail (draft)">
-            <div className="community-display-group" aria-hidden="true">Left rail · draft</div>
-            {railOptions.map(renderOption)}
+          <div role="group" aria-label="Left rail size (draft)">
+            <div className="community-display-group" aria-hidden="true">Left rail size · draft</div>
+            {railOptions.filter((option) => option.key.startsWith("rail-size:")).map(renderOption)}
+          </div>
+        ) : null}
+        {railOptions.length > 0 ? (
+          <div role="group" aria-label="Left rail colour (draft)">
+            <div className="community-display-group" aria-hidden="true">Left rail colour · draft</div>
+            {railOptions.filter((option) => !option.key.startsWith("rail-size:")).map(renderOption)}
           </div>
         ) : null}
       </div>

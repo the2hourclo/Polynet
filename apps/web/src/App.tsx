@@ -2810,8 +2810,9 @@ export default function App() {
         : [],
     activeCommunityMemberCount:
       canViewMembersActiveCommunity
-        ? communityDirectoryMemberCount ??
+        ? // The presence count leaves out the owner and test members.
           activeCommunityPresenceSummary?.member_count ??
+          communityDirectoryMemberCount ??
           null
         : null,
     canOpenMobileMembers: canViewMembersActiveCommunity,

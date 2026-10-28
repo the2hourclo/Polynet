@@ -130,8 +130,8 @@ describe("the access rule", () => {
     const key = newCommunityLicenseKey("ai-employee-builders");
     expect(key).toMatch(/^pnk_aiemployeebuilde_[A-Za-z0-9]{32}$/);
     expect(communityLicenseKeyLooksValid(key)).toBe(true);
-    expect(communityLicenseKeyLooksValid("pnk_aieb_short")).toBe(false);
-    expect(newCommunityLicenseKey("aieb")).not.toBe(newCommunityLicenseKey("aieb"));
+    expect(communityLicenseKeyLooksValid("pnk_club_short")).toBe(false);
+    expect(newCommunityLicenseKey("club")).not.toBe(newCommunityLicenseKey("club"));
   });
 });
 
@@ -146,13 +146,13 @@ async function fixture() {
       ...(email ? { email, normalizedEmail: email.toLowerCase(), ...(verified ? { emailVerifiedAt: nowMs } : {}) } : {}),
     });
     const ownerId = await user("access-owner", "rashid", "owner@example.com");
-    const thomasId = await user("access-thomas", "thomas", "thomas@example.com");
-    const mattId = await user("access-matt", "matt", "matt@example.com");
-    const deanId = await user("access-dean", "dean", "dean@example.com");
+    const samId = await user("access-sam", "sam", "sam@example.com");
+    const kimId = await user("access-kim", "kim", "kim@example.com");
+    const leeId = await user("access-lee", "lee", "lee@example.com");
     await user("access-unverified", "spoof", "spoof@example.com", false);
     const outsiderId = await user("access-outsider", "outsider", "outsider@example.com");
     const communityId = await ctx.db.insert("communities", {
-      ownerId, slug: "aieb", name: "AI Employee Builders", visibility: "unlisted",
+      ownerId, slug: "club", name: "Builders Club", visibility: "unlisted",
       inferenceFundingPolicy: "managed_required", entryPolicy: "paid_subscription", activeMemberCount: 2, createdAt: nowMs, updatedAt: nowMs,
     });
     const otherCommunityId = await ctx.db.insert("communities", {
@@ -167,22 +167,22 @@ async function fixture() {
       communityId, userId, role: "member", accessSource: "paid_subscription", pricePointId, active: true, activationSequence: 1,
       activatedAt: nowMs - DAY, createdAt: nowMs - DAY, updatedAt: nowMs - DAY,
     });
-    const thomasMembership = await member(thomasId);
-    const mattMembership = await member(mattId);
+    const samMembership = await member(samId);
+    const kimMembership = await member(kimId);
     const sub = (userId: any, membershipId: any, cancelAtPeriodEnd: boolean) => ctx.db.insert("communitySubscriptions", {
       communityId, userId, membershipId, pricePointId, source: "stripe", status: "active", cancelAtPeriodEnd,
       providerAccountId: "acct_test", providerSubscriptionId: `sub_${String(userId).slice(-4)}`,
       currentPeriodEndAt: nowMs + 20 * DAY, createdAt: nowMs, updatedAt: nowMs,
     });
-    await sub(thomasId, thomasMembership, false);
-    await sub(mattId, mattMembership, true);
-    return { ownerId, thomasId, mattId, deanId, outsiderId, communityId, otherCommunityId, pricePointId, thomasMembership, mattMembership };
+    await sub(samId, samMembership, false);
+    await sub(kimId, kimMembership, true);
+    return { ownerId, samId, kimId, leeId, outsiderId, communityId, otherCommunityId, pricePointId, samMembership, kimMembership };
   });
   return {
     t, ...ids,
     asOwner: t.withIdentity({ subject: "access-owner" }),
-    asThomas: t.withIdentity({ subject: "access-thomas" }),
-    asDean: t.withIdentity({ subject: "access-dean" }),
+    asSam: t.withIdentity({ subject: "access-sam" }),
+    asLee: t.withIdentity({ subject: "access-lee" }),
     asOutsider: t.withIdentity({ subject: "access-outsider" }),
   };
 }
@@ -220,24 +220,24 @@ describe("access integrations, grants and license keys", () => {
     expect(created.signing_secret).toMatch(/^pnws_/);
     await settle(f);
 
-    const thomas = lastFor("thomas@example.com");
-    expect(thomas).toMatchObject({
+    const sam = lastFor("sam@example.com");
+    expect(sam).toMatchObject({
       type: "membership.access_changed", sequence: 1, reason: "sweep",
-      community: { slug: "aieb" },
-      member: { email: "thomas@example.com", email_verified: true },
+      community: { slug: "club" },
+      member: { email: "sam@example.com", email_verified: true },
       access: { entitled: true, source: "paid_subscription", status: "active", plan_name: "Monthly" },
     });
-    expect(thomas.member.id).toMatch(/^pm_/);
-    expect(thomas.idempotency_key).toBe(`${thomas.member.id}:1`);
-    expect(lastFor("matt@example.com").access).toMatchObject({ entitled: true, status: "cancelling" });
+    expect(sam.member.id).toMatch(/^pm_/);
+    expect(sam.idempotency_key).toBe(`${sam.member.id}:1`);
+    expect(lastFor("kim@example.com").access).toMatchObject({ entitled: true, status: "cancelling" });
     expect(lastFor("owner@example.com").access).toMatchObject({ entitled: true, source: "owner" });
-    expect(lastFor("dean@example.com")).toBeUndefined();
+    expect(lastFor("lee@example.com")).toBeUndefined();
 
     // The signature verifies with the secret shown once.
-    const delivery = deliveries.find((candidate) => candidate.body.member?.email === "thomas@example.com")!;
+    const delivery = deliveries.find((candidate) => candidate.body.member?.email === "sam@example.com")!;
     const timestamp = Number(/t=(\d+)/.exec(delivery.headers["polynet-signature"]!)![1]);
     expect(delivery.headers["polynet-signature"]).toBe(await signCommunityAccessWebhook(created.signing_secret, timestamp, delivery.raw));
-    expect(delivery.headers["polynet-event-id"]).toBe(thomas.event_id);
+    expect(delivery.headers["polynet-event-id"]).toBe(sam.event_id);
 
     // Running the sweep again sends nothing new: nothing changed.
     const before = deliveries.length;
@@ -245,17 +245,17 @@ describe("access integrations, grants and license keys", () => {
     await settle(f);
     expect(deliveries.length).toBe(before);
 
-    const byEmail = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey: created.api_key, mode: "email", value: "THOMAS@example.com" });
-    expect(byEmail).toMatchObject({ status: 200, body: { found: true, member: { id: thomas.member.id }, access: { entitled: true } } });
-    const byId = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey: created.api_key, mode: "member", value: thomas.member.id });
-    expect(byId.body).toMatchObject({ found: true, member: { email: "thomas@example.com" } });
-    const list = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey: created.api_key, mode: "list" });
-    expect((list.body as any).members.map((member: any) => member.member.email).sort()).toEqual(["matt@example.com", "thomas@example.com"]);
+    const byEmail = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "club", apiKey: created.api_key, mode: "email", value: "SAM@example.com" });
+    expect(byEmail).toMatchObject({ status: 200, body: { found: true, member: { id: sam.member.id }, access: { entitled: true } } });
+    const byId = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "club", apiKey: created.api_key, mode: "member", value: sam.member.id });
+    expect(byId.body).toMatchObject({ found: true, member: { email: "sam@example.com" } });
+    const list = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "club", apiKey: created.api_key, mode: "list" });
+    expect((list.body as any).members.map((member: any) => member.member.email).sort()).toEqual(["kim@example.com", "sam@example.com"]);
 
     // Fail closed: unknown people, unverified addresses, wrong keys, wrong community.
-    const nobody = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey: created.api_key, mode: "email", value: "spoof@example.com" });
+    const nobody = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "club", apiKey: created.api_key, mode: "email", value: "spoof@example.com" });
     expect(nobody).toMatchObject({ status: 200, body: { found: false, access: { entitled: false } } });
-    const badKey = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey: "pna_" + "x".repeat(40), mode: "email", value: "thomas@example.com" });
+    const badKey = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "club", apiKey: "pna_" + "x".repeat(40), mode: "email", value: "sam@example.com" });
     expect(badKey.status).toBe(401);
     const otherCommunity = await f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "the-2-hour-club", apiKey: created.api_key, mode: "list" });
     expect(otherCommunity.status).toBe(401);
@@ -275,12 +275,12 @@ describe("access integrations, grants and license keys", () => {
     });
     await settle(f);
     await f.t.mutation(internal.communityCommerce.syncCommunitySubscriptionLifecycleInternal, {
-      communityId: f.communityId, userId: f.thomasId, source: "stripe", status: "canceled",
-      providerAccountId: "acct_test", providerSubscriptionId: `sub_${String(f.thomasId).slice(-4)}`,
+      communityId: f.communityId, userId: f.samId, source: "stripe", status: "canceled",
+      providerAccountId: "acct_test", providerSubscriptionId: `sub_${String(f.samId).slice(-4)}`,
     });
     await settle(f);
-    const thomas = lastFor("thomas@example.com");
-    expect(thomas).toMatchObject({ sequence: 2, reason: "subscription_canceled", access: { entitled: false, status: "ended" } });
+    const sam = lastFor("sam@example.com");
+    expect(sam).toMatchObject({ sequence: 2, reason: "subscription_canceled", access: { entitled: false, status: "ended" } });
   });
 
   test("an owner grant gives dated access by verified email, can be extended, and ends on the date", async () => {
@@ -294,23 +294,23 @@ describe("access integrations, grants and license keys", () => {
       communityId: f.communityId, email: "spoof@example.com", endsAt: "2027-02-22", reason: "x",
     })).rejects.toThrow("access_grant_user_not_found");
     await expect(f.asOwner.mutation(api.communityAccess.grantCommunityAccess, {
-      communityId: f.communityId, membershipId: String(f.thomasMembership), endsAt: "2027-02-22", reason: "Comp",
+      communityId: f.communityId, membershipId: String(f.samMembership), endsAt: "2027-02-22", reason: "Comp",
     })).rejects.toThrow("access_grant_member_paying");
     await expect(f.asOutsider.mutation(api.communityAccess.grantCommunityAccess, {
-      communityId: f.communityId, email: "dean@example.com", endsAt: "2027-02-22", reason: "x",
+      communityId: f.communityId, email: "lee@example.com", endsAt: "2027-02-22", reason: "x",
     })).rejects.toThrow();
 
     const endsAt = new Date(Date.now() + 30 * DAY).toISOString().slice(0, 10);
     const granted = await f.asOwner.mutation(api.communityAccess.grantCommunityAccess, {
-      communityId: f.communityId, email: "dean@example.com", endsAt, reason: "Trial, set by hand in Lemon Squeezy",
+      communityId: f.communityId, email: "lee@example.com", endsAt, reason: "Trial, set by hand in Lemon Squeezy",
     });
     expect(granted.grant).toMatchObject({ status: "active", reason: "Trial, set by hand in Lemon Squeezy", ends_at: `${endsAt}T23:59:59.999Z` });
     await settle(f);
-    expect(lastFor("dean@example.com")).toMatchObject({ sequence: 1, reason: "access_granted", access: { entitled: true, source: "manual_grant", status: "granted", ends_at: `${endsAt}T23:59:59.999Z` } });
+    expect(lastFor("lee@example.com")).toMatchObject({ sequence: 1, reason: "access_granted", access: { entitled: true, source: "manual_grant", status: "granted", ends_at: `${endsAt}T23:59:59.999Z` } });
 
-    const deanAccess = await f.asOwner.query(api.communityAccess.getClientAccess, { communityId: f.communityId, membershipId: granted.membership_id });
-    expect(deanAccess.access).toMatchObject({ entitled: true, status: "granted" });
-    expect(deanAccess.integrations[0]).toMatchObject({ name: "Course MCP", entitled: true, last_event: { status: "delivered", entitled: true } });
+    const leeAccess = await f.asOwner.query(api.communityAccess.getClientAccess, { communityId: f.communityId, membershipId: granted.membership_id });
+    expect(leeAccess.access).toMatchObject({ entitled: true, status: "granted" });
+    expect(leeAccess.integrations[0]).toMatchObject({ name: "Course MCP", entitled: true, last_event: { status: "delivered", entitled: true } });
 
     // Extending ends the old grant and starts a new one: the history keeps both.
     const later = new Date(Date.now() + 60 * DAY).toISOString().slice(0, 10);
@@ -320,7 +320,7 @@ describe("access integrations, grants and license keys", () => {
     await settle(f);
     const history = await f.asOwner.query(api.communityAccess.getClientAccess, { communityId: f.communityId, membershipId: granted.membership_id });
     expect(history.grants.map((grant: any) => [grant.status, grant.ended_reason])).toEqual([["active", null], ["ended", "replaced"]]);
-    expect(lastFor("dean@example.com")).toMatchObject({ sequence: 2, reason: "access_grant_changed", access: { ends_at: `${later}T23:59:59.999Z` } });
+    expect(lastFor("lee@example.com")).toMatchObject({ sequence: 2, reason: "access_grant_changed", access: { ends_at: `${later}T23:59:59.999Z` } });
 
     // The end date passes: the grant ends, the membership is revoked and the
     // integration hears. Fake timers fire the end job early (it then does
@@ -331,7 +331,7 @@ describe("access integrations, grants and license keys", () => {
     const ended = await f.asOwner.query(api.communityAccess.getClientAccess, { communityId: f.communityId, membershipId: granted.membership_id });
     expect(ended.access).toMatchObject({ entitled: false, status: "ended", ended_reason: "access_grant_ended" });
     expect(ended.grants[0]).toMatchObject({ status: "ended", ended_reason: "expired" });
-    expect(lastFor("dean@example.com")).toMatchObject({ sequence: 3, reason: "access_grant_expired", access: { entitled: false } });
+    expect(lastFor("lee@example.com")).toMatchObject({ sequence: 3, reason: "access_grant_expired", access: { entitled: false } });
 
     // The client's timeline tells the same story.
     const timeline = await f.asOwner.query(api.communityClients.getClientTimeline, { communityId: f.communityId, membershipId: granted.membership_id });
@@ -345,13 +345,13 @@ describe("access integrations, grants and license keys", () => {
   test("ending a grant now revokes the membership; paid plans can't be ended here", async () => {
     const f = await fixture();
     const granted = await f.asOwner.mutation(api.communityAccess.grantCommunityAccess, {
-      communityId: f.communityId, email: "dean@example.com", endsAt: null, reason: "Partner",
+      communityId: f.communityId, email: "lee@example.com", endsAt: null, reason: "Partner",
     });
     expect(granted.grant.ends_at).toBeNull();
     await f.asOwner.mutation(api.communityAccess.endCommunityAccess, { communityId: f.communityId, membershipId: granted.membership_id });
     const membership = await f.t.run((ctx) => ctx.db.get(granted.membership_id as any)) as any;
     expect(membership).toMatchObject({ active: false, revokedReason: "access_grant_ended" });
-    await expect(f.asOwner.mutation(api.communityAccess.endCommunityAccess, { communityId: f.communityId, membershipId: String(f.thomasMembership) }))
+    await expect(f.asOwner.mutation(api.communityAccess.endCommunityAccess, { communityId: f.communityId, membershipId: String(f.samMembership) }))
       .rejects.toThrow("access_grant_not_found");
   });
 
@@ -361,28 +361,28 @@ describe("access integrations, grants and license keys", () => {
       communityId: f.communityId, name: "Course MCP", webhookUrl: "https://mcp.example.com/webhooks/polynet",
     });
     await settle(f);
-    const mine = await f.asThomas.query(api.communityAccess.getMyCommunityAccess, { communityId: f.communityId });
+    const mine = await f.asSam.query(api.communityAccess.getMyCommunityAccess, { communityId: f.communityId });
     expect(mine).toMatchObject({ license_key_available: true, license_key: null, access: { entitled: true } });
-    const first = await f.asThomas.mutation(api.communityAccess.createMyCommunityLicenseKey, { communityId: f.communityId });
+    const first = await f.asSam.mutation(api.communityAccess.createMyCommunityLicenseKey, { communityId: f.communityId });
     expect(communityLicenseKeyLooksValid(first.key)).toBe(true);
-    const verify = (key: string) => f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey: created.api_key, mode: "license", value: key });
-    expect((await verify(first.key)).body).toMatchObject({ found: true, member: { email: "thomas@example.com" }, access: { entitled: true } });
+    const verify = (key: string) => f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "club", apiKey: created.api_key, mode: "license", value: key });
+    expect((await verify(first.key)).body).toMatchObject({ found: true, member: { email: "sam@example.com" }, access: { entitled: true } });
 
-    const second = await f.asThomas.mutation(api.communityAccess.createMyCommunityLicenseKey, { communityId: f.communityId });
+    const second = await f.asSam.mutation(api.communityAccess.createMyCommunityLicenseKey, { communityId: f.communityId });
     expect(second.rotated).toBe(true);
     expect((await verify(first.key)).body).toMatchObject({ found: false, access: { entitled: false } });
     expect((await verify(second.key)).body).toMatchObject({ found: true });
-    const after = await f.asThomas.query(api.communityAccess.getMyCommunityAccess, { communityId: f.communityId });
+    const after = await f.asSam.query(api.communityAccess.getMyCommunityAccess, { communityId: f.communityId });
     expect(after.license_key).toMatchObject({ last4: second.key.slice(-4) });
     expect(after.license_key?.last_checked_at).not.toBeNull();
 
     // Access ends: the same key now answers "not entitled".
     await f.t.mutation(internal.communityCommerce.syncCommunitySubscriptionLifecycleInternal, {
-      communityId: f.communityId, userId: f.thomasId, source: "stripe", status: "ended",
-      providerAccountId: "acct_test", providerSubscriptionId: `sub_${String(f.thomasId).slice(-4)}`,
+      communityId: f.communityId, userId: f.samId, source: "stripe", status: "ended",
+      providerAccountId: "acct_test", providerSubscriptionId: `sub_${String(f.samId).slice(-4)}`,
     });
     expect((await verify(second.key)).body).toMatchObject({ found: true, access: { entitled: false, status: "ended" } });
-    await expect(f.asThomas.mutation(api.communityAccess.createMyCommunityLicenseKey, { communityId: f.communityId }))
+    await expect(f.asSam.mutation(api.communityAccess.createMyCommunityLicenseKey, { communityId: f.communityId }))
       .rejects.toThrow("license_key_requires_access");
 
     // Someone without access can't make a key at all.
@@ -397,31 +397,31 @@ describe("access integrations, grants and license keys", () => {
     });
     await settle(f);
     const back = "https://mcp.example.com/oauth/polynet/callback";
-    const target = await f.asThomas.query(api.communityAccess.getAccessSignInTarget, { slug: "aieb", returnUrl: back });
-    expect(target).toMatchObject({ found: true, service: { name: "Course MCP" }, member: { email: "thomas@example.com", is_member: true, entitled: true } });
+    const target = await f.asSam.query(api.communityAccess.getAccessSignInTarget, { slug: "club", returnUrl: back });
+    expect(target).toMatchObject({ found: true, service: { name: "Course MCP" }, member: { email: "sam@example.com", is_member: true, entitled: true } });
     // Another site can't receive a code.
-    expect(await f.asThomas.query(api.communityAccess.getAccessSignInTarget, { slug: "aieb", returnUrl: "https://evil.example.com/cb" }))
+    expect(await f.asSam.query(api.communityAccess.getAccessSignInTarget, { slug: "club", returnUrl: "https://evil.example.com/cb" }))
       .toMatchObject({ found: true, service: null });
-    await expect(f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: "https://evil.example.com/cb" }))
+    await expect(f.asSam.mutation(api.communityAccess.createAccessSignInCode, { slug: "club", returnUrl: "https://evil.example.com/cb" }))
       .rejects.toThrow("sign_in_not_set_up");
-    await expect(f.asOutsider.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back }))
+    await expect(f.asOutsider.mutation(api.communityAccess.createAccessSignInCode, { slug: "club", returnUrl: back }))
       .rejects.toThrow("sign_in_not_a_member");
 
     const redeem = (code: string, returnUrl = back, apiKey = created.api_key) =>
-      f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "aieb", apiKey, mode: "sign_in", value: code, returnUrl });
-    const issued = await f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back });
+      f.t.mutation(internal.communityAccess.lookupCommunityAccessInternal, { slug: "club", apiKey, mode: "sign_in", value: code, returnUrl });
+    const issued = await f.asSam.mutation(api.communityAccess.createAccessSignInCode, { slug: "club", returnUrl: back });
     expect(issued.code).toMatch(/^pnc_[A-Za-z0-9]{40}$/);
     expect((await redeem(issued.code, "https://mcp.example.com/other")).body).toMatchObject({ found: false });
-    expect((await redeem(issued.code)).body).toMatchObject({ found: true, member: { email: "thomas@example.com" }, access: { entitled: true } });
+    expect((await redeem(issued.code)).body).toMatchObject({ found: true, member: { email: "sam@example.com" }, access: { entitled: true } });
     // Once only.
     expect((await redeem(issued.code)).body).toMatchObject({ found: false, access: { entitled: false } });
 
     // Five minutes, then it's gone.
-    const late = await f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back });
+    const late = await f.asSam.mutation(api.communityAccess.createAccessSignInCode, { slug: "club", returnUrl: back });
     vi.advanceTimersByTime(5 * 60_000 + 1);
     expect((await redeem(late.code)).body).toMatchObject({ found: false });
     // Someone else's API key can't redeem it.
-    const fresh = await f.asThomas.mutation(api.communityAccess.createAccessSignInCode, { slug: "aieb", returnUrl: back });
+    const fresh = await f.asSam.mutation(api.communityAccess.createAccessSignInCode, { slug: "club", returnUrl: back });
     expect((await redeem(fresh.code, back, "pna_" + "x".repeat(40))).status).toBe(401);
   });
 
@@ -453,8 +453,8 @@ describe("access integrations, grants and license keys", () => {
     await settle(f);
     const list = await f.asOwner.query(api.communityClients.listClientsForOwner, { communityId: f.communityId });
     const byName = Object.fromEntries(list.clients.map((client: any) => [client.name, client]));
-    expect(byName.thomas.access).toMatchObject({ entitled: true, status: "active", license_key: null });
-    expect(byName.thomas.access.can_use.map((use: any) => use.label)).toEqual(["Community", "Courses", "Course MCP"]);
-    expect(byName.matt.access).toMatchObject({ status: "cancelling" });
+    expect(byName.sam.access).toMatchObject({ entitled: true, status: "active", license_key: null });
+    expect(byName.sam.access.can_use.map((use: any) => use.label)).toEqual(["Community", "Courses", "Course MCP"]);
+    expect(byName.kim.access).toMatchObject({ status: "cancelling" });
   });
 });

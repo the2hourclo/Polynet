@@ -126,7 +126,7 @@ export function WebCommunitySecondaryPanels(props: WebCommunitySecondaryPanelsPr
           : <p role="status">Only the community's owner and admins can see members.</p>)}
 
       {props.communityTab === "analytics" &&
-        renderCenteredPane(<WebCommunityAnalyticsSection {...props.analytics} />)}
+        renderCenteredPane(<div className="pn-page-with-back"><WebCommunityPageBack /><WebCommunityAnalyticsSection {...props.analytics} /></div>)}
 
       {props.communityTab === "resources" ? (
         <>

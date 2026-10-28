@@ -58,7 +58,7 @@ function ConditionClauseRow(props: { id: string; clause: ConditionClause; proper
     : property && (property.type === "select" || property.type === "multi_select") ? property.options.map((option) => [option, option]) : null;
   const setValue = (raw: string) => props.onChange({ ...clause, value: property?.type === "checkbox" ? raw === "true" : property?.type === "number" && raw !== "" ? Number(raw) : raw });
   return <div className="workflow-action-choice-row workflow-condition-row">
-    <select aria-label="Client property" value={clause.propertyKey} disabled={props.disabled}
+    <select aria-label="Member property" value={clause.propertyKey} disabled={props.disabled}
       onChange={(event) => props.onChange({ propertyKey: event.target.value, op: clause.op === "is_empty" ? "is_empty" : "is_set" })}>
       {!property ? <option value={clause.propertyKey}>{clause.propertyKey} (archived)</option> : null}
       {properties.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
@@ -90,7 +90,7 @@ function ConditionField(props: { id: string; condition: CommunityMemberWorkflowC
     return <div className="workflow-automation-field workflow-step-extra">
       <button type="button" className="workflow-step-extra-add" disabled={props.disabled || !properties.length}
         onClick={() => properties[0] && props.onChange({ propertyKey: properties[0].key, op: "is_set" })}>+ Only if…</button>
-      <small className="workflow-field-hint">{properties.length ? "Run this step only for some members, by a client property." : "Add a client property under Clients to run steps only for some members."}</small>
+      <small className="workflow-field-hint">{properties.length ? "Run this step only for some members, by a member property." : "Add a member property in Members to run steps only for some members."}</small>
     </div>;
   }
   const clauses = workflowConditionClauses(condition);
@@ -166,7 +166,7 @@ function AgentInputsField(props: { id: string; sees: string[] | undefined; catal
     </div>
     {props.forms?.length ? <div className="workflow-agent-input-group"><span>Form answers</span>
       {props.forms.map((form) => box(`form:${form.key}`, form.name))}</div> : null}
-    {props.catalog?.properties?.length ? <div className="workflow-agent-input-group"><span>Client properties</span>
+    {props.catalog?.properties?.length ? <div className="workflow-agent-input-group"><span>Member properties</span>
       {props.catalog.properties.map((property) => box(`property:${property.key}`, property.name))}</div> : null}
     </>}
     <div className="workflow-agent-input-group"><span>Your content</span>
@@ -286,7 +286,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
     : isRecord ? `Record changes · ${recordProperty?.name ?? (recordKey || "Choose a field")}`
     : isDate ? `Date in their record · ${dateName}`
     : isLesson ? `Lesson done · ${lessonName}` : isCourse ? `Course finished · ${courseName}` : isTrack ? `Track finished · ${trackName}` : isOffer ? `${automation.trigger.type === "offer_started" ? "Starts" : "Leaves"} an offer · ${offerName}` : automation.trigger.type === "form_submitted" ? `Form submitted · ${props.forms?.find(form => form.key === (automation.trigger.type === "form_submitted" ? automation.trigger.formKey : ""))?.name ?? "Choose a form"}` : isArrival ? "Reaches this stage" : isTimed ? nudge ? `Still here after ${durationLabel} · nudge` : `After ${durationLabel} in this stage` : `Posts or replies · ${workflowChannelLabel(channelId, props.channels, props.channelsUnavailable)}`;
-  const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a client property")}`
+  const actionLabel = automation.action.type === "set_client_property" ? `Set ${property?.name ?? (propertyKey || "a member property")}`
     : automation.action.type === "send_email" ? "Send an email"
     : automation.action.type === "set_pod_member" ? `${automation.action.active ? "Add to" : "Take out of"} ${podName(automation.action.channelId, "a pod")}`
     : automation.action.type === "create_service_channel" ? "Create a personal pod for this member" : isPrompt ? "Ask community agent" : automation.action.type === "request_form" ? "Request form" : triggerLabel;
@@ -458,7 +458,7 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
               {isJoin ? <option value="create_service_channel">Create a personal pod for this member</option> : <option value="prompt_agent">Ask community agent</option>}
               {!isForm ? <option value="request_form">Request form</option> : null}
               {!isJoin ? <option value="send_email">Send an email</option> : null}
-              {!isJoin ? <option value="set_client_property">Set client property</option> : null}
+              {!isJoin ? <option value="set_client_property">Set member property</option> : null}
               {!isJoin ? <option value="set_pod_member">Add to or take out of a pod</option> : null}
             </select>
           </label> : null}
@@ -466,15 +466,15 @@ export function WebCommunityWorkflowAutomationEditor(props: Props) {
           {triggerReady && actionSelected ? <>
           {isJoin ? <p className="workflow-field-hint">Applies only to future first-time members. Each join action runs independently; no automatic message or stage movement.</p> : null}
           {automation.action.type === "set_client_property" ? <>
-            <label>Client property<select value={propertyKey} disabled={props.disabled || !props.catalog?.properties}
+            <label>Member property<select value={propertyKey} disabled={props.disabled || !props.catalog?.properties}
               onChange={e => props.onChange({ ...automation, action: { key: automation.action.key, type: "set_client_property", propertyKey: e.target.value, value: null } })}>
-              <option value="">{props.catalog?.properties ? (props.catalog.properties.length ? "Choose a property" : "No client properties yet") : "Loading properties…"}</option>
+              <option value="">{props.catalog?.properties ? (props.catalog.properties.length ? "Choose a property" : "No member properties yet") : "Loading properties…"}</option>
               {propertyKey && !property && props.catalog?.properties ? <option value={propertyKey}>{propertyKey} (archived)</option> : null}
               {(props.catalog?.properties ?? []).map(item => <option key={item.key} value={item.key}>{item.name}</option>)}
             </select></label>
             {property && automation.action.type === "set_client_property" ? <PropertyValueField id={`${id}-property-value`} property={property} value={automation.action.value}
               disabled={props.disabled} onChange={(value) => props.onChange({ ...automation, action: { key: automation.action.key, type: "set_client_property", propertyKey, value } })} /> : null}
-            <p className="workflow-field-hint">Writes this value on the member's client record. You'll see it in the client's timeline as set by Workflow.</p>
+            <p className="workflow-field-hint">Writes this value on the member's member record. You'll see it in the client's timeline as set by Workflow.</p>
           </> : automation.action.type === "set_pod_member" ? <>
             <label>Pod<select value={automation.action.channelId} disabled={props.disabled}
               onChange={e => props.onChange({ ...automation, action: { ...(automation.action as Extract<typeof automation.action, { type: "set_pod_member" }>), channelId: e.target.value } })}>

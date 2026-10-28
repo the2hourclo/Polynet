@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import schema from "./schema";
 
-const modules = import.meta.glob(["./communityPods.ts", "./communityEvents.ts", "./communityChannelParticipants.ts", "./_generated/**/*.*s"]);
+const modules = import.meta.glob(["./communityPods.ts", "./communityChannels.ts", "./communityEvents.ts", "./communityChannelParticipants.ts", "./_generated/**/*.*s"]);
 const set = "communityChannelParticipants:setParticipant" as any;
 const people = "communityPods:listPodPeople" as any;
 
@@ -103,10 +103,25 @@ test("a pod's shelf lists the files and videos posted in it, and the pinned post
 });
 
 test("members' guide channels: the member's own is theirs, everyone else's is listed apart", async () => {
-  const { t, f, owner, member } = await fixture();
+  const { t, f, owner, member, outsider } = await fixture();
   await t.run(ctx => ctx.db.patch(f.membershipId, { serviceChannelId: f.podId }));
-  expect(await member.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: String(f.podId), member_spaces: [] });
-  expect(await owner.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: null, member_spaces: [String(f.podId)] });
+  expect(await member.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: String(f.podId), member_spaces: [], test_spaces: [] });
+  expect(await owner.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: null, member_spaces: [String(f.podId)], test_spaces: [] });
+  // Pods are private: another member never learns whose personal pod exists.
+  expect(await outsider.query("communityPods:listPodSpaces" as any, { communityId: f.communityId })).toEqual({ mine: null, member_spaces: [], test_spaces: [] });
+});
+
+test("pods are private: someone not in a pod never sees it, the owner and admins see every pod", async () => {
+  const { t, f, owner, member, outsider } = await fixture();
+  await owner.mutation(set, { communityId: f.communityId, channelId: f.podId, target: { kind: "member", userId: f.memberId }, active: true });
+  const admin = t.withIdentity({ subject: "admin" });
+  const list = async (who: typeof owner) => ((await who.query("communityChannels:listCommunityChannels" as any, { communityId: f.communityId })).channels as any[])
+    .map((channel) => channel.slug).sort();
+  expect(await list(outsider)).not.toContain("agency-owners");
+  expect(await list(member)).toContain("agency-owners");
+  expect(await list(admin)).toContain("agency-owners");
+  expect(await list(owner)).toContain("agency-owners");
+  expect(await outsider.query(people, { communityId: f.communityId, channelIds: [f.podId] })).toEqual({ pods: [] });
 });
 
 test("a pod's call is seen only by the pod, and only the pod's ids can be used", async () => {
@@ -124,4 +139,21 @@ test("a pod's call is seen only by the pod, and only the pod's ids can be used",
   expect(await titles(member, { channelId: f.podId })).toEqual(["Cohort call"]);
   await expect(owner.mutation("communityEvents:saveCommunityEvent" as any, { communityId: f.communityId,
     payload: { title: "Bad", starts_at: startsAt, timezone: "UTC", channel_id: String(f.topicId) } })).rejects.toThrow("community_event_channel_invalid");
+});
+
+test("a test member's own pod is listed apart so the owner's lists leave it out, ended runs too", async () => {
+  const { t, f, owner } = await fixture();
+  await t.run(async ctx => {
+    await ctx.db.patch(f.membershipId, { serviceChannelId: f.podId });
+    await ctx.db.insert("communityTestMembers", { communityId: f.communityId, userId: f.memberId, authSubject: "member",
+      ownerUserId: f.ownerId, ownerAuthSubject: "owner", label: "Test member 1", number: 1, createdAt: 1, endedAt: 2 } as any);
+  });
+  expect(await owner.query("communityPods:listPodSpaces" as any, { communityId: f.communityId }))
+    .toEqual({ mine: null, member_spaces: [String(f.podId)], test_spaces: [String(f.podId)] });
+});
+
+test("pod faces mark the viewer, so a card names someone else as here", async () => {
+  const { f, owner } = await fixture();
+  const result: any = await owner.query(people, { communityId: f.communityId, channelIds: [f.podId] });
+  expect(result.pods[0].people.map((row: any) => [row.profile.display_name, row.is_you])).toEqual([["admin", false], ["owner", true]]);
 });

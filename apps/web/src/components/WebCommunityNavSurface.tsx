@@ -7,12 +7,15 @@ type WebCommunityNavSurfaceProps = {
   communityShell: WebCommunityShellProps;
   presentation: "desktop" | "mobile-home";
   personalPodIds?: string[];
+  // Test members' personal pods stay out of the list (open one by link if needed).
+  hiddenPodIds?: string[];
 };
 
 export function WebCommunityNavSurface({
   communityShell,
   presentation,
   personalPodIds,
+  hiddenPodIds,
 }: WebCommunityNavSurfaceProps) {
   const isMobileHome = presentation === "mobile-home";
   const hasDestinationSelection =
@@ -28,7 +31,7 @@ export function WebCommunityNavSurface({
       communityTab={communityShell.communityTab}
       activeSelectionMode={hasDestinationSelection ? "route" : "none"}
       tabIndicators={communityShell.communityTabIndicators}
-      channels={communityShell.communityChannels}
+      channels={hiddenPodIds?.length ? communityShell.communityChannels.filter((channel) => !hiddenPodIds.includes(channel.id) || channel.slug === communityShell.selectedCommunityChannelSlug) : communityShell.communityChannels}
       personalPodIds={personalPodIds}
       isLoadingChannels={communityShell.isLoadingCommunityChannels}
       selectedChannelSlug={isMobileHome ? null : communityShell.selectedCommunityChannelSlug}

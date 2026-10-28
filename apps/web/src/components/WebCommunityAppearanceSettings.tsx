@@ -57,7 +57,7 @@ const COLOR_FIELDS: [keyof CommunityThemeColors, string][] = [
   ["background", "Background"], ["surface", "Cards"], ["text", "Text"], ["muted", "Secondary text"],
   ["border", "Borders"], ["accent", "Accent"], ["on_accent", "Text on accent"], ["button", "Buttons"], ["on_button", "Button text"],
 ];
-type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_card_panel" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color" | "sibling_communities" | "pods_place" | "classroom_chat";
+type ChoiceKey = "heading_case" | "numerals" | "corner_style" | "shadow" | "density" | "button_shape" | "course_cover_ratio" | "course_card_size" | "course_columns" | "course_columns_phone" | "course_gap" | "course_card_style" | "course_card_pills" | "course_card_description" | "course_card_progress" | "course_card_edge" | "course_card_panel" | "course_cover_plate" | "course_cover_fit" | "media_plate" | "banner_name" | "channels_look" | "rail_size" | "rail_color" | "sibling_communities" | "pods_place" | "classroom_chat" | "edges";
 const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   heading_case: ["Heading case", [["none", "As typed"], ["upper", "UPPERCASE"]]],
   numerals: ["Numbers", [["proportional", "Natural"], ["tabular", "Even width (for tables)"]]],
@@ -82,6 +82,7 @@ const CHOICES: Record<ChoiceKey, [string, [string, string][]]> = {
   banner_name: ["Name on the banner", [["show", "Show it"], ["hide", "Hide it"]]],
   channels_look: ["Page style", [["current", "Polynet (today)"], ["quiet", "Quiet: plain menu, one column"], ["reader", "Reader: reading column, post lists"], ["publication", "Publication: masthead, editorial cards"]]],
   sibling_communities: ["Your other communities", [["hide", "Hidden"], ["show", "Show them under members"]]],
+  edges: ["Edges (light)", [["soft", "Soft (faint lines)"], ["sharp", "Sharper lines"], ["clean", "Clean white"], ["framed", "Framed panels"]]],
   classroom_chat: ["Classroom's Community tab", [["posts", "Post cards (default)"], ["chat", "A chat"]]],
   pods_place: ["Where pods show", [["aside", "Top of the right column"], ["header", "In the header"], ["tab", "As a tab after Community"]]],
   rail_size: ["Icon size", [["standard", "Standard"], ["large", "Bigger"]]],
@@ -860,6 +861,8 @@ function AppearanceEditor(props: EditorProps) {
             {slider("border_width", "Border width", 0, 3, 1, (value) => `${value}px`)}
             {choice("shadow")}
             {choice("density")}
+            {choice("edges")}
+            <p className="appearance-hint">How panels and cards stand apart in the light scheme. Dark keeps its own look.</p>
           </Group>
           <Group title="Channels look · draft">
             {choice("channels_look")}

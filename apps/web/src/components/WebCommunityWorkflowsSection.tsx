@@ -32,9 +32,12 @@ import { WebCommunityClientAccessPanel } from "./WebCommunityAccess";
 import { WebCommunityAgentLedJourney } from "./WebCommunityAgentLedJourney";
 import { WebCommunityWorkflowAutomations } from "./WebCommunityWorkflowAutomations";
 import { WebCommunityWorkflowRunHistory } from "./WebCommunityWorkflowRunHistory";
+import { WebCommunityWorkflowChanges, workflowProposalDrafts } from "./WebCommunityWorkflowChanges";
+import type { CommunitySettingProposal } from "../../../../shared/cloudCommunitySettingProposalsGateway";
 import type { AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 import "./WebCommunityWorkflowsPage.css";
+import "./workflowStageColors.css";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 export type WebCommunityWorkflowsSectionProps = {
@@ -167,6 +170,33 @@ export function WebCommunityWorkflowsSection(
   const back = frame.layout.navigation.position !== "top" && frame.community
     ? { label: frame.community.name, onBack: () => frame.onSelectTab(frame.layout.navigation.home === "agent" ? "chat" : frame.layout.navigation.home) }
     : null;
+  // Agents' changes waiting for the owner, for the banner over Automations.
+  const [waiting, setWaiting] = useState<CommunitySettingProposal[]>([]);
+  const [waitingTick, setWaitingTick] = useState(0);
+  useEffect(() => {
+    const changes = props.forms?.changes;
+    if (!changes) { setWaiting([]); return; }
+    let alive = true;
+    const load = () => changes.waiting().then(rows => { if (alive) setWaiting(rows); }).catch(() => undefined);
+    void load();
+    const timer = window.setInterval(load, 20_000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [props.forms?.changes, waitingTick, section]);
+  // Edit first: the suggestion opens in Automations as unsaved changes, and
+  // once the owner updates that stage the suggestion is closed.
+  const [seed, setSeed] = useState<WorkflowSeed | null>(null);
+  const editFirst = (proposal: CommunitySettingProposal) => {
+    if (!proposal.workflow) return;
+    setSeed({ stageKey: proposal.workflow.milestone_key, proposalId: proposal.proposal_id, token: crypto.randomUUID(), by: proposal.proposed_by ?? "The agent",
+      rules: workflowProposalDrafts(proposal.workflow.current, proposal.workflow.proposed) });
+    void select("workflows");
+  };
+  const seedSaved = () => {
+    const proposalId = seed?.proposalId;
+    setSeed(null);
+    if (proposalId) void props.forms?.changes?.decline(proposalId).catch(() => undefined).finally(() => setWaitingTick(n => n + 1));
+  };
+  const firstWaiting = waiting[0];
   // Page header and underlined section tabs, after Substack's dashboard.
   return <div className="workflow-page workflow-sections pn-wf">
     <header className="pn-wf-header pn-wf-header-row">
@@ -183,7 +213,16 @@ export function WebCommunityWorkflowsSection(
     <WebPlatformTabList tabs={tabs} activeTab={section} onSelectTab={(next, meta) => void select(next, meta.source === "keyboard")}
       ariaLabel="Workflow sections" idPrefix="workflow-sections" className="pn-wf-tabs" />
     <div className="workflow-section-content" role="tabpanel" id={platformTabPanelId("workflow-sections", section)} aria-labelledby={platformTabId("workflow-sections", section)}>
-      {section === "workflows" ? <WorkflowBoard {...props} onTestStage={props.testRun ? testStage : undefined} />
+      {section === "workflows" && firstWaiting && seed?.proposalId !== firstWaiting.proposal_id ? <div className="pn-chg-banner" role="status">
+        <span><strong>{firstWaiting.proposed_by ?? "An agent"}</strong> wants to change <strong>{firstWaiting.workflow?.proposed.name}</strong>
+          {waiting.length > 1 ? ` and ${waiting.length - 1} more` : ""}. Nothing changes until you approve it.</span>
+        <button type="button" className="pn-au-btn" onClick={() => void select("changes")}>Review</button>
+      </div> : null}
+      {section === "workflows" ? <WorkflowBoard {...props} onTestStage={props.testRun ? testStage : undefined} seed={seed} onSeedSaved={seedSaved} />
+        : section === "changes" ? props.forms?.changes
+          ? <WebCommunityWorkflowChanges key={props.forms.scopeKey} gateway={props.forms} channels={props.channels}
+            communityName={props.communityName ?? ""} onEditFirst={editFirst} onChanged={() => { setWaitingTick(n => n + 1); void props.onReload(); }} />
+          : <p className="pn-chg-muted">Recent changes isn't available here.</p>
         : section === "welcome" ? <WebCommunityWelcomeSettings key={props.forms?.scopeKey} board={props.board} communityName={props.communityName ?? null}
           forms={props.forms} isSaving={props.isSaving} actionError={props.actionError} onSetWelcomeGate={props.onSetWelcomeGate}
           onSetWelcomeDisplay={props.onSetWelcomeDisplay}
@@ -226,10 +265,13 @@ export function WebCommunityWorkflowsSection(
 }
 
 const SECTION_LABELS: Record<WorkflowSection, string> = {
-  workflows: "Automations", runs: "Run history", forms: "Forms", welcome: "Welcome page",
+  workflows: "Automations", runs: "Run history", changes: "Recent changes", forms: "Forms", welcome: "Welcome page",
 };
 
-function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?: (milestoneKey: string | null) => void }) {
+export type WorkflowSeed = { stageKey: string; proposalId: string; token: string; rules: CommunityMemberWorkflowAutomation[]; by: string };
+
+function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?: (milestoneKey: string | null) => void;
+  seed?: WorkflowSeed | null; onSeedSaved?: () => void }) {
   const [publishedForms, setPublishedForms] = useState<Array<{ key: string; name: string }>>([]);
   const [formsState, setFormsState] = useState<"loading" | "ready" | "error">("loading");
   const [formsRetry, setFormsRetry] = useState(0);
@@ -354,7 +396,8 @@ function WorkflowBoard(props: WebCommunityWorkflowsSectionProps & { onTestStage?
           onSaveStage={(milestone, automations) => props.onUpdateMilestone(milestone.key, milestone.name, automations,
             milestone.instructions, milestone.goal, milestone.requireHumanApproval)}
           onEditStage={(key) => openMilestone(key)} onAddStage={addMilestone}
-          onTestStage={props.onTestStage ? (key, index) => props.onTestStage?.(index === 0 ? null : key) : undefined} />
+          onTestStage={props.onTestStage ? (key, index) => props.onTestStage?.(index === 0 ? null : key) : undefined}
+          seed={props.seed ?? null} onSeedSaved={props.onSeedSaved} />
         {props.onApplyAgentLedJourney && formsState !== "loading" ? <WebCommunityAgentLedJourney milestones={props.board?.milestones ?? null}
           publishedForms={publishedForms} isSaving={props.isSaving} onApply={props.onApplyAgentLedJourney} /> : null}
 

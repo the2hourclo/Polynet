@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import {
   communityMembershipRowIsActive,
+  listActiveTestMemberUserIds,
   requireCommunityManager,
   requireCommunityOwner,
   resolveUserIdForAuthenticatedRequest,
@@ -57,8 +58,12 @@ export async function readCommunityOffersForBuilder(ctx: any, communityId: any) 
   const ladder = resolveCommunityOfferLadder(rows.map(communityOfferDefinitionOf));
   const memberships = await ctx.db.query("communityMemberships").withIndex("by_community", (q: any) => q.eq("communityId", communityId)).take(2000);
   const counts = new Map<string, number>();
+  const community: any = await ctx.db.get(communityId);
+  const testUserIds = await listActiveTestMemberUserIds(ctx, communityId);
   for (const membership of memberships) {
     if (!communityMembershipRowIsActive(membership)) continue;
+    // The same people the sales page and Members count: no owner, no test members.
+    if (String(membership.userId) === String(community?.ownerId) || testUserIds.has(String(membership.userId))) continue;
     const top = (membership.heldOfferKeys ?? []).at(-1) ?? (rows.length ? null : COMMUNITY_BASE_OFFER_KEY);
     if (top) counts.set(top, (counts.get(top) ?? 0) + 1);
   }

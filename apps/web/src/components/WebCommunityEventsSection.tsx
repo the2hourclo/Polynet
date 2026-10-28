@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Globe, Lock, MapPin, Repeat, Users, X } from "lucide-react";
+import { CalendarDays, Globe, Lock, MapPin, Plus, Repeat, Users, X } from "lucide-react";
 import { communityEventDisplayEnd, communityEventPhase, DEFAULT_COMMUNITY_EVENT_DURATION_MS } from "../../../../shared/communityEventLifecycle";
 import { useCommunityEventClock } from "../../../../shared/useCommunityEventClock";
 import {
@@ -546,7 +546,7 @@ export function WebCommunityEventsSection(props: WebCommunityEventsSectionProps)
             type="button"
             onClick={() => openNewEvent(getDefaultEventDayForMonth(monthDate))}
           >
-            New event
+            <Plus size={16} aria-hidden="true" /> New event
           </button>
         ) : null}
       </div>

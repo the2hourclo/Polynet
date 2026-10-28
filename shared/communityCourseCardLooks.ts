@@ -19,7 +19,7 @@ export type CourseCardLook = {
 
 export const COURSE_CARD_LOOKS: readonly CourseCardLook[] = [
   // Polynet's default: the course card members know from course communities.
-  { id: "classroom", name: "Classroom", description: "Quiet framed cards: cover on top, the title in your heading font, a short description and a slim progress line.",
+  { id: "classroom", name: "Framed", description: "Quiet framed cards: cover on top, the title in your heading font, a short description and a slim progress line.",
     tokens: { course_card_style: "classroom", course_card_edge: "border", course_card_size: "medium", course_columns: "auto", course_cover_ratio: "16:9", course_gap: "default",
       course_card_pills: "hide", course_card_description: "show", course_card_progress: "bar" } },
   { id: "classic", name: "Classic", description: "Framed cards with a wide cover, lesson pills and a progress bar.",

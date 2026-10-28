@@ -72,6 +72,8 @@ export const DEFAULT_COMMUNITY_THEME = {
     sibling_communities: "hide",
     pods_place: "aside",
     classroom_chat: "posts",
+    // Clean white is the light default.
+    edges: "clean",
 };
 const COLOR_KEYS = [
     "background", "surface", "text", "muted", "border", "accent", "on_accent", "button", "on_button",
@@ -113,6 +115,7 @@ const ENUMS = {
     sibling_communities: ["hide", "show"],
     pods_place: ["aside", "header", "tab"],
     classroom_chat: ["posts", "chat"],
+    edges: ["soft", "sharp", "clean", "framed"],
 };
 const RANGES = {
     heading_weight: [300, 900],
@@ -621,7 +624,72 @@ export function communityThemeVariables(theme, scheme) {
         "--font-sans": font(theme.font_body),
         "--font-mono": font(theme.font_mono),
     };
-    return { ...pn, ...arx };
+    return { ...pn, ...arx, ...edgeVariables(theme.edges, c, scheme, mixed) };
+}
+// Lines, panel colours and lifts for the Edges setting. Every value is
+// worked out from the community's own colours. Dark schemes and "soft" keep
+// the old values; the edge variables are still set so the shared rules in
+// styles/edges.css always have something to read.
+function edgeVariables(edges, c, scheme, mixed) {
+    const soft = {
+        "--pn-edge-card-line": mixed(c.border, 72, "transparent"),
+        "--pn-edge-lift": "none",
+        "--pn-edge-canvas": c.background,
+        "--pn-edge-gap": "0rem",
+        "--pn-edge-panel-radius": "0rem",
+        "--pn-edge-frame": "none",
+    };
+    if (scheme === "dark" || edges === "soft")
+        return soft;
+    const ink = (pct, base) => mixed(c.text, pct, base);
+    if (edges === "sharp") {
+        return {
+            ...soft,
+            "--border-default": ink(19, c.background),
+            "--stroke-default": ink(19, c.background),
+            "--stroke-panel-edge": ink(19, c.background),
+            "--stroke-divider-accent": ink(19, c.background),
+            "--composer-border": ink(26, c.background),
+            "--border-muted": ink(12, c.background),
+            "--stroke-muted": ink(12, c.background),
+            "--border-strong": ink(34, c.background),
+            "--stroke-strong": ink(34, c.background),
+            "--pn-edge-card-line": ink(19, c.background),
+        };
+    }
+    // Clean takes Sharper's line strength.
+    const line = edges === "clean" ? 19 : 12;
+    const panels = {
+        "--border-default": ink(line, c.surface),
+        "--stroke-default": ink(line, c.surface),
+        "--stroke-panel-edge": ink(line, c.surface),
+        "--stroke-divider-accent": ink(line, c.surface),
+        "--composer-border": ink(line + 7, c.surface),
+        "--border-muted": ink(line - 7, c.surface),
+        "--stroke-muted": ink(line - 7, c.surface),
+        "--border-strong": ink(line + 15, c.surface),
+        "--stroke-strong": ink(line + 15, c.surface),
+        "--bg-workspace": c.surface,
+        "--surface-workspace": c.surface,
+        "--bg-header": c.surface,
+        "--surface-header": c.surface,
+        "--bg-panel": c.surface,
+        "--surface-panel": c.surface,
+        "--surface-nav": c.surface,
+        "--pn-edge-card-line": ink(line, c.surface),
+        "--pn-edge-lift": `0 1px 2px ${ink(7, "transparent")}, 0 4px 14px ${ink(4, "transparent")}`,
+    };
+    if (edges === "clean") {
+        return { ...soft, ...panels, "--bg-app": c.surface, "--surface-app": c.surface, "--pn-edge-canvas": c.surface };
+    }
+    return {
+        ...soft,
+        ...panels,
+        "--pn-edge-canvas": mixed(c.accent, 7, ink(3, c.background)),
+        "--pn-edge-gap": "0.5rem",
+        "--pn-edge-panel-radius": "0.75rem",
+        "--pn-edge-frame": `0 0 0 1px ${ink(9, "transparent")}, 0 1px 3px ${ink(6, "transparent")}`,
+    };
 }
 function block(selector, vars, scheme) {
     const lines = Object.entries(vars).map(([name, value]) => `  ${name}: ${value};`);

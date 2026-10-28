@@ -506,7 +506,7 @@ async function listClients(ctx: any, args: any) {
         cancel_at_period_end: subscription.cancelAtPeriodEnd,
         current_period_end_at: toIso(subscription.currentPeriodEndAt),
       } : null,
-      stage: stage ? { key: stage.milestone.key, name: stage.milestone.name, entered_at: toIso(stage.milestoneEnteredAt),
+      stage: stage ? { key: stage.milestone.key, name: stage.milestone.name, color: stage.milestone.color ?? null, entered_at: toIso(stage.milestoneEnteredAt),
         completed_at: toIso(stage.completedAt) } : null,
       courses: courseSummaries(lessons, progressRows),
       lessons_done: progressRows.filter((row: any) => row.status === "done").length,

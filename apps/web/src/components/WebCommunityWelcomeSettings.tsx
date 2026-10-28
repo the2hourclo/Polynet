@@ -314,15 +314,17 @@ export function WebCommunityWelcomeSettings(props: Props) {
             <h1>Welcome page</h1>
             <p>What new members see first, one screen at a time.</p>
           </div>
+          {/* Saving goes straight to members, so it reads as Publish, like Forms
+              and the sales page (2026-10-28 review #13). */}
           <div className="welcome-settings-bar-actions">
-            <small role="status" className="welcome-settings-saved">{moveNote || (dirty ? "Unsaved changes" : saved ? "Saved" : "")}</small>
+            <small role="status" className="welcome-settings-saved">{moveNote || (dirty ? "Draft changes" : saved ? "Published" : "")}</small>
             <button type="button" ref={previewButton} className="workflow-secondary-button" disabled={!screenCount} onClick={() => { setMenu(null); setPreviewing(true); }}>
               <Eye size={15} aria-hidden="true" /> Preview
             </button>
             <button type="button" className="workflow-secondary-button" disabled={!dirty || props.isSaving}
               onClick={() => { setSaved(false); setMenu(null); setEditing(null); setDraft(baseline); setDraftBase(baselineKey); }}>Discard</button>
             <button type="button" className={`platform-save-button${dirty ? " is-dirty" : ""}`} disabled={!dirty || props.isSaving || !props.onSaveWelcomePage}
-              onClick={() => void save()}>{props.isSaving ? "Saving…" : "Save"}</button>
+              onClick={() => void save()}>{props.isSaving ? "Publishing…" : "Publish"}</button>
           </div>
         </div>
       </header>

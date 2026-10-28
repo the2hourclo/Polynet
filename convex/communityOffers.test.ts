@@ -86,12 +86,12 @@ async function fixture() {
       email, normalizedEmail: email, emailVerifiedAt: nowMs,
     });
     const ownerId = await user("offers-owner", "rashid", "owner@example.com");
-    const thomasId = await user("offers-thomas", "thomas", "thomas@example.com");
-    const deanId = await user("offers-dean", "dean", "dean@example.com");
+    const samId = await user("offers-sam", "sam", "sam@example.com");
+    const leeId = await user("offers-lee", "lee", "lee@example.com");
     const annaId = await user("offers-anna", "anna", "anna@example.com");
     await ctx.db.insert("operatorRoles", { userId: ownerId, role: "owner", active: true, createdAt: nowMs, updatedAt: nowMs });
     const communityId = await ctx.db.insert("communities", {
-      ownerId, slug: "aieb", name: "AI Employee Builders", lifecycleStatus: "active", visibility: "unlisted",
+      ownerId, slug: "club", name: "Builders Club", lifecycleStatus: "active", visibility: "unlisted",
       inferenceFundingPolicy: "managed_required", entryPolicy: "paid_subscription", activeMemberCount: 2, createdAt: nowMs, updatedAt: nowMs,
     });
     const pricePointId = await ctx.db.insert("communityPricePoints", {
@@ -102,19 +102,19 @@ async function fixture() {
       communityId, userId, role: "member", accessSource, ...(accessSource === "paid_subscription" ? { pricePointId } : {}),
       active: true, activationSequence: 1, activatedAt: nowMs - DAY, createdAt: nowMs - DAY, updatedAt: nowMs - DAY,
     });
-    const thomasMembership = await member(thomasId, "paid_subscription");
+    const samMembership = await member(samId, "paid_subscription");
     const annaMembership = await member(annaId, "manual_grant");
     await ctx.db.insert("communitySubscriptions", {
-      communityId, userId: thomasId, membershipId: thomasMembership, pricePointId, source: "stripe", status: "active",
+      communityId, userId: samId, membershipId: samMembership, pricePointId, source: "stripe", status: "active",
       cancelAtPeriodEnd: false, currentPeriodEndAt: nowMs + 20 * DAY, createdAt: nowMs, updatedAt: nowMs,
     });
     const roomId = await ctx.db.insert("communityChannels", {
       communityId, slug: "consulting-room", name: "Consulting room", accessMode: "restricted", postingPolicy: "members",
       status: "active", position: 1, createdAt: nowMs, updatedAt: nowMs,
     });
-    return { ownerId, thomasId, deanId, annaId, communityId, pricePointId, thomasMembership, annaMembership, roomId };
+    return { ownerId, samId, leeId, annaId, communityId, pricePointId, samMembership, annaMembership, roomId };
   });
-  return { t, ...ids, asOwner: t.withIdentity({ subject: "offers-owner" }), asThomas: t.withIdentity({ subject: "offers-thomas" }) };
+  return { t, ...ids, asOwner: t.withIdentity({ subject: "offers-owner" }), asSam: t.withIdentity({ subject: "offers-sam" }) };
 }
 
 type F = Awaited<ReturnType<typeof fixture>>;
@@ -141,7 +141,7 @@ describe("offers in a community", () => {
       ["membership", true, 13000, 2],
       ["membership-consulting", false, 50000, 0],
     ]);
-    expect(await offerValue(f, f.thomasMembership)).toEqual(["Membership"]);
+    expect(await offerValue(f, f.samMembership)).toEqual(["Membership"]);
     // The base price stays the community's only current price.
     const prices = await f.t.run((ctx) => ctx.db.query("communityPricePoints").collect());
     expect(prices.filter((row) => row.isCurrent).map((row) => row.amountBaseUnits)).toEqual([13000]);
@@ -149,7 +149,7 @@ describe("offers in a community", () => {
     expect(await f.t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())).toHaveLength(0);
     // Polynet keeps the Offer property; the owner can't overwrite it.
     await expect(f.asOwner.mutation(api.communityClients.setClientPropertyValue, {
-      communityId: f.communityId, membershipId: String(f.thomasMembership), key: "polynet_offer", value: ["Membership + Consulting"],
+      communityId: f.communityId, membershipId: String(f.samMembership), key: "polynet_offer", value: ["Membership + Consulting"],
     })).rejects.toThrow("client_property_system");
     await expect(f.asOwner.mutation(api.communityOffers.saveCommunityOffer, { communityId: f.communityId, name: "membership + consulting" }))
       .rejects.toThrow("offer_name_taken");
@@ -167,14 +167,14 @@ describe("offers in a community", () => {
     await f.asOwner.mutation(api.communityOffers.setCommunityChannelOfferAudience, { communityId: f.communityId, channelId: f.roomId, offerKeys: [key] });
     expect(await roomMembers(f)).toEqual([`user:${f.annaId}`]);
 
-    // Dean gets Consulting from the owner: he is in the room and on both offers.
+    // Lee gets Consulting from the owner: he is in the room and on both offers.
     await f.asOwner.mutation(api.communityAccess.grantCommunityAccess, {
-      communityId: f.communityId, email: "dean@example.com", endsAt: null, reason: "Consulting client", offerKey: key,
+      communityId: f.communityId, email: "lee@example.com", endsAt: null, reason: "Consulting client", offerKey: key,
     });
-    expect(await roomMembers(f)).toEqual([`user:${f.annaId}`, `user:${f.deanId}`].sort());
-    const dean = await f.t.run((ctx) => ctx.db.query("communityMemberships").withIndex("by_community_user", (q) => q.eq("communityId", f.communityId).eq("userId", f.deanId)).unique());
-    expect(await offerValue(f, dean!._id)).toEqual(["Membership", "Membership + Consulting"]);
-    expect(dean!.heldOfferKeys).toEqual(["membership", key]);
+    expect(await roomMembers(f)).toEqual([`user:${f.annaId}`, `user:${f.leeId}`].sort());
+    const lee = await f.t.run((ctx) => ctx.db.query("communityMemberships").withIndex("by_community_user", (q) => q.eq("communityId", f.communityId).eq("userId", f.leeId)).unique());
+    expect(await offerValue(f, lee!._id)).toEqual(["Membership", "Membership + Consulting"]);
+    expect(lee!.heldOfferKeys).toEqual(["membership", key]);
     // His change (not the owner's setup) is what starts "starts an offer" steps.
     const scheduled = await f.t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
     expect(scheduled.some((job: any) => job.name.includes("handleOfferChangedInternal")
@@ -182,12 +182,12 @@ describe("offers in a community", () => {
 
     // Moving him down to Membership takes him out of the room; Anna stays.
     await f.asOwner.mutation(api.communityAccess.grantCommunityAccess, {
-      communityId: f.communityId, membershipId: String(dean!._id), endsAt: null, reason: "Consulting finished",
+      communityId: f.communityId, membershipId: String(lee!._id), endsAt: null, reason: "Consulting finished",
     });
     expect(await roomMembers(f)).toEqual([`user:${f.annaId}`]);
-    expect(await offerValue(f, dean!._id)).toEqual(["Membership"]);
+    expect(await offerValue(f, lee!._id)).toEqual(["Membership"]);
 
-    // Thomas pays for Consulting: his subscription's price decides it.
+    // Sam pays for Consulting: his subscription's price decides it.
     const consultingPrice = await f.t.run(async (ctx) => (await ctx.db.query("communityPricePoints").collect()).find((row) => row.offerId)!);
     await f.t.run(async (ctx) => {
       const sub = await ctx.db.query("communitySubscriptions").first();
@@ -195,9 +195,9 @@ describe("offers in a community", () => {
     });
     await f.t.run(async (ctx) => {
       const { syncCommunityAccessForUser } = await import("./communityAccessSync");
-      await syncCommunityAccessForUser(ctx, { communityId: f.communityId, userId: f.thomasId, nowMs: Date.now(), reason: "test" });
+      await syncCommunityAccessForUser(ctx, { communityId: f.communityId, userId: f.samId, nowMs: Date.now(), reason: "test" });
     });
-    expect(await roomMembers(f)).toContain(`user:${f.thomasId}`);
+    expect(await roomMembers(f)).toContain(`user:${f.samId}`);
 
     // Taking the audience away removes only the people it added.
     await f.asOwner.mutation(api.communityOffers.setCommunityChannelOfferAudience, { communityId: f.communityId, channelId: f.roomId, offerKeys: [] });
@@ -222,7 +222,7 @@ describe("offers in a community", () => {
         action: { key: "", type: "set_client_property" as const, propertyKey: "track", value: "Consulting" } }],
     });
     const run = (started: string[]) => f.t.mutation(internalApi.communityMemberWorkflows.handleOfferChangedInternal, {
-      communityId: f.communityId, userId: f.thomasId, membershipId: f.thomasMembership, activationSequence: 1, started, ended: [], at: 1,
+      communityId: f.communityId, userId: f.samId, membershipId: f.samMembership, activationSequence: 1, started, ended: [], at: 1,
     });
     expect(await run(["membership"])).toMatchObject({ status: "trigger_unconfigured" });
     expect(await run([key])).toMatchObject({ status: "handled" });
@@ -239,12 +239,12 @@ describe("offers in a community", () => {
     await f.asOwner.mutation(api.communityOffers.setCommunityChannelOfferAudience, { communityId: f.communityId, channelId: f.roomId, offerKeys: [key] });
     await f.t.run(async (ctx) => {
       const sub = await ctx.db.query("communitySubscriptions").first();
-      await ctx.db.patch(sub!._id, { providerAccountId: "acct_owner", providerSubscriptionId: "sub_thomas" });
+      await ctx.db.patch(sub!._id, { providerAccountId: "acct_owner", providerSubscriptionId: "sub_sam" });
       await ctx.db.patch(f.pricePointId, { providerAccountId: "acct_owner", providerPriceId: "price_membership" });
     });
 
-    // The sales page lists both, lowest first; Thomas sees he is on Membership and can move up here.
-    const seen = await f.asThomas.query(api.communityOfferCheckout.getCommunityOffersForVisitor, { communityId: f.communityId });
+    // The sales page lists both, lowest first; Sam sees he is on Membership and can move up here.
+    const seen = await f.asSam.query(api.communityOfferCheckout.getCommunityOffersForVisitor, { communityId: f.communityId });
     expect(seen.offers.map((offer: any) => [offer.name, offer.prices[0].amount_base_units])).toEqual([["Membership", 13000], ["Consulting", 50000]]);
     expect(seen).toMatchObject({ current_offer_key: "membership", can_upgrade_here: true });
 
@@ -257,23 +257,23 @@ describe("offers in a community", () => {
       .rejects.toThrow("offer_price_missing");
 
     const plan = (userId: any) => f.t.query(internalApi.communityOfferCheckout.planCommunityOfferUpgradeInternal, { communityId: f.communityId, userId, offerKey: key });
-    expect(await plan(f.thomasId)).toMatchObject({ kind: "update", providerSubscriptionId: "sub_thomas", providerAccountId: "acct_owner",
+    expect(await plan(f.samId)).toMatchObject({ kind: "update", providerSubscriptionId: "sub_sam", providerAccountId: "acct_owner",
       amountBaseUnits: 50000, billingPeriod: "monthly", offerName: "Consulting" });
-    expect(await plan(f.deanId)).toEqual({ kind: "checkout" });
+    expect(await plan(f.leeId)).toEqual({ kind: "checkout" });
     await expect(plan(f.annaId)).rejects.toThrow("offer_upgrade_ask_owner");
 
-    // Stripe bills the Consulting price (an upgrade, or a switch in Stripe itself): Thomas moves up and into the room.
+    // Stripe bills the Consulting price (an upgrade, or a switch in Stripe itself): Sam moves up and into the room.
     const consulting = await f.t.run(async (ctx) => (await ctx.db.query("communityPricePoints").collect()).find((row) => row.offerId)!);
     await f.t.run(async (ctx) => { await ctx.db.patch(consulting._id, { providerAccountId: "acct_owner", providerPriceId: "price_consulting" }); });
     await f.t.mutation(internalApi.communityCommerce.syncCommunitySubscriptionLifecycleInternal, {
-      communityId: f.communityId, userId: f.thomasId, source: "stripe", status: "active", pricePointId: f.pricePointId,
-      providerAccountId: "acct_owner", providerPriceId: "price_consulting", providerSubscriptionId: "sub_thomas",
+      communityId: f.communityId, userId: f.samId, source: "stripe", status: "active", pricePointId: f.pricePointId,
+      providerAccountId: "acct_owner", providerPriceId: "price_consulting", providerSubscriptionId: "sub_sam",
     });
-    expect(await roomMembers(f)).toContain(`user:${f.thomasId}`);
-    expect(await offerValue(f, f.thomasMembership)).toEqual(["Membership", "Consulting"]);
+    expect(await roomMembers(f)).toContain(`user:${f.samId}`);
+    expect(await offerValue(f, f.samMembership)).toEqual(["Membership", "Consulting"]);
     expect(await f.t.run(async (ctx) => (await ctx.db.query("communitySubscriptions").collect()).map((row) => String(row.pricePointId))))
       .toEqual([String(consulting._id)]);
-    await expect(plan(f.thomasId)).rejects.toThrow("offer_upgrade_not_higher");
+    await expect(plan(f.samId)).rejects.toThrow("offer_upgrade_not_higher");
   });
 
   test("Membership's price can be set from Offers: free or paid, and nobody already in loses access", async () => {
@@ -289,10 +289,10 @@ describe("offers in a community", () => {
     const view = await f.asOwner.query(api.communityOffers.listCommunityOffers, { communityId: f.communityId });
     expect(view.offers.map((offer: any) => [offer.key, offer.price?.amount_base_units ?? null])).toEqual([["membership", null], ["consulting", 50000]]);
     const community = await f.t.run((ctx) => ctx.db.get(f.communityId));
-    expect(community).toMatchObject({ name: "AI Employee Builders", slug: "aieb", visibility: "unlisted" });
+    expect(community).toMatchObject({ name: "Builders Club", slug: "club", visibility: "unlisted" });
     const memberships = await f.t.run((ctx) => ctx.db.query("communityMemberships").collect());
     expect(memberships.filter((row) => row.active).length).toBe(2);
-    await expect(f.asThomas.mutation(api.communityOffers.setCommunityBaseOfferPrice, { communityId: f.communityId, price: null })).rejects.toThrow();
+    await expect(f.asSam.mutation(api.communityOffers.setCommunityBaseOfferPrice, { communityId: f.communityId, price: null })).rejects.toThrow();
   });
 
   test("a track sold through Consulting: a Membership member reads the first lesson free and sees the rest locked, without their text", async () => {
@@ -321,24 +321,24 @@ describe("offers in a community", () => {
       opensWhen: [{ type: "offer", offer: key }], stages: [{ name: "Calls", steps: [{ resource_id: ids.first }, { resource_id: ids.second }] }],
     });
 
-    const progress: any = await f.asThomas.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: f.communityId });
+    const progress: any = await f.asSam.query(api.communityResourceProgress.getOwnResourceProgress, { communityId: f.communityId });
     const sales = progress.tracks.find((track: any) => track.key === "sales");
     expect(sales).toMatchObject({
       open: false, minutes: 12, cover_style: "diagram", outcomes: ["Open a call", "Close a call"], audience: "Owners who sell on calls",
       paid: { offer: key, offer_name: "Membership + Consulting", preview: { resource_id: ids.first } },
     });
-    const listed: any[] = await f.asThomas.query(api.communityResources.listCommunityResources, { communityId: f.communityId });
+    const listed: any[] = await f.asSam.query(api.communityResources.listCommunityResources, { communityId: f.communityId });
     const byId = new Map(listed.map((row) => [row.id, row]));
     expect(byId.get(ids.first)).toMatchObject({ body_md: "Inside Open the call." });
     expect(byId.get(ids.second)).toMatchObject({ title: "Close the call", body_md: null, paywalled: true });
-    expect(await f.asThomas.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, {
+    expect(await f.asSam.mutation(api.communityResourceProgress.setOwnResourceProgressStatus, {
       communityId: f.communityId, resourceId: ids.second, status: "done",
     })).toMatchObject({ ok: false, code: "lesson_locked" });
 
-    // Thomas's agent can't read it either.
+    // Sam's agent can't read it either.
     const reads: any[] = await Promise.all([ids.first, ids.second].map((id) =>
       f.t.query(internalApi.communityResources.readCommunityResourceDirectoryInternal, {
-        userId: f.thomasId, communityId: f.communityId, ref: `resource:${id}`,
+        userId: f.samId, communityId: f.communityId, ref: `resource:${id}`,
       })));
     expect(reads.map((read) => read.ok)).toEqual([true, false]);
     // The owner reads everything they sell.

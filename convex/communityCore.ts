@@ -815,6 +815,21 @@ export async function listCanonicalCommunityMemberMembershipRows(args: {
   };
 }
 
+/** Users standing in as an owner's test members here. They are left out of
+ * every member count a person reads (sales page, Offers, Workflows, Members),
+ * so a test run never makes a community look bigger. */
+export async function listActiveTestMemberUserIds(ctx: any, communityId: any, options?: { includeEnded?: boolean }): Promise<Set<string>> {
+  const rows = await ctx.db.query("communityTestMembers")
+    .withIndex("by_community_createdAt", (q: any) => q.eq("communityId", communityId))
+    .take(500);
+  return new Set(rows.filter((row: any) => options?.includeEnded || !row.endedAt).map((row: any) => String(row.userId)));
+}
+
+/** The number people see: active members, without the owner and without test members. */
+export function countPeopleFacingMembers(rows: CommunityMembershipLike[] | null | undefined, testUserIds: Set<string>): number {
+  return (rows ?? []).filter((row) => !testUserIds.has(String(row.userId))).length;
+}
+
 export function countCanonicalCommunityMembersFromRows(
   rows: CommunityMembershipLike[] | null | undefined,
 ): number {

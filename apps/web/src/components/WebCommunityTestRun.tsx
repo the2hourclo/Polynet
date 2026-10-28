@@ -526,7 +526,7 @@ function TestRunTimeline(props: Props & { member: CloudCommunityTestMember; memb
     <div className="pn-wf-section-head">
       <div>
         <h2 id="test-run-timeline-title">Everything on {props.member.label}'s record</h2>
-        <p>Newest first: joining, forms, lessons, client fields and every Workflow action.</p>
+        <p>Newest first: joining, forms, lessons, member fields and every Workflow action.</p>
       </div>
       <button type="button" className="workflow-secondary-button" onClick={() => props.onOpenRecord(props.membershipId)}>Open their member panel</button>
     </div>

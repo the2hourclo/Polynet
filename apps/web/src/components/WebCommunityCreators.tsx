@@ -4,11 +4,12 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { createConvexClient } from "../../../../shared/convexAuthenticatedClient";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { AVATAR_INITIALS_INK } from "../../../../shared/chatUi";
+import { MessageCircle } from "lucide-react";
 import "./WebCommunityCreators.css";
 
 type Creator = {
   user_id: string;
-  role: "owner" | "co_creator";
+  role: "owner" | "co_creator" | "admin";
   handle: string | null;
   display_name: string | null;
   avatar_url: string | null;
@@ -19,6 +20,7 @@ type Creator = {
 
 // Last result per community, so switching tabs doesn't flash an empty row.
 const cache = new Map<string, Creator[]>();
+const adminCache = new Map<string, Creator[]>();
 
 // Fired after the owner changes who the co-creators are, so rows refresh.
 export const COMMUNITY_CREATORS_CHANGED_EVENT = "polynet:community-creators-changed";
@@ -52,9 +54,10 @@ function initials(name: string): string {
 // About.
 // The "rail" variant is the Members panel in Channels: a section heading and
 // the same rows as the people below it, so faces and names line up.
-export function WebCommunityCreators(props: { communityId: string | null | undefined; onOpenProfile?: (userId: string) => void; onShowChat?: () => void; readOnly?: boolean; className?: string; variant?: "rail"; getAvatarColor?: (id: string) => string; getInitials?: (name: string) => string }) {
+export function WebCommunityCreators(props: { communityId: string | null | undefined; onOpenProfile?: (userId: string) => void; onShowChat?: () => void; readOnly?: boolean; className?: string; variant?: "rail"; getAvatarColor?: (id: string) => string; getInitials?: (name: string) => string; onMessageUser?: (userId: string) => void; currentUserId?: string | null }) {
   const communityId = props.communityId ?? null;
   const [creators, setCreators] = useState<Creator[]>(() => (communityId ? cache.get(communityId) ?? [] : []));
+  const [admins, setAdmins] = useState<Creator[]>(() => (communityId ? adminCache.get(communityId) ?? [] : []));
   const [reload, setReload] = useState(0);
   useEffect(() => {
     const onChanged = () => setReload((value) => value + 1);
@@ -65,11 +68,15 @@ export function WebCommunityCreators(props: { communityId: string | null | undef
     if (!communityId) return;
     let alive = true;
     setCreators(cache.get(communityId) ?? []);
+    setAdmins(adminCache.get(communityId) ?? []);
     createConvexClient().query(api.communityPublic.listCommunityCreators, { communityId: communityId as Id<"communities"> })
       .then((result) => {
-        const rows = ((result as { creators?: Creator[] }).creators ?? []).filter((row) => row.display_name || row.handle);
+        const named = (list?: Creator[]) => (list ?? []).filter((row) => row.display_name || row.handle);
+        const rows = named((result as { creators?: Creator[] }).creators);
+        const adminRows = named((result as { admins?: Creator[] }).admins);
         cache.set(communityId, rows);
-        if (alive) setCreators(rows);
+        adminCache.set(communityId, adminRows);
+        if (alive) { setCreators(rows); setAdmins(adminRows); }
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -79,23 +86,38 @@ export function WebCommunityCreators(props: { communityId: string | null | undef
   const label = creators.length === 1 ? "Creator" : "Creators";
   const openProfile = (userId: string) => (props.onOpenProfile ? props.onOpenProfile(userId) : requestCommunityProfile(userId, props.onShowChat));
   if (props.variant === "rail") {
+    // Creator(s), then Admins, each with a message button so members know who
+    // to ask.
+    const row = (person: Creator) => {
+      const name = creatorName(person);
+      return (
+        <div key={person.user_id} className="community-context-member">
+          <button type="button" className="community-context-member-trigger" aria-label={`Open ${name}'s profile`} onClick={() => openProfile(person.user_id)}>
+            <span className="community-context-member-avatar" style={!person.avatar_url && props.getAvatarColor ? { backgroundColor: props.getAvatarColor(person.user_id), color: AVATAR_INITIALS_INK } : undefined}>
+              <UserAvatar className="community-context-member-avatar-media" readyClassName="has-image"
+                name={name} imageUrl={person.avatar_url}
+                focusX={person.avatar_focus_x} focusY={person.avatar_focus_y} zoom={person.avatar_zoom}
+                alt="" aria-hidden={true} fallback={<span>{(props.getInitials ?? initials)(name)}</span>} />
+            </span>
+            <span className="community-context-member-copy"><span className="community-context-member-name is-admin">{name}</span></span>
+          </button>
+          {props.onMessageUser && person.user_id !== props.currentUserId ? <button type="button" className="community-context-member-action" aria-label={`Message ${name}`} title="Direct message" onClick={() => props.onMessageUser?.(person.user_id)}><MessageCircle size={16} strokeWidth={1.9} aria-hidden="true" /></button> : null}
+        </div>
+      );
+    };
     return (
-      <section className="community-context-creators" aria-label={label}>
-        <h3 className="community-context-section">{creators.length === 1 ? label : `${label} — ${creators.length}`}</h3>
-        {creators.map((creator, index) => (
-          <div key={creator.user_id} className="community-context-member">
-            <button type="button" className="community-context-member-trigger" aria-label={`Open ${names[index]}'s profile`} onClick={() => openProfile(creator.user_id)}>
-              <span className="community-context-member-avatar" style={!creator.avatar_url && props.getAvatarColor ? { backgroundColor: props.getAvatarColor(creator.user_id), color: AVATAR_INITIALS_INK } : undefined}>
-                <UserAvatar className="community-context-member-avatar-media" readyClassName="has-image"
-                  name={names[index]!} imageUrl={creator.avatar_url}
-                  focusX={creator.avatar_focus_x} focusY={creator.avatar_focus_y} zoom={creator.avatar_zoom}
-                  alt="" aria-hidden={true} fallback={<span>{(props.getInitials ?? initials)(names[index]!)}</span>} />
-              </span>
-              <span className="community-context-member-copy"><span className="community-context-member-name is-admin">{names[index]}</span></span>
-            </button>
-          </div>
-        ))}
-      </section>
+      <>
+        <section className="community-context-creators" aria-label={label}>
+          <h3 className="community-context-section">{creators.length === 1 ? label : `${label} · ${creators.length}`}</h3>
+          {creators.map(row)}
+        </section>
+        {admins.length ? (
+          <section className="community-context-creators" aria-label="Admins">
+            <h3 className="community-context-section">{admins.length === 1 ? "Admin" : `Admins · ${admins.length}`}</h3>
+            {admins.map(row)}
+          </section>
+        ) : null}
+      </>
     );
   }
   return (

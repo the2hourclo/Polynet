@@ -4,7 +4,7 @@ import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 import { createPortal } from "react-dom";
 import { useState } from "react";
 import { PodDetailsSheet, WebCommunityPodRoomHead, WebCommunityPodsHome } from "./WebCommunityPods";
-import { WebCommunityPodPanel } from "./WebCommunityPodPanel";
+import { WebCommunityPodPanel, unpinFromPod } from "./WebCommunityPodPanel";
 import { WebCommunityChatPanel, type WebCommunityChatPanelProps } from "./WebCommunityChatPanel";
 import type { CommunityAdmissionControl } from "./CommunityAutoJoinControl";
 import { WebCommunitySecondaryPanels, type WebCommunitySecondaryPanelsProps } from "./WebCommunitySecondaryPanels";
@@ -54,6 +54,7 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
                 roots={projection.roots}
                 onOpenPost={projection.onSelectRoot}
                 canManage={Boolean(projection.canManageActiveChannel)}
+                onUnpin={projection.canManagePinnedRoot && projection.onSetPinnedRoot ? () => unpinFromPod(projection.onSetPinnedRoot!) : undefined}
               />,
               pods.panelSlot,
             ) : null}
@@ -68,6 +69,7 @@ export function WebCommunityHost(props: WebCommunityHostProps) {
                     projection.onSelectRoot(rootId);
                   }}
                   canManage={Boolean(projection.canManageActiveChannel)}
+                  onUnpin={projection.canManagePinnedRoot && projection.onSetPinnedRoot ? () => unpinFromPod(projection.onSetPinnedRoot!) : undefined}
                 />
               </PodDetailsSheet>
             ) : null}

@@ -10,6 +10,7 @@
 @import "./styles/draft-looks.css";
 @import "./styles/chat-view.css";
 @import "./styles/course-cards.css";
+@import "./styles/edges.css";
 
 :root {
   --web-chat-max-width: 800px;
