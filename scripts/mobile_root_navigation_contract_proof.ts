@@ -242,8 +242,8 @@ assert.doesNotMatch(
 
 assert.match(
   app,
-  /activeCommunityMemberCount:[\s\S]*communityDirectoryMemberCount \?\?[\s\S]*activeCommunityPresenceSummary\?\.member_count \?\?[\s\S]*null/,
-  "the header count should use canonical directory or presence membership totals",
+  /activeCommunityMemberCount:[\s\S]*activeCommunityPresenceSummary\?\.member_count \?\?[\s\S]*communityDirectoryMemberCount \?\?[\s\S]*null/,
+  "the header count should use the people-facing presence total, then the directory total",
 );
 assert.doesNotMatch(
   topBar,
