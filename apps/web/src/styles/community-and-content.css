@@ -14098,7 +14098,6 @@ body:has(.community-knowledge-page[data-reading]) .app-topbar .topbar-right-isla
    and the page header starts below the pill instead of behind it. */
 .app-root.mobile-shell .pn-wf-back { display: none; }
 .app-root.mobile-shell .pn-page-with-back { padding-top: var(--mobile-topbar-clearance); }
-.app-root.mobile-shell .pn-funnels { padding-top: var(--mobile-topbar-clearance); }
 /* Community Settings on a phone gets the full width, like the other phone
    pages: no community rail beside it. */
 .app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) {
@@ -14109,4 +14108,18 @@ body:has(.community-knowledge-page[data-reading]) .app-topbar .topbar-right-isla
 }
 .app-root.mobile-shell .mobile-global-shell:has(.community-settings-panel) > .mobile-global-shell-surface {
   margin-left: var(--community-shell-inset);
+}
+
+/* One page title on owner pages in both layouts (2026-10-28 review #8):
+   Events and Analytics were big titles in Channels and small labels in
+   Classroom. Same size as the Workflows title. */
+.community-panel.community-events-panel .resources-header,
+.analytics-header-row .analytics-title-stack .panel-title {
+  font-family: var(--pn-font-body, inherit);
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
 }

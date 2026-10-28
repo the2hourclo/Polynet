@@ -29,6 +29,7 @@ import { openCommunityTab } from "../controllers/openCommunityTab";
 import { AccessBadge, ClientTimeline, GrantForm, WebCommunityClientAccessPanel } from "./WebCommunityAccess";
 import "./WebCommunityAccess.css";
 import "./WebCommunityMembers.css";
+import "./workflowStageColors.css";
 
 // Workflows → Members (Rashid, 2026-10-26): every member as a row of a
 // database you shape yourself (Notion), laid out like Substack's Subscribers.
@@ -76,9 +77,22 @@ function statusPill(client: CloudCommunityClient) {
   return <span className={`pn-members-pill ${tone}`}>{COMMUNITY_CLIENT_STATUS_LABELS[client.status] ?? client.status}</span>;
 }
 
-function FieldValue({ client, field, nowMs }: { client: CloudCommunityClient; field: CommunityClientField; nowMs: number }) {
+/** The member's current offer by name ("Membership"), from the property Polynet keeps for offers. */
+function offerName(client: CloudCommunityClient, properties: CloudCommunityClientProperty[]): string | null {
+  const key = properties.find((property) => property.system === "offer")?.key;
+  const value = key ? client.properties?.[key] : null;
+  const last = Array.isArray(value) ? value.at(-1) : value;
+  return typeof last === "string" && last.trim() ? last : null;
+}
+
+function FieldValue({ client, field, nowMs, properties = [] }: { client: CloudCommunityClient; field: CommunityClientField; nowMs: number; properties?: CloudCommunityClientProperty[] }) {
   if (field.key === "status") return statusPill(client);
-  if (field.key === "plan" && client.access) return <AccessBadge access={client.access} />;
+  // Plan names the offer, with how they have it (paid, given, until when) in the tooltip.
+  if (field.key === "plan" && client.access) return <AccessBadge access={client.access} label={offerName(client, properties)} />;
+  // The stage as the same coloured chip Automations shows.
+  if (field.key === "stage" && client.stage) {
+    return <span className={`pn-members-stage${client.stage.color ? ` pn-stage-color-${client.stage.color}` : ""}`}>{client.stage.name}</span>;
+  }
   const value = communityClientFieldValue(client as any, field.key);
   if (field.key === "course_progress" || field.key.startsWith("course:")) {
     if (value === null) return <span className="pn-members-empty">–</span>;
@@ -364,7 +378,7 @@ function MemberPage(props: { gateway: CommunityAccessGateway; client: CloudCommu
       <div className="pn-members-attrs-section">Tracked by Polynet</div>
       {builtIn.map((field) => <div key={field.key} className="pn-members-attr">
         <span className="pn-members-attr-key">{field.name}</span>
-        <span className="pn-members-attr-value"><FieldValue client={client} field={field} nowMs={nowMs} /></span>
+        <span className="pn-members-attr-value"><FieldValue client={client} field={field} nowMs={nowMs} properties={props.properties} /></span>
       </div>)}
       <div className="pn-members-attrs-section">Your properties</div>
       {props.properties.map((property) => <div key={property.key} className="pn-members-attr">
@@ -579,7 +593,7 @@ export function WebCommunityMembers({ gateway }: { gateway: CommunityAccessGatew
                   return <td key={field.key} className={property ? "is-editable" : undefined} data-label={field.name}>
                     {property ? <PropertyEditor property={property} value={client.properties?.[property.key] ?? null}
                       onSave={(value) => setValue(client.membership_id, property.key, value)} />
-                      : <FieldValue client={client} field={field} nowMs={nowMs} />}
+                      : <FieldValue client={client} field={field} nowMs={nowMs} properties={properties} />}
                   </td>;
                 })}
               </tr>;

@@ -60,7 +60,8 @@ const RAW_PRESETS: { id: string; name: string; description: string; theme: Recor
   },
   {
     id: "classroom",
-    name: "Classroom",
+    // "Classroom" names the layout only (2026-10-28 review #19); the id stays for saved themes.
+    name: "Calm",
     description: "One confident sans, calm neutrals, soft depth and big course covers.",
     theme: {
       version: 1,

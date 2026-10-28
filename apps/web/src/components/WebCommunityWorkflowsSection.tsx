@@ -37,6 +37,7 @@ import type { CommunitySettingProposal } from "../../../../shared/cloudCommunity
 import type { AgentLedJourneyPlan } from "../../../../shared/agentLedJourneyTemplate";
 import type { CommunityAccessGateway } from "../controllers/useWebCommunityAccessGateway";
 import "./WebCommunityWorkflowsPage.css";
+import "./workflowStageColors.css";
 import { useWebCommunityFrame } from "../controllers/useWebCommunityFrame";
 
 export type WebCommunityWorkflowsSectionProps = {

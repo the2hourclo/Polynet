@@ -67,6 +67,8 @@ export function WebCommunityNotificationsMenu(props: {
   mentionChannels: MentionChannel[];
   onSelectTab: (tab: CommunityTab) => void;
   onSelectChannel: (slug: string) => void;
+  /** "bar": Channels' top-right bar, beside Messages; Classroom's tab bar is the default. */
+  placement?: "top" | "bar";
 }) {
   const [open, setOpen] = useState(false);
   const [lastSeen, setLastSeen] = useState(0);
@@ -118,7 +120,9 @@ export function WebCommunityNotificationsMenu(props: {
     <div className="community-top-nav-menu" ref={rootRef}>
       <button
         type="button"
-        className={`community-top-nav-icon${open ? " is-open" : ""}`}
+        className={props.placement === "bar"
+          ? `icon-button community-display-bar-button community-notifications-bar-button${open ? " active" : ""}`
+          : `community-top-nav-icon${open ? " is-open" : ""}`}
         aria-label={unseen > 0 ? `Notifications, ${unseen} new` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"

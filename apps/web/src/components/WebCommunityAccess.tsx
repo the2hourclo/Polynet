@@ -67,8 +67,9 @@ function accessTone(access: CommunityMemberAccess): "good" | "warn" | "off" {
   return access.entitled ? "good" : "off";
 }
 
-export function AccessBadge({ access }: { access: CommunityMemberAccess }) {
-  return <span className={`access-badge is-${accessTone(access)}`}>{describeCommunityAccess(access, day)}</span>;
+export function AccessBadge({ access, label }: { access: CommunityMemberAccess; label?: string | null }) {
+  const described = describeCommunityAccess(access, day);
+  return <span className={`access-badge is-${accessTone(access)}`} title={label ? described : undefined}>{label ?? described}</span>;
 }
 
 function UsesList({ uses }: { uses: CommunityMemberAccess["can_use"] }) {

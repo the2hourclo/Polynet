@@ -40,7 +40,7 @@ export type CloudCommunityClient = {
   access_source: string | null;
   joined_at: string | null;
   left_at: string | null;
-  stage: { key: string; name: string; entered_at: string | null; completed_at: string | null } | null;
+  stage: { key: string; name: string; color?: string | null; entered_at: string | null; completed_at: string | null } | null;
   lessons_done: number;
   last_active_at: string | null;
   stuck: boolean;

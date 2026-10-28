@@ -43,12 +43,13 @@
 .access-grant-form, .access-integration-form { display: grid; gap: 12px; max-width: 520px; }
 .access-field { display: grid; gap: 5px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 .access-field small { font-weight: 400; line-height: 1.5; }
-.access-field input {
+.access-field :is(input, select) {
   width: 100%; box-sizing: border-box; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border-default); border-radius: 8px;
   background: var(--surface-workspace); color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 400;
 }
-.access-field input:disabled { opacity: .5; }
-.access-field input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.access-field select { cursor: pointer; }
+.access-field :is(input, select):disabled { opacity: .5; }
+.access-field :is(input, select):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .access-field-row { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; }
 .access-field-row .access-field { flex: 0 1 200px; }
 .access-check { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; font-size: 13px; color: var(--text-primary); cursor: pointer; }

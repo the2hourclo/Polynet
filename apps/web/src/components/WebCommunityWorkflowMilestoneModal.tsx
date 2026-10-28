@@ -296,7 +296,7 @@ export function WebCommunityWorkflowMilestoneModal(props: Props) {
                 {!editingAutomation ? <div className="workflow-milestone-automations-header">
                   <div><span id="milestone-automations-title">Automations</span><small>Actions run when their trigger occurs; dependent actions wait for the preceding action to complete.</small></div>
                   <div className="resource-modal-actions">
-                    <button ref={addAutomationRef} type="button" className="secondary" aria-label="Add new automation" onClick={() => {
+                    <button ref={addAutomationRef} type="button" className="secondary" aria-label="Add automation" onClick={() => {
                       setPendingAutomation(newAutomation());
                       setSelection({ triggerSelected: false, actionSelected: false });
                     }} disabled={props.isSaving || automations.length >= COMMUNITY_MEMBER_WORKFLOW_MAX_AUTOMATIONS_PER_MILESTONE}>
