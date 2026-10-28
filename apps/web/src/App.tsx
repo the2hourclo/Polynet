@@ -1,12 +1,11 @@
 import { useAccountDisplayPreferences } from "./controllers/useAccountDisplayPreferences";
 import {
   lazy,
-  useCallback,
   useMemo,
   useRef,
-  useState,
   Suspense,
 } from "react";
+import { useWebFloatingCommunityAgent } from "./controllers/useWebFloatingCommunityAgent";
 import "highlight.js/styles/github-dark.css";
 import { WebCommunityNextStep } from "./components/WebCommunityNextStep";
 import { WebCommunityWelcome, WelcomeSkippedReminder } from "./components/WebCommunityWelcome";
@@ -172,7 +171,6 @@ import {
   WEB_IMAGE_DATA_URL_CHAR_LIMIT,
 } from "./webAppRuntime";
 import { useWebCommunityVisualIdentityRegistryLifecycle } from "./controllers/useWebCommunityVisualIdentityRegistryLifecycle";
-import { AgentCommunityProvider } from "../../../shared/CommunityAgentIcon";
 import {
   useWebBuilderKnowledgeCompletionController,
   useWebBuilderKnowledgeHydrationController,
@@ -2735,9 +2733,13 @@ export default function App() {
           }
         : null,
   });
-  const [communityLayoutPosition, setCommunityLayoutPosition] = useState<"top" | "side">("side");
-  const [isFloatingCommunityAgentOpen, setIsFloatingCommunityAgentOpen] = useState(false);
-  const openFloatingCommunityAgent = useCallback(() => setIsFloatingCommunityAgentOpen(true), []);
+  const {
+    communityLayoutPosition,
+    setCommunityLayoutPosition,
+    isFloatingCommunityAgentOpen,
+    setIsFloatingCommunityAgentOpen,
+    openFloatingCommunityAgent,
+  } = useWebFloatingCommunityAgent();
   // Under the Classroom layout the community agent floats at the bottom
   // right; elsewhere on desktop it is the Agent page.
   const floatingCommunityAgent = !showMobileShell && communityLayoutPosition === "top";
@@ -2959,8 +2961,8 @@ export default function App() {
   }
 
   return (
-    <AgentCommunityProvider communityId={activeCommunityId}>
     <WebAppCompositionRoot
+      activeCommunityId={activeCommunityId}
       globalOverlayHostProps={globalOverlayHostProps}
       memberAgentDockRef={memberAgentComposerApiRef}
       memberAgentDockProps={{
@@ -3024,6 +3026,5 @@ export default function App() {
       mainSurfaceHostProps={mainSurfaceHostProps}
       shellChromeHostProps={shellChromeHostProps}
     />
-    </AgentCommunityProvider>
   );
 }

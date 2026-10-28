@@ -542,63 +542,6 @@ export const listPublicDiscoverCommunities = query({
   },
 });
 
-// The same owner's other public communities, for the "More from this creator"
-// block inside each community, so one community can send members to the next.
-export const listSiblingCommunities = query({
-  args: { communityId: v.id("communities") },
-  handler: async (ctx, args) => {
-    const current = (await ctx.db.get(args.communityId)) as CommunityLike | null;
-    if (!current || !communityIsActive(current)) return { communities: [] };
-    const owned = (await ctx.db.query("communities")
-      .withIndex("by_owner", (q) => q.eq("ownerId", current.ownerId))
-      .take(50)) as CommunityLike[];
-    const communities = [];
-    for (const community of owned) {
-      if (community._id === current._id || community.visibility !== "published" || !communityIsActive(community)) continue;
-      if (!(await resolveCommunityBuilderAccess({ ctx, community })).operational) continue;
-      const branding = await resolveCommunityBrandingFields(ctx, community);
-      communities.push({
-        id: String(community._id),
-        slug: community.slug,
-        name: community.name,
-        one_liner: community.oneLiner ?? null,
-        avatar_url: branding.avatar_url,
-      });
-      if (communities.length >= 6) break;
-    }
-    return { communities };
-  },
-});
-
-// The people who make a community: its owner, then the co-creators the owner
-// added, in the order they were added. Public like the community's own page.
-export const listCommunityCreators = query({
-  args: { communityId: v.id("communities") },
-  handler: async (ctx, args) => {
-    const community = (await ctx.db.get(args.communityId)) as CommunityLike | null;
-    if (!community || !communityIsActive(community)) return { creators: [] };
-    const userIdCache = new Map<string, string | null>();
-    const describe = async (userRowId: any, role: "owner" | "co_creator") => {
-      const user = (await ctx.db.get(userRowId)) as { handle?: string } | null;
-      return {
-        user_id: (await resolvePublicUserId(ctx, userRowId, userIdCache)) ?? String(userRowId),
-        role,
-        handle: user?.handle ?? null,
-        ...(await resolveUserProfileDisplayProjection(ctx, userRowId)),
-      };
-    };
-    const rows = (await ctx.db.query("communityMemberships")
-      .withIndex("by_community_coCreator", (q) => q.eq("communityId", args.communityId).eq("coCreator", true))
-      .take(50)) as CommunityMembershipLike[];
-    const coCreators = rows
-      .filter((row) => communityMembershipIsCoCreator(row) && communityMembershipRowIsActive(row) && String(row.userId) !== String(community.ownerId))
-      .sort((a, b) => a.updatedAt - b.updatedAt);
-    const creators = [await describe(community.ownerId, "owner")];
-    for (const row of coCreators) creators.push(await describe(row.userId, "co_creator"));
-    return { creators };
-  },
-});
-
 /* Cached production clients still call this operation. The current web app
    uses communityAccessQueries:getMyCommunityAccessBySlug as its sole
    admission projection; remove this compatibility shim only after the pinned
@@ -833,5 +776,62 @@ export const cancelMyJoinRequestBySlug = mutation({
       communityId: community._id,
       userId,
     });
+  },
+});
+
+// The same owner's other public communities, for the "More from this creator"
+// block inside each community, so one community can send members to the next.
+export const listSiblingCommunities = query({
+  args: { communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    const current = (await ctx.db.get(args.communityId)) as CommunityLike | null;
+    if (!current || !communityIsActive(current)) return { communities: [] };
+    const owned = (await ctx.db.query("communities")
+      .withIndex("by_owner", (q) => q.eq("ownerId", current.ownerId))
+      .take(50)) as CommunityLike[];
+    const communities = [];
+    for (const community of owned) {
+      if (community._id === current._id || community.visibility !== "published" || !communityIsActive(community)) continue;
+      if (!(await resolveCommunityBuilderAccess({ ctx, community })).operational) continue;
+      const branding = await resolveCommunityBrandingFields(ctx, community);
+      communities.push({
+        id: String(community._id),
+        slug: community.slug,
+        name: community.name,
+        one_liner: community.oneLiner ?? null,
+        avatar_url: branding.avatar_url,
+      });
+      if (communities.length >= 6) break;
+    }
+    return { communities };
+  },
+});
+
+// The people who make a community: its owner, then the co-creators the owner
+// added, in the order they were added. Public like the community's own page.
+export const listCommunityCreators = query({
+  args: { communityId: v.id("communities") },
+  handler: async (ctx, args) => {
+    const community = (await ctx.db.get(args.communityId)) as CommunityLike | null;
+    if (!community || !communityIsActive(community)) return { creators: [] };
+    const userIdCache = new Map<string, string | null>();
+    const describe = async (userRowId: any, role: "owner" | "co_creator") => {
+      const user = (await ctx.db.get(userRowId)) as { handle?: string } | null;
+      return {
+        user_id: (await resolvePublicUserId(ctx, userRowId, userIdCache)) ?? String(userRowId),
+        role,
+        handle: user?.handle ?? null,
+        ...(await resolveUserProfileDisplayProjection(ctx, userRowId)),
+      };
+    };
+    const rows = (await ctx.db.query("communityMemberships")
+      .withIndex("by_community_coCreator", (q) => q.eq("communityId", args.communityId).eq("coCreator", true))
+      .take(50)) as CommunityMembershipLike[];
+    const coCreators = rows
+      .filter((row) => communityMembershipIsCoCreator(row) && communityMembershipRowIsActive(row) && String(row.userId) !== String(community.ownerId))
+      .sort((a, b) => a.updatedAt - b.updatedAt);
+    const creators = [await describe(community.ownerId, "owner")];
+    for (const row of coCreators) creators.push(await describe(row.userId, "co_creator"));
+    return { creators };
   },
 });

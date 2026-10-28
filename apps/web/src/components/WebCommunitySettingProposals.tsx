@@ -32,7 +32,9 @@ export function WebCommunitySettingProposals(props: { communityId: string; sessi
 
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void refresh(), REFRESH_MS);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "hidden") void refresh();
+    }, REFRESH_MS);
     return () => window.clearInterval(timer);
   }, [refresh]);
 

@@ -52,7 +52,9 @@ export function useTestMemberRunCheck(session: AuthSession | null, ensureSession
       }
     };
     void check();
-    const timer = setInterval(() => void check(), CHECK_EVERY_MS);
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "hidden") void check();
+    }, CHECK_EVERY_MS);
     return () => { alive = false; clearInterval(timer); };
   }, [active, session]);
 }

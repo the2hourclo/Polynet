@@ -9434,7 +9434,7 @@ button.settings-primary-action svg {
 
 .modal.community-event-sheet {
   --sheet-accent: var(--pn-accent, var(--accent-brand, var(--bg-button)));
-  --sheet-on-accent: var(--pn-on-accent, #fff);
+  --sheet-on-accent: var(--pn-on-accent, var(--text-on-accent, white));
   --sheet-hairline: color-mix(in srgb, var(--border-default) 70%, transparent);
   width: min(600px, calc(100vw - 32px));
   max-width: none;

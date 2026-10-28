@@ -65,15 +65,15 @@ export function WebDesktopShellHeader(
       </div>
 
       <div className={topbarRightClassName}>
-        {props.isPublicCommunityFunnel ? null : props.communityTheme ? (
+        {props.communityTheme && !props.isPublicCommunityFunnel ? (
           <div className="community-theme-scope" data-community-theme={props.communityTheme}>
             {props.directMessagesButton}
             {props.trailing}
           </div>
         ) : (
           <>
-            {props.directMessagesButton}
-            {props.trailing}
+            {props.isPublicCommunityFunnel ? null : props.directMessagesButton}
+            {props.isPublicCommunityFunnel ? null : props.trailing}
           </>
         )}
       </div>

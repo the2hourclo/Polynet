@@ -955,7 +955,7 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
   // lesson editor's bar. Members see
   // the style the owner picked.
   const lessonStyleSwitch = (place: "outline" | "editor") => {
-    if (!canManageResources || !actions.handleSetModuleLessonStyle || !selectedModule || selectedModule.is_virtual) return null;
+    if (!canManageResources || !actions.handleSetModuleLessonStyle || !selectedModule) return null;
     const current = selectedModule.lesson_style === "video" ? "video" : "article";
     const labelId = `resource-course-style-label-${place}`;
     return (

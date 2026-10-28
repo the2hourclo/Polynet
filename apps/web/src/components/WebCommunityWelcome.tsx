@@ -245,7 +245,9 @@ export function WebCommunityWelcome(props: Props) {
   // Keep asking for access while held: quickly while the join rule makes the
   // forms, and now and then after, so turning the flow off releases the member.
   useEffect(() => {
-    const timer = setInterval(() => onFinished.current(), preparing ? 2_000 : 15_000);
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "hidden") onFinished.current();
+    }, preparing ? 2_000 : 15_000);
     return () => clearInterval(timer);
   }, [preparing]);
   useEffect(() => { if (preparing && rows?.length) onFinished.current(); }, [preparing, rows]);

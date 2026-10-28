@@ -806,12 +806,12 @@ assert.match(
 );
 assert.match(
   component,
-  /member-agent-dock-identity[\s\S]*?member-agent-dock-avatar[\s\S]*?<Sparkles \/>[\s\S]*?<strong>\{presentation\.title\}<\/strong>/,
+  /member-agent-dock-identity[\s\S]*?member-agent-dock-avatar[\s\S]*?<CommunityAgentIcon \/>[\s\S]*?<strong>\{presentation\.title\}<\/strong>/,
   "the dock header must use one canonical personal-agent identity on every surface",
 );
 assert.match(
   component,
-  /member-agent-dock-empty[\s\S]*?<Sparkles aria-hidden="true" \/>[\s\S]*?\{presentation\.emptyLabel\}/,
+  /member-agent-dock-empty[\s\S]*?<CommunityAgentIcon size=\{56\} strokeWidth=\{1\.5\} \/>[\s\S]*?\{presentation\.emptyLabel\}/,
   "empty states must retain the same personal-agent identity across contexts",
 );
 assert.doesNotMatch(

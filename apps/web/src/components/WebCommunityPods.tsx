@@ -140,7 +140,9 @@ export function usePodPeople(podIds: string[], refreshKey = 0): Record<string, P
       }
     };
     void load();
-    const timer = window.setInterval(() => void load(), REFRESH_MS);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "hidden") void load();
+    }, REFRESH_MS);
     return () => {
       alive = false;
       window.clearInterval(timer);

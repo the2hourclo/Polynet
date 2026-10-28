@@ -66,7 +66,7 @@ export function DeferredYouTubeEmbed({ embed, title = "YouTube video" }: {
       sandbox="allow-popups allow-presentation allow-same-origin allow-scripts"
     /> : hasPlayerRoom ? <span className="deferred-youtube-placeholder"
       style={{ backgroundImage: `url(https://i.ytimg.com/vi/${encodeURIComponent(embed.id)}/hqdefault.jpg)` }}>
-      <span className="deferred-youtube-play" aria-hidden="true" />
+      <span className="deferred-youtube-glyph" aria-hidden="true" />
       <span className="deferred-youtube-title">{online ? title : "The video plays when you're back online"}</span>
     </span> : null}
     {!hasPlayerRoom ? <a href={watchUrl.href} target="_blank" rel="noopener noreferrer">Watch on YouTube</a> : null}
