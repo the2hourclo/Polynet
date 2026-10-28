@@ -283,4 +283,4 @@ input.lesson-journey-lesson-title { flex: 1; }
 }
 /* On the phone app, jumping to a page's top stops below the floating back
    button and community pill instead of tucking the page under them. */
-.app-root.mobile-shell :is(.lesson-board-step-page, .resource-viewer-content) { scroll-margin-top: var(--mobile-topbar-clearance); }
+.app-root.mobile-shell :is(.community-knowledge-page, .lesson-board-step-page, .resource-viewer-content) { scroll-margin-top: var(--mobile-topbar-clearance); }
