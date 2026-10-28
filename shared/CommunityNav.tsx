@@ -543,7 +543,7 @@ export const CommunityNav = memo(function CommunityNav({
                     : <UsersRound size={17} strokeWidth={1.8} />}
                 </span>
                 <span className="nav-item-label">{channel.name}</span>
-                {channel.pod_visibility === "open" ? <span className="community-nav-open-tag">Open</span> : null}
+                {channel.pod_visibility === "open" ? <span className="community-nav-open-tag">Public</span> : null}
                 {lockedTabs.chat ? <NavLockGlyph /> : !isSelected && (indicator?.chat || indicator?.mentions) ? (
                   <span className={`nav-item-dot${indicator.mentions ? " is-mention" : ""}`} aria-hidden="true" />
                 ) : null}
@@ -622,7 +622,7 @@ export const CommunityNav = memo(function CommunityNav({
         {!showChannelLoadingSkeleton && openPodCount > 0 && onBrowseOpenPods ? (
           <button type="button" className="nav-item community-channel-item community-nav-open-pods" onClick={onBrowseOpenPods}>
             <span className="nav-icon community-channel-icon" aria-hidden="true"><DoorOpen size={17} strokeWidth={1.8} /></span>
-            <span className="nav-item-label">{openPodCount === 1 ? "1 open pod to join" : `${openPodCount} open pods to join`}</span>
+            <span className="nav-item-label">{openPodCount === 1 ? "1 public pod to join" : `${openPodCount} public pods to join`}</span>
           </button>
         ) : null}
         {reorderChannelsError ? (

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
+import { Globe,
   Lock,
   MessageCircle,
   Users,
@@ -1079,7 +1079,9 @@ export function WebCommunityInteractionProjection(props: WebCommunityInteraction
                 <svg viewBox="0 0 24 24" className="back-icon" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
               </button>
             </div>
-            <span><Lock size={13} aria-hidden="true" /> Private pod</span>
+            {props.activeChannel?.pod_visibility === "open"
+              ? <span><Globe size={13} aria-hidden="true" /> Public pod</span>
+              : <span><Lock size={13} aria-hidden="true" /> Private pod</span>}
           </div>
           <WebCommunityPodPanel
             podId={props.activeChannel!.id}

@@ -1000,3 +1000,20 @@
   outline: 2px solid var(--focus-ring, var(--accent-brand));
   outline-offset: 2px;
 }
+
+/* "Private pod" / "Public pod" beside a pod's name in the chat header. */
+.community-pod-kind {
+  flex: none;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.community-pod-kind.is-public {
+  background: color-mix(in srgb, var(--accent-brand) 12%, transparent);
+  color: var(--accent-brand);
+}

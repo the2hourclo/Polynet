@@ -66,9 +66,9 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
   const audience: Audience | null = access === "all_members" ? "all_members" : access ? podVisibility : null;
   const confirmText: Record<Audience, string> = {
     all_members: "All community members will be able to read this channel’s history and files.",
-    open: "Every member will see this pod and can join it. Whoever joins can read its history and files.",
+    open: "This makes the pod public: everyone in the community will see it and can join. Whoever joins can read its history and files.",
     private: pod
-      ? "Only the people in this pod will see it. Members who joined stay in; nobody else can find it."
+      ? "This makes the pod private: only the people in it will see it. Members who joined stay in; nobody else can find it."
       : "Only invited members and owners/admins will have future access. Previously shared messages, file links and copies cannot be recalled.",
   };
   const apply = (next: Audience) => {
@@ -84,7 +84,7 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
         onChange={event => setPendingMode(event.target.value === audience ? null : event.target.value as Audience)}>
         {pod ? <>
           <option value="private">Private: only the people in this pod</option>
-          <option value="open">Open: every member can find and join it</option>
+          <option value="open">Public: everyone in the community can find and join it</option>
           <option value="all_members">Everyone in the community (makes it a channel)</option>
         </> : <>
           <option value="all_members">All community members</option>
@@ -95,7 +95,7 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
     <p>{!pod
       ? "Community owners and admins always have access. The community agent follows the member’s access in their private conversations. Access changes save immediately."
       : podVisibility === "open"
-        ? "Open: every member sees this pod on the Pods page and can join it. Only the people in it can read it. Changes save immediately."
+        ? "Public: everyone in the community sees this pod and can join it. Only the people in it can read it. Changes save immediately."
         : "Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately."}</p>
     {pendingMode ? <div className="community-channel-access-confirm" role="status">
       <p>{confirmText[pendingMode]}</p>

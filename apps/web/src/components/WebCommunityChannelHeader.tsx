@@ -7,7 +7,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { Ellipsis, Hash, LockKeyhole, Pencil, Trash2, X } from "lucide-react";
+import { Ellipsis, Globe, Hash, LockKeyhole, Pencil, Trash2, X } from "lucide-react";
 import { ChannelAccessSettings } from "./ChannelAccessSettings";
 import { CommunityChannelSessionContext } from "./CommunityChannelSessionContext";
 
@@ -17,6 +17,7 @@ export type WebCommunityChannelHeaderChannel = {
   name: string;
   is_general: boolean;
   access_mode?: "all_members" | "restricted";
+  pod_visibility?: "private" | "open" | null;
 };
 
 type WebCommunityChannelHeaderProps = {
@@ -208,8 +209,16 @@ export function WebCommunityChannelHeader({
     <>
       <header className="community-channel-header" aria-label={`Channel ${channel.name}`}>
         <div className="community-channel-header-identity" title={channel.name}>
-          {channel.access_mode === "restricted" ? <LockKeyhole size={17} strokeWidth={1.9} aria-hidden="true" /> : <Hash size={17} strokeWidth={1.9} aria-hidden="true" />}
+          {!isPod ? <Hash size={17} strokeWidth={1.9} aria-hidden="true" />
+            : channel.pod_visibility === "open" ? <Globe size={17} strokeWidth={1.9} aria-hidden="true" />
+            : <LockKeyhole size={17} strokeWidth={1.9} aria-hidden="true" />}
           <h1>{channel.name}</h1>
+          {/* A pod says which kind it is, the same in Classroom and Channels. */}
+          {isPod ? (
+            <span className={`community-pod-kind${channel.pod_visibility === "open" ? " is-public" : ""}`}>
+              {channel.pod_visibility === "open" ? "Public pod" : "Private pod"}
+            </span>
+          ) : null}
         </div>
         {/* The people button shares the actions group so the phone's floating
             top-right chrome shows both side by side instead of stacked. */}
