@@ -96,7 +96,7 @@ async function requireAppSession(ctx: any, req: Request): Promise<AppSession | R
 
 // The member's agent conversation for the session's community: the same one
 // Studio's agent dock shows for that community.
-async function ensureMemberAgentConversation(ctx: any, session: AppSession) {
+async function ensureSiteAgentConversation(ctx: any, session: AppSession) {
   return (await ctx.runMutation(internal.threads.ensureCommunityAgentConversationForTrustedUserInternal, {
     communityId: session.communityId as any,
     trustedUserId: session.userId as any,
@@ -106,7 +106,7 @@ async function ensureMemberAgentConversation(ctx: any, session: AppSession) {
 const noStoreHeaders = () => new Headers({ "Cache-Control": "no-store" });
 
 export function registerCommunityAppRoutes(args: { http: HttpRouterLike; httpAction: HttpActionLike }) {
-  // A turn with the member's personal agent, pinned to this community's
+  // A turn with the community agent acting for the member, pinned to this community's
   // conversation and the member lane. The page sends only text; it cannot pick
   // the thread, community, model or funding.
   args.http.route({
@@ -123,7 +123,7 @@ export function registerCommunityAppRoutes(args: { http: HttpRouterLike; httpAct
       }
       let conversation: { thread_id: string; thread_key: string };
       try {
-        conversation = await ensureMemberAgentConversation(ctx, session);
+        conversation = await ensureSiteAgentConversation(ctx, session);
       } catch {
         return reply(403, { ok: false, code: "not_a_member", message: "Join this community to use your agent here." });
       }
@@ -182,7 +182,7 @@ export function registerCommunityAppRoutes(args: { http: HttpRouterLike; httpAct
       if (session instanceof Response) return session;
       let conversation: { thread_id: string; thread_key: string };
       try {
-        conversation = await ensureMemberAgentConversation(ctx, session);
+        conversation = await ensureSiteAgentConversation(ctx, session);
       } catch {
         return reply(403, { ok: false, code: "not_a_member", message: "Join this community to use your agent here." });
       }

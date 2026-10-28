@@ -57,7 +57,6 @@ export function actorLabel(
   }
   if (actor.actor_user_id) return displayName(actor.actor_user_id);
   if (actor.actor_agent_key) return actor.actor_agent_key.replace(/_/g, " ");
-  if (actor.actor_type === "personal_agent") return "Personal agent";
   if (actor.actor_type === "system") return "System";
   return "Member";
 }
@@ -78,7 +77,7 @@ export function kindChipLabel(kind: string): string | null {
 }
 
 export function agentBadgeLabel(actorType: string): string | null {
-  if (actorType === "community_agent" || actorType === "personal_agent") return "Agent";
+  if (actorType === "community_agent") return "Agent";
   return null;
 }
 
@@ -118,8 +117,8 @@ export function bundleText(blocks: CommunityInteractionContentBlock[], fallback:
   return text || fallback;
 }
 
-// The projection flattens legacy attachments to a "Shared attachment: name" text line. Now that the
-// real attachment renders, drop that redundant summary line from the displayed body.
+// An attachment-only post stores a "Shared attachment: name" summary line. The real attachment
+// renders, so drop that redundant line from the displayed body.
 export function stripSharedAttachmentSummary(text: string, hasAttachments: boolean): string {
   if (!hasAttachments) return text;
   return text
@@ -769,8 +768,8 @@ export function InteractionContent(
   );
 }
 
-// Render the attachments carried on a projected legacy chat message: images in a grid, video/audio
-// as inline players, and any other file as a download chip.
+// Render a post's attachments: images in a grid, video/audio as inline players, and any other
+// file as a download chip.
 function ProtectedInteractionAttachment({ attachment, onOpenImage }: {
   attachment: CommunityInteractionAttachment;
   onOpenImage?: (images: CommunityChatMediaImage[], index: number) => void;

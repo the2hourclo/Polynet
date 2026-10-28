@@ -9,7 +9,6 @@ export type WebCommunityReplyTarget = {
   mention_candidate?: MentionCandidate | null;
   interaction_root_id: string;
   interaction_reply_id?: string | null;
-  legacy_message_id?: string | null;
 };
 
 type CommunityInteractionRootLike = {
@@ -18,7 +17,6 @@ type CommunityInteractionRootLike = {
   actor_user_id: string | null;
   actor_agent_key: string | null;
   content_summary: string;
-  legacy_message_id: string | null;
 };
 
 export function buildCommunityRootReplyTarget(args: {
@@ -31,27 +29,21 @@ export function buildCommunityRootReplyTarget(args: {
 
   const humanUserId = String(root.actor_user_id ?? "").trim();
   const isHumanTarget = root.actor_type === "human" && Boolean(humanUserId);
-  const isCanonicalPersonalAgentTarget =
-    root.actor_type === "personal_agent" &&
-    Boolean(humanUserId) &&
-    root.actor_agent_key === `personal_agent:${humanUserId}`;
   const isCanonicalCommunityAgentTarget =
     root.actor_type === "community_agent" &&
     root.actor_agent_key === CANONICAL_COMMUNITY_AGENT_KEY;
   if (
     !isHumanTarget &&
-    !isCanonicalPersonalAgentTarget &&
     !isCanonicalCommunityAgentTarget
   ) {
     return null;
   }
 
-  const legacyMessageId = String(root.legacy_message_id ?? "").trim() || null;
   const communityName = String(args.communityName ?? "").trim();
   return {
-    id: legacyMessageId ?? rootId,
+    id: rootId,
     sender_id:
-      isHumanTarget || isCanonicalPersonalAgentTarget
+      isHumanTarget
         ? humanUserId
         : CANONICAL_COMMUNITY_AGENT_KEY,
     body: root.content_summary ?? "",
@@ -60,6 +52,5 @@ export function buildCommunityRootReplyTarget(args: {
       : {}),
     interaction_root_id: rootId,
     interaction_reply_id: null,
-    legacy_message_id: legacyMessageId,
   };
 }

@@ -2002,7 +2002,7 @@ export default defineSchema({
     channelId: v.optional(v.id("communityChannels")),
     actorType: v.union(
       v.literal("human"),
-      v.literal("personal_agent"),
+      v.literal("personal_agent"), // retired actor type on old chat posts; rewritten in the table-drop release
       v.literal("community_agent"),
       v.literal("system"),
     ),
@@ -2075,7 +2075,7 @@ export default defineSchema({
     seq: v.number(),
     actorType: v.union(
       v.literal("human"),
-      v.literal("personal_agent"),
+      v.literal("personal_agent"), // retired actor type on old chat replies; rewritten in the table-drop release
       v.literal("community_agent"),
       v.literal("system"),
     ),
@@ -2147,7 +2147,6 @@ export default defineSchema({
     contentHash: v.optional(v.string()),
     createdByActorType: v.union(
       v.literal("human"),
-      v.literal("personal_agent"),
       v.literal("community_agent"),
       v.literal("system"),
     ),
@@ -2261,7 +2260,6 @@ export default defineSchema({
     mentionKind: v.optional(
       v.union(
         v.literal("user"),
-        v.literal("personal_agent"),
         v.literal("community_agent"),
         v.literal("role"),
       ),
@@ -2288,7 +2286,6 @@ export default defineSchema({
     sourceBroadcastId: v.optional(v.id("communityMentionBroadcasts")),
     mentionKind: v.union(
       v.literal("user"),
-      v.literal("personal_agent"),
       v.literal("community_agent"),
       v.literal("role"),
     ),
@@ -2518,7 +2515,6 @@ export default defineSchema({
     replyId: v.optional(v.id("communityInteractionReplies")),
     actorType: v.union(
       v.literal("human"),
-      v.literal("personal_agent"),
       v.literal("community_agent"),
       v.literal("system"),
     ),
@@ -2554,7 +2550,6 @@ export default defineSchema({
     ),
     actorType: v.union(
       v.literal("human"),
-      v.literal("personal_agent"),
       v.literal("community_agent"),
       v.literal("system"),
     ),
@@ -3599,7 +3594,8 @@ export default defineSchema({
     communityId: v.id("communities"),
     userId: v.id("users"),
     principalKind: v.union(
-      v.literal("personal_agent"),
+      v.literal("community_agent_for_member"),
+      v.literal("personal_agent"), // retired name on old receipts; rewritten in the table-drop release
       v.literal("external_mcp"),
       v.literal("community_agent"),
       v.literal("community_app"),
@@ -3776,6 +3772,7 @@ export default defineSchema({
         v.literal("carried_forward"),
         v.literal("excluded_by_visibility"),
         v.literal("excluded_self_authored"),
+        v.literal("agent_retries_exhausted"),
       ),
     ),
     compilerPendingSince: v.optional(v.number()),
@@ -4278,9 +4275,11 @@ export default defineSchema({
       v.union(
         v.literal("settled"),
         v.literal("superseded"),
+        v.literal("retries_exhausted"),
       ),
     ),
     agentAttemptCount: v.optional(v.number()),
+    agentRetryCount: v.optional(v.number()),
     windowStartedAt: v.number(),
     windowEndedAt: v.number(),
     summary: v.string(),

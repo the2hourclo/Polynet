@@ -30,29 +30,29 @@ import {
 import { CommunityChatMediaGrid } from "../../../../shared/CommunityChatMediaGrid";
 import { partitionCommunityAttachments } from "../../../../shared/communityAttachmentUi";
 import {
-  MEMBER_AGENT_IMAGE_ACCEPT,
-  validateMemberAgentImageDrafts,
-  type MemberAgentImageAttachment,
-} from "../../../../shared/memberAgentAttachments";
+  COMMUNITY_AGENT_IMAGE_ACCEPT,
+  validateCommunityAgentImageDrafts,
+  type CommunityAgentImageAttachment,
+} from "../../../../shared/communityAgentAttachments";
 import { mergeVoiceTranscript } from "../../../../shared/voiceCapture";
 import { VoiceInputButton } from "../../../../shared/VoiceInputButton";
 import {
   ensureCloudCommunityAgentConversation,
   startNewCloudCommunityAgentConversation,
-  type CloudMemberAgentChannel,
-} from "../../../../shared/cloudMemberAgentGateway";
+  type CloudCommunityAgentChannel,
+} from "../../../../shared/cloudCommunityAgentConversationGateway";
 import { listCloudPendingCommunityResourceBuilderChangesets } from "../../../../shared/cloudCommunityAdminGateway";
 import {
   listConvexCloudNewestThreadMessagesByThreadKey,
   type CloudMessageTransportRow,
 } from "../../../../shared/cloudThreadsRead";
 import { DEFAULT_ACTIVE_MODEL_ID } from "../../../../shared/modelCatalog";
-import { COMMUNITY_MEMBER_AGENT_LIMIT_REACHED_CODE } from "../../../../shared/founderInference";
-import { uploadCloudMemberAgentImageFile } from "../../../../shared/cloudThreadsGateway";
+import { COMMUNITY_AGENT_LIMIT_REACHED_CODE } from "../../../../shared/founderInference";
+import { uploadCloudCommunityAgentImageFile } from "../../../../shared/cloudThreadsGateway";
 import {
-  buildMemberAgentSurfacePresentation,
-  type MemberAgentSurfaceContextV1,
-} from "../../../../shared/memberAgentSurfaceContext";
+  buildCommunityAgentSurfacePresentation,
+  type CommunityAgentSurfaceContextV1,
+} from "../../../../shared/communityAgentSurfaceContext";
 import { useWebTurnRunnerController } from "../../../../shared/useWebTurnRunnerController";
 import type {
   InferenceIssueModalState,
@@ -67,9 +67,9 @@ import {
   type ResourceChangesetCardModel,
 } from "./RuntimeResourceChangesetApprovalCards";
 import type { WebCommunityRecord } from "../webAppContracts";
-import "./WebMemberAgentDock.css";
+import "./WebCommunityAgentDock.css";
 
-type MemberAgentMessage = Omit<CloudMessageTransportRow, "role"> & {
+type CommunityAgentMessage = Omit<CloudMessageTransportRow, "role"> & {
   role: "user" | "assistant" | "system";
 };
 
@@ -84,7 +84,7 @@ type ActiveThreadContext = {
   contextVersion: number;
 };
 
-export type WebMemberAgentDockHandle = {
+export type WebCommunityAgentDockHandle = {
   appendTranscript: (transcript: string) => void;
   focusInput: () => void;
   startResourceBuild: (request: {
@@ -93,20 +93,20 @@ export type WebMemberAgentDockHandle = {
   }) => Promise<boolean>;
 };
 
-type MemberAgentImageDraft = Omit<MemberAgentImageAttachment, "storage_id"> & {
+type CommunityAgentImageDraft = Omit<CommunityAgentImageAttachment, "storage_id"> & {
   file: File;
   previewUrl: string;
   storage_id?: string | null;
 };
 
-type MemberAgentRetryState = {
+type CommunityAgentRetryState = {
   signature: string;
   text: string;
   messageId: string;
-  attachments: MemberAgentImageDraft[];
+  attachments: CommunityAgentImageDraft[];
 };
 
-export type WebMemberAgentDockProps = {
+export type WebCommunityAgentDockProps = {
   pageMode?: boolean;
   pageActive?: boolean;
   isVisible: boolean;
@@ -116,7 +116,7 @@ export type WebMemberAgentDockProps = {
   onRequestOpen?: () => void;
   mobileRoot?: boolean;
   community: WebCommunityRecord | null;
-  surfaceContext: MemberAgentSurfaceContextV1 | null;
+  surfaceContext: CommunityAgentSurfaceContextV1 | null;
   session: AuthSession | null;
   ensureSession: (
     session?: AuthSession | null,
@@ -136,13 +136,13 @@ export type WebMemberAgentDockProps = {
   floating?: { open: boolean; onOpenChange: (open: boolean) => void } | null;
 };
 
-const MEMBER_AGENT_LIMIT_CODE = COMMUNITY_MEMBER_AGENT_LIMIT_REACHED_CODE;
+const COMMUNITY_AGENT_LIMIT_CODE = COMMUNITY_AGENT_LIMIT_REACHED_CODE;
 
-function buildDraftSignature(text: string, attachments: readonly MemberAgentImageDraft[]): string {
+function buildDraftSignature(text: string, attachments: readonly CommunityAgentImageDraft[]): string {
   return `${text}\u0000${attachments.map((attachment) => attachment.id).join(",")}`;
 }
 
-function MemberAgentAttachmentViews(props: {
+function CommunityAgentAttachmentViews(props: {
   attachments: ReturnType<typeof parseMessageAttachments>;
 }) {
   const { imageAttachments } = partitionCommunityAttachments(props.attachments);
@@ -157,7 +157,7 @@ function MemberAgentAttachmentViews(props: {
   return (
     <CommunityChatMediaGrid
       images={images}
-      className="member-agent-dock-media-grid"
+      className="community-agent-dock-media-grid"
       onOpenImage={(items, index) => {
         const url = String(items[index]?.fullUrl ?? items[index]?.url ?? "").trim();
         if (url) window.open(url, "_blank", "noopener,noreferrer");
@@ -166,10 +166,10 @@ function MemberAgentAttachmentViews(props: {
   );
 }
 
-function normalizeMessages(rows: CloudMessageTransportRow[]): MemberAgentMessage[] {
+function normalizeMessages(rows: CloudMessageTransportRow[]): CommunityAgentMessage[] {
   return rows
     .filter(
-      (row): row is CloudMessageTransportRow & { role: MemberAgentMessage["role"] } =>
+      (row): row is CloudMessageTransportRow & { role: CommunityAgentMessage["role"] } =>
         row.role === "user" || row.role === "assistant" || row.role === "system",
     )
     .sort((a, b) => a.seq - b.seq);
@@ -187,8 +187,8 @@ function formatInferenceIssue(issue: InferenceIssueModalState | null): string | 
   return issue.message?.trim() || "The community agent could not complete this turn. Try again.";
 }
 
-export const WebMemberAgentDock = forwardRef<WebMemberAgentDockHandle, WebMemberAgentDockProps>(
-function WebMemberAgentDock(props, ref) {
+export const WebCommunityAgentDock = forwardRef<WebCommunityAgentDockHandle, WebCommunityAgentDockProps>(
+function WebCommunityAgentDock(props, ref) {
   const communityId = props.community?.id ?? null;
   const communityName = String(props.community?.name ?? "").trim();
   // The owner's name for the agent (Settings > Agent), if they gave it one.
@@ -211,9 +211,9 @@ function WebMemberAgentDock(props, ref) {
   const [threadKey, setThreadKey] = useState<string | null>(null);
   const [episodeId, setEpisodeId] = useState<string | null>(null);
   const [, setThreadContext] = useState<ActiveThreadContext | null>(null);
-  const [messages, setMessages] = useState<MemberAgentMessage[]>([]);
+  const [messages, setMessages] = useState<CommunityAgentMessage[]>([]);
   const [input, setInput] = useState("");
-  const [attachments, setAttachments] = useState<MemberAgentImageDraft[]>([]);
+  const [attachments, setAttachments] = useState<CommunityAgentImageDraft[]>([]);
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAttachmentDragOver, setIsAttachmentDragOver] = useState(false);
@@ -234,7 +234,7 @@ function WebMemberAgentDock(props, ref) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composerFormRef = useRef<HTMLFormElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const attachmentsRef = useRef<MemberAgentImageDraft[]>([]);
+  const attachmentsRef = useRef<CommunityAgentImageDraft[]>([]);
   const draftTextRef = useRef("");
   const submitInFlightRef = useRef(false);
   const resourceBuildStartInFlightRef = useRef(false);
@@ -242,7 +242,7 @@ function WebMemberAgentDock(props, ref) {
     communityId: string;
     prompt: string;
   } | null>(null);
-  const retryRef = useRef<MemberAgentRetryState | null>(null);
+  const retryRef = useRef<CommunityAgentRetryState | null>(null);
   const runUiScopeRef = useRef<AgentScope | null>(null);
   const activeThreadKeyRef = useRef<string | null>(null);
   const activeThreadContextRef = useRef<ActiveThreadContext | null>(null);
@@ -269,12 +269,12 @@ function WebMemberAgentDock(props, ref) {
     };
   }
 
-  const setAttachmentDrafts = useCallback((next: MemberAgentImageDraft[]) => {
+  const setAttachmentDrafts = useCallback((next: CommunityAgentImageDraft[]) => {
     attachmentsRef.current = next;
     setAttachments(next);
   }, []);
 
-  const revokeDraftPreviews = useCallback((drafts: readonly MemberAgentImageDraft[]) => {
+  const revokeDraftPreviews = useCallback((drafts: readonly CommunityAgentImageDraft[]) => {
     for (const draft of drafts) URL.revokeObjectURL(draft.previewUrl);
   }, []);
 
@@ -389,7 +389,7 @@ function WebMemberAgentDock(props, ref) {
     async (
       targetThreadKey: string,
       session: AuthSession,
-    ): Promise<MemberAgentMessage[] | null> => {
+    ): Promise<CommunityAgentMessage[] | null> => {
       const scope = agentScopeRef.current;
       const rows = await listConvexCloudNewestThreadMessagesByThreadKey({
         session,
@@ -457,7 +457,7 @@ function WebMemberAgentDock(props, ref) {
     stopStreamingTurn,
   } = useWebTurnRunnerController<
     AuthSession,
-    MemberAgentMessage,
+    CommunityAgentMessage,
     never,
     never,
     never
@@ -625,7 +625,7 @@ function WebMemberAgentDock(props, ref) {
   const composerIsBusy = turnIsActive || isUploadingAttachments || isSubmitting;
   const visibleMessages = messages.filter((message) => message.role !== "system");
   const memberLimitNotice =
-    !localError && inferenceIssue?.code === MEMBER_AGENT_LIMIT_CODE
+    !localError && inferenceIssue?.code === COMMUNITY_AGENT_LIMIT_CODE
       ? formatInferenceIssue(inferenceIssue)
       : null;
   // A test member can't open this chat (it runs as an action, which test runs
@@ -750,10 +750,10 @@ function WebMemberAgentDock(props, ref) {
 
   const synchronizeDesiredLens = useCallback(
     async (
-      channel: CloudMemberAgentChannel,
+      channel: CloudCommunityAgentChannel,
       session: AuthSession,
       desiredCommunityId: string | null,
-    ): Promise<CloudMemberAgentChannel> => {
+    ): Promise<CloudCommunityAgentChannel> => {
       if (channel.community_id === desiredCommunityId) {
         observeThreadContext(channel.community_id, channel.context_version);
         return channel;
@@ -763,7 +763,7 @@ function WebMemberAgentDock(props, ref) {
     [observeThreadContext],
   );
 
-  const activateEmptyEpisode = useCallback((thread: CloudMemberAgentChannel) => {
+  const activateEmptyEpisode = useCallback((thread: CloudCommunityAgentChannel) => {
     activeThreadKeyRef.current = thread.thread_key;
     observeThreadContext(thread.community_id, thread.context_version);
     setThreadKey(thread.thread_key);
@@ -853,7 +853,7 @@ function WebMemberAgentDock(props, ref) {
 
   const ingestAttachmentFiles = useCallback((files: readonly File[]) => {
     if (files.length === 0) return;
-    const error = validateMemberAgentImageDrafts(files, attachmentsRef.current);
+    const error = validateCommunityAgentImageDrafts(files, attachmentsRef.current);
     if (error) {
       setLocalError(error);
       return;
@@ -930,7 +930,7 @@ function WebMemberAgentDock(props, ref) {
     setInferenceIssue(null);
     const scope = agentScopeRef.current;
     let text = "";
-    let workingDrafts: MemberAgentImageDraft[] = [];
+    let workingDrafts: CommunityAgentImageDraft[] = [];
     let signature = "";
     let messageId = "";
     let committed = false;
@@ -985,7 +985,7 @@ function WebMemberAgentDock(props, ref) {
       for (let index = 0; index < workingDrafts.length; index += 1) {
         const draft = workingDrafts[index]!;
         if (draft.storage_id) continue;
-        const claimed = await uploadCloudMemberAgentImageFile({
+        const claimed = await uploadCloudCommunityAgentImageFile({
           session: usableSession,
           threadId: thread.thread_key,
           messageId,
@@ -1029,7 +1029,7 @@ function WebMemberAgentDock(props, ref) {
         ...attachment,
         url: workingDrafts.find((draft) => draft.id === attachment.id)?.previewUrl ?? null,
       }));
-      const optimisticMessage: MemberAgentMessage = {
+      const optimisticMessage: CommunityAgentMessage = {
         id: messageId,
         thread_id: thread.thread_key,
         seq: activeMessages.length + 1,
@@ -1116,7 +1116,7 @@ function WebMemberAgentDock(props, ref) {
 
   if (!props.isVisible || !props.surfaceContext) return null;
 
-  const legacyPresentation = buildMemberAgentSurfacePresentation(
+  const legacyPresentation = buildCommunityAgentSurfacePresentation(
     props.surfaceContext,
     communityName,
   );
@@ -1137,15 +1137,15 @@ function WebMemberAgentDock(props, ref) {
   return (
     <>
     <aside
-      id="polynet-member-agent-surface"
-      className={`member-agent-dock${props.pageMode ? " community-agent-page" : ""}${isOpenSurface ? " is-open" : ""}${props.mobileRoot ? " mobile-root" : ""}${props.isSuppressed ? " is-suppressed" : ""}`}
+      id="polynet-community-agent-surface"
+      className={`community-agent-dock${props.pageMode ? " community-agent-page" : ""}${isOpenSurface ? " is-open" : ""}${props.mobileRoot ? " mobile-root" : ""}${props.isSuppressed ? " is-suppressed" : ""}`}
       aria-live="polite"
     >
 
-      <section className="member-agent-dock-panel" aria-label={presentation.title}>
-        <header className={props.pageMode ? "community-channel-header community-agent-page-header" : "member-agent-dock-header"}>
-          {props.pageMode ? <div className="community-channel-header-identity"><CommunityAgentIcon size={18} /><h1>{presentation.title}</h1></div> : <div className="member-agent-dock-identity">
-            {!props.pageMode && <span className="member-agent-dock-avatar" aria-hidden="true">
+      <section className="community-agent-dock-panel" aria-label={presentation.title}>
+        <header className={props.pageMode ? "community-channel-header community-agent-page-header" : "community-agent-dock-header"}>
+          {props.pageMode ? <div className="community-channel-header-identity"><CommunityAgentIcon size={18} /><h1>{presentation.title}</h1></div> : <div className="community-agent-dock-identity">
+            {!props.pageMode && <span className="community-agent-dock-avatar" aria-hidden="true">
               <CommunityAgentIcon />
             </span>}
             <span>
@@ -1159,7 +1159,7 @@ function WebMemberAgentDock(props, ref) {
               </small>
             </span>
           </div>}
-          <div className={props.pageMode ? "community-channel-header-actions" : "member-agent-dock-header-actions"}>
+          <div className={props.pageMode ? "community-channel-header-actions" : "community-agent-dock-header-actions"}>
             <button
               type="button"
               className={props.pageMode ? "community-channel-header-menu-trigger" : undefined}
@@ -1188,13 +1188,13 @@ function WebMemberAgentDock(props, ref) {
           </div>
         </header>
 
-        <div className="member-agent-dock-transcript" ref={scrollRef}>
+        <div className="community-agent-dock-transcript" ref={scrollRef}>
           {visibleMessages.length === 0 &&
           !composerIsBusy &&
           !isPreparing &&
           !isStartingNewChat ? (
-            <div className="member-agent-dock-empty">
-              <span className="member-agent-dock-empty-face" aria-hidden="true"><CommunityAgentIcon size={56} strokeWidth={1.5} /></span>
+            <div className="community-agent-dock-empty">
+              <span className="community-agent-dock-empty-face" aria-hidden="true"><CommunityAgentIcon size={56} strokeWidth={1.5} /></span>
               <p>
                 {presentation.emptyLabel}
               </p>
@@ -1207,14 +1207,14 @@ function WebMemberAgentDock(props, ref) {
             return (
               <article
                 key={message.id}
-                className={`member-agent-dock-message is-${message.role}${text ? "" : " is-media-only"}`}
+                className={`community-agent-dock-message is-${message.role}${text ? "" : " is-media-only"}`}
               >
                 {text
                   ? message.role === "assistant"
                     ? renderMarkdown(text)
                     : <p>{text}</p>
                   : null}
-                <MemberAgentAttachmentViews attachments={messageAttachments} />
+                <CommunityAgentAttachmentViews attachments={messageAttachments} />
               </article>
             );
           })}
@@ -1228,21 +1228,21 @@ function WebMemberAgentDock(props, ref) {
           ) : null}
 
           {isPreparing ? (
-            <div className="member-agent-dock-reasoning">
+            <div className="community-agent-dock-reasoning">
               <LoaderCircle aria-hidden="true" />
               <span>{presentation.loadingLabel}</span>
             </div>
           ) : null}
 
           {isStartingNewChat ? (
-            <div className="member-agent-dock-reasoning">
+            <div className="community-agent-dock-reasoning">
               <LoaderCircle aria-hidden="true" />
               <span>Starting fresh</span>
             </div>
           ) : null}
 
           {turnIsActive || shouldRenderStreamedText ? (
-            <div className="member-agent-dock-live-turn">
+            <div className="community-agent-dock-live-turn">
               {runtimeEvents.length > 0 ? (
                 <RuntimeLiveTimeline
                   events={runtimeEvents}
@@ -1252,23 +1252,23 @@ function WebMemberAgentDock(props, ref) {
                   showThinkingFooter={!shouldRenderStreamedText}
                 />
               ) : turnIsActive ? (
-                <div className="member-agent-dock-reasoning">
+                <div className="community-agent-dock-reasoning">
                   <LoaderCircle aria-hidden="true" />
                   <span>Getting oriented in {presentation.surfaceLabel}</span>
                 </div>
               ) : null}
               {shouldRenderStreamedText ? (
-                <article className="member-agent-dock-message is-assistant is-streaming">
+                <article className="community-agent-dock-message is-assistant is-streaming">
                   {renderMarkdown(streamedText)}
-                  {turnIsActive ? <span className="member-agent-dock-caret" aria-hidden="true" /> : null}
+                  {turnIsActive ? <span className="community-agent-dock-caret" aria-hidden="true" /> : null}
                 </article>
               ) : null}
             </div>
           ) : null}
 
-          {dockError ? <p className="member-agent-dock-error">{dockError}</p> : null}
+          {dockError ? <p className="community-agent-dock-error">{dockError}</p> : null}
           {memberLimitNotice ? (
-            <div className="member-agent-dock-limit" role="status">
+            <div className="community-agent-dock-limit" role="status">
               <p>{memberLimitNotice}</p>
               {props.onStartBuilder ? (
                 <button type="button" onClick={props.onStartBuilder}>
@@ -1279,11 +1279,11 @@ function WebMemberAgentDock(props, ref) {
           ) : null}
         </div>
 
-        <div className="member-agent-dock-composer-shell">
+        <div className="community-agent-dock-composer-shell">
           {attachments.length > 0 ? (
-            <div className="member-agent-dock-composer-attachments">
+            <div className="community-agent-dock-composer-attachments">
               {attachments.map((attachment) => (
-                <div className="member-agent-dock-composer-image" key={attachment.id}>
+                <div className="community-agent-dock-composer-image" key={attachment.id}>
                   <img src={attachment.previewUrl} alt={attachment.name} />
                   {isUploadingAttachments && !attachment.storage_id ? (
                     <span aria-label={`Uploading ${attachment.name}`}>
@@ -1305,7 +1305,7 @@ function WebMemberAgentDock(props, ref) {
           ) : null}
           <form
             ref={composerFormRef}
-            className={`member-agent-dock-composer community-agent-composer chat-input-bar${isAttachmentDragOver ? " drag-over" : ""}`}
+            className={`community-agent-dock-composer community-agent-composer chat-input-bar${isAttachmentDragOver ? " drag-over" : ""}`}
             onSubmit={submit}
             onDragEnter={(event) => {
               if (!Array.from(event.dataTransfer.types ?? []).includes("Files")) return;
@@ -1326,10 +1326,10 @@ function WebMemberAgentDock(props, ref) {
           >
             <input
               ref={fileInputRef}
-              className="member-agent-dock-file-input"
+              className="community-agent-dock-file-input"
               type="file"
               multiple
-              accept={MEMBER_AGENT_IMAGE_ACCEPT}
+              accept={COMMUNITY_AGENT_IMAGE_ACCEPT}
               onChange={(event) => {
                 const files = Array.from(event.currentTarget.files ?? []);
                 ingestAttachmentFiles(files);
@@ -1414,10 +1414,10 @@ function WebMemberAgentDock(props, ref) {
     {props.floating && !props.floating.open ? (
       <button
         type="button"
-        className="member-agent-launcher"
+        className="community-agent-launcher"
         onClick={() => props.floating?.onOpenChange(true)}
         aria-label={agentCustomName ? `Ask ${agentCustomName}` : `Ask the ${communityName || "community"} agent`}
-        aria-controls="polynet-member-agent-surface"
+        aria-controls="polynet-community-agent-surface"
         aria-expanded={false}
       >
         <CommunityAgentIcon size={20} strokeWidth={2} />

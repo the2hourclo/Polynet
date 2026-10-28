@@ -210,7 +210,7 @@ Dedicated surface tools answer:
 What canonical surface state or evidence should the agent inspect now?
 ```
 
-This layer should arrive surface by surface as each boundary becomes stable. The platform-harness resource surface uses canonical semantic list/read for ordinary traversal, plus explicit batch-read and search operations where those capabilities are physically required. Canonical chat and AI Feed evidence now have typed search/read paths for the member agent, community Concierge, and external workspace MCP. Member runs see live modules and pages only; manager runs can additionally inspect builder-visible draft/source/health state. Neither lane exposes raw storage keys. Events and members remain deferred until their source and privacy contracts are equally clear.
+This layer should arrive surface by surface as each boundary becomes stable. The platform-harness resource surface uses canonical semantic list/read for ordinary traversal, plus explicit batch-read and search operations where those capabilities are physically required. Canonical chat and AI Feed evidence now have typed search/read paths for the community agent, community Concierge, and external workspace MCP. Member runs see live modules and pages only; manager runs can additionally inspect builder-visible draft/source/health state. Neither lane exposes raw storage keys. Events and members remain deferred until their source and privacy contracts are equally clear.
 
 | Surface | Future direct read role | Compiler-window role |
 | --- | --- | --- |
@@ -1575,6 +1575,18 @@ Rules:
 - The handoff state is autonomous execution state, not approval governance.
   `pending` is claimable, `running` has a bounded lease, and `handled` is
   terminal for the exact version.
+- A failed steward run returns the digest to `pending` and increments
+  `agentRetryCount`. The fifth failure marks it `handled` with
+  `agentTerminalReason: "retries_exhausted"`, so a broken run cannot bill the
+  community on every heartbeat. `agentAttemptCount` still counts every claim.
+  The exhausted digest's pending source traces move to
+  `compilerState: "agent_retries_exhausted"` so the compiler admits newer
+  evidence instead of rebuilding the same digest; a material update to a trace
+  returns it to `pending`.
+- The steward settles every item of the digest in one write, so its output
+  limit grows with the digest: 2,000 tokens plus 450 per item, capped at 48,000.
+  Reasoning counts against the same limit. A tool call cut off at the limit is
+  reported as `model_output_truncated`.
 - A heartbeat rechecks the owner off-switch, daily cycle cap, and founder
   connection before inference. It then compiles eligible evidence if needed,
   claims one exact digest version, and passes `digestId + versionKey + workKey`
@@ -2092,7 +2104,7 @@ Two payment lanes, split by what the spend produces:
   subscription or the operator grant may fund a cycle. It is
   capped at two cycles per day and retains the owner off-switch
   (`communityAgentConfigs.agentEnabled`).
-- The member agent under an authorized community lens, direct Concierge chat,
+- The community agent under an authorized community lens, direct Concierge chat,
   autonomous cognition, and AI-assisted setup generation are
   community-founder-funded. A verified $79 monthly subscription attaches to exactly
   one community; the active platform-owner role is complimentary. Polynet supplies
@@ -2302,7 +2314,7 @@ but the canonical deployed surface contains only the memory runtime itself.
 ## Thirty-Second Implementation Slice: Canonical Retrieval Receipts
 
 Accepted-memory consumption now uses one privacy-safe receipt contract across
-the member agent, community Concierge, and external MCP:
+the community agent, community Concierge, and external MCP:
 
 ```txt
 search under one authenticated community lens

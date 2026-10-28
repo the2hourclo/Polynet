@@ -55,7 +55,7 @@ import { useWebCommunityProfileHydrationController } from "./controllers/useWebC
 import { useWebCommunityDirectoryState } from "./controllers/useWebCommunityDirectoryState";
 import { useWebTelemetryLifecycle } from "./controllers/useWebTelemetryLifecycle";
 import { useWebAuthErrorToastLifecycle } from "./controllers/useWebAuthErrorToastLifecycle";
-import { useWebMemberAgentSurfaceController } from "./controllers/useWebMemberAgentSurfaceController";
+import { useWebCommunityAgentSurfaceController } from "./controllers/useWebCommunityAgentSurfaceController";
 import { useWebDirectMessagesChromeController } from "./controllers/useWebDirectMessagesChromeController";
 import { useWebCommunityTabAccessGuard } from "./controllers/useWebCommunityTabAccessGuard";
 import { useWebMobileChromeReadingModeLifecycle } from "./controllers/useWebMobileChromeReadingModeLifecycle";
@@ -162,7 +162,7 @@ import { buildWebGlobalOverlayHostProps } from "./controllers/buildWebGlobalOver
 import { buildWebAppMainSurfaceHostProps } from "./controllers/buildWebAppMainSurfaceHostProps";
 import { buildWebShellChromeHostProps } from "./controllers/buildWebShellChromeHostProps";
 import { useWebChannelPeoplePanel } from "./controllers/useWebChannelPeoplePanel";
-import type { WebMemberAgentDockHandle } from "./components/WebMemberAgentDock";
+import type { WebCommunityAgentDockHandle } from "./components/WebCommunityAgentDock";
 import type {
   WebCommunityRecord,
   WebPublicCommunityRecord,
@@ -588,7 +588,7 @@ export default function App() {
     dismissServeIssue: handleDismissCommunityAgentServeIssue,
   } = communityInteractionProjection;
 
-  const memberAgentComposerApiRef = useRef<WebMemberAgentDockHandle | null>(null);
+  const communityAgentComposerApiRef = useRef<WebCommunityAgentDockHandle | null>(null);
   const canMentionEverybodyRef = useRef(false);
   const communityChat = useWebCommunityChatController({
     activeCommunityId: activeChannelCommunityId,
@@ -1696,8 +1696,8 @@ export default function App() {
 
   const {
     communityVoiceUiState,
-    memberAgentVoiceIntent,
-    memberAgentVoiceUiState,
+    communityAgentVoiceIntent,
+    communityAgentVoiceUiState,
     handleVoiceInputClick,
     finishVoiceInputForSubmit,
     cancelVoiceInput,
@@ -1720,9 +1720,9 @@ export default function App() {
     openProfileSetup,
     setCommunityMessageInput,
     chatInputRef,
-    appendMemberAgentTranscript: (transcript) =>
-      memberAgentComposerApiRef.current?.appendTranscript(transcript),
-    focusMemberAgentInput: () => memberAgentComposerApiRef.current?.focusInput(),
+    appendCommunityAgentTranscript: (transcript) =>
+      communityAgentComposerApiRef.current?.appendTranscript(transcript),
+    focusCommunityAgentInput: () => communityAgentComposerApiRef.current?.focusInput(),
   });
 
   const hasSelectedCommunity = Boolean(String(selectedActiveCommunitySlug ?? activeCommunity?.slug ?? "").trim());
@@ -2744,10 +2744,10 @@ export default function App() {
   // right; elsewhere on desktop it is the Agent page.
   const floatingCommunityAgent = !showMobileShell && communityLayoutPosition === "top";
   const {
-    community: memberAgentDockCommunity,
-    surfaceContext: memberAgentSurfaceContext,
-    isVisible: isMemberAgentDockVisible,
-  } = useWebMemberAgentSurfaceController({
+    community: communityAgentDockCommunity,
+    surfaceContext: communityAgentSurfaceContext,
+    isVisible: isCommunityAgentDockVisible,
+  } = useWebCommunityAgentSurfaceController({
     pageMode: !showMobileShell && !floatingCommunityAgent,
     activePage,
     communityTab,
@@ -2757,7 +2757,7 @@ export default function App() {
     hasResolvedCommunities,
     isDirectMessagesOpen,
     isOnboardingModalOpen,
-    memberAgentVoiceUiState,
+    communityAgentVoiceUiState,
     cancelVoiceInput,
   });
   const activeIndicators = activeCommunityId
@@ -2965,14 +2965,14 @@ export default function App() {
     <WebAppCompositionRoot
       activeCommunityId={activeCommunityId}
       globalOverlayHostProps={globalOverlayHostProps}
-      memberAgentDockRef={memberAgentComposerApiRef}
-      memberAgentDockProps={{
+      communityAgentDockRef={communityAgentComposerApiRef}
+      communityAgentDockProps={{
         pageMode: !showMobileShell && !floatingCommunityAgent,
         pageActive: activePage === "community" && communityTab === "agent",
         floating: floatingCommunityAgent
           ? { open: isFloatingCommunityAgentOpen, onOpenChange: setIsFloatingCommunityAgentOpen }
           : null,
-        isVisible: isMemberAgentDockVisible,
+        isVisible: isCommunityAgentDockVisible,
         isSuppressed: false,
         canManageResources: canManageResourcesActiveCommunity,
         mobileShellActive: showMobileShell,
@@ -2982,15 +2982,15 @@ export default function App() {
           : floatingCommunityAgent
             ? openFloatingCommunityAgent()
             : handleSelectCommunityTab("agent"),
-        community: memberAgentDockCommunity,
-        surfaceContext: memberAgentSurfaceContext,
+        community: communityAgentDockCommunity,
+        surfaceContext: communityAgentSurfaceContext,
         session,
         ensureSession: ensureUsableAuthSession,
         fetchPublic: fetchWithPublic,
         fetchAuth: fetchWithAuth,
         voiceButtonProps: {
-          state: memberAgentVoiceUiState,
-          title: memberAgentVoiceIntent.title,
+          state: communityAgentVoiceUiState,
+          title: communityAgentVoiceIntent.title,
           onClick: () => {
             void handleVoiceInputClick("member_agent");
           },

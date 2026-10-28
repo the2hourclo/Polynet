@@ -494,10 +494,14 @@ async function failMutatingOperation(args: {
 
 // A community app is the member's own interface, so channel access and
 // attribution treat it as the human. Agents keep their own actor kinds.
-// A community front end has no Convex identity; the executor already
-// authenticated its member, so memory calls take that member as trusted.
+// A community front end and the background mention worker have no Convex
+// identity; the executor already resolved the member they act for, so memory
+// calls take that member as trusted. Interactive surfaces keep the caller's
+// own Convex identity.
 function trustedMemberArgs(args: { principalKind: PolynetPrincipalKind; userId: string }) {
-  return args.principalKind === "community_app" ? { trustedUserId: args.userId } : {};
+  return args.principalKind === "community_app" || args.principalKind === "community_agent"
+    ? { trustedUserId: args.userId }
+    : {};
 }
 
 function channelActorKind(principalKind: PolynetPrincipalKind) {
@@ -725,7 +729,7 @@ function capabilityDocument(args: {
     args.evidenceSurface !== "community_funnel_builder" &&
     (MEMBER_CAPABILITIES as readonly string[]).includes(args.operation);
   // Builder decisions run only from a harness the founder operates directly. The native
-  // personal agent reads member-authored evidence and has no per-call human confirmation.
+  // community agent reads member-authored evidence and has no per-call human confirmation.
   const isAdmissionCapability = ADMISSION_OPERATIONS.includes(args.operation) &&
     args.evidenceSurface === "external_mcp" &&
     args.principalKind === "external_mcp" && args.target.authority.canUseBuilderProjection;
@@ -1295,7 +1299,7 @@ async function executeCanonicalList(args: {
       },
     )) as Record<string, unknown>;
     if (value?.ok !== true) {
-      return canonicalError(String(value?.code ?? "community_memory_list_failed"), String(value?.message ?? "Community memory could not be listed."));
+      return canonicalError(String(value?.code ?? value?.reason_code ?? "community_memory_list_failed"), String(value?.message ?? "Community memory could not be listed."));
     }
     const nodes = Array.isArray(value.nodes) ? (value.nodes as Array<Record<string, unknown>>) : [];
     return {
@@ -2146,7 +2150,7 @@ async function executeCanonicalSearch(args: {
       )) as Record<string, unknown>;
       if (value?.ok !== true) {
         return canonicalError(
-          String(value?.code ?? "community_memory_search_failed"),
+          String(value?.code ?? value?.reason_code ?? "community_memory_search_failed"),
           String(value?.message ?? "Community memory search failed."),
           value,
         );

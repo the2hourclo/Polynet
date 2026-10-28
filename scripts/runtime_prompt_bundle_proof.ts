@@ -34,7 +34,7 @@ const params = {
     can_read_live_resources: true,
     can_use_resource_builder: true,
   },
-  memberAgentSurfaceContext: {
+  communityAgentSurfaceContext: {
     version: 1,
     kind: "community",
     community_slug: "bundle-community",
@@ -72,7 +72,7 @@ assert.match(bundle.text, /on-demand retrieval, not a required read for unrelate
 assert.match(bundle.text, /Unavailable means the action's outcome cannot be verified/);
 const switchedCommunity = buildPlatformHarnessRuntimePromptBundle({
   ...params, communityId: "community_2", communityName: "Second", communitySlug: "second-community",
-  memberAgentSurfaceContext: { ...params.memberAgentSurfaceContext, community_slug: "second-community" },
+  communityAgentSurfaceContext: { ...params.communityAgentSurfaceContext, community_slug: "second-community" },
 });
 assert.match(switchedCommunity.text, /first list \/communities\/second-community\/members\//);
 assert.doesNotMatch(switchedCommunity.text, /first list \/communities\/bundle-community\/members\//);
@@ -98,8 +98,8 @@ assert.deepEqual(
 assert.ok(bundle.sections.every((section) => section.owner !== "workspace"));
 assert.match(
   bundle.text,
-  /You are Polynet Intelligence, the authenticated member's personal agent in Polynet\.[\s\S]*You do not belong to any community\.[\s\S]*active community lens/,
-  "the member dock must use one platform-owned personal identity under the optional community lens",
+  /You are this community's agent in a private conversation with the authenticated member\.[\s\S]*requesting member's current permissions/,
+  "the Agent page speaks as the one community agent, inside the member's permissions",
 );
 assert.doesNotMatch(
   bundle.text,
@@ -145,24 +145,24 @@ const globalBundle = buildPlatformHarnessRuntimePromptBundle({
   communityAbout: null,
   communitySystemPrompt: null,
   communityLensAuthority: null,
-  memberAgentSurfaceContext: {
+  communityAgentSurfaceContext: {
     version: 1,
     kind: "discover",
     section: "communities",
   } as const,
 });
 assert.doesNotMatch(globalBundle.text, /follow the returned me\/ directory/);
-assert.match(
+assert.doesNotMatch(
   globalBundle.text,
-  /Polynet Intelligence[\s\S]*No community lens is active on this surface/,
-  "the same personal agent must remain available without a community lens",
+  /Polynet Intelligence|personal agent|No community lens is active/,
+  "the retired personal-agent identity stays deleted",
 );
 
 assert.throws(
   () => buildPlatformHarnessRuntimePromptBundle({
     ...params,
     invocationSurface: "community_funnel_builder" as never,
-    memberAgentSurfaceContext: null,
+    communityAgentSurfaceContext: null,
   }),
   /invalid_runtime_invocation_surface/,
   "the retired funnel composer surface cannot build a prompt",

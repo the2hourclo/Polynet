@@ -80,7 +80,7 @@ export type CommunityInteractionRootRecord = {
   id: string;
   community_id: string;
   channel_id: string | null;
-  actor_type: "human" | "personal_agent" | "community_agent" | "system" | string;
+  actor_type: "human" | "community_agent" | "system" | string;
   /** For a community agent post made for a member: who it acted for. */
   on_behalf_of_user_id?: string | null;
   actor_user_id: string | null;
@@ -98,8 +98,6 @@ export type CommunityInteractionRootRecord = {
   last_reply_actor_user_id: string | null;
   pinned_at: string | null;
   locked_at: string | null;
-  legacy_thread_id: string | null;
-  legacy_message_id: string | null;
   created_at: string;
   updated_at: string;
   edited_at: string | null;
@@ -111,7 +109,7 @@ export type CommunityInteractionReplyRecord = {
   channel_id: string | null;
   root_id: string;
   seq: number;
-  actor_type: "human" | "personal_agent" | "community_agent" | "system" | string;
+  actor_type: "human" | "community_agent" | "system" | string;
   /** For a community agent post made for a member: who it acted for. */
   on_behalf_of_user_id?: string | null;
   actor_user_id: string | null;
@@ -123,9 +121,6 @@ export type CommunityInteractionReplyRecord = {
   reaction_summary: CommunityInteractionReactionSummary[];
   viewer_emojis: string[];
   idempotency_key: string;
-  legacy_thread_id: string | null;
-  legacy_message_id: string | null;
-  legacy_target_message_id: string | null;
   created_at: string;
   updated_at: string;
   edited_at: string | null;

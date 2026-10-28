@@ -1245,48 +1245,48 @@
 [data-community-theme] .lesson-slide-deck-note {
   font-size: var(--pn-type-reading);
 }
-[data-community-theme] .member-agent-dock-panel {
+[data-community-theme] .community-agent-dock-panel {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
-[data-community-theme] .member-agent-dock-identity strong {
+[data-community-theme] .community-agent-dock-identity strong {
   font-size: var(--pn-type-small);
 }
-[data-community-theme] .member-agent-dock-identity small {
+[data-community-theme] .community-agent-dock-identity small {
   font-size: var(--pn-type-meta);
 }
-[data-community-theme] .member-agent-dock-avatar {
+[data-community-theme] .community-agent-dock-avatar {
   border-radius: calc(7px * var(--pn-radius-scale, 1));
 }
-[data-community-theme] .member-agent-dock-header-actions > button {
+[data-community-theme] .community-agent-dock-header-actions > button {
   border-radius: calc(6px * var(--pn-radius-scale, 1));
 }
-[data-community-theme] .member-agent-dock-empty p {
+[data-community-theme] .community-agent-dock-empty p {
   font-size: var(--pn-type-ui);
 }
-[data-community-theme] .member-agent-dock-message {
+[data-community-theme] .community-agent-dock-message {
   font-size: var(--pn-type-small);
 }
-[data-community-theme] .member-agent-dock-message.is-user {
+[data-community-theme] .community-agent-dock-message.is-user {
   border-radius: calc(8px * var(--pn-radius-scale, 1)) calc(8px * var(--pn-radius-scale, 1)) calc(2px * var(--pn-radius-scale, 1)) calc(8px * var(--pn-radius-scale, 1));
 }
-[data-community-theme] .member-agent-dock-reasoning,
-[data-community-theme] .member-agent-dock-tool {
+[data-community-theme] .community-agent-dock-reasoning,
+[data-community-theme] .community-agent-dock-tool {
   font-size: var(--pn-type-meta);
 }
-[data-community-theme] .member-agent-dock-error {
+[data-community-theme] .community-agent-dock-error {
   font-size: var(--pn-type-label);
 }
-[data-community-theme] .member-agent-dock-limit {
+[data-community-theme] .community-agent-dock-limit {
   border-radius: calc(10px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
 }
-[data-community-theme] .member-agent-dock-limit button {
+[data-community-theme] .community-agent-dock-limit button {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
-[data-community-theme] .member-agent-dock-composer-image {
+[data-community-theme] .community-agent-dock-composer-image {
   border-radius: calc(10px * var(--pn-radius-scale, 1));
 }
-[data-community-theme] .member-agent-launcher {
+[data-community-theme] .community-agent-launcher {
   font-size: var(--pn-type-body);
 }
 [data-community-theme] .product-docs-header h1 {

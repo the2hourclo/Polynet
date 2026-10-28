@@ -11,7 +11,7 @@ import { readAuthenticatedIdentityProfile } from "./authIdentity";
 import { parseOptionalString } from "./httpInferenceConfig";
 import { registerRuntimeTurnRoutes } from "./httpRuntimeRoutes";
 import { registerRuntimeVoiceRoutes } from "./httpVoice";
-import { registerMemberAgentAttachmentRoutes } from "./httpMemberAgentAttachments";
+import { registerCommunityAgentAttachmentRoutes } from "./httpCommunityAgentAttachments";
 import { registerCommunityAttachmentRoutes } from "./httpCommunityAttachments";
 import { registerCommunityAppRoutes } from "./httpCommunityApps";
 import { registerCommunityAccessRoutes } from "./httpCommunityAccess";
@@ -258,7 +258,7 @@ registerRuntimeVoiceRoutes({
   requireAuthenticatedActor,
 });
 
-registerMemberAgentAttachmentRoutes({
+registerCommunityAgentAttachmentRoutes({
   http,
   httpAction,
   jsonResponse,

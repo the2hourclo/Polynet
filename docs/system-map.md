@@ -92,12 +92,11 @@ same authorization ([core-contract.md](core-contract.md), invariant 3).
 - **Code:** `communityInteractions`, `communityChannels`, `communityChannelCore`,
   `communityChannelAccess`, `communityChannelParticipants`, `communityMention*`,
   `communityAttachmentUploads`, `communityAttachmentDownloads`,
-  `communityLegacyAttachmentUploads`, `communityInteractionAttachmentBridge`,
-  `communityInteractionLegacyAttachments`, `communityInteractionEvidence`,
+  `communityInteractionAttachmentBridge`, `communityInteractionEvidence`,
   `communityInteractionEvidenceCore`, `communityChannelValidators`,
   `communityComposerReplay`, `communityTypingPresenceCore`, `communityReadCursorCore`,
-  `communityActivity`, `communityText`, `httpCommunityAttachments`, `communityAttention`;
-  legacy bridge `communityChat`, `communityInteractionLegacyBridge`.
+  `communityActivity`, `communityText`, `httpCommunityAttachments`, `communityAttention`,
+  `communityChat` (typing presence only; keeps its name for the cached production web).
 - **Tables:** `communityChannels`, `communityChannelParticipants`,
   `communityInteractionRoots`, `communityInteractionReplies`,
   `communityInteractionAttachments`, `communityInteractionEmbeds`,
@@ -108,13 +107,18 @@ same authorization ([core-contract.md](core-contract.md), invariant 3).
 - **Contracts:** [community-interaction-substrate-contract-v1.md](community-interaction-substrate-contract-v1.md),
   [community-interaction-migration-residue-map.md](community-interaction-migration-residue-map.md),
   [community-private-channels-v1.md](community-private-channels-v1.md).
-- **Going:** legacy chat (`communityChatThreads`, `communityChatMessages`,
-  `communityMessageReactions`, `communityInteractionLegacyChatLinks`,
-  `communityFeaturedMessages`). Studio no longer calls its write path (the newest
-  staging row is from late June 2026); the legacy bridge still reads it. Prove
-  production matches, then retire.
-- **Hand-run:** `communityInteractionBackfill` (needed to finish the legacy chat
-  retirement); `communityChannelAudit`, `communityChannelBackfill` (General channel
+- **Deleted Oct 28 (POL-26):** the old thread chat code: its reads, writes,
+  reactions, ticketed upload route, dual-write adapter and backfill
+  (`communityLegacyAttachmentUploads`, `communityInteractionLegacyAttachments`,
+  `communityInteractionLegacyBridge`, `communityInteractionBackfill`). Production
+  had 92 of 92 old messages copied into the new chat and none had attachments.
+- **Going (table-drop release):** old chat tables `communityChatThreads`,
+  `communityChatMessages`, `communityMessageReactions`,
+  `communityInteractionLegacyChatLinks`, `communityFeaturedMessages`. Anonymous-user
+  cleanup and orphan maintenance still delete their rows for removed users until
+  then. The composer's old inline attachment shape (refused with a reattach
+  message) goes after the production release.
+- **Hand-run:** `communityChannelAudit`, `communityChannelBackfill` (General channel
   migration: delete after two clean production audits, residue map R-009).
 
 ### 4. Direct messages — Keep (Studio only)
@@ -178,7 +182,7 @@ same authorization ([core-contract.md](core-contract.md), invariant 3).
   `communityAgentContext`, `communityAgentChannelAccess`, `communityAgentConcierge*`,
   `communityAgentServeWorker`, `communityAppAgentTurn`, `httpRuntimeRoutes`,
   `httpStreaming`, `fundedInferenceGateway`, `founderInference*`,
-  `openAiNativeToolCompletion`, `httpInferenceConfig`, `httpMemberAgentAttachments`, `httpRuntimeSupport`,
+  `openAiNativeToolCompletion`, `httpInferenceConfig`, `httpCommunityAgentAttachments`, `httpRuntimeSupport`,
   `httpRuntimeTurnState`, `runtimeCancellation`, `runtimeHarnessTelemetry`,
   `runtimeToolCallEvents`; web research:
   `webResearchTools`, `webSearchTypes`, `openAiWebSearchTransport`,
@@ -201,9 +205,15 @@ same authorization ([core-contract.md](core-contract.md), invariant 3).
   `/runtime/list_personal_memory_items`. Stored global conversations stay readable
   as history; `memberAgentChannels` and `memberAgentEpisodes` stay (community
   conversations use them).
-- **Going:** the `asPersonalAgent` argument alias (with the rename; old-client
-  contract first); internal `personal_agent` and "member agent" names, renamed to
-  the community agent.
+- **Two permission modes, one agent (Oct 28, POL-27):** `community_agent` acts on
+  its own (@mention replies, founder brief, memory work); `community_agent_for_member`
+  acts inside one member's permissions (Agent page, sites). All `member-agent`
+  conversations, including the retired personal agent's global episodes, are
+  read-only history. `one_agent_identity_proof` keeps the retired `personal_agent`
+  value on stored history only (`shared/communityAgentIdentity.ts`).
+- **Going:** the `asPersonalAgent` composer flag (after the production release);
+  stored `personal_agent` values on 14 posts, 4 replies and 9 receipts (rewritten in
+  the table-drop release with Neil's OK); "community agent" code names (step 2b).
 - **Deleted Oct 27 (POL-10, Neil):** OpenRouter (`openRouterNativeTransport`, the
   failure answer now calls OpenAI directly), the free demo model, Claude, Gemini
   and Grok model entries, xAI web search (`xAiSearchTransport`), own-account
@@ -427,7 +437,7 @@ Built in the2hourclo/Polynet and tested there; listed so the map stays whole.
 2. **Old features:** Workflows and Forms, the funnel editor, skills and harness,
    integrations. Read-only production usage check first; tables retire over two
    releases.
-3. **Legacy chat** retirement.
-4. **One agent name:** rename `personal_agent` and "member agent" in code.
+3. **Legacy chat** retirement: code done Oct 28 (POL-26); tables drop in step 5.
+4. **One agent name:** identity done Oct 28 (POL-27); "community agent" code names next.
 5. **Data deletion release:** production backup, then Neil signs off on each
    table's deletion.

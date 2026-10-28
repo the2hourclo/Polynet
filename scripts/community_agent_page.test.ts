@@ -30,18 +30,18 @@ test("suppressed or unavailable Agent page keeps the primary content host visibl
 });
 
 test("DM overlays preserve the desktop Agent page while retaining mobile and voice suppression", () => {
-  const controller = readFileSync(new URL("../apps/web/src/controllers/useWebMemberAgentSurfaceController.ts", import.meta.url), "utf8");
+  const controller = readFileSync(new URL("../apps/web/src/controllers/useWebCommunityAgentSurfaceController.ts", import.meta.url), "utf8");
   const app = readFileSync(new URL("../apps/web/src/App.tsx", import.meta.url), "utf8");
   expect(controller).toContain('(params.pageMode || !params.isDirectMessagesOpen)');
   expect(controller).toContain('(!isVisible || params.isDirectMessagesOpen || scopeChanged)');
-  expect(app).toMatch(/useWebMemberAgentSurfaceController\(\{\s*pageMode: !showMobileShell/);
+  expect(app).toMatch(/useWebCommunityAgentSurfaceController\(\{\s*pageMode: !showMobileShell/);
   expect(controller).toContain('!params.isOnboardingModalOpen');
 });
 
 test("the old floating controls stay retired; only the Classroom layout floats the agent", () => {
   const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
-  const component = read("apps/web/src/components/WebMemberAgentDock.tsx");
-  expect(component).not.toMatch(/setIsOpen|member-agent-dock-launcher/);
+  const component = read("apps/web/src/components/WebCommunityAgentDock.tsx");
+  expect(component).not.toMatch(/setIsOpen|community-agent-dock-launcher/);
   expect(component).toContain("Boolean(props.mobileShellActive && props.mobileRoot)");
   expect(component).toContain("props.onRequestOpen?.()");
   expect(component).toContain("Start fresh conversation");
@@ -49,13 +49,13 @@ test("the old floating controls stay retired; only the Classroom layout floats t
   expect(component).toContain("props.floating && !props.floating.open");
   expect(read("apps/web/src/App.tsx")).toContain('const floatingCommunityAgent = !showMobileShell && communityLayoutPosition === "top";');
   const styles = read("apps/web/src/components/WebMemberAgentDock.css");
-  expect(styles).not.toMatch(/member-agent-dock-launcher|working-pulse/);
-  expect(styles).toContain(".member-agent-launcher");
-  expect(styles).toContain(".member-agent-dock.mobile-root");
-  expect(styles).toContain(".member-agent-dock.community-agent-page");
+  expect(styles).not.toMatch(/community-agent-dock-launcher|working-pulse/);
+  expect(styles).toContain(".community-agent-launcher");
+  expect(styles).toContain(".community-agent-dock.mobile-root");
+  expect(styles).toContain(".community-agent-dock.community-agent-page");
   expect(styles).toMatch(/prefers-reduced-motion[\s\S]*animation: none/);
-  expect(read("apps/web/src/styles/community-and-content.css")).not.toContain("member-agent-desktop-launcher-clearance");
-  expect(read("apps/web/src/index.css")).not.toContain("member-agent-dock-launcher");
+  expect(read("apps/web/src/styles/community-and-content.css")).not.toContain("community-agent-desktop-launcher-clearance");
+  expect(read("apps/web/src/index.css")).not.toContain("community-agent-dock-launcher");
 });
 
 test("both conversation mounts and workspace containers use the scope/visibility boundary", () => {

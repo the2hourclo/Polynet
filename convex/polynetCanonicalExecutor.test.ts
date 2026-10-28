@@ -72,11 +72,11 @@ test("builder context discovery paginates and rechecks administrator authority",
   await expect(client.query(api.communityMemberWorkflows.getBuilderWorkflowMemberSuccessDossier, { communityId: f.communityId, membershipId: memberId })).rejects.toThrow();
 });
 
-test.each(["personal_agent", "external_mcp"] as const)("%s reads builder workflow dossiers with current authority", async principalKind => {
+test.each(["community_agent_for_member", "external_mcp"] as const)("%s reads builder workflow dossiers with current authority", async principalKind => {
   const t = convexTest(schema, modules);
   const f = await createFixture(t);
   const directory = "/communities/canonical-community/builder/workflow-members/";
-  const execute = (subject: string, userId: any, toolName: "polynet_list" | "polynet_read", path: string, kind = principalKind as "personal_agent" | "external_mcp" | "community_agent") => executePolynetCanonicalTool({
+  const execute = (subject: string, userId: any, toolName: "polynet_list" | "polynet_read", path: string, kind = principalKind as "community_agent_for_member" | "external_mcp" | "community_agent") => executePolynetCanonicalTool({
     ctx: executionContext(t.withIdentity({ subject })), authSubject: subject, userId, principalKind: kind,
     evidenceSurface: "member_agent_dock", toolName, input: { path },
   });
@@ -204,14 +204,14 @@ test("owner member dossier reports current channels, milestone and profile-visib
   await expect(read()).rejects.toThrow();
 });
 
-test.each(["personal_agent", "external_mcp"] as const)("%s discovers and reads its own community context without writing state", async (principalKind) => {
+test.each(["community_agent_for_member", "external_mcp"] as const)("%s discovers and reads its own community context without writing state", async (principalKind) => {
   vi.stubEnv("ARX_PUBLIC_APP_URL", "https://polynet-staging.vercel.app");
   const t = convexTest(schema, modules);
   const f = await createFixture(t);
   const ctx = executionContext(t.withIdentity({ subject: f.memberSubject }));
   const execute = (toolName: "polynet_list" | "polynet_read", path: string) => executePolynetCanonicalTool({
     ctx, authSubject: f.memberSubject, userId: f.memberId, principalKind,
-    evidenceSurface: principalKind === "personal_agent" ? "member_agent_dock" : "external_mcp", toolName, input: { path },
+    evidenceSurface: principalKind === "community_agent_for_member" ? "member_agent_dock" : "external_mcp", toolName, input: { path },
   });
   const snapshot = () => t.run(async (ctx) => ({
     memberships: await ctx.db.query("communityMemberships").collect(),
@@ -370,7 +370,7 @@ test.each(["/self.md", "/communities/canonical-community/self.md", "/communities
   const t = convexTest(schema, modules);
   const f = await createFixture(t);
   const result = await executePolynetCanonicalTool({ ctx: executionContext(t.withIdentity({ subject: f.memberSubject })),
-    authSubject: f.memberSubject, userId: f.memberId, principalKind: "personal_agent",
+    authSubject: f.memberSubject, userId: f.memberId, principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock", toolName: "polynet_read", input: { path } });
   expect(result.ok).toBe(false);
 });
@@ -393,7 +393,7 @@ test("self-context query rechecks access after path resolution and refuses direc
       });
       return result;
     } },
-    authSubject: f.memberSubject, userId: f.memberId, principalKind: "personal_agent",
+    authSubject: f.memberSubject, userId: f.memberId, principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock", toolName: "polynet_read", input: { path: selfContextPath },
   });
   expect(result).toMatchObject({ ok: false });
@@ -762,7 +762,7 @@ async function recoverCanonicalOperationAfterReceiptCompletionCrash(
     healthyCtx: ReturnType<typeof executionContext>;
     authSubject: string;
     userId: any;
-    principalKind: "personal_agent" | "external_mcp" | "community_agent";
+    principalKind: "community_agent_for_member" | "external_mcp" | "community_agent";
     evidenceSurface:
       | "member_agent_dock"
       | "coding_harness"
@@ -856,7 +856,7 @@ test("canonical five-tool executor derives member, builder, and community-agent 
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_list",
     input: { path: "/", cursor: null, limit: 50 },
@@ -876,7 +876,7 @@ test("canonical five-tool executor derives member, builder, and community-agent 
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_list",
     input: {
@@ -996,7 +996,7 @@ test("retired funnel draft capability is absent and cannot write through the can
     ctx: ownerCtx,
     authSubject: fixture.ownerSubject,
     userId: fixture.ownerId,
-    principalKind: "personal_agent" as const,
+    principalKind: "community_agent_for_member" as const,
     evidenceSurface: "community_funnel_builder" as const,
   };
   await expect(executePolynetCanonicalTool({
@@ -1114,7 +1114,7 @@ test("community activity and events list directly and round-trip through read", 
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_list",
     input: { path: "/communities/canonical-community/" },
@@ -1135,7 +1135,7 @@ test("community activity and events list directly and round-trip through read", 
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_list",
     input: {
@@ -1160,7 +1160,7 @@ test("community activity and events list directly and round-trip through read", 
       ctx: memberCtx,
       authSubject: fixture.memberSubject,
       userId: fixture.memberId,
-      principalKind: "personal_agent",
+      principalKind: "community_agent_for_member",
       evidenceSurface: "member_agent_dock",
       toolName: "polynet_read",
       input: { path: interactionPath },
@@ -1174,7 +1174,7 @@ test("community activity and events list directly and round-trip through read", 
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_list",
     input: {
@@ -1207,7 +1207,7 @@ test("community activity and events list directly and round-trip through read", 
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_read",
     input: { path: eventPath },
@@ -1245,7 +1245,7 @@ test("community activity and events list directly and round-trip through read", 
       ctx: memberCtx,
       authSubject: fixture.memberSubject,
       userId: fixture.memberId,
-      principalKind: "personal_agent",
+      principalKind: "community_agent_for_member",
       evidenceSurface: "member_agent_dock",
       toolName: "polynet_list",
       input: { path: "/communities/canonical-community/events/", limit: 20 },
@@ -1314,7 +1314,7 @@ test("custom channels discover, isolate, search, read, and write through exact p
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent" as const,
+    principalKind: "community_agent_for_member" as const,
     evidenceSurface: "member_agent_dock" as const,
   };
 
@@ -1604,7 +1604,7 @@ test("community-root search returns canonical paths that round-trip through read
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_search",
     input: searchInput,
@@ -1621,6 +1621,19 @@ test("community-root search returns canonical paths that round-trip through read
   });
   expect(memberSearch).toMatchObject({ ok: true });
   expect(communityAgentSearch).toMatchObject({ ok: true });
+  // The mention worker runs in the background with no Convex identity; its
+  // memory search must still read as the requesting member.
+  const backgroundAgentSearch = await executePolynetCanonicalTool({
+    ctx: executionContext(t as any),
+    authSubject: fixture.ownerSubject,
+    userId: fixture.ownerId,
+    principalKind: "community_agent",
+    mountedCommunityId: fixture.communityId,
+    evidenceSurface: "community_concierge",
+    toolName: "polynet_search",
+    input: { ...searchInput, path: "/communities/canonical-community/memory/" },
+  });
+  expect(backgroundAgentSearch).toMatchObject({ ok: true });
   const memberPaths =
     memberSearch.ok && Array.isArray(memberSearch.value.results)
       ? memberSearch.value.results.map((result) =>
@@ -1728,7 +1741,7 @@ test("canonical writes are attributed, retry safe, and reject conflicting idempo
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_write",
     input: memberWrite,
@@ -1738,7 +1751,7 @@ test("canonical writes are attributed, retry safe, and reject conflicting idempo
     value: {
       deduped: false,
       receipt: {
-        principal_kind: "personal_agent",
+        principal_kind: "community_agent_for_member",
         authority_lane: "member",
       },
     },
@@ -1754,7 +1767,7 @@ test("canonical writes are attributed, retry safe, and reject conflicting idempo
     ctx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_read",
     input: { path: memberWritePath, offset: 0, limit: 2_000 },
@@ -1777,7 +1790,7 @@ test("canonical writes are attributed, retry safe, and reject conflicting idempo
       ctx: memberCtx,
       authSubject: fixture.memberSubject,
       userId: fixture.memberId,
-      principalKind: "personal_agent",
+      principalKind: "community_agent_for_member",
       evidenceSurface: "member_agent_dock",
       toolName: "polynet_write",
       input: memberWrite,
@@ -1794,7 +1807,7 @@ test("canonical writes are attributed, retry safe, and reject conflicting idempo
       ctx: memberCtx,
       authSubject: fixture.memberSubject,
       userId: fixture.memberId,
-      principalKind: "personal_agent",
+      principalKind: "community_agent_for_member",
       evidenceSurface: "member_agent_dock",
       toolName: "polynet_write",
       input: {
@@ -1875,7 +1888,7 @@ test("chat roots and replies survive receipt-completion crashes without duplicat
     healthyCtx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_write",
     input,
@@ -1909,7 +1922,7 @@ test("chat roots and replies survive receipt-completion crashes without duplicat
     healthyCtx: memberCtx,
     authSubject: fixture.memberSubject,
     userId: fixture.memberId,
-    principalKind: "personal_agent",
+    principalKind: "community_agent_for_member",
     evidenceSurface: "member_agent_dock",
     toolName: "polynet_write",
     input: replyInput,
@@ -1972,7 +1985,7 @@ test("builder resource agents may stage changes but cannot make terminal decisio
 
   const agentPrincipals = [
     {
-      principalKind: "personal_agent" as const,
+      principalKind: "community_agent_for_member" as const,
       evidenceSurface: "member_agent_dock" as const,
     },
     {
@@ -2573,7 +2586,7 @@ test("community-memory outcome effects survive receipt-completion crashes withou
       healthyCtx: memberCtx,
       authSubject: fixture.memberSubject,
       userId: fixture.memberId,
-      principalKind: "personal_agent",
+      principalKind: "community_agent_for_member",
       evidenceSurface: "member_agent_dock",
       toolName: "polynet_call",
       input,
@@ -2934,7 +2947,7 @@ test.each(["approve", "deny"])("admission capability is discoverable only by cur
   }
   const before = await f.snapshot();
   const personalAgent = { ctx: executionContext(t.withIdentity({ subject: f.ownerSubject })), userId: f.ownerId,
-    authSubject: f.ownerSubject, principalKind: "personal_agent" as const, evidenceSurface: "member_agent_dock" as const };
+    authSubject: f.ownerSubject, principalKind: "community_agent_for_member" as const, evidenceSurface: "member_agent_dock" as const };
   const inventory = await executePolynetCanonicalTool({ ...personalAgent, toolName: "polynet_list",
     input: { path: "/communities/canonical-community/capabilities/" } });
   expect(inventory.ok).toBe(true);

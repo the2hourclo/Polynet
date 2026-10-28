@@ -1272,7 +1272,7 @@ html:root[data-rail-color="blend"] .product-shell-surface {
   max-width: var(--lesson-reading-measure) !important;
   margin-inline: auto !important;
 }
-html[data-lesson-focus] .member-agent-launcher { display: none; }
+html[data-lesson-focus] .community-agent-launcher { display: none; }
 .community-knowledge-focus-button {
   display: inline-flex;
   align-items: center;

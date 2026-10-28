@@ -9,7 +9,6 @@ const baseRoot = {
   actor_user_id: "user-1",
   actor_agent_key: null,
   content_summary: "Welcome to the thread.",
-  legacy_message_id: null,
 };
 
 describe("community root reply target", () => {
@@ -29,7 +28,6 @@ describe("community root reply target", () => {
       body: "Welcome to the thread.",
       interaction_root_id: "root-1",
       interaction_reply_id: null,
-      legacy_message_id: null,
     });
   });
 
@@ -49,26 +47,6 @@ describe("community root reply target", () => {
       reply_author_label: "Builders",
       interaction_root_id: "root-1",
       interaction_reply_id: null,
-      legacy_message_id: null,
-    });
-  });
-
-  test("keeps a canonical personal-agent root replyable as its sponsoring user", () => {
-    expect(buildCommunityRootReplyTarget({
-      root: {
-        ...baseRoot,
-        actor_type: "personal_agent",
-        actor_user_id: "user-1",
-        actor_agent_key: "personal_agent:user-1",
-      },
-      communityName: "Builders",
-    })).toEqual({
-      id: "root-1",
-      sender_id: "user-1",
-      body: "Welcome to the thread.",
-      interaction_root_id: "root-1",
-      interaction_reply_id: null,
-      legacy_message_id: null,
     });
   });
 
@@ -95,8 +73,7 @@ describe("community root reply target", () => {
   test.each([
     { actor_type: "community_agent", actor_user_id: null, actor_agent_key: null },
     { actor_type: "community_agent", actor_user_id: null, actor_agent_key: "other_agent" },
-    { actor_type: "personal_agent", actor_user_id: "user-1", actor_agent_key: null },
-    { actor_type: "personal_agent", actor_user_id: "user-1", actor_agent_key: "personal_agent:other" },
+    { actor_type: "personal_agent", actor_user_id: "user-1", actor_agent_key: "personal_agent:user-1" },
     { actor_type: "system", actor_user_id: null, actor_agent_key: null },
   ])("fails closed for a noncanonical root actor: $actor_type/$actor_agent_key", (actor) => {
     expect(buildCommunityRootReplyTarget({

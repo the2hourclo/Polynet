@@ -9756,14 +9756,14 @@ button.chat-reply-quote:hover {
   .lesson-done-row:has(> button) { flex-wrap: nowrap; gap: 0.5rem; max-width: 100%; box-sizing: border-box; }
   .lesson-done-row .lesson-done-button { flex: none; }
   .lesson-done-row .lesson-next-button { flex: 1 1 0; min-width: 0; margin-left: 0; justify-content: center; padding: 0 0.75rem; }
-  body:has(.lesson-done-row > button) .member-agent-launcher { bottom: 5.25rem; }
+  body:has(.lesson-done-row > button) .community-agent-launcher { bottom: 5.25rem; }
   .lesson-next-title { display: none; }
   /* The phone's bottom tab bar is fixed over the page: the row sticks just
      above it instead of half under it. */
   body:has(.mobile-bottom-rail) .lesson-done-row:has(> button) {
     bottom: calc(var(--mobile-bottom-rail-height) + env(safe-area-inset-bottom, 0px));
   }
-  body:has(.mobile-bottom-rail):has(.lesson-done-row > button) .member-agent-launcher {
+  body:has(.mobile-bottom-rail):has(.lesson-done-row > button) .community-agent-launcher {
     bottom: calc(5.25rem + var(--mobile-bottom-rail-height) + env(safe-area-inset-bottom, 0px));
   }
 }

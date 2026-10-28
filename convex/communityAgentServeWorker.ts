@@ -1,3 +1,4 @@
+import { RETIRED_PERSONAL_AGENT_ACTOR_TYPE } from "../shared/communityAgentIdentity";
 import { founderProviderRequestUsageValidator } from "./founderPlanPricing";
 import { createFounderInferenceUsageTotals, founderProviderRequests, observeFounderProviderResult } from "./founderInferenceUsage";
 import { assertPaidLuna6ProviderHeadroom, founderInferenceBudgetFailureCode } from "./founderInferenceBudget";
@@ -738,8 +739,8 @@ async function loadThreadParticipantContext(args: {
 function normalizeThreadActorType(
   value: unknown,
 ): CommunityAgentThreadActorType {
+  if (value === RETIRED_PERSONAL_AGENT_ACTOR_TYPE) return "community_agent";
   return value === "human" ||
-    value === "personal_agent" ||
     value === "community_agent" ||
     value === "system"
     ? value
@@ -2056,7 +2057,7 @@ export const processQueuedCommunityAgentServeRequestsInternal = internalAction({
               });
             },
           },
-          runCompletion: async (kernelMessages) => {
+          runCompletion: async (kernelMessages, options) => {
             let toolCompletion;
             try {
               // A previous tool/provider wait may outlive a participant grant.
@@ -2092,6 +2093,7 @@ export const processQueuedCommunityAgentServeRequestsInternal = internalAction({
                 messages: kernelMessages,
                 maxTokens: SERVE_REPLY_MAX_TOKENS,
                 tools: conciergeProviderTools,
+                ...(options?.toolChoice ? { toolChoice: options.toolChoice } : {}),
                 parallelToolCalls: false,
               });
             } catch (error) {
