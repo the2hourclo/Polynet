@@ -156,15 +156,10 @@ input.lesson-journey-lesson-title { flex: 1; }
 /* A lesson opened from the roadmap: the Resources reader, with the track's
    outline on the left and Mark done / Next under the text. */
 .lesson-board-step-page { width: 100%; }
-.lesson-step-back {
-  display: inline-flex; align-items: center; gap: 6px; justify-self: start; margin-bottom: 4px;
-  padding: 4px 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600;
-  color: var(--text-secondary); cursor: pointer;
-}
-.lesson-step-back:hover { color: var(--text-primary); }
-.lesson-step-back svg { width: 15px; height: 15px; }
-/* Back, title, progress, the lesson list (which scrolls), Edit. */
-.lesson-step-outline.resource-course-outline { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+/* Title, progress, the lesson list (which scrolls), Edit. */
+.lesson-step-outline.resource-course-outline { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+/* Without a way back, the row still holds the page's header space. */
+.lesson-step-header-row .feed-header-copy:empty { min-height: 28px; }
 .lesson-step-outline .resource-course-outline-header { overflow: visible; padding-block: 2px; }
 /* Started but not done: a half-filled ring in the community colour. */
 .lesson-step-outline .knowledge-resource-item-status.is-started {
@@ -234,7 +229,7 @@ input.lesson-journey-lesson-title { flex: 1; }
 .lesson-step-outline-stage[data-open] .lesson-step-module-chevron { transform: rotate(180deg); }
 .lesson-step-outline-stage[data-locked] .lesson-step-module-name { color: var(--text-secondary); }
 .lesson-step-module-lessons { display: grid; gap: 2px; padding-bottom: 8px; }
-.lesson-step-module-lock { margin: 0 0 4px; padding: 0 8px; font-size: 12px; color: var(--text-secondary); }
+.lesson-step-module-lock { margin-top: 2px; font-size: 12px; font-weight: 500; line-height: 1.35; color: var(--text-secondary); }
 .lesson-step-overview { margin-bottom: 6px; }
 .lesson-step-overview-icon { display: grid; place-items: center; flex: none; width: 18px; height: 18px; color: var(--text-secondary); }
 .lesson-step-overview-icon svg { width: 16px; height: 16px; }
