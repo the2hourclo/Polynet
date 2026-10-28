@@ -1,0 +1,181 @@
+first shot signed in: ok
+saved channels-1440-owner-chat
+saved channels-1440-owner-knowledge
+saved channels-1440-owner-events
+saved channels-1440-owner-members-tab
+saved channels-1440-owner-members-db
+saved channels-1440-owner-workflows
+saved channels-1440-owner-settings
+saved channels-1440-owner-course
+saved channels-1440-owner-lesson
+no member view on channels 1440 chat
+member view on: non-GET requests during press: none
+saved channels-1440-member-knowledge
+saved channels-1440-member-course
+saved channels-390-owner-chat
+saved channels-390-owner-knowledge
+saved channels-390-owner-settings
+saved channels-390-owner-course
+started lesson not clickable here; lesson shot skipped
+no member view on channels 390 chat
+member view on: non-GET requests during press: none
+saved channels-390-member-knowledge
+saved channels-390-member-course
+saved classroom-1440-owner-chat
+saved classroom-1440-owner-knowledge
+saved classroom-1440-owner-events
+saved classroom-1440-owner-members-tab
+saved classroom-1440-owner-members-db
+saved classroom-1440-owner-workflows
+saved classroom-1440-owner-settings
+saved classroom-1440-owner-course
+saved classroom-1440-owner-lesson
+no member view on classroom 1440 chat
+member view on: non-GET requests during press: none
+saved classroom-1440-member-knowledge
+saved classroom-1440-member-course
+saved classroom-390-owner-chat
+saved classroom-390-owner-knowledge
+saved classroom-390-owner-settings
+saved classroom-390-owner-course
+started lesson not clickable here; lesson shot skipped
+no member view on classroom 390 chat
+member view on: non-GET requests during press: none
+saved classroom-390-member-knowledge
+saved classroom-390-member-course
+
+ALLOW-LIST: /api/auth/* + auth:bootstrapActor, businessAnalytics:identifyBusinessVisitor, profiles:resolveOnboardingProfileDetail, communityCommerce:redeemPendingPurchaseClaims, communityPublic:heartbeatCommunityPresence, communityAttention:markCommunitySurfaceSeen
+
+ALLOWED:
+406 × profiles:resolveOnboardingProfileDetail
+92 × communityCommerce:redeemPendingPurchaseClaims
+44 × auth:bootstrapActor
+44 × businessAnalytics:identifyBusinessVisitor
+44 × communityPublic:heartbeatCommunityPresence
+24 × communityAttention:markCommunitySurfaceSeen
+
+BLOCKED WRITES:
+13 × communityAttention:acknowledgeCommunityChatRead
+12 × youtubeChapters:loadYouTubeChapters
+
+OTHER BLOCKED:
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=juAYytFFYWT8Ae2t&ver=2&cmt=0&fs=0&rt=1.39&euri=http%3A%2F%2F
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=du05RvVb5zOn1atJ&ver=2&cmt=0&fs=0&rt=3.962&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=fPfl2PHSJmXPxtFd&ver=2&cmt=0&fs=0&rt=1.497&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=zqme-9an0n8LR_S5&ver=2&cmt=0&fs=0&rt=11.77&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=UvYnRWvovNVpphM_&ver=2&cmt=0&fs=0&rt=1.746&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=NPcVcj8G7P88hkme&ver=2&cmt=0&fs=0&rt=4.179&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=zT19l4NXn7n2GYZX&ver=2&cmt=0&fs=0&rt=1.846&euri=http%3A%2F%2
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/api/stats/atr?ns=yt&el=embedded&cpn=WbbHr7F_E8KDGFCX&ver=2&cmt=0&fs=0&rt=11.931&euri=http%3A%2F%
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+POST https://www.youtube.com/youtubei/v1/log_event?alt=json
+POST https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT
+
+LEAK CHECK:
+none
