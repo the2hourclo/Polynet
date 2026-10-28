@@ -81,7 +81,12 @@ let current = { errors: [] };
 function watch(page) {
   page.on("console", (m) => { if (m.type() === "error" && !/net::ERR_FAILED|Failed to load resource.*(mutation|action)/i.test(m.text())) current.errors.push(`console: ${m.text().slice(0, 300)}`); });
   page.on("pageerror", (e) => current.errors.push(`pageerror: ${String(e.message).slice(0, 300)}`));
-  page.on("response", (r) => { if (r.status() >= 400 && !/favicon|i\.ytimg|\/api\/(mutation|action)/.test(r.url())) current.errors.push(`http ${r.status()} ${r.url().slice(0, 140)}`); });
+  page.on("response", async (r) => {
+    if (r.status() < 400 || /favicon|i\.ytimg|\/api\/(mutation|action)/.test(r.url())) return;
+    const fn = ((r.request().postData() ?? "").match(/"path"\s*:\s*"([^"]+)"/) ?? [])[1] ?? "";
+    const body = await r.text().catch(() => "");
+    current.errors.push(`http ${r.status()} ${r.url().slice(0, 100)} ${fn} ${body.slice(0, 160)}`);
+  });
 }
 async function newPage(viewport) {
   const context = await browser.newContext({ viewport, deviceScaleFactor: 1, isMobile: viewport.width < 500, hasTouch: viewport.width < 500 });
@@ -110,7 +115,19 @@ async function check(page, name, { expectOwnerHidden = false, full = false } = {
     const vw = innerWidth;
     const wide = [...document.querySelectorAll("body *")].filter((el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.right > vw + 2 && s.position !== "fixed" && s.visibility !== "hidden"; })
       .slice(0, 5).map((el) => `${el.tagName.toLowerCase()}.${String(el.className).split(" ")[0]} right=${Math.round(el.getBoundingClientRect().right)}`);
-    return { url: location.pathname + location.search, title: document.title, scrollW: document.documentElement.scrollWidth, vw, wide, text: body.slice(0, 2500), empty: body.trim().length < 40 };
+    // Floating chrome (fixed, small, near the top) sitting on top of content at scroll 0.
+    const chrome = [...document.querySelectorAll("body *")].filter((el) => { const st = getComputedStyle(el); const r = el.getBoundingClientRect(); return st.position === "fixed" && r.top < 100 && r.height > 0 && r.height < 90 && r.width < vw * 0.8 && st.visibility !== "hidden" && Number(st.opacity) > 0.1; });
+    const covered = [];
+    for (const c of chrome) {
+      const cr = c.getBoundingClientRect();
+      for (const el of document.querySelectorAll("h1,h2,h3,p,input,textarea,[class*=card],[class*=composer]")) {
+        if (c.contains(el) || el.contains(c)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0 || getComputedStyle(el).position === "fixed") continue;
+        if (r.left < cr.right && r.right > cr.left && r.top < cr.bottom - 2 && r.bottom > cr.top + 2) { covered.push(`${(c.innerText || c.getAttribute("aria-label") || c.className).toString().trim().slice(0, 20)} over ${el.tagName.toLowerCase()}.${String(el.className).split(" ")[0]}`); break; }
+      }
+    }
+    return { covered: covered.slice(0, 3), url: location.pathname + location.search, title: document.title, scrollW: document.documentElement.scrollWidth, vw, wide, text: body.slice(0, 2500), empty: body.trim().length < 40 };
   }).catch((e) => ({ url: page.url(), evalError: e.message }));
   const problems = [...current.errors];
   if (facts.evalError) problems.push(`page could not be read: ${facts.evalError}`);
@@ -118,6 +135,7 @@ async function check(page, name, { expectOwnerHidden = false, full = false } = {
   if (m) problems.push(`error text on page: "${facts.text.slice(Math.max(0, m.index - 60), m.index + 80).replace(/\s+/g, " ")}"`);
   if (facts.scrollW > facts.vw + 2) problems.push(`sideways scroll: page ${facts.scrollW}px wide at ${facts.vw}px (${facts.wide.join("; ")})`);
   if (facts.empty) problems.push("page is (nearly) blank");
+  if (facts.vw < 500 && facts.covered?.length) problems.push(`floating chrome covers content at the top: ${facts.covered.join("; ")}`);
   if (expectOwnerHidden && OWNER_ONLY.test(facts.text ?? "")) problems.push(`member sees owner-only screen: "${facts.text.match(OWNER_ONLY)[0]}"`);
   report.push({ check: name, url: facts.url, pass: problems.length === 0, problems });
   note(`${problems.length ? "FAIL" : "pass"} ${name}${problems.length ? "\n   - " + problems.join("\n   - ") : ""}`);
@@ -145,37 +163,41 @@ async function memberFlow(who, layout, vpName, vp) {
   await visit(page, withLayout("resources", layout));
   for (const v of ["Roadmap", "Resources"]) if (await click(page, tab(page, v), `${p}-knowledge-${v}`)) await check(page, `${p}-knowledge-${v.toLowerCase()}`);
   await visit(page, withLayout("resources", layout));
-  const hrefs = await page.$$eval("a[href*='/resources/']", (as) => [...new Set(as.map((a) => a.getAttribute("href")))]).catch(() => []);
-  note(`${p}: ${hrefs.length} course links`);
-  for (const [i, href] of hrefs.slice(0, vp === PHONE ? 1 : 3).entries()) {
-    await visit(page, `${base}${href}${href.includes("?") ? "&" : "?"}layout=${layout}`);
+  // Courses are cards (button.resource-course-card-main), not links.
+  const cardSel = ".resource-course-card:not(.is-locked) .resource-course-card-main";
+  const nCards = await page.locator(cardSel).count().catch(() => 0);
+  const nLocked = await page.locator(".resource-course-card.is-locked").count().catch(() => 0);
+  note(`${p}: ${nCards} open course cards, ${nLocked} locked`);
+  if (!nCards) report.push({ check: `${p}-courses`, pass: false, problems: ["no open course card in Knowledge"] });
+  for (let i = 0; i < Math.min(nCards, vp === PHONE ? 1 : 3); i++) {
+    await visit(page, withLayout("resources", layout));
+    if (!(await click(page, page.locator(cardSel).nth(i), `${p}-course${i + 1}`))) continue;
     await check(page, `${p}-course${i + 1}`);
-    const rows = page.locator("[data-lesson-id], [class*=lesson-row], [class*=lesson-item], [class*=outline] li a");
-    const n = Math.min(await rows.count().catch(() => 0), 2);
-    if (!n) { report.push({ check: `${p}-course${i + 1}-lessons`, pass: false, problems: ["no lesson rows found"] }); continue; }
-    for (let j = 0; j < n; j++) {
-      if (await click(page, page.locator("[data-lesson-id], [class*=lesson-row], [class*=lesson-item], [class*=outline] li a").nth(j), `${p}-course${i + 1}-lesson${j + 1}`)) {
-        await check(page, `${p}-course${i + 1}-lesson${j + 1}`);
-        // Phone: Done / Next must not sit under a fixed bar.
-        if (vp === PHONE) {
-          const hidden = await page.evaluate(() => {
-            const btn = [...document.querySelectorAll("button")].find((b) => /^(mark( as)? done|done|next)\b/i.test((b.innerText || "").trim()));
-            if (!btn) return "no Done/Next button";
-            btn.scrollIntoView({ block: "center" });
-            const r = btn.getBoundingClientRect();
-            const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-            return top && (btn === top || btn.contains(top)) ? null : `Done/Next covered by ${top?.tagName}.${String(top?.className).split(" ")[0]}`;
-          }).catch(() => null);
-          if (hidden) { report.push({ check: `${p}-course${i + 1}-lesson${j + 1}-done-reachable`, pass: false, problems: [hidden] }); note(`FAIL done-reachable: ${hidden}`); }
-        }
-        await page.goBack().catch(() => {}); await settle(page);
+    // Walk the first lessons with Next (opening a lesson's start-mark is dropped by the guard).
+    for (let j = 1; j <= 2; j++) {
+      const next = page.locator("button.lesson-next-button");
+      if (!(await next.count())) { note(`${p}-course${i + 1}: no Next button after lesson ${j}`); break; }
+      if (!(await click(page, next, `${p}-course${i + 1}-next${j}`))) break;
+      await check(page, `${p}-course${i + 1}-lesson${j + 1}`);
+      if (vp === PHONE) {
+        const covered = await page.evaluate(() => {
+          const btn = document.querySelector("button.lesson-done-button, button.lesson-next-button");
+          if (!btn) return null;
+          btn.scrollIntoView({ block: "center" });
+          const r = btn.getBoundingClientRect();
+          const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return top && (btn === top || btn.contains(top)) ? null : `Done/Next covered by ${top?.tagName}.${String(top?.className).split(" ")[0]}`;
+        }).catch(() => null);
+        if (covered) { report.push({ check: `${p}-course${i + 1}-lesson${j + 1}-done-reachable`, pass: false, problems: [covered] }); note(`FAIL done-reachable: ${covered}`); }
       }
     }
   }
   // Chat: Display menu, Messages, Pods tab (Classroom) or pod in the list.
   await visit(page, withLayout("chat", layout));
   if (await click(page, page.getByRole("button", { name: /^display$/i }), `${p}-display-menu`)) { await check(page, `${p}-display-menu`); await page.keyboard.press("Escape"); }
-  if (await click(page, page.getByRole("button", { name: /^messages$/i }).or(page.getByRole("link", { name: /^messages$/i })), `${p}-messages`)) { await check(page, `${p}-messages`); await page.keyboard.press("Escape"); }
+  const dmBtn = page.locator("button[aria-label*='essage' i], button[title*='essage' i], a[aria-label*='essage' i]").filter({ hasNot: page.locator("textarea") });
+  if (!(await dmBtn.count())) note(`${p}: header buttons = ${JSON.stringify(await page.$$eval("header button, nav button, [class*=top-nav] button, [class*=bar] button", (bs) => bs.slice(0, 30).map((b) => b.getAttribute("aria-label") || b.title || b.innerText.trim()).filter(Boolean)).catch(() => []))}`);
+  if (await click(page, dmBtn, `${p}-messages`)) { await check(page, `${p}-messages`); await page.keyboard.press("Escape"); }
   await visit(page, withLayout("chat", layout));
   if (layout === "classroom") { if (await click(page, tab(page, "Pods"), `${p}-pods-tab`)) await check(page, `${p}-pods-tab`); }
   else { const pod = page.locator("nav a, nav button, aside a, aside button").filter({ hasText: /\(test\)/i }); if (await pod.count()) { await click(page, pod, `${p}-pod`); await check(page, `${p}-pod`); } }
