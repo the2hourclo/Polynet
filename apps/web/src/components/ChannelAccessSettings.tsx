@@ -57,14 +57,18 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
   };
 
   if (!scope) return null;
-  return <section className="community-channel-access-settings" aria-label="Channel access" aria-busy={busy}>
-    <label className="community-channel-modal-field"><span>Access</span>
+  // An invite-only channel is a pod: its settings speak of the pod and who's in it.
+  const pod = access === "restricted";
+  return <section className="community-channel-access-settings" aria-label={pod ? "Who's in this pod" : "Channel access"} aria-busy={busy}>
+    <label className="community-channel-modal-field"><span>{pod ? "Who can see it" : "Access"}</span>
       <select value={pendingMode ?? access ?? "all_members"} disabled={busy || !access}
         onChange={event => setPendingMode(event.target.value === access ? null : event.target.value as AccessMode)}>
-        <option value="all_members">All community members</option><option value="restricted">Invite-only</option>
+        <option value="all_members">{pod ? "Everyone in the community (makes it a channel)" : "All community members"}</option><option value="restricted">{pod ? "Only the people in this pod" : "Invite-only (a pod)"}</option>
       </select>
     </label>
-    <p>Community owners and admins always have access. The community agent follows the member’s access in their private conversations. Access changes save immediately.</p>
+    <p>{pod
+      ? "Private: only the people checked below, plus the owner and admins, can see this pod. Nobody else sees it in their list. Changes save immediately."
+      : "Community owners and admins always have access. The community agent follows the member’s access in their private conversations. Access changes save immediately."}</p>
     {pendingMode ? <div className="community-channel-access-confirm" role="status">
       <p>{pendingMode === "all_members" ? "All community members will be able to read this channel’s history and files."
         : "Only invited members and owners/admins will have future access. Previously shared messages, file links and copies cannot be recalled."}</p>
@@ -76,8 +80,8 @@ export function ChannelAccessSettings({ channelId }: { channelId: string }) {
     {access === "restricted" ? <>
       <label className="community-channel-participant"><input type="checkbox" checked={agent} disabled={busy}
         onChange={event => void mutate("communityChannelParticipants:setParticipant", { target: { kind: "community_agent" }, active: event.target.checked })} />
-        <span>Allow the community agent</span></label>
-      <h3>People</h3>
+        <span>Let the community agent in this pod</span></label>
+      <h3>In this pod</h3>
       <div className="community-channel-people-list">
         {members.map(member => <label className="community-channel-participant" key={member.user_id}>
           <input type="checkbox" disabled={busy || member.role === "admin"} checked={member.active || member.role === "admin"}
