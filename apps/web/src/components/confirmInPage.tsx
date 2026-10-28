@@ -47,3 +47,28 @@ function ConfirmDialog(props: { title: string; body: string; confirmLabel: strin
     </div>
   );
 }
+
+// A short note at the bottom of the page ("Pinned to pod"), gone after a
+// moment. One at a time: a new note replaces the last.
+let toastHost: HTMLDivElement | null = null;
+let toastTimer = 0;
+export function toastInPage(message: string): void {
+  if (!toastHost) {
+    toastHost = document.createElement("div");
+    toastHost.className = "app-toast toast-in-page";
+    toastHost.setAttribute("role", "status");
+    toastHost.setAttribute("aria-live", "polite");
+    document.body.appendChild(toastHost);
+  }
+  const theme = document.querySelector<HTMLElement>("[data-community-theme]")?.dataset.communityTheme;
+  if (theme) toastHost.dataset.communityTheme = theme;
+  const inner = document.createElement("div");
+  inner.className = "app-toast-inner";
+  inner.textContent = message;
+  toastHost.replaceChildren(inner);
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toastHost?.remove();
+    toastHost = null;
+  }, 2200);
+}
