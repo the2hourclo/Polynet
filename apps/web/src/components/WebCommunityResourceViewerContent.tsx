@@ -961,6 +961,9 @@ export function WebCommunityResourceViewerContent(props: WebCommunityResourceVie
             props.actions ? <div className="lesson-done-row">{props.actions}</div> : null
           ) : (showDoneFooter && lessonActivity) || nextLesson ? (
             <div className="lesson-done-row">
+              {showDoneFooter && lessonActivity?.progress.statusError?.ref === lessonRef ? (
+                <p className="lesson-done-note" role="alert">{lessonActivity.progress.statusError.message}</p>
+              ) : null}
               {showDoneFooter && lessonActivity ? <button
                 type="button"
                 className={`lesson-done-button${lessonStatus === "done" ? " is-done" : ""}`}
