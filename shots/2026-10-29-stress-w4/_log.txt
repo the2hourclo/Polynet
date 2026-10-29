@@ -1,0 +1,211 @@
+1440: existing test runs (left alone): Test member 30, Test member 29, Test member 24
+1440: new test run = Test member 37
+FAIL 1440-start-test-run
+   - owner console: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+1440 welcome DOM: section.community-welcome display=flex h=882 top=9 pad-top=48px overflow=auto  <  div.community-theme-scope display=contents h=0 top=0 pad-top=0px overflow=visible  <  div.product-shell-surface.product-shell-surface--single display=grid h=884 top=8 pad-top=0px overflow=hidden  <  div.app-shell.with-community-rail display=grid h=900 top=0 pad-top=0px overflow=hidden  <  div.app-root display=grid h=900 top=0 pad-top=0px overflow=hidden  <  div. display=block h=900 top=0 pad-top=0px overflow=hidden  <  body. display=block h=900 top=0 pad-top=0px overflow=hidden  <  html. display=block h=900 top=0 pad-top=0px overflow=hidden
+pass 1440-welcome-shows
+1440: welcome step 3 still asks for an answer
+1440: welcome step 4 still asks for an answer
+1440: welcome step 6 still asks for an answer
+pass 1440-welcome-finish
+FAIL 1440-mark-done-and-undo
+   - after Mark as done aria-pressed=false
+1440: test-run attachment message: "Attachments aren't available in a test run. Post text instead."
+FAIL 1440-chat-post-with-image
+   - pasted image chip did not show
+pass 1440-chat-delete-own-message
+pass 1440-end-test-run
+390: existing test runs (left alone): Test member 30, Test member 29, Test member 24
+390: new test run = Test member 38
+pass 390-start-test-run
+390 welcome DOM: section.community-welcome display=flex h=844 top=0 pad-top=66px overflow=auto  <  div.community-theme-scope display=contents h=0 top=0 pad-top=0px overflow=visible  <  div.app-shell.no-left display=grid h=844 top=0 pad-top=0px overflow=hidden  <  div.app-root.mobile-shell display=grid h=844 top=0 pad-top=0px overflow=hidden  <  div. display=block h=844 top=0 pad-top=0px overflow=hidden  <  body. display=block h=844 top=0 pad-top=0px overflow=hidden  <  html. display=block h=844 top=0 pad-top=0px overflow=hidden
+pass 390-welcome-shows
+390: welcome step 3 still asks for an answer
+390: welcome step 4 still asks for an answer
+390: welcome step 6 still asks for an answer
+pass 390-welcome-finish
+FAIL 390-mark-done-and-undo
+   - after Mark as done aria-pressed=false
+390: test-run attachment message: "Attachments aren't available in a test run. Post text instead."
+FAIL 390-chat-post-with-image
+   - pasted image chip did not show
+pass 390-chat-delete-own-message
+pass 390-end-test-run
+pass 1440-member-paste-channel
+pass 1440-member-paste-dm
+
+16 checks, 5 failed
+
+WRITES SENT (script guard, test-member tab):
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:recordMemberTimezone
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityAttention:markCommunitySurfaceSeen
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP youtubeChapters:loadYouTubeChapters
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityChat:setCommunityTyping
+owner HTTP communityChat:clearCommunityTyping
+owner HTTP communityInteractions:createCommunityInteractionComposerMessage
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityInteractions:deleteCommunityInteractionMessage
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:recordMemberTimezone
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityAttention:markCommunitySurfaceSeen
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP youtubeChapters:loadYouTubeChapters
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityChat:setCommunityTyping
+owner HTTP communityChat:clearCommunityTyping
+owner HTTP communityInteractions:createCommunityInteractionComposerMessage
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityInteractions:deleteCommunityInteractionMessage
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+
+DROPPED BY SCRIPT GUARD:
+
+
+WRAPPER OWNER-TAB GUARD (armed before sign-in)
+SENT:
+53 × HTTP profiles:resolveOnboardingProfileDetail
+23 × HTTP communityCommerce:redeemPendingPurchaseClaims
+11 × HTTP communityPublic:heartbeatCommunityPresence
+7 × HTTP auth:bootstrapActor
+6 × HTTP businessAnalytics:identifyBusinessVisitor
+2 × HTTP communityTestMembers:startTestMember
+2 × HTTP communityTestMembers:endTestMember
+DROPPED:
+none
+LEAKS:
+none
+
+WRAPPER TEST MEMBER GUARD (r8-lib)
+ALLOWED:
+17 × profiles:resolveOnboardingProfileDetail
+6 × communityCommerce:redeemPendingPurchaseClaims
+2 × auth:bootstrapActor
+2 × businessAnalytics:identifyBusinessVisitor
+2 × communityPublic:heartbeatCommunityPresence
+BLOCKED:
+6 × communityAttention:acknowledgeCommunityChatRead
+OTHER:
+none
+LEAKS:
+none
+
+WRAPPER summary (2026-10-29): served commit ed89c09; script 17459ee merged into the w3 wrapper (no conflicts) + a read-only note/shot of the test-run attachment message.
+33-table diff: only Test member 37/38 rows. Pod seats (member + community_agent) all revoked, pods archived. The two stress messages remain as soft-deleted rows (status "deleted", deletedAt set) in communityInteractionRoots + their content blocks; End did not remove them.
