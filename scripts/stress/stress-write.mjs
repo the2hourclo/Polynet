@@ -204,6 +204,23 @@ async function ownerTestRun(vpName, vp) {
           // Required questions unanswered: refused by design, and it must say why.
           await shot(tab, `${vpName}-lesson-done-blocked`);
           result(`${vpName}-mark-done-explains-required`, takeErrs());
+          // The happy path: walk Next to a lesson with nothing required, then done and undo there.
+          let okDone = null;
+          for (let i = 0; i < 4 && !okDone; i++) {
+            const nextBtn = tab.locator("button.lesson-next-button");
+            if (!(await nextBtn.count())) break;
+            await nextBtn.first().click().catch(() => {}); await settle(tab, 2500);
+            const d = tab.locator("button.lesson-done-button");
+            if (!(await d.count())) continue;
+            await d.first().scrollIntoViewIfNeeded().catch(() => {});
+            await d.first().click(); await settle(tab, 2500);
+            if ((await d.first().getAttribute("aria-pressed")) === "true") {
+              await shot(tab, `${vpName}-lesson-done-ok`);
+              await d.first().click(); await settle(tab, 2500);
+              okDone = (await d.first().getAttribute("aria-pressed")) === "false" ? "undone" : "stuck";
+            }
+          }
+          result(`${vpName}-mark-done-and-undo-unrequired`, [...(okDone ? [] : ["no lesson without required parts within 4 Next steps"]), ...(okDone === "stuck" ? ["undo did not clear Done"] : []), ...takeErrs()]);
         }
         await shot(tab, `${vpName}-lesson-done`);
         await done.first().click(); await settle(tab, 2500);
