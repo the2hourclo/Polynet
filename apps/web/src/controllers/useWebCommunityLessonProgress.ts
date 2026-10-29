@@ -19,6 +19,8 @@ export type WebCommunityLessonProgress = {
   tracks: readonly CommunityTrackView[];
   loaded: boolean;
   error: string | null;
+  /** Why the last Mark as done on a lesson didn't stick, shown beside that lesson's button. */
+  statusError: { ref: string; message: string } | null;
   /** Reads progress again, e.g. after the owner changed a track. */
   reload: () => void;
   setStatus: (resourceId: string, ref: string, status: CommunityLessonProgressStatus) => void;
@@ -37,6 +39,12 @@ type LoadedProgress = {
  * written to the same store the site SDK's progress()/setProgress() use. Writes
  * show at once and are put back if the server refuses them (a locked lesson).
  */
+// The server names unfinished parts by element id; the member needs the plain reason.
+function statusFailureMessage(code: string, message: string): string {
+  if (code === "lesson_elements_incomplete") return "Answer the required questions in this lesson first, then mark it done.";
+  return message;
+}
+
 export function useWebCommunityLessonProgress<SessionT>(params: {
   communityId: string | null;
   session: SessionT | null;
@@ -44,6 +52,7 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
   const { communityId, session } = params;
   const [state, setState] = useState<LoadedProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<{ ref: string; message: string } | null>(null);
 
   const load = useCallback(() => {
     if (!communityId || !session) return () => {};
@@ -73,6 +82,7 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
   const setStatus = useCallback((resourceId: string, ref: string, status: CommunityLessonProgressStatus) => {
     if (!communityId || !session) return;
     let previous: CommunityLessonProgressStatus | undefined;
+    setStatusError((current) => (current?.ref === ref ? null : current));
     setState((current) => {
       const own = current?.communityId === communityId ? current : null;
       const statusByRef = { ...(own?.statusByRef ?? {}) };
@@ -84,7 +94,9 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
       .then((result) => {
         // Finishing a step can open stages and tracks; the server works that out.
         if (result.ok) { if (status === "done" || previous === "done") load(); return; }
-        setError(result.message);
+        const message = statusFailureMessage(result.code, result.message);
+        setError(message);
+        setStatusError({ ref, message });
         setState((current) => {
           if (!current || current.communityId !== communityId) return current;
           const statusByRef = { ...current.statusByRef };
@@ -102,6 +114,7 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
     }
     const result = await setCloudOwnLessonResponse({ session, communityId, resourceId, element, value });
     if (result.ok) {
+      setStatusError((current) => (current?.ref === ref ? null : current));
       setState((current) => {
         if (!current || current.communityId !== communityId) return current;
         const lessonResponses = { ...(current.responsesByRef[ref] ?? {}) };
@@ -121,6 +134,7 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
     tracks: current?.tracks ?? [],
     loaded: Boolean(current),
     error,
+    statusError: current ? statusError : null,
     reload: load,
     setStatus,
     answer,
