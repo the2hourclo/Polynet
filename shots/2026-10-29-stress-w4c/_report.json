@@ -1,0 +1,89 @@
+{
+ "at": "2026-10-29T06:19:47.902Z",
+ "total": 6,
+ "failed": 0,
+ "report": [
+  {
+   "check": "1440-start-test-run",
+   "pass": true,
+   "problems": []
+  },
+  {
+   "check": "1440-welcome-shows",
+   "pass": true,
+   "problems": []
+  },
+  {
+   "check": "1440-welcome-finish",
+   "pass": true,
+   "problems": []
+  },
+  {
+   "check": "1440-mark-done-explains-required",
+   "pass": true,
+   "problems": []
+  },
+  {
+   "check": "1440-mark-done-reason-survives-20s",
+   "pass": true,
+   "problems": []
+  },
+  {
+   "check": "1440-end-test-run",
+   "pass": true,
+   "problems": []
+  }
+ ],
+ "writes": [
+  "owner HTTP auth:bootstrapActor",
+  "owner HTTP businessAnalytics:identifyBusinessVisitor",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP communityPublic:heartbeatCommunityPresence",
+  "owner HTTP profiles:recordMemberTimezone",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityFormRequests:saveMyAnswers",
+  "owner HTTP communityFormRequests:saveMyAnswers",
+  "owner HTTP communityFormRequests:saveMyAnswers",
+  "owner HTTP communityFormRequests:saveMyAnswers",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityAttention:acknowledgeCommunityChatRead",
+  "owner HTTP communityPublic:heartbeatCommunityPresence",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP auth:bootstrapActor",
+  "owner HTTP businessAnalytics:identifyBusinessVisitor",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP communityPublic:heartbeatCommunityPresence",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP profiles:resolveOnboardingProfileDetail",
+  "owner HTTP communityAttention:markCommunitySurfaceSeen",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP youtubeChapters:loadYouTubeChapters",
+  "owner HTTP communityResourceProgress:setOwnResourceProgressStatus",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityResourceProgress:setOwnResourceProgressStatus",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityPublic:heartbeatCommunityPresence",
+  "owner HTTP communityCommerce:redeemPendingPurchaseClaims",
+  "owner HTTP communityResourceProgress:setOwnResourceProgressStatus",
+  "owner HTTP communityPublic:heartbeatCommunityPresence"
+ ],
+ "dropped": []
+}

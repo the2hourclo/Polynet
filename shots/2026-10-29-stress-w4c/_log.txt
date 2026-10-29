@@ -1,0 +1,95 @@
+1440: existing test runs (left alone): Test member 30, Test member 29, Test member 24
+1440: new test run = Test member 41
+pass 1440-start-test-run
+1440 welcome DOM: section.community-welcome display=flex h=882 top=9 pad-top=48px overflow=auto  <  div.community-theme-scope display=contents h=0 top=0 pad-top=0px overflow=visible  <  div.product-shell-surface.product-shell-surface--single display=grid h=884 top=8 pad-top=0px overflow=hidden  <  div.app-shell.with-community-rail display=grid h=900 top=0 pad-top=0px overflow=hidden  <  div.app-root display=grid h=900 top=0 pad-top=0px overflow=hidden  <  div. display=block h=900 top=0 pad-top=0px overflow=hidden  <  body. display=block h=900 top=0 pad-top=0px overflow=hidden  <  html. display=block h=900 top=0 pad-top=0px overflow=hidden
+pass 1440-welcome-shows
+1440: welcome step 3 still asks for an answer
+1440: welcome step 4 still asks for an answer
+1440: welcome step 6 still asks for an answer
+pass 1440-welcome-finish
+pass 1440-mark-done-explains-required
+1440: Mark as done reason after 20 s: "Answer the required questions in this lesson first, then mark it done."
+pass 1440-mark-done-reason-survives-20s
+pass 1440-end-test-run
+
+6 checks, 0 failed
+
+WRITES SENT (script guard, test-member tab):
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:recordMemberTimezone
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityAttention:markCommunitySurfaceSeen
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP youtubeChapters:loadYouTubeChapters
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityPublic:heartbeatCommunityPresence
+
+DROPPED BY SCRIPT GUARD:
+
+
+WRAPPER OWNER-TAB GUARD (armed before sign-in)
+SENT:
+30 × HTTP profiles:resolveOnboardingProfileDetail
+12 × HTTP communityCommerce:redeemPendingPurchaseClaims
+6 × HTTP communityPublic:heartbeatCommunityPresence
+3 × HTTP auth:bootstrapActor
+3 × HTTP businessAnalytics:identifyBusinessVisitor
+1 × HTTP communityTestMembers:startTestMember
+1 × HTTP communityTestMembers:endTestMember
+DROPPED:
+none
+LEAKS:
+none
+
+WRAPPER TEST MEMBER GUARD (r8-lib)
+ALLOWED:
+none
+BLOCKED:
+none
+OTHER:
+none
+LEAKS:
+none
+
+WRAPPER summary (2026-10-29): served commit b5257a8; 90721d9 script via the w4b wrapper, 1440 only, lesson step only (no chat post, no member paste), plus a 20 s wait after the refused Mark as done.
