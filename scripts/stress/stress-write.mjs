@@ -199,10 +199,16 @@ async function ownerTestRun(vpName, vp) {
         await done.first().scrollIntoViewIfNeeded().catch(() => {});
         await done.first().click(); await settle(tab, 2500);
         const pressed = await done.first().getAttribute("aria-pressed");
+        const blockedNote = (await tab.locator(".lesson-done-note").count()) ? await tab.locator(".lesson-done-note").first().textContent() : null;
+        if (pressed !== "true" && blockedNote) {
+          // Required questions unanswered: refused by design, and it must say why.
+          await shot(tab, `${vpName}-lesson-done-blocked`);
+          result(`${vpName}-mark-done-explains-required`, takeErrs());
+        }
         await shot(tab, `${vpName}-lesson-done`);
         await done.first().click(); await settle(tab, 2500);
         const unpressed = await done.first().getAttribute("aria-pressed");
-        result(`${vpName}-mark-done-and-undo`, [...(pressed === "true" ? [] : [`after Mark as done aria-pressed=${pressed}`]), ...(unpressed === "false" ? [] : [`after undo aria-pressed=${unpressed}`]), ...takeErrs()]);
+        if (!(pressed !== "true" && blockedNote)) result(`${vpName}-mark-done-and-undo`, [...(pressed === "true" ? [] : [`after Mark as done aria-pressed=${pressed}`]), ...(unpressed === "false" ? [] : [`after undo aria-pressed=${unpressed}`]), ...takeErrs()]);
       } else result(`${vpName}-mark-done-and-undo`, ["no Mark as done button on the first lesson", ...takeErrs()]);
     } else result(`${vpName}-mark-done-and-undo`, ["no course link in Knowledge as a new member", ...takeErrs()]);
 
@@ -211,14 +217,17 @@ async function ownerTestRun(vpName, vp) {
     if (!(await tab.locator("textarea.chat-input").count())) await tab.locator(".community-posts-composer-bar").first().click().catch(() => {});
     await settle(tab, 800);
     const pasteErr = await pasteImage(tab, "textarea.chat-input");
-    const chip = pasteErr ? false : await chipShown(tab);
+    // A test run blocks attachments and says so (7f0e712); a chip here would be the bug.
+    await settle(tab, 800);
+    const blockedMsg = await tab.getByText("Attachments aren't available in a test run", { exact: false }).count().catch(() => 0);
+    const chip = blockedMsg > 0;
     await tab.locator("textarea.chat-input").first().fill("Stress test message from a test run, please ignore").catch(() => {});
     await shot(tab, `${vpName}-chat-composer`);
     await tab.getByRole("button", { name: /^send$/i }).first().click({ timeout: 5000 }).catch((e) => errs.push(`send: ${e.message.split("\n")[0]}`));
     await settle(tab, 3000);
     const posted = /Stress test message from a test run/.test(await text(tab));
     await shot(tab, `${vpName}-chat-posted`);
-    result(`${vpName}-chat-post-with-image`, [...(pasteErr ? [pasteErr] : []), ...(chip ? [] : ["pasted image chip did not show"]), ...(posted ? [] : ["message did not appear after Send"]), ...takeErrs()]);
+    result(`${vpName}-chat-post-with-image`, [...(pasteErr ? [pasteErr] : []), ...(chip ? [] : ["no 'Attachments aren't available in a test run' message after paste"]), ...(posted ? [] : ["message did not appear after Send"]), ...takeErrs()]);
     // Delete that one message again (End keeps chat posts). Exact text, own message, confirm checked.
     if (posted) {
       const MSG = "Stress test message from a test run, please ignore";
