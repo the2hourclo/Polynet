@@ -1,0 +1,161 @@
+1440: existing test runs (left alone): Test member 30, Test member 29, Test member 24
+1440: new test run = Test member 42
+pass 1440-start-test-run
+1440 welcome DOM: section.community-welcome display=flex h=882 top=9 pad-top=48px overflow=auto  <  div.community-theme-scope display=contents h=0 top=0 pad-top=0px overflow=visible  <  div.product-shell-surface.product-shell-surface--single display=grid h=884 top=8 pad-top=0px overflow=hidden  <  div.app-shell.with-community-rail display=grid h=900 top=0 pad-top=0px overflow=hidden  <  div.app-root display=grid h=900 top=0 pad-top=0px overflow=hidden  <  div. display=block h=900 top=0 pad-top=0px overflow=hidden  <  body. display=block h=900 top=0 pad-top=0px overflow=hidden  <  html. display=block h=900 top=0 pad-top=0px overflow=hidden
+pass 1440-welcome-shows
+1440: welcome step 3 still asks for an answer
+1440: welcome step 4 still asks for an answer
+1440: welcome step 6 still asks for an answer
+pass 1440-welcome-finish
+pass 1440-mark-done-explains-required
+1440: Mark as done stuck on: "Knowledge" (/c/ai-employee-builders/resources/v171a15p4sfhmjan3r3a083e418gt0kp)
+pass 1440-mark-done-and-undo-unrequired
+pass 1440-end-test-run
+390: existing test runs (left alone): Test member 30, Test member 29, Test member 24
+390: new test run = Test member 43
+pass 390-start-test-run
+390 welcome DOM: section.community-welcome display=flex h=844 top=0 pad-top=66px overflow=auto  <  div.community-theme-scope display=contents h=0 top=0 pad-top=0px overflow=visible  <  div.app-shell.no-left display=grid h=844 top=0 pad-top=0px overflow=hidden  <  div.app-root.mobile-shell display=grid h=844 top=0 pad-top=0px overflow=hidden  <  div. display=block h=844 top=0 pad-top=0px overflow=hidden  <  body. display=block h=844 top=0 pad-top=0px overflow=hidden  <  html. display=block h=844 top=0 pad-top=0px overflow=hidden
+pass 390-welcome-shows
+390: welcome step 3 still asks for an answer
+390: welcome step 4 still asks for an answer
+390: welcome step 6 still asks for an answer
+pass 390-welcome-finish
+pass 390-mark-done-explains-required
+390: Mark as done stuck on: "Knowledge" (/m/c/ai-employee-builders/resources/v171a15p4sfhmjan3r3a083e418gt0kp)
+pass 390-mark-done-and-undo-unrequired
+pass 390-end-test-run
+
+12 checks, 0 failed
+
+WRITES SENT (script guard, test-member tab):
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:recordMemberTimezone
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityAttention:markCommunitySurfaceSeen
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP youtubeChapters:loadYouTubeChapters
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP youtubeChapters:loadYouTubeChapters
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:recordMemberTimezone
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityFormRequests:saveMyAnswers
+owner HTTP communityAttention:acknowledgeCommunityChatRead
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP auth:bootstrapActor
+owner HTTP businessAnalytics:identifyBusinessVisitor
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP profiles:resolveOnboardingProfileDetail
+owner HTTP communityAttention:markCommunitySurfaceSeen
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP youtubeChapters:loadYouTubeChapters
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP youtubeChapters:loadYouTubeChapters
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityCommerce:redeemPendingPurchaseClaims
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+owner HTTP communityPublic:heartbeatCommunityPresence
+owner HTTP communityResourceProgress:setOwnResourceProgressStatus
+
+DROPPED BY SCRIPT GUARD:
+
+
+WRAPPER OWNER-TAB GUARD (armed before sign-in)
+SENT:
+57 × HTTP profiles:resolveOnboardingProfileDetail
+23 × HTTP communityCommerce:redeemPendingPurchaseClaims
+13 × HTTP communityPublic:heartbeatCommunityPresence
+6 × HTTP auth:bootstrapActor
+6 × HTTP businessAnalytics:identifyBusinessVisitor
+2 × HTTP communityTestMembers:startTestMember
+2 × HTTP communityTestMembers:endTestMember
+DROPPED:
+none
+LEAKS:
+none
+
+WRAPPER TEST MEMBER GUARD (r8-lib)
+ALLOWED:
+none
+BLOCKED:
+none
+OTHER:
+none
+LEAKS:
+none
+
+WRAPPER summary (2026-10-29): served commit b5257a8; script 5806993 merged into the w4b wrapper (no conflicts), both widths, lesson step only (no chat post, no member paste). The "stuck on" note read the page h1 ("Knowledge"); the shots show the lesson: Get set up > lesson 2 "Install the plugin" (1 of 8 done, green Done), undone right after.
+33-table diff: only Test member 42/43 rows; no communityResourceProgress rows survived End; all seats revoked, pods archived.
