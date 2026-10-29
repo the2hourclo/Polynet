@@ -82,7 +82,9 @@ export function useWebCommunityLessonProgress<SessionT>(params: {
   const setStatus = useCallback((resourceId: string, ref: string, status: CommunityLessonProgressStatus) => {
     if (!communityId || !session) return;
     let previous: CommunityLessonProgressStatus | undefined;
-    setStatusError((current) => (current?.ref === ref ? null : current));
+    // Only the member's own retry clears the reason; the viewer's automatic
+    // in_progress write after a short read must not wipe it.
+    if (status === "done") setStatusError((current) => (current?.ref === ref ? null : current));
     setState((current) => {
       const own = current?.communityId === communityId ? current : null;
       const statusByRef = { ...(own?.statusByRef ?? {}) };
