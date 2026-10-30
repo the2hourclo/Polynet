@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, ArrowUpRight, BadgeCheck, BookOpen, Check, Columns3, Image as ImageIcon, LayoutGrid, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   COMMUNITY_MAIN_TRACK_KEY,
@@ -326,6 +326,7 @@ export function WebCommunityTrackShelf(props: {
   // The Board view: what kind of lesson a step is, and opening one step.
   lessonTag?: (resourceId: string) => string;
   onOpenStep?: (resourceId: string) => void;
+  minutesOf?: (resourceId: string) => number | null;
 }) {
   const { track } = props;
   const [shape, setShape] = useState<"cards" | "board">(() => readShelfShape());
@@ -340,38 +341,13 @@ export function WebCommunityTrackShelf(props: {
       {props.onAllTracks ? (
         <button type="button" className="track-shelf-back" onClick={props.onAllTracks}><ArrowLeft size={14} aria-hidden="true" /> All tracks</button>
       ) : null}
-      <button type="button" className="track-continue" onClick={props.onContinue} disabled={!track.next}>
-        <span className="track-continue-art"><TrackArt track={track} size="hero" /></span>
-        <span className="track-continue-body">
-          <small>{track.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track"}</small>
-          <strong>{track.title}</strong>
-          {track.next
-            ? <span className="track-continue-next">Next: <b>{track.next.title}</b> · {track.next.stage}</span>
-            : <span className="track-continue-next"><Check size={15} aria-hidden="true" /> Every lesson is done</span>}
-          <span className="track-continue-foot">
-            <span className="track-continue-progress">
-              <span className="track-bar" aria-hidden="true"><i style={{ width: `${percent}%` }} /></span>
-              <em>{track.done_count} of {track.step_count} lessons{track.minutes ? ` · about ${formatTrackMinutes(track.minutes)} in all` : ""}</em>
-            </span>
-            {track.next ? <span className="track-continue-go">{started ? "Continue" : "Start"} <ArrowRight size={16} /></span> : null}
-          </span>
-        </span>
-      </button>
-      {/* Where am I in this track: one dot per module, in order, each in its module's colour. */}
-      <ol className="track-path" aria-label="Your place in this track">
-        {props.modules.map(({ stage }, index) => {
-          const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
-          const here = !done && !stage.locked && props.modules.findIndex((item) => !item.stage.locked && item.stage.done_count < item.stage.step_count) === index;
-          return (
-            <li key={stage.name} data-stage={(index % 6) + 1} data-state={done ? "done" : here ? "here" : stage.locked ? "locked" : "open"}
-              aria-current={here ? "step" : undefined}>
-              <span className="track-path-dot" aria-hidden="true">{done ? <Check size={12} /> : stage.locked ? <Lock size={11} /> : null}</span>
-              <span className="track-path-name">{stage.name}</span>
-              {here ? <span className="track-path-here">You're here</span> : null}
-            </li>
-          );
-        })}
-      </ol>
+      {/* Today's step and what the member is building, side by side (Rashid, 2026-10-30:
+          "more fun, easy and enjoyable"): one next step, and a part that fills in per module. */}
+      <div className="track-today-row">
+        <TrackTodayCard track={track} modules={props.modules} started={started} percent={percent}
+          minutesOf={props.minutesOf} onContinue={props.onContinue} />
+        <TrackBuildPanel track={track} modules={props.modules} />
+      </div>
       <section className="track-group" aria-label="Modules">
         <div className="track-group-head">
           <h2>Modules</h2>
@@ -437,6 +413,83 @@ export function WebCommunityTrackShelf(props: {
         )}
       </section>
     </div>
+  );
+}
+
+/** One next step: the lesson, how long it takes, and how far this module has come. */
+function TrackTodayCard(props: {
+  track: CommunityTrackView;
+  modules: readonly CommunityTrackShelfModule[];
+  started: boolean;
+  percent: number;
+  minutesOf?: (resourceId: string) => number | null;
+  onContinue: () => void;
+}) {
+  const { track } = props;
+  const next = track.next;
+  const index = next ? props.modules.findIndex(({ stage }) => stage.steps.some((step) => step.resource_id === next.resource_id)) : -1;
+  const stage = index >= 0 ? props.modules[index].stage : null;
+  const minutes = next ? props.minutesOf?.(next.resource_id) ?? null : null;
+  const kicker = track.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track";
+  if (!next) {
+    return (
+      <section className="track-today" data-stage="1" aria-label="Today's step">
+        <small className="track-today-kicker">{kicker} · {track.title}</small>
+        <strong className="track-today-title"><Check size={20} aria-hidden="true" /> Every lesson is done</strong>
+        <span className="track-today-note">{track.done_count} of {track.step_count} lessons. Nice work.</span>
+      </section>
+    );
+  }
+  const left = stage ? stage.step_count - stage.done_count : 0;
+  return (
+    <section className="track-today" data-stage={index >= 0 ? (index % 6) + 1 : 1} aria-label="Today's step">
+      <small className="track-today-kicker">{props.started ? "Today's step" : "Start here"}{minutes ? ` · about ${formatTrackMinutes(minutes)}` : ""}</small>
+      <strong className="track-today-title">{next.title}</strong>
+      <span className="track-today-note">{index >= 0 ? `Module ${index + 1} · ${next.stage}` : next.stage} · {track.title}</span>
+      {stage ? (
+        <ol className="track-today-path" aria-label={`${stage.done_count} of ${stage.step_count} lessons done in this module`}>
+          {stage.steps.map((step) => (
+            <li key={step.ref} data-state={step.done ? "done" : step.resource_id === next.resource_id ? "here" : "todo"} title={step.title} />
+          ))}
+        </ol>
+      ) : null}
+      <span className="track-today-foot">
+        <button type="button" className="track-today-go" onClick={props.onContinue}>{props.started ? "Continue" : "Start"} <ArrowRight size={16} aria-hidden="true" /></button>
+        <em>{stage ? (left <= 1 ? "Last lesson in this module" : `${left} lessons left in this module`) : `${props.percent}% of the track`}</em>
+      </span>
+    </section>
+  );
+}
+
+/**
+ * What the member is building: one part per module, in its colour, that fills
+ * in as the module's lessons get done. For AIEB that's the AI Employee itself.
+ */
+function TrackBuildPanel(props: { track: CommunityTrackView; modules: readonly CommunityTrackShelfModule[] }) {
+  const { track } = props;
+  const built = props.modules.filter(({ stage }) => stage.step_count > 0 && stage.done_count >= stage.step_count).length;
+  const core = track.key === COMMUNITY_MAIN_TRACK_KEY;
+  return (
+    <section className="track-build" aria-label={core ? "Your AI Employee" : "What you're building"}>
+      <div className="track-build-head">
+        <small>{core ? "Your AI Employee" : "What you're building"}</small>
+        <strong>{built} of {props.modules.length} parts built</strong>
+      </div>
+      <ul className="track-build-parts">
+        {props.modules.map(({ stage }, index) => {
+          const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
+          const fill = stage.step_count ? Math.round((stage.done_count / stage.step_count) * 100) : 0;
+          return (
+            <li key={stage.name} data-stage={(index % 6) + 1} data-state={done ? "done" : stage.done_count ? "building" : stage.locked ? "locked" : "todo"}
+              style={{ "--fill": `${fill}%` } as CSSProperties}>
+              <span className="track-build-mark" aria-hidden="true">{done ? <Check size={13} /> : stage.locked ? <Lock size={11} /> : index + 1}</span>
+              <span className="track-build-name">{stage.name}</span>
+              <span className="track-build-state">{done ? "Built" : stage.done_count ? `${fill}%` : stage.locked ? "Locked" : "Not yet"}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

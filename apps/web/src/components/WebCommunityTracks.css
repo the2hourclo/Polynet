@@ -496,3 +496,47 @@
 .track-library .track-new { margin-left: auto; }
 .track-library-icon { color: var(--text-secondary); }
 .track-library .track-card-art[data-style="route"] { display: grid; place-items: center; background: var(--hover-overlay); }
+
+/* Today's step + what you're building (Rashid, 2026-10-30). */
+.track-today-row { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.track-today, .track-build {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 22px 24px;
+  background: var(--surface-card, #fff); border: 1px solid var(--border-default); border-radius: 16px;
+}
+.track-today { border-top: 4px solid var(--stage); background: color-mix(in srgb, var(--stage) 5%, var(--surface-card, #fff)); }
+.track-today-kicker, .track-build-head small { font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--stage-ink, var(--text-secondary)); }
+.track-build-head small { color: var(--text-secondary); }
+.track-today-title { display: flex; align-items: center; gap: 8px; font-family: var(--pn-font-heading, inherit); font-size: clamp(22px, 2.4vw, 28px); font-weight: var(--pn-heading-weight, 700); line-height: 1.2; color: var(--text-primary); text-wrap: balance; }
+.track-today-note { font-size: 14.5px; color: var(--text-secondary); }
+.track-today-path { list-style: none; margin: 6px 0 2px; padding: 0; display: flex; gap: 6px; }
+.track-today-path li { flex: 1; max-width: 3.5rem; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--stage) 16%, var(--border-default)); }
+.track-today-path li[data-state="done"] { background: var(--stage); }
+.track-today-path li[data-state="here"] { background: color-mix(in srgb, var(--stage) 45%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--stage) 30%, transparent); }
+.track-today-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: auto; padding-top: 6px; }
+.track-today-foot em { font-style: normal; font-size: 14px; color: var(--text-secondary); }
+.track-today-go {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 22px; border: 0; border-radius: 999px;
+  font: inherit; font-size: 15px; font-weight: 650; color: var(--pn-on-accent, #fff); background: var(--pn-accent, var(--accent-brand)); cursor: pointer;
+}
+.track-today-go:hover { filter: brightness(1.05); }
+.track-today-go:focus-visible { outline: 2px solid var(--focus-ring, var(--accent-brand)); outline-offset: 2px; }
+.track-build-head { display: flex; flex-direction: column; gap: 2px; }
+.track-build-head strong { font-family: var(--pn-font-heading, inherit); font-size: 20px; color: var(--text-primary); }
+.track-build-parts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.track-build-parts li {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: 24px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 8px;
+  padding: 9px 10px; border-radius: 10px; border: 1.5px dashed var(--border-default); background: transparent;
+}
+/* The part fills from the left as its module's lessons get done. */
+.track-build-parts li::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%); background: color-mix(in srgb, var(--stage) 12%, transparent); transition: width 0.4s ease; }
+.track-build-parts li > * { position: relative; }
+.track-build-parts li:is([data-state="building"], [data-state="done"]) { border-style: solid; border-color: color-mix(in srgb, var(--stage) 55%, var(--border-default)); }
+.track-build-parts li[data-state="locked"] { opacity: 0.6; }
+.track-build-mark { grid-row: 1 / 3; align-self: center; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--stage-ink); background: color-mix(in srgb, var(--stage) 14%, transparent); }
+.track-build-parts li[data-state="done"] .track-build-mark { background: var(--stage); color: #fff; }
+.track-build-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track-build-state { font-size: 12px; color: var(--text-secondary); }
+.track-build-parts li[data-state="done"] .track-build-state { color: var(--stage-ink); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .track-build-parts li::before { transition: none; } }
+@media (max-width: 820px) { .track-today-row { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 420px) { .track-build-parts { grid-template-columns: minmax(0, 1fr); } .track-today, .track-build { padding: 18px; } }

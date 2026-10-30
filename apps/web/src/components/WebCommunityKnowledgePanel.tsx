@@ -317,6 +317,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
       onContinue={() => { if (activeTrack.next) readTrackLesson(activeTrack.key, activeTrack.next.resource_id); }}
       onAllTracks={tracks.length > 1 ? () => setTrackKey(null) : undefined}
       lessonTag={lessonTag}
+      minutesOf={(resourceId) => resourceList.find((resource) => resource.id === resourceId)?.lesson?.minutes ?? null}
       onOpenStep={(resourceId) => readTrackLesson(activeTrack.key, resourceId)}
       ownerActions={ownerTools ? (
         <>
