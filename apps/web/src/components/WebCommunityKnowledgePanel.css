@@ -93,3 +93,14 @@
 .app-root.mobile-shell .community-knowledge-page .resources-panel > .feed-header-row .resources-header-actions { width: auto; margin-left: auto; }
 /* The owner's Lesson style switch folds away with the course outline. */
 .resource-course-outline:not(.is-open) .resource-course-style-switch.is-outline { display: none; }
+/* Right of the title: Edit (owners) and Graph, as quiet buttons; the Roadmap
+   is the page itself, so there are no view tabs (Rashid, 2026-10-30). */
+.community-knowledge-tools { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.community-knowledge-tool {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 13px;
+  border: 1px solid var(--border-default); border-radius: 999px; background: transparent;
+  font: inherit; font-size: 13.5px; font-weight: 550; color: var(--text-secondary); cursor: pointer;
+}
+.community-knowledge-tool:hover { color: var(--text-primary); background: var(--hover-overlay); }
+.community-knowledge-tool[aria-pressed="true"] { color: var(--text-primary); background: var(--hover-overlay); border-color: var(--border-strong, var(--border-default)); }
+.community-knowledge-tool:focus-visible { outline: 2px solid var(--focus-ring, var(--accent-brand)); outline-offset: 2px; }

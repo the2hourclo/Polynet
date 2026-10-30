@@ -351,6 +351,9 @@
   border-radius: calc(7px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .community-knowledge-tool {
+  font-size: var(--pn-type-ui);
+}
 [data-community-theme] .lesson-journey-note {
   border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-ui);
@@ -1053,6 +1056,29 @@
 }
 [data-community-theme] .track-path-here {
   font-size: var(--pn-type-meta);
+}
+[data-community-theme] .track-shape button {
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-board-pill {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+  font-size: var(--pn-type-small);
+}
+[data-community-theme] .track-board-state {
+  font-size: var(--pn-type-label);
+}
+[data-community-theme] .track-board-cards {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-board-card button {
+  border-radius: calc(9px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .track-board-text strong {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .track-board-tags em {
+  font-size: var(--pn-type-meta);
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .welcome-settings-options > .welcome-settings-option:first-child {
   border-radius: calc(12px * var(--pn-radius-scale, 1)) calc(12px * var(--pn-radius-scale, 1)) 0 0;

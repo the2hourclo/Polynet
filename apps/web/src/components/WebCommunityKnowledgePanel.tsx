@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
-import { Maximize2, Minimize2, Pencil, Plus } from "lucide-react";
-import { WebPlatformTabList, platformTabId, platformTabPanelId } from "./WebPlatformChoiceControls";
+import { ArrowLeft, Maximize2, Minimize2, Network, Pencil, Plus } from "lucide-react";
 import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
 import { createBrowserCommunityEmbedStorage } from "../../../../shared/communityEmbedUi";
@@ -13,6 +12,8 @@ import {
   WebCommunityTrackEditor,
   WebCommunityTrackHeader,
   WebCommunityTrackHome,
+  WebCommunityTrackLibrary,
+  type CommunityTrackLibraryCourse,
   WebCommunityTrackShelf,
   type CommunityTrackShelfModule,
   WebCommunityTrackLocked,
@@ -57,9 +58,19 @@ type Props = {
 type KnowledgeView = "resources" | "board" | "graph";
 
 export function WebCommunityKnowledgePanel({ resources, context }: Props) {
-  const [view, setView] = useState<KnowledgeView>("resources");
-  useEffect(() => { setView((current) => (current === "graph" ? "resources" : current)); }, [resources.state.selectedModuleId]);
+  // Knowledge opens on the Roadmap; Resources is only where a course is read,
+  // and Graph is a button on the right (Rashid, 2026-10-30).
+  const [view, setView] = useState<KnowledgeView>("board");
+  useEffect(() => { if (resources.state.selectedModuleId) setView("resources"); }, [resources.state.selectedModuleId]);
   const canManage = resources.capabilities.canOperateResources;
+  // Owner tools stay out of the way until the owner turns Edit on.
+  const [editMode, setEditMode] = useState(() => readKnowledgeEditMode());
+  const toggleEditMode = () => {
+    const next = !editMode;
+    setEditMode(next);
+    try { window.localStorage.setItem(KNOWLEDGE_EDIT_KEY, next ? "on" : "off"); } catch { /* not remembered */ }
+  };
+  const ownerTools = canManage && editMode;
   // One progress read feeds the Roadmap, its skill tracks and the course cards.
   const progress = useWebCommunityLessonProgress({
     communityId: context.communityId,
@@ -226,13 +237,6 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
       ? { communityId: context.communityId, session: context.session as AuthSession, ensureSession: context.ensureSession }
       : null,
   }), [progress, embedStorage, context.session, context.communityId, context.ensureSession, context.requireSignIn]);
-  // The views are chips, like the channel chips in Classroom.
-  const chip = "community-category-chip";
-  const tabs: { id: KnowledgeView; label: string; buttonClassName: string }[] = [
-    { id: "resources", label: "Resources", buttonClassName: chip },
-    ...(hasBoard ? [{ id: "board" as const, label: "Roadmap", buttonClassName: chip }] : []),
-    ...(showGraph ? [{ id: "graph" as const, label: "Graph", buttonClassName: chip }] : []),
-  ];
   const graph = useWebCommunityPolynetController({
     activePage: "community",
     communityTab: "resources",
@@ -254,7 +258,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
     outcomes: activeTrack.outcomes,
     audience: activeTrack.audience,
     onAllTracks: tracks.length > 1 ? () => setTrackKey(null) : undefined,
-    actions: canManage ? (
+    actions: ownerTools ? (
       <>
         <button type="button" className="lesson-journey-edit" onClick={() => setTrackEditor({ key: activeTrack.key })}><Pencil size={14} aria-hidden="true" /> Edit track</button>
         {tracks.length === 1 ? <button type="button" className="lesson-journey-edit" onClick={() => setTrackEditor({ key: null })}><Plus size={14} aria-hidden="true" /> New track</button> : null}
@@ -278,18 +282,43 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
         stage,
         cover: course?.banner_url ?? null,
         onOpen: () => { if (target) readTrackLesson(activeTrack.key, target.resource_id); },
-        onChangeImage: canManage && course ? () => resources.actions.handleEditModule(course) : undefined,
+        onChangeImage: ownerTools && course ? () => resources.actions.handleEditModule(course) : undefined,
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTrack, resourceModuleOf, resources.state.modules, canManage, resources.actions]);
+  }, [activeTrack, resourceModuleOf, resources.state.modules, ownerTools, resources.actions]);
+  // Build / Watch / Checkpoint, as the Roadmap board labels lessons.
+  const lessonTag = useCallback((resourceId: string) => {
+    const fields = resourceList.find((resource) => resource.id === resourceId)?.lesson;
+    const kind = fields?.gate ? "" : fields?.kind === "build" ? "Build" : fields?.kind === "lesson" ? "Watch" : "";
+    return [kind, fields?.minutes ? `${fields.minutes} min` : ""].filter(Boolean).join(" · ");
+  }, [resourceList]);
+  // The Library: courses with no lesson on any track, so nothing outside a
+  // track gets lost now the Resources tab is gone.
+  const libraryCourses = useMemo<CommunityTrackLibraryCourse[]>(() => {
+    const onTrack = new Set(tracks.flatMap((track) => track.stages.flatMap((stage) => stage.steps.map((step) => step.resource_id))));
+    return resources.state.modules.flatMap((module) => {
+      const lessons = resourceList.filter((resource) => resource.module_id === module.id);
+      if (!lessons.length || lessons.some((resource) => onTrack.has(resource.id))) return [];
+      return [{
+        id: module.id,
+        title: module.name,
+        cover: module.banner_url ?? null,
+        lessonCount: lessons.length,
+        onOpen: () => { setCourseFromTrack(null); setView("resources"); resources.actions.handleSelectModule(module.id); },
+      }];
+    });
+  }, [tracks, resources.state.modules, resourceList, resources.actions]);
+  const openCatalog = () => { setCourseFromTrack(null); resources.actions.handleSelectModule(null); setView("resources"); };
   const trackShelf = activeTrack && trackAbout && !trackBoard ? (
     <WebCommunityTrackShelf
       track={activeTrack}
       modules={shelfModules}
       onContinue={() => { if (activeTrack.next) readTrackLesson(activeTrack.key, activeTrack.next.resource_id); }}
       onAllTracks={tracks.length > 1 ? () => setTrackKey(null) : undefined}
-      ownerActions={canManage ? (
+      lessonTag={lessonTag}
+      onOpenStep={(resourceId) => readTrackLesson(activeTrack.key, resourceId)}
+      ownerActions={ownerTools ? (
         <>
           <button type="button" className="track-new" onClick={() => setTrackBoard(true)}><Pencil size={14} aria-hidden="true" /> Arrange lessons</button>
           <button type="button" className="track-new" onClick={() => setTrackEditor({ key: activeTrack.key })}><Pencil size={14} aria-hidden="true" /> Edit track</button>
@@ -302,7 +331,12 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   const resourcesBackTo = fromTrack && activeView === "resources" ? {
     label: fromTrack.title,
     onBack: () => { setCourseFromTrack(null); setTrackKey(fromTrack.key); setView("board"); },
+  } : activeView === "resources" && hasBoard ? {
+    label: "Roadmap",
+    onBack: () => setView("board"),
   } : null;
+  // The full course list, reached from the Library's "See everything".
+  const catalogOpen = activeView === "resources" && !resources.state.selectedModuleId;
   // Focus mode is for reading a lesson, not a track's own page.
   const lessonOpen = Boolean((activeView === "resources" && resources.state.selectedModuleId) || (boardOpen && roadmapLessonOpen));
   // Resources · Roadmap · Graph belong to Knowledge's main view; inside a
@@ -366,29 +400,41 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
           </button>
         ) : null}
         {insideKnowledge ? null : (
-          <WebPlatformTabList
-            tabs={tabs}
-            activeTab={activeView}
-            onSelectTab={(next) => { setCourseFromTrack(null); setView(next); }}
-            ariaLabel="Knowledge view"
-            idPrefix="community-knowledge"
-            className="community-knowledge-views"
-          />
+          <div className="community-knowledge-tools">
+            {catalogOpen && hasBoard ? (
+              <button type="button" className="community-knowledge-tool" onClick={() => setView("board")}>
+                <ArrowLeft size={15} aria-hidden="true" /> <span>Roadmap</span>
+              </button>
+            ) : null}
+            {canManage ? (
+              <button type="button" className="community-knowledge-tool" aria-pressed={editMode} onClick={toggleEditMode}
+                title={editMode ? "Hide the owner tools" : "Show the owner tools: edit tracks, images and lessons"}>
+                <Pencil size={15} aria-hidden="true" /> <span>{editMode ? "Editing" : "Edit"}</span>
+              </button>
+            ) : null}
+            {showGraph ? (
+              <button type="button" className="community-knowledge-tool" aria-pressed={graphOpen}
+                onClick={() => { setCourseFromTrack(null); setView(graphOpen ? "board" : "graph"); }}
+                title={graphOpen ? "Back to the Roadmap" : "See how everything connects"}>
+                <Network size={15} aria-hidden="true" /> <span>Graph</span>
+              </button>
+            ) : null}
+          </div>
         )}
       </div>
-      <div hidden={activeView !== "resources"} role="tabpanel" id={platformTabPanelId("community-knowledge", "resources")} aria-labelledby={platformTabId("community-knowledge", "resources")}>
+      <div hidden={activeView !== "resources"}>
         <CommunityResourcesPanel {...resources} courseProgress={courseProgress} lessonActivity={lessonActivity} editRequest={editRequest}
           openRequest={lessonRequest} backTo={resourcesBackTo}
           memberViewOffered={activeView === "resources"} />
       </div>
       {boardOpen ? (
-        <div className="lesson-board-panel" role="tabpanel" id={platformTabPanelId("community-knowledge", "board")} aria-labelledby={platformTabId("community-knowledge", "board")}>
+        <div className="lesson-board-panel">
           {tracks.length > 1 && !activeTrack ? (
             <WebCommunityTrackHome
               tracks={tracks}
               offer={offerAccess}
               onOpenTrack={setTrackKey}
-              canManage={canManage}
+              canManage={ownerTools}
               onNewTrack={() => setTrackEditor({ key: null })}
               onEditTrack={(key) => setTrackEditor({ key })}
               onContinue={(track) => { if (track.next) readTrackLesson(track.key, track.next.resource_id); else setTrackKey(track.key); }}
@@ -400,7 +446,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                 track={activeTrack}
                 onPick={setTrackKey}
                 onHome={() => setTrackKey(null)}
-                onEdit={canManage ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
+                onEdit={ownerTools ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
               />
               <WebCommunityTrackLocked
                 track={activeTrack}
@@ -432,8 +478,8 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
                     track={activeTrack}
                     onPick={setTrackKey}
                     onHome={() => setTrackKey(null)}
-                    onEdit={canManage ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
-                    onNewTrack={canManage && tracks.length === 1 ? () => setTrackEditor({ key: null }) : undefined}
+                    onEdit={ownerTools ? () => setTrackEditor({ key: activeTrack.key }) : undefined}
+                    onNewTrack={ownerTools && tracks.length === 1 ? () => setTrackEditor({ key: null }) : undefined}
                     offer={offerAccess}
                     onPreview={activeTrack.paid?.preview ? () => openLesson(activeTrack.key, activeTrack.paid!.preview!.resource_id) : undefined}
                   />
@@ -442,6 +488,9 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
               {activeTrack && !trackAbout && !roadmapReading ? <WebCommunityTrackOpens track={activeTrack} tracks={tracks} onOpenTrack={setTrackKey} /> : null}
             </>
           )}
+          {libraryCourses.length && (trackShelf || (tracks.length > 1 && !activeTrack)) ? (
+            <WebCommunityTrackLibrary courses={libraryCourses} onBrowseAll={openCatalog} />
+          ) : null}
           {trackEditor && context.session && context.communityId ? (
             <WebCommunityTrackEditor
               session={context.session}
@@ -453,7 +502,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
           ) : null}
         </div>
       ) : null}
-      {graphOpen ? <div className="community-knowledge-graph" role="tabpanel" id={platformTabPanelId("community-knowledge", "graph")} aria-labelledby={platformTabId("community-knowledge", "graph")}><CommunityMemoryGraph activeCommunityName={context.communityName} state={graph.state} onRefresh={graph.actions.refresh} /></div> : null}
+      {graphOpen ? <div className="community-knowledge-graph"><CommunityMemoryGraph activeCommunityName={context.communityName} state={graph.state} onRefresh={graph.actions.refresh} /></div> : null}
     </section>
   );
 }
@@ -508,4 +557,9 @@ function useTrackOfferAccess(
     busy,
     note,
   };
+}
+
+const KNOWLEDGE_EDIT_KEY = "polynet.knowledge.editMode";
+function readKnowledgeEditMode() {
+  try { return window.localStorage.getItem(KNOWLEDGE_EDIT_KEY) === "on"; } catch { return false; }
 }
