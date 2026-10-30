@@ -355,42 +355,40 @@ export function WebCommunityTrackShelf(props: {
           <span className="track-group-note">{trackFacts(track)}</span>
           {props.ownerActions}
         </div>
-        <ul className="track-grid">
+        <ul className="track-module-list">
           {props.modules.map(({ stage, cover, onOpen, onChangeImage }, index) => {
             const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
             const going = !done && stage.done_count > 0;
             const status = stage.locked ? "locked" : done ? "done" : going ? "in_progress" : "open";
             const modulePercent = stage.step_count ? Math.round((stage.done_count / stage.step_count) * 100) : 0;
-            const blocker = stage.locked && stage.blocked_by
-              ? track.stages.findIndex((candidate) => candidate.steps.some((step) => step.resource_id === stage.blocked_by || step.ref === stage.blocked_by))
+            // Only the first locked module says what opens it; the lock on the rest is enough.
+            const firstLocked = stage.locked && props.modules.find((item) => item.stage.locked)?.stage === stage;
+            const blocker = firstLocked && stage.blocked_by
+              ? track.stages.findIndex((candidate) => candidate.steps.some((step) => step.ref === stage.blocked_by))
               : -1;
             return (
-              <li key={stage.name} className="track-card track-module-card" data-status={status}>
-                <button type="button" className="track-card-main" onClick={onOpen} disabled={stage.locked}>
-                  <span className="track-card-art" data-style={cover ? "image" : "route"}>
-                    {cover ? <img className="track-art-image" src={cover} alt="" /> : <span className="track-module-number" aria-hidden="true">{index + 1}</span>}
-                    {stage.locked ? <span className="track-card-badge"><Lock size={12} aria-hidden="true" /> Locked</span> : null}
-                  </span>
-                  <span className="track-card-body">
-                    <span className="track-module-eyebrow">Module {index + 1}</span>
+              <li key={stage.name} className="track-module-row" data-status={status}>
+                <button type="button" className="track-module-main" onClick={onOpen} disabled={stage.locked}>
+                  <span className="track-module-copy">
+                    <span className="track-module-eyebrow">Module {index + 1} · {plural(stage.step_count, "lesson")}</span>
                     <strong>{stage.name}</strong>
-                    <span className="track-card-meta">
-                      {stage.locked
-                        ? blocker >= 0 ? `Opens after Module ${blocker + 1}` : "Opens after a checkpoint"
-                        : going ? `${stage.done_count} of ${plural(stage.step_count, "lesson")} done` : plural(stage.step_count, "lesson")}
-                    </span>
                     {going ? <span className="track-bar" aria-hidden="true"><i style={{ width: `${modulePercent}%` }} /></span> : null}
-                    {stage.locked ? null : (
+                    {stage.locked ? (
+                      <span className="track-module-lock"><Lock size={13} aria-hidden="true" /> {blocker >= 0 ? `Opens after Module ${blocker + 1}` : "Locked"}</span>
+                    ) : (
                       <span className="track-card-action">
                         {done ? <Check size={15} aria-hidden="true" /> : null}
-                        {done ? "Review" : going ? "Continue" : "Start"} <ArrowRight size={15} aria-hidden="true" />
+                        {done ? "Review" : going ? `Continue · ${stage.done_count} of ${stage.step_count} done` : "Start"} <ArrowRight size={15} aria-hidden="true" />
                       </span>
                     )}
                   </span>
+                  <span className="track-module-thumb" data-style={cover ? "image" : "number"}>
+                    {cover ? <img src={cover} alt="" /> : <span className="track-module-number" aria-hidden="true">{index + 1}</span>}
+                  </span>
                 </button>
                 {onChangeImage ? (
-                  <button type="button" className="track-card-edit" onClick={onChangeImage} aria-label={`Change the image for ${stage.name}`} title="Change image">
-                    <ImageIcon size={14} />
+                  <button type="button" className="track-module-image" onClick={onChangeImage} aria-label={`Change the image for ${stage.name}`} title="Change image">
+                    <ImageIcon size={14} aria-hidden="true" /> Change image
                   </button>
                 ) : null}
               </li>
