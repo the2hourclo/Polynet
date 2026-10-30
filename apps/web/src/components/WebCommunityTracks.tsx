@@ -355,7 +355,7 @@ export function WebCommunityTrackShelf(props: {
           <span className="track-group-note">{trackFacts(track)}</span>
           {props.ownerActions}
         </div>
-        <ul className="track-module-list">
+        <ul className="track-grid track-module-grid">
           {props.modules.map(({ stage, cover, onOpen, onChangeImage }, index) => {
             const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
             const going = !done && stage.done_count > 0;
@@ -367,9 +367,12 @@ export function WebCommunityTrackShelf(props: {
               ? track.stages.findIndex((candidate) => candidate.steps.some((step) => step.ref === stage.blocked_by))
               : -1;
             return (
-              <li key={stage.name} className="track-module-row" data-status={status}>
-                <button type="button" className="track-module-main" onClick={onOpen} disabled={stage.locked}>
-                  <span className="track-module-copy">
+              <li key={stage.name} className="track-card track-module-card" data-status={status}>
+                <button type="button" className="track-card-main" onClick={onOpen} disabled={stage.locked}>
+                  <span className="track-card-art" data-style={cover ? "image" : "route"}>
+                    {cover ? <img className="track-art-image" src={cover} alt="" /> : <span className="track-module-number" aria-hidden="true">{index + 1}</span>}
+                  </span>
+                  <span className="track-card-body">
                     <span className="track-module-eyebrow">Module {index + 1} · {plural(stage.step_count, "lesson")}</span>
                     <strong>{stage.name}</strong>
                     {going ? <span className="track-bar" aria-hidden="true"><i style={{ width: `${modulePercent}%` }} /></span> : null}
@@ -381,9 +384,6 @@ export function WebCommunityTrackShelf(props: {
                         {done ? "Review" : going ? `Continue · ${stage.done_count} of ${stage.step_count} done` : "Start"} <ArrowRight size={15} aria-hidden="true" />
                       </span>
                     )}
-                  </span>
-                  <span className="track-module-thumb" data-style={cover ? "image" : "number"}>
-                    {cover ? <img src={cover} alt="" /> : <span className="track-module-number" aria-hidden="true">{index + 1}</span>}
                   </span>
                 </button>
                 {onChangeImage ? (
