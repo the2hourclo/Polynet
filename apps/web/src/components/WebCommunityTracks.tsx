@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, BadgeCheck, Check, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, BadgeCheck, Check, Image as ImageIcon, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   COMMUNITY_MAIN_TRACK_KEY,
   type CommunityTrackRule,
@@ -13,6 +13,7 @@ import {
   type CommunityBuilderTrack,
   type CommunityBuilderTracks,
 } from "../../../../shared/cloudCommunityLessonTracksGateway";
+import { uploadCloudCommunityResourceImage } from "../../../../shared/cloudCommunityAdminGateway";
 import type { CommunityResource } from "./communityResourcesContracts";
 import "./WebCommunityTracks.css";
 
@@ -244,6 +245,8 @@ export function WebCommunityTrackHome(props: {
   onNewTrack?: () => void;
   onEditTrack?: (key: string) => void;
   offer?: CommunityTrackOfferAccess | null;
+  // Continue goes straight to the next lesson; without it, to the track.
+  onContinue?: (track: CommunityTrackView) => void;
 }) {
   const current = communityContinueTrack(props.tracks);
   const yours = props.tracks.filter((track) => track.open);
@@ -253,7 +256,7 @@ export function WebCommunityTrackHome(props: {
   return (
     <div className="track-home">
       {current?.next ? (
-        <button type="button" className="track-continue" onClick={() => props.onOpenTrack(current.key)}>
+        <button type="button" className="track-continue" onClick={() => (props.onContinue ? props.onContinue(current) : props.onOpenTrack(current.key))}>
           <span className="track-continue-art"><TrackArt track={current} size="hero" /></span>
           <span className="track-continue-body">
             <small>{current.status === "in_progress" ? "Pick up where you left off" : "Start here"}</small>
@@ -296,6 +299,105 @@ export function WebCommunityTrackHome(props: {
           </ul>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+/** One module on a track's shelf: its own course cover, and what opening it does. */
+export type CommunityTrackShelfModule = {
+  stage: CommunityTrackView["stages"][number];
+  cover: string | null;
+  onOpen: () => void;
+  // Owners change the cover here, in the course's own settings.
+  onChangeImage?: () => void;
+};
+
+/**
+ * An open track's page (Rashid, 2026-10-30): the Roadmap home's look, one
+ * track at a time. The same Continue card on top, then the track's modules as
+ * cards; a module opens like a Resources course, with only its own lessons.
+ */
+export function WebCommunityTrackShelf(props: {
+  track: CommunityTrackView;
+  modules: readonly CommunityTrackShelfModule[];
+  onContinue: () => void;
+  onAllTracks?: () => void;
+  ownerActions?: ReactNode;
+}) {
+  const { track } = props;
+  const percent = track.step_count ? Math.round((track.done_count / track.step_count) * 100) : 0;
+  const started = track.done_count > 0 || track.status === "in_progress";
+  return (
+    <div className="track-home track-shelf">
+      {props.onAllTracks ? (
+        <button type="button" className="track-shelf-back" onClick={props.onAllTracks}><ArrowLeft size={14} aria-hidden="true" /> All tracks</button>
+      ) : null}
+      <button type="button" className="track-continue" onClick={props.onContinue} disabled={!track.next}>
+        <span className="track-continue-art"><TrackArt track={track} size="hero" /></span>
+        <span className="track-continue-body">
+          <small>{track.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track"}</small>
+          <strong>{track.title}</strong>
+          {track.next
+            ? <span className="track-continue-next">Next: <b>{track.next.title}</b> · {track.next.stage}</span>
+            : <span className="track-continue-next"><Check size={15} aria-hidden="true" /> Every lesson is done</span>}
+          <span className="track-continue-foot">
+            <span className="track-continue-progress">
+              <span className="track-bar" aria-hidden="true"><i style={{ width: `${percent}%` }} /></span>
+              <em>{track.done_count} of {track.step_count} lessons{track.minutes ? ` · about ${formatTrackMinutes(track.minutes)} in all` : ""}</em>
+            </span>
+            {track.next ? <span className="track-continue-go">{started ? "Continue" : "Start"} <ArrowRight size={16} /></span> : null}
+          </span>
+        </span>
+      </button>
+      <section className="track-group" aria-label="Modules">
+        <div className="track-group-head">
+          <h2>Modules</h2>
+          <span className="track-group-note">{trackFacts(track)}</span>
+          {props.ownerActions}
+        </div>
+        <ul className="track-grid">
+          {props.modules.map(({ stage, cover, onOpen, onChangeImage }, index) => {
+            const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
+            const going = !done && stage.done_count > 0;
+            const status = stage.locked ? "locked" : done ? "done" : going ? "in_progress" : "open";
+            const modulePercent = stage.step_count ? Math.round((stage.done_count / stage.step_count) * 100) : 0;
+            const blocker = stage.locked && stage.blocked_by
+              ? track.stages.findIndex((candidate) => candidate.steps.some((step) => step.resource_id === stage.blocked_by || step.ref === stage.blocked_by))
+              : -1;
+            return (
+              <li key={stage.name} className="track-card track-module-card" data-status={status}>
+                <button type="button" className="track-card-main" onClick={onOpen} disabled={stage.locked}>
+                  <span className="track-card-art" data-style={cover ? "image" : "route"}>
+                    {cover ? <img className="track-art-image" src={cover} alt="" /> : <span className="track-module-number" aria-hidden="true">{index + 1}</span>}
+                    {stage.locked ? <span className="track-card-badge"><Lock size={12} aria-hidden="true" /> Locked</span> : null}
+                  </span>
+                  <span className="track-card-body">
+                    <span className="track-module-eyebrow">Module {index + 1}</span>
+                    <strong>{stage.name}</strong>
+                    <span className="track-card-meta">
+                      {stage.locked
+                        ? blocker >= 0 ? `Opens after Module ${blocker + 1}` : "Opens after a checkpoint"
+                        : going ? `${stage.done_count} of ${plural(stage.step_count, "lesson")} done` : plural(stage.step_count, "lesson")}
+                    </span>
+                    {going ? <span className="track-bar" aria-hidden="true"><i style={{ width: `${modulePercent}%` }} /></span> : null}
+                    {stage.locked ? null : (
+                      <span className="track-card-action">
+                        {done ? <Check size={15} aria-hidden="true" /> : null}
+                        {done ? "Review" : going ? "Continue" : "Start"} <ArrowRight size={15} aria-hidden="true" />
+                      </span>
+                    )}
+                  </span>
+                </button>
+                {onChangeImage ? (
+                  <button type="button" className="track-card-edit" onClick={onChangeImage} aria-label={`Change the image for ${stage.name}`} title="Change image">
+                    <ImageIcon size={14} />
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
     </div>
   );
 }
@@ -530,6 +632,19 @@ export function WebCommunityTrackEditor<SessionT>(props: {
 
   const lessonTitle = useMemo(() => new Map((data?.lessons ?? []).map((lesson) => [lesson.id, lesson.title])), [data]);
   const [outcomesText, setOutcomesText] = useState<string | null>(null);
+  // A cover from the owner's computer: stored like a lesson image, saved as the link.
+  const [coverUpload, setCoverUpload] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const uploadCover = async (file: File | undefined) => {
+    if (!file) return;
+    setCoverUpload({ busy: true, error: null });
+    try {
+      const url = await uploadCloudCommunityResourceImage({ session: props.session, communityId: props.communityId, file });
+      setDraft((current) => (current ? { ...current, cover_url: url } : current));
+      setCoverUpload({ busy: false, error: null });
+    } catch (caught) {
+      setCoverUpload({ busy: false, error: caught instanceof Error ? caught.message : "That image didn't upload. Try again." });
+    }
+  };
   if (!data || !draft) {
     return (
       <div className="track-editor-backdrop" role="dialog" aria-modal="true" aria-label="Edit track">
@@ -627,6 +742,16 @@ export function WebCommunityTrackEditor<SessionT>(props: {
               </button>
             ))}
           </div>
+          <div className="track-cover-upload">
+            <label className="track-new">
+              <ImageIcon size={14} aria-hidden="true" /> {coverUpload.busy ? "Uploading…" : draft.cover_url ? "Replace image" : "Upload an image"}
+              <input type="file" accept="image/*" hidden disabled={coverUpload.busy}
+                onChange={(event) => { void uploadCover(event.target.files?.[0]); event.target.value = ""; }} />
+            </label>
+            {draft.cover_url ? <button type="button" className="track-new" onClick={() => update({ cover_url: null })}><X size={14} aria-hidden="true" /> Use a built-in cover</button> : null}
+          </div>
+          {draft.cover_url ? <img className="track-cover-preview" src={draft.cover_url} alt="" /> : null}
+          {coverUpload.error ? <em className="track-error">{coverUpload.error}</em> : null}
           <input aria-label="Cover image link" value={draft.cover_url ?? ""} onChange={(event) => update({ cover_url: event.target.value })}
             placeholder="Or paste an image link (https://…)" />
           <em className="track-hint">Built-in covers use your community's colours. The route draws one dot per module.</em>

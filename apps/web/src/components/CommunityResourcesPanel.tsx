@@ -39,6 +39,10 @@ type CommunityResourcesPanelProps = {
   lessonActivity?: WebLessonActivity | null;
   // Open this lesson in the editor (from the Roadmap's "Edit lesson"); a new key asks again.
   editRequest?: { resourceId: string; key: number } | null;
+  // Open this lesson for reading (a Roadmap track's module); a new key asks again.
+  openRequest?: { resourceId: string; key: number } | null;
+  // A course opened from a Roadmap track goes back to that track, not to All courses.
+  backTo?: { label: string; onBack: () => void } | null;
   // False while this panel is mounted but hidden (another Knowledge tab is open),
   // so the top bar doesn't offer a member view this page can't show.
   memberViewOffered?: boolean;
@@ -841,6 +845,14 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
     setActiveResourceEditField(field);
   };
 
+  const openRequestKey = props.openRequest?.key ?? null;
+  useEffect(() => {
+    const resource = props.openRequest ? state.resources.find((item) => item.id === props.openRequest?.resourceId) : null;
+    if (resource) handleSelectResource(resource);
+    // Only a new request opens the lesson, not a refreshed resource list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequestKey]);
+
   const editRequestKey = props.editRequest?.key ?? null;
   useEffect(() => {
     const resource = props.editRequest ? state.resources.find((item) => item.id === props.editRequest?.resourceId) : null;
@@ -1029,9 +1041,9 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
         {selectedModule || (capabilities.canOperateResources && !memberView.inTopBar) ? <div className="feed-header-row">
           <div className="feed-header-copy">
             {selectedModule ? (
-              <button className="resources-back-btn" type="button" onClick={handleBackToCatalog}>
+              <button className="resources-back-btn" type="button" onClick={() => { handleBackToCatalog(); props.backTo?.onBack(); }}>
                 <ArrowLeft aria-hidden="true" />
-                <span>All courses</span>
+                <span>{props.backTo?.label ?? "All courses"}</span>
               </button>
             ) : (
               <div className="resources-header">Resources</div>
