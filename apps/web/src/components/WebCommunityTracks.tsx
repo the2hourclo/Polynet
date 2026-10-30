@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, BadgeCheck, Check, Image as ImageIcon, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, ArrowUpRight, BadgeCheck, Check, Image as ImageIcon, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   COMMUNITY_MAIN_TRACK_KEY,
   type CommunityTrackRule,
@@ -373,17 +373,25 @@ export function WebCommunityTrackShelf(props: {
                     {cover ? <img className="track-art-image" src={cover} alt="" /> : <span className="track-module-number" aria-hidden="true">{index + 1}</span>}
                   </span>
                   <span className="track-card-body">
-                    <span className="track-module-eyebrow">Module {index + 1} · {plural(stage.step_count, "lesson")}</span>
-                    <strong>{stage.name}</strong>
-                    {going ? <span className="track-bar" aria-hidden="true"><i style={{ width: `${modulePercent}%` }} /></span> : null}
-                    {stage.locked ? (
-                      <span className="track-module-lock"><Lock size={13} aria-hidden="true" /> {blocker >= 0 ? `Opens after Module ${blocker + 1}` : "Locked"}</span>
-                    ) : (
-                      <span className="track-card-action">
-                        {done ? <Check size={15} aria-hidden="true" /> : null}
-                        {done ? "Review" : going ? `Continue · ${stage.done_count} of ${stage.step_count} done` : "Start"} <ArrowRight size={15} aria-hidden="true" />
+                    <span className="track-module-eyebrow">Module {index + 1}</span>
+                    <span className="track-module-title">
+                      <strong>{stage.name}</strong>
+                      {stage.locked ? null : <ArrowUpRight size={20} aria-hidden="true" />}
+                    </span>
+                    <span className="track-module-meta">
+                      <span>{plural(stage.step_count, "lesson")}</span>
+                      <span className="track-module-badge" data-status={status}>
+                        {stage.locked ? <Lock size={12} aria-hidden="true" /> : done ? <Check size={12} aria-hidden="true" /> : <i aria-hidden="true" />}
+                        {stage.locked ? "Locked" : done ? "Completed" : going ? "In progress" : "Not started"}
                       </span>
-                    )}
+                    </span>
+                    {going ? (
+                      <span className="track-module-progress">
+                        <span className="track-bar" aria-hidden="true"><i style={{ width: `${modulePercent}%` }} /></span>
+                        <em>{modulePercent}%</em>
+                      </span>
+                    ) : null}
+                    {stage.locked && blocker >= 0 ? <span className="track-module-lock">Opens after Module {blocker + 1}</span> : null}
                   </span>
                 </button>
                 {onChangeImage ? (

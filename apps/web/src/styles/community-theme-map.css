@@ -1014,16 +1014,32 @@
 [data-community-theme] .track-shelf-back {
   font-size: var(--pn-type-ui);
 }
+[data-community-theme] .track-module-card .track-card-main {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .track-module-eyebrow {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .track-module-title strong {
+  font-size: var(--pn-type-heading);
+}
+[data-community-theme] .track-module-meta {
+  font-size: var(--pn-type-ui);
+}
+[data-community-theme] .track-module-badge {
   font-size: var(--pn-type-label);
 }
-[data-community-theme] .track-module-lock {
+[data-community-theme] .track-module-progress em {
   font-size: var(--pn-type-ui);
+}
+[data-community-theme] .track-module-lock {
+  font-size: var(--pn-type-small);
 }
 [data-community-theme] .track-module-number {
   font-size: var(--pn-type-display);
 }
 [data-community-theme] .track-module-image {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
   font-size: var(--pn-type-label);
 }
 [data-community-theme] .track-cover-preview {

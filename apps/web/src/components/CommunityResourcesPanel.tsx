@@ -1158,7 +1158,12 @@ export function CommunityResourcesPanel(props: CommunityResourcesPanelProps) {
                   >
                     <span style={{ width: `${Math.round((selectedCourseProgress.done / selectedCourseProgress.total) * 100)}%` }} />
                   </span>
-                  <span>{selectedCourseProgress.done} of {selectedCourseProgress.total} done</span>
+                  {/* Saying how few are left keeps people going (the goal-gradient effect). */}
+                  <span>
+                    {selectedCourseProgress.done >= selectedCourseProgress.total
+                      ? "All done"
+                      : `${selectedCourseProgress.done} of ${selectedCourseProgress.total} done · ${selectedCourseProgress.total - selectedCourseProgress.done} to go`}
+                  </span>
                 </div>
               ) : null}
               <div
