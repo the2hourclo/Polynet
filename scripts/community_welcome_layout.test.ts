@@ -107,7 +107,7 @@ describe("welcome page layout", () => {
 
   it("puts personalized questions on a page of their own and asks for them before the last step", () => {
     const personal = (key: string, goal = "Find out what they want first"): WelcomeBlock => ({ type: "personal", key, goal, count: 9, backup: "What brought you here?" });
-    expect(normalizeWelcomeLayout([personal("p1")])).toEqual([{ ...personal("p1"), count: 3 }]);
+    expect(normalizeWelcomeLayout([personal("p1")])).toEqual([{ ...personal("p1"), count: 5 }]);
     expect(welcomeScreens([form("a"), personal("p1"), form("b")]).map((screen) => screen.step?.type)).toEqual(["form", "personal", "form"]);
     expect(welcomeLayoutIssue([form("a"), next, personal("p1"), next, form("b")])).toBeNull();
     expect(welcomeLayoutIssue([form("a"), next, personal("p1")])).toBe("welcome_personal_after_last_step");

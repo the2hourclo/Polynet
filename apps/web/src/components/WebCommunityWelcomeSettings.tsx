@@ -18,6 +18,7 @@ import { blankCommunityFormQuestion, communityFormValidationIssue, COMMUNITY_FOR
 import { MemberFormRunner } from "./WebCommunityNextStep";
 import { WelcomeFormPage } from "./WelcomeFormPage";
 import { WelcomePersonalPage } from "./WelcomePersonalPage";
+import type { WelcomePersonalQuestions } from "../../../../shared/cloudCommunityWelcomePersonalGateway";
 import { welcomeAnswerWords, welcomePersonalBackup, type WelcomePersonalAnswer } from "../../../../shared/communityWelcomePersonal";
 import { ChoiceIconMark, WelcomeScreenView, welcomeMediaMarkdown } from "./WebCommunityWelcome";
 import "./WebCommunityWelcomeSettings.css";
@@ -54,7 +55,7 @@ const withUid = (block: WelcomeBlock): EditorBlock => ({ ...block, uid: `b${++ne
 const stripUid = ({ uid: _uid, ...block }: EditorBlock): WelcomeBlock => block as WelcomeBlock;
 const isStep = (block: WelcomeBlock) => block.type === "form" || block.type === "lesson" || block.type === "personal";
 const PERSONAL_BACKUP = "What would make joining worth it for you?";
-const newPersonal = (): WelcomeBlock => ({ type: "personal", key: `personal-${crypto.randomUUID().slice(0, 8)}`, goal: "", count: 2, backup: PERSONAL_BACKUP });
+const newPersonal = (): WelcomeBlock => ({ type: "personal", key: `personal-${crypto.randomUUID().slice(0, 8)}`, goal: "", count: 3, backup: PERSONAL_BACKUP });
 const mediaLine = (url: string) => welcomeMediaMarkdown(url).replace(/^<(.*)>$/, "$1");
 const isLink = (value: string) => /^https:\/\/\S+$/i.test(value.trim());
 
@@ -246,7 +247,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
       { key: "link", label: "Video or image", hint: "A YouTube, Loom, Vimeo, Wistia or image link", icon: <ImageIcon size={16} aria-hidden="true" /> },
       ...(placed.formKeys.length < WELCOME_FORMS_MAX ? [{ key: "form", label: "Form", hint: "Questions every new member answers", icon: <ClipboardList size={16} aria-hidden="true" /> }] : []),
       ...(placed.lessonIds.length < WELCOME_LESSONS_MAX ? [{ key: "lesson", label: "Lesson", hint: "A lesson they read and mark done", icon: <BookOpen size={16} aria-hidden="true" /> }] : []),
-      ...(personalCount < WELCOME_PERSONAL_MAX ? [{ key: "personal", label: "Personalized questions", hint: "Give a goal; your agent writes questions for each member from their answers", icon: <Sparkles size={16} aria-hidden="true" /> }] : []),
+      ...(personalCount < WELCOME_PERSONAL_MAX ? [{ key: "personal", label: "Personalized questions", hint: "Give a goal; your agent asks each member, one question at a time", icon: <Sparkles size={16} aria-hidden="true" /> }] : []),
       { key: "next", label: "Page break", hint: "Start a new page here", icon: <SplitSquareVertical size={16} aria-hidden="true" /> },
     ].filter((item) => item.label.toLowerCase().includes(filter));
   }, [menu, publishedForms, options, placed, draft.layout, canWriteQuestions, personalCount]);
@@ -713,8 +714,8 @@ function PersonalEditor(props: {
     if (!props.onTry || !props.goal.trim()) return;
     setTrying(true); setTried(null);
     try {
-      const written = await props.onTry({ goal: props.goal, count: props.count, persona: persona.trim(), answers: [] });
-      setTried(written.questions?.length ? { titles: written.questions.map((question) => question.title), backup: false } : { titles: [props.backup], backup: true });
+      const turn = await props.onTry({ goal: props.goal, count: props.count, persona: persona.trim(), asked: 0, answers: [] });
+      setTried(turn.question ? { titles: [turn.question.title], backup: false } : { titles: [props.backup], backup: true });
     } catch { setTried({ titles: [props.backup], backup: true }); }
     finally { setTrying(false); }
   };
@@ -722,7 +723,7 @@ function PersonalEditor(props: {
     <div className="welcome-settings-choice-head">
       <span className="welcome-settings-step-icon"><Sparkles size={18} aria-hidden="true" /></span>
       <span className="welcome-settings-step-copy"><small>Personalized questions</small>
-        <span className="welcome-settings-step-note">Your agent writes these for each member, from the goal below and what they answered on earlier pages.</span></span>
+        <span className="welcome-settings-step-note">Your agent asks each member one question at a time, from the goal below and everything they've answered, and stops once it has what the goal needs.</span></span>
     </div>
     <label className="welcome-settings-choice-field">
       <span>Goal</span>
@@ -731,11 +732,11 @@ function PersonalEditor(props: {
         onChange={(goal) => props.onChange({ goal })} />
     </label>
     <div className="welcome-settings-personal-row">
-      <div className="welcome-settings-choice-field" role="group" aria-label="How many questions">
-        <span>How many questions</span>
+      <div className="welcome-settings-choice-field" role="group" aria-label="At most this many questions">
+        <span>Questions, at most</span>
         <div className="welcome-settings-device welcome-settings-personal-count">
           {Array.from({ length: WELCOME_PERSONAL_QUESTIONS_MAX }, (_, n) => n + 1).map((n) => (
-            <button key={n} type="button" aria-pressed={props.count === n} onClick={() => props.onChange({ count: n })}>{n === WELCOME_PERSONAL_QUESTIONS_MAX ? `Up to ${n}` : n}</button>
+            <button key={n} type="button" aria-pressed={props.count === n} onClick={() => props.onChange({ count: n })}>{n}</button>
           ))}
         </div>
       </div>
@@ -753,7 +754,7 @@ function PersonalEditor(props: {
       <button type="button" className="workflow-secondary-button" disabled={trying || !props.goal.trim()} onClick={() => void tryIt()}>
         <Sparkles size={14} aria-hidden="true" /> {trying ? "Writing…" : "Try it"}</button>
       {tried ? <div className="welcome-settings-personal-tried" role="status">
-        <small>{tried.backup ? "Your agent didn't answer in time, so this member would get the backup:" : "Your agent would ask:"}</small>
+        <small>{tried.backup ? "Your agent didn't answer in time, so this member would get the backup:" : "Your agent would start with this, then ask more from their answer:"}</small>
         <ol>{tried.titles.map((title, n) => <li key={n}>{title}</li>)}</ol>
       </div> : null}
     </div> : null}
@@ -1057,6 +1058,7 @@ function WelcomePreview(props: {
   const advance = () => setIndex((n) => n + 1);
   // What the pretend member answered so far, so personal questions build on it as they would for a member.
   const answered = useRef<WelcomePersonalAnswer[]>([]);
+  const personalRuns = useRef<Record<string, WelcomePersonalQuestions>>({});
   const heard = (questions: CommunityFormQuestion[], answers: Record<string, string | string[]>) => {
     const keys = new Set(questions.map((question) => question.title));
     answered.current = [...answered.current.filter((item) => !keys.has(item.question)),
@@ -1064,15 +1066,24 @@ function WelcomePreview(props: {
   };
   const renderStep = (step: WelcomeStep) => {
     if (step.type === "personal") {
-      const backup = () => ({ questions: welcomePersonalBackup(step.backup, "backup"), answers: {}, source: "backup" as const, answered: false });
+      // The same loop the server runs for a member: ask the agent after each answer until it finishes or reaches the limit.
+      const page = personalRuns.current[`${step.key}:${run}`] ??= { questions: [], answers: {}, source: "agent", answered: false };
+      const own = () => page.questions.map((question) => ({ question: question.title, answer: welcomeAnswerWords(question, page.answers[question.key]) }));
       return <WelcomePersonalPage key={`${step.key}:${run}`} preview onDone={advance}
-        nextLabel={index === lastStep ? "Finish and open the community" : "Next"}
         load={async () => {
-          if (!props.previewPersonal || !step.goal.trim()) return backup();
-          const written = await props.previewPersonal({ goal: step.goal, count: step.count, persona: "", answers: answered.current }).catch(() => ({ questions: null }));
-          return written.questions?.length ? { questions: written.questions, answers: {}, source: "agent" as const, answered: false } : backup();
+          const last = page.questions[page.questions.length - 1];
+          if (page.answered || (last && !page.answers[last.key])) return { ...page };
+          const asked = page.questions.length;
+          const turn = page.source === "backup" || asked >= step.count ? { question: null, replied: true }
+            : props.previewPersonal && step.goal.trim()
+              ? await props.previewPersonal({ goal: step.goal, count: step.count, persona: "", asked, answers: [...answered.current, ...own()] }).catch(() => ({ question: null, replied: false }))
+              : { question: null, replied: false };
+          if (turn.question) page.questions = [...page.questions, turn.question];
+          else if (!turn.replied && asked === 0) { page.questions = [welcomePersonalBackup(step.backup, "backup")]; page.source = "backup"; }
+          else page.answered = true;
+          return { ...page };
         }}
-        save={async () => undefined} />;
+        save={async (answers) => { page.answers = { ...answers }; }} />;
     }
     if (step.type === "lesson") {
       const lesson = props.lessonById.get(step.resourceId);

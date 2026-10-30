@@ -6,45 +6,44 @@ import type { WelcomePersonalQuestions } from "../../../../shared/cloudCommunity
 import { MemberFormQuestionInput } from "./WebCommunityNextStep";
 
 type Props = {
-  /** Writes the questions on the first visit (the agent, or the owner's backup) and returns the same ones after. */
+  /** The question waiting for the member; after an answer is sent, the agent's next one, or answered once it's done. */
   load: () => Promise<WelcomePersonalQuestions>;
-  /** Saves the answers; done once the member presses Next. */
+  /** Saves the answer; done sends it in, so the next load moves on. */
   save: (answers: FormAnswers, done: boolean) => Promise<void>;
   onDone: () => void;
-  nextLabel?: string;
   /** The owner's preview: says so under the button. */
   preview?: boolean;
 };
 
-// Questions the community's agent wrote for this member from the owner's goal
-// and their earlier answers. They show like the owner's own questions, with a
-// line saying who wrote them.
+// Questions the community's agent asks one at a time, from the owner's goal and
+// everything the member has said. After each answer it asks again or finishes,
+// so the page has as many questions as the goal needs. A line says who wrote them.
 export function WelcomePersonalPage(props: Props) {
   const id = useId();
   const agent = useCommunityAgentName(null) || "Your guide";
   const [set, setSet] = useState<WelcomePersonalQuestions | null>(null);
   const [answers, setAnswers] = useState<FormAnswers>({});
   const [error, setError] = useState<string | null>(null);
-  const [issues, setIssues] = useState<Record<string, string>>({});
+  const [issue, setIssue] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const alive = useRef(true);
   const latest = useRef(answers); latest.current = answers;
   const saved = useRef("{}");
+  const question = set ? set.questions[set.questions.length - 1] : undefined;
 
   const load = async () => {
-    setError(null);
+    setError(null); setSet(null);
     try {
       const next = await props.load();
       if (!alive.current) return;
-      // Answered before (another device, a cleared browser): the page moves on by itself.
-      if (next.answered && !props.preview) { props.onDone(); return; }
-      setSet(next); setAnswers(next.answers); saved.current = JSON.stringify(next.answers);
+      if (next.answered) { props.onDone(); return; }
+      setSet(next); setAnswers(next.answers); saved.current = JSON.stringify(next.answers); setIssue(null);
     } catch { if (alive.current) setError("These questions could not be opened. Check your connection and try again."); }
   };
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, []);
-  // Answers save as the member types, so leaving and coming back keeps them.
+  // The answer saves as the member types, so leaving and coming back keeps it.
   useEffect(() => {
-    if (!set || busy || JSON.stringify(answers) === saved.current) return;
+    if (!set || busy || props.preview || JSON.stringify(answers) === saved.current) return;
     const timer = setTimeout(() => {
       const snapshot = latest.current;
       void props.save(snapshot, false).then(() => { saved.current = JSON.stringify(snapshot); }).catch(() => undefined);
@@ -53,37 +52,33 @@ export function WelcomePersonalPage(props: Props) {
   }, [answers, set, busy]);
 
   const goOn = async () => {
-    if (!set) return;
-    const found = Object.fromEntries(set.questions.filter((q) => q.required && !formQuestionAnswered(q, answers)).map((q) => [q.key, "Please answer this question."]));
-    setIssues(found);
-    if (Object.keys(found).length) return;
+    if (!question) return;
+    if (!formQuestionAnswered(question, answers)) { setIssue("Please answer this question."); return; }
     setBusy(true); setError(null);
-    try { await props.save(answers, true); saved.current = JSON.stringify(answers); props.onDone(); }
-    catch { if (alive.current) setError("Could not save. Your answers are still here. Try again."); }
-    finally { if (alive.current) setBusy(false); }
+    try { await props.save(answers, true); saved.current = JSON.stringify(answers); }
+    catch { if (alive.current) setError("Could not save. Your answer is still here. Try again."); setBusy(false); return; }
+    setBusy(false);
+    if (alive.current) await load();
   };
 
-  if (!set) return <div className="welcome-form-page welcome-personal-page" aria-busy={!error}>
+  if (!set || !question) return <div className="welcome-form-page welcome-personal-page" aria-busy={!error}>
     {error ? <div role="alert"><p>{error}</p><button type="button" className="platform-save-button" onClick={() => void load()}>Retry</button></div>
-      : <p role="status" className="welcome-personal-writing"><Sparkles size={16} aria-hidden="true" /> {agent} is writing a few questions for you…</p>}
+      : <p role="status" className="welcome-personal-writing"><Sparkles size={16} aria-hidden="true" /> {agent} is {set ? "thinking" : "writing a question for you"}…</p>}
   </div>;
+  const fieldId = `${id}-${question.key}`;
+  const field = { "aria-labelledby": `${fieldId}-title`, "aria-describedby": [question.description ? `${fieldId}-help` : "", issue ? `${fieldId}-issue` : ""].filter(Boolean).join(" ") || undefined,
+    "aria-invalid": issue ? true : undefined };
   return <div className="welcome-form-page welcome-personal-page" data-personal="true">
-    {set.source === "agent" ? <p className="welcome-personal-by"><Sparkles size={14} aria-hidden="true" /> Written for you by {agent}, from your answers</p> : null}
-    {set.questions.map((q) => {
-      const fieldId = `${id}-${q.key}`;
-      const field = { "aria-labelledby": `${fieldId}-title`, "aria-describedby": [q.description ? `${fieldId}-help` : "", issues[q.key] ? `${fieldId}-issue` : ""].filter(Boolean).join(" ") || undefined,
-        "aria-invalid": issues[q.key] ? true : undefined };
-      return <div key={q.key} className="welcome-form-question" data-question={q.key}
-        onChange={() => setIssues((all) => { const { [q.key]: _gone, ...rest } = all; return rest; })}>
-        <h2 id={`${fieldId}-title`}>{q.title}{q.required ? null : <small> Optional</small>}</h2>
-        {q.description ? <p id={`${fieldId}-help`}>{q.description}</p> : null}
-        <MemberFormQuestionInput question={q} answers={answers} setAnswers={setAnswers} disabled={busy} field={field} />
-        {issues[q.key] ? <p role="alert" id={`${fieldId}-issue`} className="member-form-issue">{issues[q.key]}</p> : null}
-      </div>;
-    })}
+    {set.source === "agent" ? <p className="welcome-personal-by"><Sparkles size={14} aria-hidden="true" /> {agent} asks, from your answers</p> : null}
+    <div key={question.key} className="welcome-form-question" data-question={question.key} onChange={() => setIssue(null)}>
+      <h2 id={`${fieldId}-title`}>{question.title}</h2>
+      {question.description ? <p id={`${fieldId}-help`}>{question.description}</p> : null}
+      <MemberFormQuestionInput question={question} answers={answers} setAnswers={setAnswers} disabled={busy} field={field} />
+      {issue ? <p role="alert" id={`${fieldId}-issue`} className="member-form-issue">{issue}</p> : null}
+    </div>
     {error ? <p role="alert" className="member-form-issue">{error}</p> : null}
     <footer className="community-welcome-next">
-      <button type="button" className="platform-save-button" disabled={busy} onClick={() => void goOn()}>{busy ? "Saving…" : props.nextLabel ?? "Next"}</button>
+      <button type="button" className="platform-save-button" disabled={busy} onClick={() => void goOn()}>{busy ? "Saving…" : "Next"}</button>
       {props.preview ? <small role="status">Preview: answers aren't saved</small> : null}
     </footer>
   </div>;

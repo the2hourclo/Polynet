@@ -41,7 +41,8 @@ export const WELCOME_CHOICE_ICON_MAX = 8_000;
 export const WELCOME_PERSONAL_MAX = 3;
 export const WELCOME_PERSONAL_GOAL_MAX = 1_000;
 export const WELCOME_PERSONAL_BACKUP_MAX = 500;
-export const WELCOME_PERSONAL_QUESTIONS_MAX = 3;
+/** The most questions the agent may ask on one personal page; it stops sooner once it has what the goal needs. */
+export const WELCOME_PERSONAL_QUESTIONS_MAX = 5;
 
 /** A card icon must be an https image link or a small inline image; anything else is refused. */
 export function isWelcomeChoiceIcon(value: string): boolean {
@@ -123,7 +124,7 @@ export function normalizeWelcomeLayout(layout: WelcomeBlock[]): WelcomeBlock[] {
       else if (!questions || questions.length) out.push({ type: "form", formKey, ...(questions ? { questions } : {}) });
     } else if (block.type === "personal") {
       out.push({ type: "personal", key: block.key.trim(), goal: block.goal.replace(/\r\n?/g, "\n").trim(), backup: block.backup.replace(/\s+/g, " ").trim(),
-        count: Math.max(1, Math.min(WELCOME_PERSONAL_QUESTIONS_MAX, Math.round(Number(block.count) || 1))) });
+        count: Math.max(1, Math.min(WELCOME_PERSONAL_QUESTIONS_MAX, Math.round(Number(block.count) || 3))) });
     } else out.push({ type: "lesson", resourceId: block.resourceId.trim() });
   }
   while (out.length && out[out.length - 1].type === "next") out.pop();

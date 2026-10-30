@@ -342,7 +342,7 @@ export function WebCommunityWelcome(props: Props) {
       </div>;
     }
     if (step.type === "personal") {
-      return <WelcomePersonalPage key={step.key} nextLabel={lastStep ? "Finish and open the community" : "Next"}
+      return <WelcomePersonalPage key={step.key}
         load={async () => {
           const ready = await props.ensureSession(props.session, "community_welcome_personal");
           if (!ready) throw new Error("session_unavailable");

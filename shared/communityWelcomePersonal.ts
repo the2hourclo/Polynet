@@ -2,39 +2,97 @@ import type { CommunityFormQuestion } from "./communityForms";
 import { normalizeCommunityFormAgentDraft } from "./communityFormAgentDraft";
 import { WELCOME_PERSONAL_QUESTIONS_MAX } from "./communityWelcomeLayout";
 
-// Personal questions on the welcome page: the owner gives a goal, and the
-// community's agent writes a few questions for each member from what they have
-// already answered. The agent's reply is untrusted text, so it goes through the
-// same clamping as "Draft with The Builder", and anything unusable falls back to
-// the owner's backup question.
+// Personal questions on the welcome page, asked one at a time. The owner gives
+// a goal; the community's agent has two tools: ask_question (the next question,
+// built on everything the member has said) and finish (it has what the goal
+// needs). It is called again after each answer, up to the owner's limit. Its
+// reply is untrusted, so a question goes through the same clamping as "Draft
+// with The Builder"; when it can't ask the first question, the owner's backup
+// question is asked instead.
 
 /** One earlier answer the agent reads: the question as the member saw it, and their answer in words. */
 export type WelcomePersonalAnswer = { question: string; answer: string };
+/** The agent's turn: the next question, or done. */
+export type WelcomePersonalTurn = { kind: "ask"; question: CommunityFormQuestion } | { kind: "finish" };
 
-export function welcomePersonalPrompt(count: number): string {
+const QUESTION_TYPES = ["short_text", "long_text", "single_choice", "multiple_choice"];
+
+/** The two tools the agent is given. Strict schemas list every property as required. */
+export const WELCOME_PERSONAL_TOOLS = [
+  {
+    type: "function" as const, name: "ask_question", strict: true,
+    description: "Ask the member one more question. It shows on its own page; their answer comes back before you choose again.",
+    parameters: {
+      type: "object", additionalProperties: false, required: ["title", "description", "type", "options"],
+      properties: {
+        title: { type: "string", minLength: 1, maxLength: 300, description: "The question, short, plain and warm." },
+        description: { type: "string", maxLength: 300, description: "One optional line under it, or empty." },
+        type: { type: "string", enum: QUESTION_TYPES },
+        options: { type: "array", maxItems: 8, items: { type: "string", maxLength: 120 }, description: "2 to 8 short options for a choice question, otherwise empty." },
+      },
+    },
+  },
+  {
+    type: "function" as const, name: "finish", strict: true,
+    description: "Stop asking: you have what the owner's goal needs, or another question would only repeat what the member said.",
+    parameters: { type: "object", additionalProperties: false, required: ["reason"], properties: { reason: { type: "string", maxLength: 300 } } },
+  },
+];
+
+export function welcomePersonalPrompt(asked: number, max: number): string {
+  const left = Math.max(0, max - asked);
   return [
-    "You are the guide of an online community, welcoming one new member.",
-    "The owner tells you what they want to learn. You see what this member has already answered.",
-    `Write ${count === 1 ? "one question" : `up to ${count} questions`} for this member that move toward the owner's goal, built on their own words.`,
-    "Ask only what their earlier answers don't already tell you. Each question is short, plain and warm, answered in seconds. No advice, no selling, no compliments.",
-    "Reply with JSON only, no prose and no code fence, shaped like:",
-    '{"questions": [{"title": "Question", "description": "", "type": "short_text", "required": true, "options": []}]}',
-    "type is one of short_text, long_text, single_choice, multiple_choice. Choice questions need 2 to 8 short, distinct options.",
+    "You are the guide of an online community, welcoming one new member through a few questions, one at a time.",
+    "The owner tells you what they want to learn (owner_goal). You see what this member has already answered, including your own earlier questions here.",
+    "Choose your next move with a tool: ask_question for the one question that moves furthest toward the goal, built on their own words, or finish once the goal is met.",
+    asked === 0 ? "This is your first question, so ask one." : `You have asked ${asked}; you may ask ${left} more at most. Finish as soon as another question wouldn't add something new.`,
+    "Ask only what their answers don't already tell you. Each question is answered in seconds. No advice, no selling, no compliments.",
+    'If you can\'t call tools, reply with JSON only: {"ask": {"title": "…", "description": "", "type": "short_text", "options": []}} or {"finish": true}.',
   ].join("\n");
 }
 
-/** The agent's questions, at most `count`, with fresh keys; null when the reply holds none it can use. */
-export function normalizeWelcomePersonalQuestions(reply: string, count: number, newKey: () => string): CommunityFormQuestion[] | null {
+function parseJson(text: string): any {
+  const start = text.indexOf("{"), end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+}
+
+/** One question from the agent, clamped like a drafted form's, with a fresh key; null when it isn't usable. */
+export function normalizeWelcomePersonalQuestion(raw: unknown, newKey: () => string): CommunityFormQuestion | null {
   try {
-    const { questions } = normalizeCommunityFormAgentDraft(reply, [], newKey);
-    return questions.slice(0, Math.max(1, Math.min(WELCOME_PERSONAL_QUESTIONS_MAX, count)))
-      .map(({ clientPropertyKey: _unused, ...question }) => question);
+    const { questions } = normalizeCommunityFormAgentDraft(JSON.stringify({ name: "", questions: [{ ...(raw as object), required: true }] }), [], newKey);
+    const question = questions[0];
+    if (!question) return null;
+    const { clientPropertyKey: _unused, ...rest } = question;
+    return { ...rest, required: true };
   } catch { return null; }
 }
 
-/** The owner's backup, asked when the agent can't write the questions in time. */
-export function welcomePersonalBackup(backup: string, key: string): CommunityFormQuestion[] {
-  return [{ key, title: backup, description: "", type: "long_text", required: true, options: [] }];
+/** Reads the agent's turn from a tool call, or from a JSON reply when the engine has no tools; null when it says nothing usable. */
+export function readWelcomePersonalTurn(completion: any, newKey: () => string): WelcomePersonalTurn | null {
+  const calls = completion?.type === "tool_call" ? [completion] : completion?.type === "tool_calls" ? completion.toolCalls ?? [] : [];
+  for (const call of calls) {
+    if (call?.toolName === "finish") return { kind: "finish" };
+    if (call?.toolName === "ask_question") {
+      const question = normalizeWelcomePersonalQuestion(call.arguments, newKey);
+      if (question) return { kind: "ask", question };
+    }
+  }
+  if (completion?.type !== "assistant") return null;
+  const reply = parseJson(String(completion.assistantText ?? ""));
+  if (!reply) return null;
+  if (reply.finish) return { kind: "finish" };
+  const raw = reply.ask ?? (Array.isArray(reply.questions) ? reply.questions[0] : null);
+  const question = raw ? normalizeWelcomePersonalQuestion(raw, newKey) : null;
+  return question ? { kind: "ask", question } : null;
+}
+
+/** How many questions a block may ask, from what the owner set. */
+export const welcomePersonalLimit = (count: number) => Math.max(1, Math.min(WELCOME_PERSONAL_QUESTIONS_MAX, Math.round(count) || 1));
+
+/** The owner's backup, asked when the agent can't write the first question in time. */
+export function welcomePersonalBackup(backup: string, key: string): CommunityFormQuestion {
+  return { key, title: backup, description: "", type: "long_text", required: true, options: [] };
 }
 
 /** An answer in words, for the agent to read: a choice answer becomes the option the member picked. */

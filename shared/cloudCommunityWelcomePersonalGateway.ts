@@ -7,7 +7,7 @@ import type { WelcomePersonalAnswer } from "./communityWelcomePersonal";
 
 export type WelcomePersonalQuestions = { questions: CommunityFormQuestion[]; answers: FormAnswers; source: "agent" | "backup"; answered: boolean };
 
-/** The member's personal questions for one welcome block; the first call has the agent write them. */
+/** The member's personal page: the question waiting for them; after an answer, the agent's next one (or answered: true). */
 export async function askMyWelcomePersonalQuestions(session: unknown, communityId: string, blockKey: string): Promise<WelcomePersonalQuestions> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.action(api.communityWelcomePersonal.askMyWelcomePersonalQuestions, { authSubject, communityId: communityId as Id<"communities">, blockKey });
@@ -16,9 +16,9 @@ export async function saveMyWelcomePersonalAnswers(session: unknown, communityId
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.mutation(api.communityWelcomePersonal.saveMyWelcomePersonalAnswers, { authSubject, communityId: communityId as Id<"communities">, blockKey, answers, done });
 }
-/** The owner's preview for a pretend member; null questions means the backup would be asked. */
+/** The owner's preview: the agent's next move for a pretend member. replied with no question means it finishes. */
 export async function previewWelcomePersonalQuestions(session: unknown, communityId: string,
-  draft: { goal: string; count: number; persona: string; answers: WelcomePersonalAnswer[] }): Promise<{ questions: CommunityFormQuestion[] | null }> {
+  draft: { goal: string; count: number; persona: string; asked: number; answers: WelcomePersonalAnswer[] }): Promise<{ question: CommunityFormQuestion | null; replied: boolean }> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.action(api.communityWelcomePersonal.previewWelcomePersonalQuestions, { authSubject, communityId: communityId as Id<"communities">, ...draft });
 }

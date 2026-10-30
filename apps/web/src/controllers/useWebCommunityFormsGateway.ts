@@ -8,6 +8,7 @@ import { fetchCloudMemberProgressReport, type CommunityMemberProgressReport } fr
 import { previewWelcomePersonalQuestions } from "../../../../shared/cloudCommunityWelcomePersonalGateway";
 import type { WelcomePersonalAnswer } from "../../../../shared/communityWelcomePersonal";
 
+export type PersonalPreviewDraft = { goal: string; count: number; persona: string; asked: number; answers: WelcomePersonalAnswer[] };
 export type CommunityFormsGateway = {
   responses?: (membershipId: string) => ReturnType<typeof listCloudCommunityFormResponses>;
   // The member's course progress and lesson answers, beside their form answers.
@@ -35,8 +36,8 @@ export type CommunityFormsGateway = {
     approve: (proposalId: string) => Promise<CommunitySettingProposal>;
     decline: (proposalId: string) => Promise<CommunitySettingProposal>;
   };
-  /** The welcome page's personal questions, written for a pretend member in the preview; null means the backup is asked. */
-  previewPersonal?: (draft: { goal: string; count: number; persona: string; answers: WelcomePersonalAnswer[] }) => Promise<{ questions: CommunityFormDraft["questions"] | null }>;
+  /** The welcome page's personal questions: the agent's next move for a pretend member (replied with no question means it finishes). */
+  previewPersonal?: (draft: PersonalPreviewDraft) => Promise<{ question: CommunityFormDraft["questions"][number] | null; replied: boolean }>;
   /** Client properties a question can fill. */
   clientProperties?: () => Promise<CloudCommunityClientProperty[]>;
 };
@@ -69,7 +70,7 @@ export function useWebCommunityFormsGateway(params: {
       guideChannelIds: () => run(s => listCloudWorkflowGuideChannelIds(s, communityId)),
       agentName: () => run(s => loadCloudCommunityFormDraftAgentName(s, communityId)),
       draftWithAgent: (brief: string) => run(s => draftCloudCommunityFormWithAgent(s, communityId, brief)),
-      previewPersonal: (draft: { goal: string; count: number; persona: string; answers: WelcomePersonalAnswer[] }) => run(s => previewWelcomePersonalQuestions(s, communityId, draft)),
+      previewPersonal: (draft: PersonalPreviewDraft) => run(s => previewWelcomePersonalQuestions(s, communityId, draft)),
       changes: {
         list: () => run(s => listCloudWorkflowChanges(s, communityId)),
         undo: (changeId: string) => run(s => undoCloudWorkflowChange(s, communityId, changeId)),
