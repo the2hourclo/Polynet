@@ -9726,30 +9726,37 @@ button.chat-reply-quote:hover {
 }
 .knowledge-resource-reader .resource-viewer-content.is-video-lesson .resource-viewer-hero { margin-top: 1rem; }
 
-/* Mark as done: the last thing in a lesson, the same tick the outline shows. */
-.lesson-done-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-default); }
+/* Mark as done and Next close a lesson like a Substack post's action bar:
+   round pills with room around them, no box behind them (Rashid, 2026-10-30). */
+.lesson-done-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-default); }
 .lesson-done-button {
-  display: inline-flex; align-items: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem;
-  border: 1px solid var(--border-default); border-radius: 0.5rem; background: var(--bg-card); color: var(--text-primary);
-  font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.5rem; height: 2.75rem; padding: 0 1.25rem;
+  border: 1px solid var(--border-default); border-radius: 999px; background: var(--bg-card); color: var(--text-primary);
+  font: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); transition: background 120ms ease, border-color 120ms ease;
 }
-.lesson-done-button svg { width: 1rem; height: 1rem; color: var(--text-muted); }
-.lesson-done-button:hover { background: var(--hover-overlay); }
-.lesson-done-button.is-done { border-color: transparent; background: var(--accent-brand, var(--bg-button)); color: var(--bg-button-text, #fff); }
-.lesson-done-button.is-done svg { color: currentColor; }
+.lesson-done-button svg { width: 1.0625rem; height: 1.0625rem; color: var(--text-muted); }
+.lesson-done-button:hover { border-color: color-mix(in srgb, var(--accent-brand) 45%, var(--border-default)); }
+.lesson-done-button.is-done {
+  border-color: color-mix(in srgb, var(--accent-brand) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-brand) 14%, var(--bg-card)); color: var(--text-primary);
+}
+.lesson-done-button.is-done svg { color: var(--accent-brand); }
 .lesson-done-button:focus-visible { outline: 2px solid var(--border-active, var(--text-primary)); outline-offset: 2px; }
 /* Mark as done and Next stay in reach while reading: the row sits at the end
    of the lesson and, until the reader gets there, sticks to the bottom of the
-   window (Rashid, 2026-10-27: "should be visible as we scroll down or up"). */
+   window (Rashid, 2026-10-27: "should be visible as we scroll down or up").
+   While stuck it's only the two pills floating over the text, no panel. */
 .lesson-done-row:has(> button) {
   position: sticky;
   bottom: 0;
   z-index: 3;
-  padding-bottom: 1rem;
-  background: color-mix(in srgb, var(--bg-primary, var(--bg-card, #fff)) 92%, transparent);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  padding-bottom: 1.25rem;
+  border-top: 0;
+  pointer-events: none;
 }
+.lesson-done-row:has(> button) > * { pointer-events: auto; }
+.lesson-done-row:has(> button) > button { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14); }
 /* Phone: one row (Done keeps its size, Next shortens), and the floating Ask AI
    button rises above the bar instead of covering Next. */
 @media (max-width: 640px) {
@@ -9773,13 +9780,14 @@ button.chat-reply-quote:hover {
 /* Next lesson, on the right of Mark as done, in the community's accent. */
 .lesson-next-button {
   /* A long lesson title stays one short line; the full title is in the tooltip. */
-  display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: min(100%, 22rem); margin-left: auto;
-  height: 2.5rem; padding: 0 1rem; border: 1px solid transparent; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: min(100%, 24rem); margin-left: auto;
+  height: 2.75rem; padding: 0 1.375rem; border: 1px solid transparent; border-radius: 999px;
   background: var(--accent-brand, var(--bg-button)); color: var(--bg-button-text, #fff);
-  font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer;
 }
 .lesson-next-button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lesson-next-button svg { flex: none; width: 1rem; height: 1rem; }
+.lesson-next-button .lesson-next-title { font-weight: 500; opacity: 0.92; }
+.lesson-next-button svg { flex: none; width: 1.0625rem; height: 1.0625rem; }
 .lesson-next-button:hover { filter: brightness(1.06); }
 .lesson-next-button:focus-visible { outline: 2px solid var(--border-active, var(--text-primary)); outline-offset: 2px; }
 /* Course · Lesson 2 of 8 · 4 min read, the quiet line over a lesson's title. */
