@@ -259,7 +259,7 @@ export function WebCommunityTrackHome(props: {
         <button type="button" className="track-continue" onClick={() => (props.onContinue ? props.onContinue(current) : props.onOpenTrack(current.key))}>
           <span className="track-continue-art"><TrackArt track={current} size="hero" /></span>
           <span className="track-continue-body">
-            <small>{current.status === "in_progress" ? "Pick up where you left off" : "Start here"}</small>
+            <small>{current.status === "in_progress" ? "Continue where you left off" : "Start here"}</small>
             <strong>{current.title}</strong>
             <span className="track-continue-next">Next: <b>{current.next.title}</b> · {current.next.stage}</span>
             <span className="track-continue-foot">
