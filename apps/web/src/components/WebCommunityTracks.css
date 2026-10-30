@@ -4,7 +4,7 @@
    to get in (earn it, or add it to your plan). Every colour comes from the
    community's tokens, so it reads as its own world in light and dark. */
 .community-knowledge-page:has(.track-home) { max-width: 64rem; width: 100%; margin-inline: auto; }
-.track-home, .track-locked, .lesson-board-panel > .track-opens, .lesson-board-panel > .track-header {
+.track-home, .track-locked, .lesson-board-panel > .track-opens, .lesson-board-panel > .track-header, .lesson-board-panel > .track-library {
   box-sizing: border-box; width: 100%; padding-inline: 24px;
 }
 .track-home { display: grid; gap: 44px; padding-top: 12px; padding-bottom: 56px; }
@@ -299,7 +299,7 @@
 }
 
 @media (max-width: 640px) {
-  .track-home, .track-locked, .lesson-board-panel > .track-opens, .lesson-board-panel > .track-header { padding-inline: 16px; }
+  .track-home, .track-locked, .lesson-board-panel > .track-opens, .lesson-board-panel > .track-header, .lesson-board-panel > .track-library { padding-inline: 16px; }
   .track-home { gap: 32px; }
   .track-continue { grid-template-columns: 1fr; }
   .track-continue-art { min-height: 140px; }

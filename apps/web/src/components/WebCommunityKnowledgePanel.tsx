@@ -342,7 +342,8 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   // Resources · Roadmap · Graph belong to Knowledge's main view; inside a
   // course, lesson or track they step aside (Rashid, 2026-10-27), and a lesson
   // offers Focus mode in their place.
-  const insideKnowledge = reading || Boolean(boardOpen && activeTrack && tracks.length > 1);
+  // The Edit and Graph buttons stay on a track's page too, and step aside only while reading.
+  const insideKnowledge = reading;
   const [focus, setFocus] = useState(false);
   const focusOn = focus && lessonOpen;
   useEffect(() => {
