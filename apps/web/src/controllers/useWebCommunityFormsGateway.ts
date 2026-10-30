@@ -5,6 +5,8 @@ import { deleteCloudCommunityForm, draftCloudCommunityFormWithAgent, loadCloudCo
 import { listCloudWorkflowChanges, setCloudWorkflowAgentChangeReview, undoCloudWorkflowChange, type WorkflowAgentChangeReview, type WorkflowStageChanges } from "../../../../shared/cloudCommunityWorkflowChangesGateway";
 import { applyCloudCommunitySettingProposal, listCloudCommunitySettingProposals, rejectCloudCommunitySettingProposal, type CommunitySettingProposal } from "../../../../shared/cloudCommunitySettingProposalsGateway";
 import { fetchCloudMemberProgressReport, type CommunityMemberProgressReport } from "../../../../shared/cloudCommunityResourceProgressGateway";
+import { previewWelcomePersonalQuestions } from "../../../../shared/cloudCommunityWelcomePersonalGateway";
+import type { WelcomePersonalAnswer } from "../../../../shared/communityWelcomePersonal";
 
 export type CommunityFormsGateway = {
   responses?: (membershipId: string) => ReturnType<typeof listCloudCommunityFormResponses>;
@@ -33,6 +35,8 @@ export type CommunityFormsGateway = {
     approve: (proposalId: string) => Promise<CommunitySettingProposal>;
     decline: (proposalId: string) => Promise<CommunitySettingProposal>;
   };
+  /** The welcome page's personal questions, written for a pretend member in the preview; null means the backup is asked. */
+  previewPersonal?: (draft: { goal: string; count: number; persona: string; answers: WelcomePersonalAnswer[] }) => Promise<{ questions: CommunityFormDraft["questions"] | null }>;
   /** Client properties a question can fill. */
   clientProperties?: () => Promise<CloudCommunityClientProperty[]>;
 };
@@ -65,6 +69,7 @@ export function useWebCommunityFormsGateway(params: {
       guideChannelIds: () => run(s => listCloudWorkflowGuideChannelIds(s, communityId)),
       agentName: () => run(s => loadCloudCommunityFormDraftAgentName(s, communityId)),
       draftWithAgent: (brief: string) => run(s => draftCloudCommunityFormWithAgent(s, communityId, brief)),
+      previewPersonal: (draft: { goal: string; count: number; persona: string; answers: WelcomePersonalAnswer[] }) => run(s => previewWelcomePersonalQuestions(s, communityId, draft)),
       changes: {
         list: () => run(s => listCloudWorkflowChanges(s, communityId)),
         undo: (changeId: string) => run(s => undoCloudWorkflowChange(s, communityId, changeId)),

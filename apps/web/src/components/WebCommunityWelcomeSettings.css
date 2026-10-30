@@ -344,3 +344,14 @@
 .welcome-settings-question:is(:hover, :focus-within) .welcome-settings-question-options .welcome-settings-icon-button { opacity: 1; }
 .welcome-settings-form :is(.welcome-settings-link) { text-decoration: none; font-size: var(--pn-type-small, 13px); font-weight: 600; }
 .welcome-settings-form .welcome-settings-link:hover { text-decoration: underline; }
+.welcome-settings-personal textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-workspace); color: var(--text-primary); font: inherit; font-size: 14px; line-height: 1.5; resize: none; overflow: hidden; }
+.welcome-settings-personal textarea:focus { outline: none; border-color: var(--accent-brand, var(--accent-primary)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-brand, var(--accent-primary)) 18%, transparent); }
+.welcome-settings-personal-row { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.welcome-settings-personal-row > .welcome-settings-choice-field:first-child { flex: 0 0 auto; }
+.welcome-settings-personal-count { align-self: flex-start; }
+.welcome-settings-personal-try { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; padding-top: 12px; border-top: 1px solid var(--border-subtle, var(--border-default)); }
+.welcome-settings-personal-try > .welcome-settings-choice-field { flex: 1 1 260px; }
+.welcome-settings-personal-tried { flex-basis: 100%; padding: 10px 12px; border-radius: 8px; background: var(--hover-overlay); }
+.welcome-settings-personal-tried small { color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.welcome-settings-personal-tried ol { margin: 6px 0 0; padding-left: 20px; font-size: 14px; line-height: 1.5; }
+.welcome-settings-personal-try > .workflow-secondary-button { height: 36px; }

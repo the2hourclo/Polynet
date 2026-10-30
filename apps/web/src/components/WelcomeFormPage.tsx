@@ -18,6 +18,8 @@ type Props = {
   onPageDone: () => void;
   /** The owner's preview: the form as members get it; nothing is loaded or saved. */
   preview?: MemberFormRequest;
+  /** Hears the page's answers as it moves on (the preview feeds them to personalized questions). */
+  onAnswers?: (questions: CommunityFormQuestion[], answers: FormAnswers) => void;
   /** The button's words on the last page. */
   submitLabel?: string;
 };
@@ -98,7 +100,7 @@ export function WelcomeFormPage(props: Props) {
       const missing = formAnswersIssue(request.questions, answers, true);
       if (missing && !props.preview) { setError(missing); return; }
     }
-    if (await save(props.last ? "submit" : "continue")) props.onPageDone();
+    if (await save(props.last ? "submit" : "continue")) { props.onAnswers?.(questions, answers); props.onPageDone(); }
   };
 
   if (!request) return error

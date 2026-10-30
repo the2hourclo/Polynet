@@ -9,6 +9,8 @@ import { legacyWelcomeLayout, welcomeFormPartPlace, welcomeFormPartQuestions, we
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { MemberFormRunner } from "./WebCommunityNextStep";
 import { WelcomeFormPage } from "./WelcomeFormPage";
+import { WelcomePersonalPage } from "./WelcomePersonalPage";
+import { askMyWelcomePersonalQuestions, saveMyWelcomePersonalAnswers } from "../../../../shared/cloudCommunityWelcomePersonalGateway";
 import { WebCommunityResourceViewerContent, type WebLessonActivity } from "./WebCommunityResourceViewerContent";
 import type { CommunityResource } from "./communityResourcesContracts";
 import "./WebCommunityNextStep.css";
@@ -182,7 +184,8 @@ export function memberWelcomeLayout(page: { message?: string | null; media_url?:
 const seenKey = (communityId: string) => `polynet:welcome-seen:${communityId}`;
 // The earlier pages of a split form the member has finished, by form and first question.
 const partsKey = (communityId: string) => `polynet:welcome-parts:${communityId}`;
-export const welcomePartId = (step: WelcomeStep) => (step.type === "form" ? `${step.formKey}:${step.questions?.[0] ?? ""}` : "");
+export const welcomePartId = (step: WelcomeStep) => (step.type === "form" ? `${step.formKey}:${step.questions?.[0] ?? ""}`
+  : step.type === "personal" ? `personal:${step.key}` : "");
 function readParts(communityId: string): string[] {
   try { const value = JSON.parse(localStorage.getItem(partsKey(communityId)) ?? "[]"); return Array.isArray(value) ? value.filter((item) => typeof item === "string") : []; }
   catch { return []; }
@@ -282,6 +285,7 @@ export function WebCommunityWelcome(props: Props) {
   const stepOwed = (step: WelcomeStep) => step.type === "form"
     ? (rows === null ? formsOwed : owedKeys.includes(step.formKey))
       && (!step.questions || welcomeFormPartPlace(layout, step).last || !partsDone.includes(welcomePartId(step)))
+    : step.type === "personal" ? !partsDone.includes(welcomePartId(step))
     : props.lessonIds.includes(step.resourceId) && lessonById.has(step.resourceId);
   const finishPart = (step: WelcomeStep) => {
     const next = [...partsDone.filter((item) => item !== welcomePartId(step)), welcomePartId(step)];
@@ -336,6 +340,20 @@ export function WebCommunityWelcome(props: Props) {
           {lessonError ? <p role="alert">{lessonError}</p> : null}
         </footer>
       </div>;
+    }
+    if (step.type === "personal") {
+      return <WelcomePersonalPage key={step.key} nextLabel={lastStep ? "Finish and open the community" : "Next"}
+        load={async () => {
+          const ready = await props.ensureSession(props.session, "community_welcome_personal");
+          if (!ready) throw new Error("session_unavailable");
+          return askMyWelcomePersonalQuestions(ready, props.communityId, step.key);
+        }}
+        save={async (answers, done) => {
+          const ready = await props.ensureSession(props.session, "community_welcome_personal");
+          if (!ready) throw new Error("session_unavailable");
+          await saveMyWelcomePersonalAnswers(ready, props.communityId, step.key, answers, done);
+        }}
+        onDone={() => finishPart(step)} />;
     }
     const row = rows?.find((r) => (r.form_key ?? `request:${r.id}`) === step.formKey);
     if (step.questions) {

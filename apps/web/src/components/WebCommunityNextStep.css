@@ -148,3 +148,8 @@
 .welcome-form-question :is(input, textarea):focus-visible, .welcome-form-page button:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
 .welcome-form-page .community-welcome-next { align-items:center; gap:12px; }
 .welcome-form-page .community-welcome-next small { color:var(--text-secondary); font-size:var(--pn-type-small, 13px); }
+.welcome-personal-by { display:inline-flex; align-items:center; gap:6px; margin:0 0 -16px; color:var(--text-secondary); font-size:var(--pn-type-small, 13px); font-weight:600; }
+.welcome-personal-writing { display:inline-flex; align-items:center; gap:8px; margin:0; color:var(--text-secondary); }
+.welcome-personal-writing svg { animation:welcome-personal-pulse 1.4s ease-in-out infinite; }
+@keyframes welcome-personal-pulse { 50% { opacity:.35; } }
+@media (prefers-reduced-motion: reduce) { .welcome-personal-writing svg { animation:none; } }

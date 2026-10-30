@@ -86,6 +86,7 @@ import type * as communityEvidenceCore from "../communityEvidenceCore.js";
 import type * as communityFeatured from "../communityFeatured.js";
 import type * as communityFormEvidenceCore from "../communityFormEvidenceCore.js";
 import type * as communityFormDrafts from "../communityFormDrafts.js";
+import type * as communityWelcomePersonal from "../communityWelcomePersonal.js";
 import type * as communityFormRequestCore from "../communityFormRequestCore.js";
 import type * as communityFormRequests from "../communityFormRequests.js";
 import type * as communityFormValidators from "../communityFormValidators.js";
@@ -374,6 +375,7 @@ declare const fullApi: ApiFromModules<{
   communityFeatured: typeof communityFeatured;
   communityFormEvidenceCore: typeof communityFormEvidenceCore;
   communityFormDrafts: typeof communityFormDrafts;
+  communityWelcomePersonal: typeof communityWelcomePersonal;
   communityFormRequestCore: typeof communityFormRequestCore;
   communityFormRequests: typeof communityFormRequests;
   communityFormValidators: typeof communityFormValidators;

@@ -111,6 +111,21 @@ function goTo(path: string | undefined) {
 /** The welcome page can open with screens of words before a step: read on past them, as a member would. */
 async function passWelcomeScreens(cursor: Cursor, pace: number) {
   for (let turn = 0; turn < 20; turn += 1) {
+    // Questions the agent wrote for this member aren't in the test's script: a short test answer goes in each.
+    const personal = Array.from(document.querySelectorAll<HTMLElement>(".welcome-personal-page")).filter(shown)[0];
+    if (personal) {
+      if (!personal.querySelector(".welcome-form-question")) { await waitFor(() => (personal.querySelector(".welcome-form-question") || !personal.isConnected ? true : null), 15_000); continue; }
+      for (const block of Array.from(personal.querySelectorAll<HTMLElement>(".welcome-form-question"))) {
+        const label = Array.from(block.querySelectorAll("fieldset label")).filter(shown)[0];
+        const field = block.querySelector<HTMLInputElement | HTMLTextAreaElement>("textarea, input:not([type=radio]):not([type=checkbox])");
+        if (label && !block.querySelector<HTMLInputElement>("fieldset input:checked")) await cursor.click(label);
+        else if (field && !field.value) await cursor.type(field, "Test answer");
+      }
+      await sleep(pace / 2);
+      await cursor.click(need(personal.querySelector<HTMLElement>("footer button"), "no Next button"));
+      await waitFor(() => (personal.isConnected ? null : true), 8_000);
+      continue;
+    }
     // A page of a split form isn't read past: its questions are answered first.
     const next = Array.from(document.querySelectorAll(".community-welcome-next button")).filter(shown).filter((button) => !button.closest(".welcome-form-page"))[0];
     if (!next) return;

@@ -14,9 +14,13 @@ export type WelcomeBlock =
   /** questions: the keys of the questions this part shows, together on one screen. Without it, the whole form, one question at a time. */
   | { type: "form"; formKey: string; questions?: string[] }
   | { type: "lesson"; resourceId: string }
+  /** Questions the community's agent writes for each member when they reach it, from the owner's goal and
+   * what the member has answered so far. backup is asked instead when the agent can't write them in time. */
+  | WelcomePersonalBlock
   | { type: "next" };
 
-export type WelcomeStep = { type: "form"; formKey: string; questions?: string[] } | { type: "lesson"; resourceId: string };
+export type WelcomePersonalBlock = { type: "personal"; key: string; goal: string; count: number; backup: string };
+export type WelcomeStep = { type: "form"; formKey: string; questions?: string[] } | { type: "lesson"; resourceId: string } | WelcomePersonalBlock;
 export type WelcomeScreen = { blocks: WelcomeBlock[]; step: WelcomeStep | null };
 
 /** Room for a form split into a page per question (30 questions and their breaks) beside the words. */
@@ -34,6 +38,10 @@ export const WELCOME_CHOICE_HINT_MAX = 160;
 export const WELCOME_CHOICE_TEXT_MAX = 8_000;
 export const WELCOME_CHOICE_TEXT_TOTAL_MAX = 30_000;
 export const WELCOME_CHOICE_ICON_MAX = 8_000;
+export const WELCOME_PERSONAL_MAX = 3;
+export const WELCOME_PERSONAL_GOAL_MAX = 1_000;
+export const WELCOME_PERSONAL_BACKUP_MAX = 500;
+export const WELCOME_PERSONAL_QUESTIONS_MAX = 3;
 
 /** A card icon must be an https image link or a small inline image; anything else is refused. */
 export function isWelcomeChoiceIcon(value: string): boolean {
@@ -41,7 +49,7 @@ export function isWelcomeChoiceIcon(value: string): boolean {
     && (/^https:\/\/\S+$/i.test(value) || /^data:image\/(?:svg\+xml|png|jpeg|webp|gif)(?:;base64)?,[^\s"'<>]+$/i.test(value));
 }
 
-const isStepBlock = (block: WelcomeBlock): block is WelcomeStep => block.type === "form" || block.type === "lesson";
+const isStepBlock = (block: WelcomeBlock): block is WelcomeStep => block.type === "form" || block.type === "lesson" || block.type === "personal";
 
 /** Screens in order. Empty screens (two breaks in a row, or a break at either end) are dropped. */
 export function welcomeScreens(layout: WelcomeBlock[]): WelcomeScreen[] {
@@ -113,6 +121,9 @@ export function normalizeWelcomeLayout(layout: WelcomeBlock[]): WelcomeBlock[] {
       // Two parts of one form with nothing between them are one part.
       if (questions && last?.type === "form" && last.formKey === formKey && last.questions) last.questions.push(...questions);
       else if (!questions || questions.length) out.push({ type: "form", formKey, ...(questions ? { questions } : {}) });
+    } else if (block.type === "personal") {
+      out.push({ type: "personal", key: block.key.trim(), goal: block.goal.replace(/\r\n?/g, "\n").trim(), backup: block.backup.replace(/\s+/g, " ").trim(),
+        count: Math.max(1, Math.min(WELCOME_PERSONAL_QUESTIONS_MAX, Math.round(Number(block.count) || 1))) });
     } else out.push({ type: "lesson", resourceId: block.resourceId.trim() });
   }
   while (out.length && out[out.length - 1].type === "next") out.pop();
@@ -122,7 +133,8 @@ export function normalizeWelcomeLayout(layout: WelcomeBlock[]): WelcomeBlock[] {
 export type WelcomeLayoutIssue =
   | "welcome_layout_too_long" | "welcome_text_too_long" | "welcome_forms_too_many" | "welcome_lessons_too_many"
   | "welcome_step_duplicate" | "welcome_step_invalid" | "welcome_form_parts_invalid"
-  | "welcome_choices_too_many" | "welcome_choice_invalid" | "welcome_choice_too_long";
+  | "welcome_choices_too_many" | "welcome_choice_invalid" | "welcome_choice_too_long"
+  | "welcome_personal_invalid" | "welcome_personal_too_many" | "welcome_personal_after_last_step";
 
 /** Why a normalized layout can't be saved, or null. */
 export function welcomeLayoutIssue(layout: WelcomeBlock[]): WelcomeLayoutIssue | null {
@@ -147,6 +159,13 @@ export function welcomeLayoutIssue(layout: WelcomeBlock[]): WelcomeLayoutIssue |
     }
   }
   if (choiceTotal > WELCOME_CHOICE_TEXT_TOTAL_MAX) return "welcome_choice_too_long";
+  const personal = layout.flatMap((block, at) => (block.type === "personal" ? [{ block, at }] : []));
+  if (personal.length > WELCOME_PERSONAL_MAX) return "welcome_personal_too_many";
+  if (personal.some(({ block }) => !block.key || block.key.length > 80 || !block.goal || block.goal.length > WELCOME_PERSONAL_GOAL_MAX
+    || !block.backup || block.backup.length > WELCOME_PERSONAL_BACKUP_MAX) || new Set(personal.map(({ block }) => block.key)).size !== personal.length) return "welcome_personal_invalid";
+  // The community opens once the last form or lesson is done, so personal questions have to come before it.
+  const lastStep = layout.reduce((last, block, at) => (block.type === "form" || block.type === "lesson" ? at : last), -1);
+  if (personal.some(({ at }) => at > lastStep)) return "welcome_personal_after_last_step";
   const { formKeys, lessonIds } = welcomeLayoutSteps(layout);
   if (formKeys.some((key) => !key) || lessonIds.some((id) => !id)) return "welcome_step_invalid";
   if (formKeys.length > WELCOME_FORMS_MAX) return "welcome_forms_too_many";

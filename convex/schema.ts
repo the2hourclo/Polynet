@@ -91,6 +91,14 @@ export default defineSchema({
     /** Deleted from the list but kept, so past answers still read; restorable. */
     deletedAt: v.optional(v.number()),
   }).index("by_community_key", ["communityId", "key"]),
+  /** Personal questions on the welcome page: what the community's agent asked one member, and their answers. */
+  communityWelcomePersonalQuestions: defineTable({
+    communityId: v.id("communities"), membershipId: v.id("communityMemberships"), blockKey: v.string(),
+    goal: v.string(), source: v.union(v.literal("agent"), v.literal("backup")),
+    questions: v.array(communityFormQuestionValidator),
+    answers: v.record(v.string(), v.union(v.string(), v.array(v.string()))),
+    answeredAt: v.optional(v.number()), createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_membership_block", ["membershipId", "blockKey"]),
   communityFormVersions: defineTable({
     communityId: v.id("communities"), formId: v.id("communityForms"), revision: v.number(),
     name: v.string(), questions: v.array(communityFormQuestionValidator),
@@ -1372,6 +1380,7 @@ export default defineSchema({
         v.object({ type: v.literal("choice"), prompt: v.string(), options: v.array(v.object({ label: v.string(), hint: v.string(), markdown: v.string(), icon: v.optional(v.string()) })), agent: v.optional(v.boolean()) }),
         v.object({ type: v.literal("form"), formKey: v.string(), questions: v.optional(v.array(v.string())) }),
         v.object({ type: v.literal("lesson"), resourceId: v.string() }),
+        v.object({ type: v.literal("personal"), key: v.string(), goal: v.string(), count: v.number(), backup: v.string() }),
         v.object({ type: v.literal("next") }),
       ))),
     })),

@@ -1,4 +1,4 @@
-import { BookOpen, ChevronDown, ChevronUp, CircleHelp, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Maximize2, Merge, Monitor, PanelTop, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
+import { BookOpen, ChevronDown, Sparkles, ChevronUp, CircleHelp, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Maximize2, Merge, Monitor, PanelTop, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
 import {
   Fragment, lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
   type DragEvent, type KeyboardEvent, type MutableRefObject, type ReactNode, type TextareaHTMLAttributes,
@@ -6,7 +6,8 @@ import {
 import type { CloudCommunityMemberWorkflowBoard, CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import {
   WELCOME_BLOCKS_MAX, WELCOME_CHOICE_HINT_MAX, WELCOME_CHOICE_LABEL_MAX, WELCOME_CHOICE_OPTIONS_MAX, WELCOME_CHOICE_PROMPT_MAX,
-  WELCOME_CHOICE_TEXT_MAX, WELCOME_CHOICES_MAX, WELCOME_FORMS_MAX, WELCOME_LESSONS_MAX, WELCOME_TEXT_MAX,
+  WELCOME_CHOICE_TEXT_MAX, WELCOME_CHOICES_MAX, WELCOME_FORMS_MAX, WELCOME_LESSONS_MAX, WELCOME_PERSONAL_BACKUP_MAX, WELCOME_PERSONAL_GOAL_MAX,
+  WELCOME_PERSONAL_MAX, WELCOME_PERSONAL_QUESTIONS_MAX, WELCOME_TEXT_MAX, welcomeLayoutIssue,
   legacyWelcomeLayout, normalizeWelcomeLayout, welcomeFormPartPlace, welcomeFormPartQuestions, welcomeLayoutSteps, welcomeLayoutWithForms, welcomeScreens,
   type WelcomeBlock, type WelcomeChoiceOption, type WelcomeStep,
 } from "../../../../shared/communityWelcomeLayout";
@@ -16,6 +17,8 @@ import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsG
 import { blankCommunityFormQuestion, communityFormValidationIssue, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion } from "../../../../shared/communityForms";
 import { MemberFormRunner } from "./WebCommunityNextStep";
 import { WelcomeFormPage } from "./WelcomeFormPage";
+import { WelcomePersonalPage } from "./WelcomePersonalPage";
+import { welcomeAnswerWords, welcomePersonalBackup, type WelcomePersonalAnswer } from "../../../../shared/communityWelcomePersonal";
 import { ChoiceIconMark, WelcomeScreenView, welcomeMediaMarkdown } from "./WebCommunityWelcome";
 import "./WebCommunityWelcomeSettings.css";
 import type { LessonEditorProps } from "./lessonEditor/LessonEditor";
@@ -49,7 +52,9 @@ type FormPart = Extract<WelcomeBlock, { type: "form" }>;
 let nextUid = 0;
 const withUid = (block: WelcomeBlock): EditorBlock => ({ ...block, uid: `b${++nextUid}` });
 const stripUid = ({ uid: _uid, ...block }: EditorBlock): WelcomeBlock => block as WelcomeBlock;
-const isStep = (block: WelcomeBlock) => block.type === "form" || block.type === "lesson";
+const isStep = (block: WelcomeBlock) => block.type === "form" || block.type === "lesson" || block.type === "personal";
+const PERSONAL_BACKUP = "What would make joining worth it for you?";
+const newPersonal = (): WelcomeBlock => ({ type: "personal", key: `personal-${crypto.randomUUID().slice(0, 8)}`, goal: "", count: 2, backup: PERSONAL_BACKUP });
 const mediaLine = (url: string) => welcomeMediaMarkdown(url).replace(/^<(.*)>$/, "$1");
 const isLink = (value: string) => /^https:\/\/\S+$/i.test(value.trim());
 
@@ -222,6 +227,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
   const [link, setLink] = useState("");
   const placed = useMemo(() => welcomeLayoutSteps(draft.layout), [draft.layout]);
   const publishedForms = useMemo(() => [...(formRows?.values() ?? [])].filter((row) => row.publishedRevision !== null), [formRows]);
+  const personalCount = draft.layout.filter((block) => block.type === "personal").length;
   const menuItems = useMemo<MenuItem[]>(() => {
     if (!menu || menu.view === "link") return [];
     if (menu.view === "form") return publishedForms.filter((row) => !placed.formKeys.includes(row.key))
@@ -240,9 +246,10 @@ export function WebCommunityWelcomeSettings(props: Props) {
       { key: "link", label: "Video or image", hint: "A YouTube, Loom, Vimeo, Wistia or image link", icon: <ImageIcon size={16} aria-hidden="true" /> },
       ...(placed.formKeys.length < WELCOME_FORMS_MAX ? [{ key: "form", label: "Form", hint: "Questions every new member answers", icon: <ClipboardList size={16} aria-hidden="true" /> }] : []),
       ...(placed.lessonIds.length < WELCOME_LESSONS_MAX ? [{ key: "lesson", label: "Lesson", hint: "A lesson they read and mark done", icon: <BookOpen size={16} aria-hidden="true" /> }] : []),
+      ...(personalCount < WELCOME_PERSONAL_MAX ? [{ key: "personal", label: "Personalized questions", hint: "Give a goal; your agent writes questions for each member from their answers", icon: <Sparkles size={16} aria-hidden="true" /> }] : []),
       { key: "next", label: "Page break", hint: "Start a new page here", icon: <SplitSquareVertical size={16} aria-hidden="true" /> },
     ].filter((item) => item.label.toLowerCase().includes(filter));
-  }, [menu, publishedForms, options, placed, draft.layout, canWriteQuestions]);
+  }, [menu, publishedForms, options, placed, draft.layout, canWriteQuestions, personalCount]);
   const full = draft.layout.length >= WELCOME_BLOCKS_MAX;
   const openMenu = (target: MenuTarget, view: MenuView = "root", filter = "") => { setLink(""); setMenu({ target, view, filter, active: 0 }); };
   const closeMenu = () => {
@@ -335,6 +342,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
       { label: "Option 1", hint: "", markdown: "" }, { label: "Option 2", hint: "", markdown: "" },
     ] }]);
     if (key === "next") return insert([{ type: "next" }, { type: "text", markdown: "" }]);
+    if (key === "personal") return insert([newPersonal()]);
     if (key.startsWith("form:")) return insert([{ type: "form", formKey: key.slice(5) }]);
     if (key.startsWith("lesson:")) return insert([{ type: "lesson", resourceId: key.slice(7) }]);
   };
@@ -380,6 +388,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
         icon: <BookOpen />, onPick: () => { setEditing(null); openMenu({ uid, mode: "after" }, "lesson"); } }] : []),
       ...(canWriteQuestions ? [{ key: "question", title: "Question", hint: "Ask it right here, on this page", keywords: "question ask form answer",
         icon: <CircleHelp />, onPick: () => { setEditing(null); openMenu({ uid, mode: "after" }, "question"); } }] : []),
+      ...(personalCount < WELCOME_PERSONAL_MAX ? [{ key: "personal", title: "Personalized questions", hint: "Your agent asks each member from a goal", keywords: "personal personalized agent ai goal adaptive questions",
+        icon: <Sparkles />, onPick: () => insertAt({ uid, mode: "after" }, [newPersonal()]) }] : []),
       { key: "next", title: "Page break", hint: "Start a new page here", keywords: "next page break screen split", icon: <SplitSquareVertical />,
         onPick: () => insertAt({ uid, mode: "after" }, [{ type: "next" }, { type: "text", markdown: "" }]) },
     ],
@@ -461,6 +471,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
     if (!props.onSaveWelcomePage) return;
     setFormError(null);
     const layout = normalizeWelcomeLayout(draft.layout.map(stripUid));
+    const personalIssue = personalProblem(layout);
+    if (personalIssue) { setFormError(personalIssue); return; }
     setPublishingForms(true);
     const formsOk = await publishForms(layout).finally(() => setPublishingForms(false));
     if (!formsOk) return;
@@ -630,6 +642,10 @@ export function WebCommunityWelcomeSettings(props: Props) {
                         unavailable={Boolean(formRows) && !formRows?.get(block.formKey)?.publishedRevision}
                         detail={(formRows?.get(block.formKey)?.questions ?? []).slice(0, 3).map((question) => question.title).filter(Boolean)}
                         note="Every new member answers this when they join." />
+                    ) : block.type === "personal" ? (
+                      <PersonalEditor id={`${id}-block-${block.uid}`} goal={block.goal} count={block.count} backup={block.backup}
+                        onChange={(patch) => setLayout((layout) => layout.map((item) => (item.uid === block.uid && item.type === "personal" ? { ...item, ...patch } : item)))}
+                        onTry={props.forms?.previewPersonal} />
                     ) : (
                       <StepCard id={`${id}-block-${block.uid}`} kind="Lesson" icon={<BookOpen size={18} aria-hidden="true" />}
                         title={lessonById.get(block.resourceId)?.title ?? (options ? "This lesson is no longer published" : "Loading…")}
@@ -664,10 +680,84 @@ export function WebCommunityWelcomeSettings(props: Props) {
         </article>
       </div>
 
-      {previewing ? <WelcomePreview title={headline} layout={plain} formRows={previewForms(formRows, draft.forms, plain)} lessonById={lessonById}
+      {previewing ? <WelcomePreview previewPersonal={props.forms?.previewPersonal} title={headline} layout={plain} formRows={previewForms(formRows, draft.forms, plain)} lessonById={lessonById}
         onClose={() => { setPreviewing(false); requestAnimationFrame(() => previewButton.current?.focus()); }} /> : null}
     </div>
   );
+}
+
+/** What stops personalized questions from going out, in the owner's words; null when they're ready. */
+function personalProblem(layout: WelcomeBlock[]): string | null {
+  const blocks = layout.filter((block) => block.type === "personal");
+  if (blocks.some((block) => !block.goal.trim())) return "Personalized questions: give them a goal, so your agent knows what to find out.";
+  if (blocks.some((block) => !block.backup.trim())) return "Personalized questions: add a backup question, asked when your agent can't answer in time.";
+  const issue = welcomeLayoutIssue(layout);
+  if (issue === "welcome_personal_too_many") return `A welcome page holds at most ${WELCOME_PERSONAL_MAX} personalized question blocks.`;
+  if (issue === "welcome_personal_after_last_step") return "Personalized questions need a form or lesson after them; members go into the community right after the last one.";
+  if (issue === "welcome_personal_invalid") return "Personalized questions: shorten the goal or the backup question.";
+  return null;
+}
+
+// The owner gives a goal; the community's agent writes the questions for each
+// member from what they've already answered. "Try it" shows what it would ask
+// a member the owner describes.
+function PersonalEditor(props: {
+  id: string; goal: string; count: number; backup: string;
+  onChange: (patch: { goal?: string; count?: number; backup?: string }) => void;
+  onTry?: CommunityFormsGateway["previewPersonal"];
+}) {
+  const [persona, setPersona] = useState("");
+  const [tried, setTried] = useState<{ titles: string[]; backup: boolean } | null>(null);
+  const [trying, setTrying] = useState(false);
+  const tryIt = async () => {
+    if (!props.onTry || !props.goal.trim()) return;
+    setTrying(true); setTried(null);
+    try {
+      const written = await props.onTry({ goal: props.goal, count: props.count, persona: persona.trim(), answers: [] });
+      setTried(written.questions?.length ? { titles: written.questions.map((question) => question.title), backup: false } : { titles: [props.backup], backup: true });
+    } catch { setTried({ titles: [props.backup], backup: true }); }
+    finally { setTrying(false); }
+  };
+  return <div id={props.id} tabIndex={-1} className="welcome-settings-choice welcome-settings-personal">
+    <div className="welcome-settings-choice-head">
+      <span className="welcome-settings-step-icon"><Sparkles size={18} aria-hidden="true" /></span>
+      <span className="welcome-settings-step-copy"><small>Personalized questions</small>
+        <span className="welcome-settings-step-note">Your agent writes these for each member, from the goal below and what they answered on earlier pages.</span></span>
+    </div>
+    <label className="welcome-settings-choice-field">
+      <span>Goal</span>
+      <AutoSizeTextarea value={props.goal} maxLength={WELCOME_PERSONAL_GOAL_MAX} rows={2}
+        placeholder="Find out what they want to automate first and what's stopping them"
+        onChange={(goal) => props.onChange({ goal })} />
+    </label>
+    <div className="welcome-settings-personal-row">
+      <div className="welcome-settings-choice-field" role="group" aria-label="How many questions">
+        <span>How many questions</span>
+        <div className="welcome-settings-device welcome-settings-personal-count">
+          {Array.from({ length: WELCOME_PERSONAL_QUESTIONS_MAX }, (_, n) => n + 1).map((n) => (
+            <button key={n} type="button" aria-pressed={props.count === n} onClick={() => props.onChange({ count: n })}>{n === WELCOME_PERSONAL_QUESTIONS_MAX ? `Up to ${n}` : n}</button>
+          ))}
+        </div>
+      </div>
+      <label className="welcome-settings-choice-field">
+        <span>Backup question</span>
+        <input value={props.backup} maxLength={WELCOME_PERSONAL_BACKUP_MAX} placeholder={PERSONAL_BACKUP} onChange={(event) => props.onChange({ backup: event.target.value })} />
+        <small className="welcome-settings-step-note">Asked instead if your agent can't answer in time.</small>
+      </label>
+    </div>
+    {props.onTry ? <div className="welcome-settings-personal-try">
+      <label className="welcome-settings-choice-field">
+        <span>Try it on a member</span>
+        <input value={persona} maxLength={300} placeholder="A coach with 12 clients who does everything in email" onChange={(event) => setPersona(event.target.value)} />
+      </label>
+      <button type="button" className="workflow-secondary-button" disabled={trying || !props.goal.trim()} onClick={() => void tryIt()}>
+        <Sparkles size={14} aria-hidden="true" /> {trying ? "Writing…" : "Try it"}</button>
+      {tried ? <div className="welcome-settings-personal-tried" role="status">
+        <small>{tried.backup ? "Your agent didn't answer in time, so this member would get the backup:" : "Your agent would ask:"}</small>
+        <ol>{tried.titles.map((title, n) => <li key={n}>{title}</li>)}</ol>
+      </div> : null}
+    </div> : null}
+  </div>;
 }
 
 function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & {
@@ -952,6 +1042,7 @@ function previewForms(rows: Map<string, CommunityFormDraft> | null, forms: Recor
 // Plays the page the way a member goes through it: one screen at a time, the
 // real form runner (answers aren't saved), at a desktop or phone width.
 function WelcomePreview(props: {
+  previewPersonal?: CommunityFormsGateway["previewPersonal"];
   title: string; layout: WelcomeBlock[]; formRows: Map<string, CommunityFormDraft> | null;
   lessonById: Map<string, WelcomeLessonOption>; onClose: () => void;
 }) {
@@ -964,7 +1055,25 @@ function WelcomePreview(props: {
   const lastStep = screens.map((screen) => Boolean(screen.step)).lastIndexOf(true);
   const finished = index >= screens.length || (lastStep >= 0 && index > lastStep);
   const advance = () => setIndex((n) => n + 1);
+  // What the pretend member answered so far, so personal questions build on it as they would for a member.
+  const answered = useRef<WelcomePersonalAnswer[]>([]);
+  const heard = (questions: CommunityFormQuestion[], answers: Record<string, string | string[]>) => {
+    const keys = new Set(questions.map((question) => question.title));
+    answered.current = [...answered.current.filter((item) => !keys.has(item.question)),
+      ...questions.map((question) => ({ question: question.title, answer: welcomeAnswerWords(question, answers[question.key]) })).filter((item) => item.answer)];
+  };
   const renderStep = (step: WelcomeStep) => {
+    if (step.type === "personal") {
+      const backup = () => ({ questions: welcomePersonalBackup(step.backup, "backup"), answers: {}, source: "backup" as const, answered: false });
+      return <WelcomePersonalPage key={`${step.key}:${run}`} preview onDone={advance}
+        nextLabel={index === lastStep ? "Finish and open the community" : "Next"}
+        load={async () => {
+          if (!props.previewPersonal || !step.goal.trim()) return backup();
+          const written = await props.previewPersonal({ goal: step.goal, count: step.count, persona: "", answers: answered.current }).catch(() => ({ questions: null }));
+          return written.questions?.length ? { questions: written.questions, answers: {}, source: "agent" as const, answered: false } : backup();
+        }}
+        save={async () => undefined} />;
+    }
     if (step.type === "lesson") {
       const lesson = props.lessonById.get(step.resourceId);
       return <div className="community-welcome-lesson">
@@ -979,7 +1088,7 @@ function WelcomePreview(props: {
       const normal = normalizeWelcomeLayout(props.layout);
       const place = welcomeFormPartPlace(normal, step);
       return <WelcomeFormPage key={`${request.id}:${step.questions[0]}:${run}`} preview={request} requestId={request.id} communityId=""
-        pick={(questions) => welcomeFormPartQuestions(normal, step, questions)} last={place.last} onPageDone={advance}
+        pick={(questions) => welcomeFormPartQuestions(normal, step, questions)} last={place.last} onPageDone={advance} onAnswers={heard}
         submitLabel={index === lastStep ? "Finish and open the community" : "Next"} />;
     }
     return <div className="member-form-dialog community-welcome-form">
@@ -1006,7 +1115,7 @@ function WelcomePreview(props: {
           <button type="button" aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}><Monitor size={15} aria-hidden="true" /> Desktop</button>
           <button type="button" aria-pressed={device === "phone"} onClick={() => setDevice("phone")}><Smartphone size={15} aria-hidden="true" /> Phone</button>
         </div>
-        <button type="button" className="workflow-secondary-button" onClick={() => { setIndex(0); setRun((n) => n + 1); }}><RotateCcw size={14} aria-hidden="true" /> Start over</button>
+        <button type="button" className="workflow-secondary-button" onClick={() => { setIndex(0); setRun((n) => n + 1); answered.current = []; }}><RotateCcw size={14} aria-hidden="true" /> Start over</button>
         <button type="button" ref={close} className="welcome-settings-icon-button" aria-label="Close preview" onClick={props.onClose}><X size={16} aria-hidden="true" /></button>
       </div>
       <p className="welcome-settings-help">Click through it as a new member would. Answers aren't saved.</p>
