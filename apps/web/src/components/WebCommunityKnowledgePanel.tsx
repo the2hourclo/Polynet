@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { ArrowLeft, Maximize2, Minimize2, Network, Pencil, Plus } from "lucide-react";
 import { CommunityResourcesPanel } from "./CommunityResourcesPanel";
 import { createServerCommunityEmbedStorage } from "../../../../shared/cloudCommunityEmbedValuesGateway";
@@ -114,6 +114,15 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   // The owner's "Arrange lessons", or a module with no course of its own, uses the Roadmap board.
   const [trackBoard, setTrackBoard] = useState(false);
   useEffect(() => { setTrackBoard(false); }, [trackKey]);
+  // Opening or leaving a track starts at the top of the page, so the home's
+  // scroll doesn't carry over and hide Today's step under the phone's top bar.
+  const pageRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    for (let node = pageRef.current?.parentElement ?? null; node; node = node.parentElement) {
+      if (node.scrollTop > 0) node.scrollTop = 0;
+    }
+    if (window.scrollY > 0) window.scrollTo(0, 0);
+  }, [trackKey]);
   const resourceModuleOf = useMemo(
     () => new Map(resources.state.resources.map((resource) => [resource.id, resource.module_id ?? null])),
     [resources.state.resources],
@@ -381,6 +390,7 @@ export function WebCommunityKnowledgePanel({ resources, context }: Props) {
   }, [focusOn]);
   return (
     <section
+      ref={pageRef}
       className="community-knowledge-page"
       aria-label="Knowledge"
       data-reading={reading ? "" : undefined}
