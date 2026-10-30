@@ -11,14 +11,16 @@ export type WelcomeBlock =
   | { type: "text"; markdown: string }
   /** agent: shows the community's agent (its photo and name) above the cards as the plugin that connects to the picked app. */
   | { type: "choice"; prompt: string; options: WelcomeChoiceOption[]; agent?: boolean }
-  | { type: "form"; formKey: string }
+  /** questions: the keys of the questions this part shows, together on one screen. Without it, the whole form, one question at a time. */
+  | { type: "form"; formKey: string; questions?: string[] }
   | { type: "lesson"; resourceId: string }
   | { type: "next" };
 
-export type WelcomeStep = { type: "form"; formKey: string } | { type: "lesson"; resourceId: string };
+export type WelcomeStep = { type: "form"; formKey: string; questions?: string[] } | { type: "lesson"; resourceId: string };
 export type WelcomeScreen = { blocks: WelcomeBlock[]; step: WelcomeStep | null };
 
-export const WELCOME_BLOCKS_MAX = 40;
+/** Room for a form split into a page per question (30 questions and their breaks) beside the words. */
+export const WELCOME_BLOCKS_MAX = 100;
 export const WELCOME_TEXT_MAX = 4_000;
 export const WELCOME_TEXT_TOTAL_MAX = 12_000;
 export const WELCOME_FORMS_MAX = 5;
@@ -82,7 +84,7 @@ export function welcomeLayoutWithForms(layout: WelcomeBlock[], formKeys: string[
 
 export function welcomeLayoutSteps(layout: WelcomeBlock[]) {
   return {
-    formKeys: layout.flatMap((block) => (block.type === "form" ? [block.formKey] : [])),
+    formKeys: [...new Set(layout.flatMap((block) => (block.type === "form" ? [block.formKey] : [])))],
     lessonIds: layout.flatMap((block) => (block.type === "lesson" ? [block.resourceId] : [])),
   };
 }
@@ -104,8 +106,14 @@ export function normalizeWelcomeLayout(layout: WelcomeBlock[]): WelcomeBlock[] {
         ...(option.icon?.trim() ? { icon: option.icon.trim() } : {}),
       })).filter((option) => option.label || option.markdown);
       if (options.length) out.push({ type: "choice", prompt: block.prompt.replace(/\s+/g, " ").trim(), options, ...(block.agent ? { agent: true } : {}) });
-    } else if (block.type === "form") out.push({ type: "form", formKey: block.formKey.trim() });
-    else out.push({ type: "lesson", resourceId: block.resourceId.trim() });
+    } else if (block.type === "form") {
+      const formKey = block.formKey.trim();
+      const questions = block.questions?.map((key) => key.trim()).filter(Boolean);
+      const last = out[out.length - 1];
+      // Two parts of one form with nothing between them are one part.
+      if (questions && last?.type === "form" && last.formKey === formKey && last.questions) last.questions.push(...questions);
+      else if (!questions || questions.length) out.push({ type: "form", formKey, ...(questions ? { questions } : {}) });
+    } else out.push({ type: "lesson", resourceId: block.resourceId.trim() });
   }
   while (out.length && out[out.length - 1].type === "next") out.pop();
   return out;
@@ -113,7 +121,7 @@ export function normalizeWelcomeLayout(layout: WelcomeBlock[]): WelcomeBlock[] {
 
 export type WelcomeLayoutIssue =
   | "welcome_layout_too_long" | "welcome_text_too_long" | "welcome_forms_too_many" | "welcome_lessons_too_many"
-  | "welcome_step_duplicate" | "welcome_step_invalid"
+  | "welcome_step_duplicate" | "welcome_step_invalid" | "welcome_form_parts_invalid"
   | "welcome_choices_too_many" | "welcome_choice_invalid" | "welcome_choice_too_long";
 
 /** Why a normalized layout can't be saved, or null. */
@@ -143,6 +151,33 @@ export function welcomeLayoutIssue(layout: WelcomeBlock[]): WelcomeLayoutIssue |
   if (formKeys.some((key) => !key) || lessonIds.some((id) => !id)) return "welcome_step_invalid";
   if (formKeys.length > WELCOME_FORMS_MAX) return "welcome_forms_too_many";
   if (lessonIds.length > WELCOME_LESSONS_MAX) return "welcome_lessons_too_many";
-  if (new Set(formKeys).size !== formKeys.length || new Set(lessonIds).size !== lessonIds.length) return "welcome_step_duplicate";
+  if (new Set(lessonIds).size !== lessonIds.length) return "welcome_step_duplicate";
+  // A form placed more than once is split: every part names its questions, and no question shows twice.
+  for (const formKey of formKeys) {
+    const parts = layout.flatMap((block) => (block.type === "form" && block.formKey === formKey ? [block] : []));
+    if (parts.length < 2) continue;
+    if (parts.some((part) => !part.questions)) return "welcome_step_duplicate";
+    const keys = parts.flatMap((part) => part.questions ?? []);
+    if (keys.length > 30 || new Set(keys).size !== keys.length || keys.some((key) => key.length > 80)) return "welcome_form_parts_invalid";
+  }
   return null;
+}
+
+/** Where one part of a split form sits among that form's parts, for the member's page: the last part sends the form in. */
+export function welcomeFormPartPlace(layout: WelcomeBlock[], step: WelcomeStep): { index: number; count: number; last: boolean } {
+  if (step.type !== "form") return { index: 0, count: 1, last: true };
+  const parts = layout.flatMap((block) => (block.type === "form" && block.formKey === step.formKey ? [block] : []));
+  const first = step.questions?.[0];
+  const index = Math.max(0, parts.findIndex((part) => (first ? part.questions?.[0] === first : !part.questions)));
+  return { index, count: parts.length, last: index === parts.length - 1 };
+}
+
+/** The questions one part shows, from the questions the member's copy of the form has. The last part also
+ * picks up any the parts don't place (added to the form since the page was split), so none is skipped. */
+export function welcomeFormPartQuestions<Q extends { key: string }>(layout: WelcomeBlock[], step: WelcomeStep, questions: Q[]): Q[] {
+  if (step.type !== "form" || !step.questions) return questions;
+  const placed = new Set(layout.flatMap((block) => (block.type === "form" && block.formKey === step.formKey ? block.questions ?? [] : [])));
+  const mine = new Set(step.questions);
+  const last = welcomeFormPartPlace(layout, step).last;
+  return questions.filter((question) => mine.has(question.key) || (last && !placed.has(question.key)));
 }

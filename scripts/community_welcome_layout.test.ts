@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  legacyWelcomeLayout, normalizeWelcomeLayout, welcomeLayoutIssue, welcomeLayoutWithForms, welcomeScreens, type WelcomeBlock,
+  legacyWelcomeLayout, normalizeWelcomeLayout, welcomeFormPartPlace, welcomeFormPartQuestions, welcomeLayoutIssue, welcomeLayoutSteps,
+  welcomeLayoutWithForms, welcomeScreens, type WelcomeBlock,
 } from "../shared/communityWelcomeLayout";
 
 const text = (markdown: string): WelcomeBlock => ({ type: "text", markdown });
@@ -32,7 +33,7 @@ describe("welcome page layout", () => {
   it("names what can't be saved", () => {
     expect(welcomeLayoutIssue([form("a"), next, form("a")])).toBe("welcome_step_duplicate");
     expect(welcomeLayoutIssue([text("x".repeat(4_001))])).toBe("welcome_text_too_long");
-    expect(welcomeLayoutIssue(Array.from({ length: 41 }, () => text("x")))).toBe("welcome_layout_too_long");
+    expect(welcomeLayoutIssue(Array.from({ length: 101 }, () => text("x")))).toBe("welcome_layout_too_long");
     expect(welcomeLayoutIssue(Array.from({ length: 6 }, (_, i) => lesson(`l${i}`)))).toBe("welcome_lessons_too_many");
     expect(welcomeLayoutIssue([text("Hi"), form("a"), next, lesson("l1")])).toBeNull();
   });
@@ -74,5 +75,33 @@ describe("welcome page layout", () => {
     const choice = (agent?: boolean): WelcomeBlock => ({ type: "choice", prompt: "Which app?", options: [{ label: "Claude", hint: "", markdown: "steps" }], agent });
     expect(normalizeWelcomeLayout([choice(true)])[0]).toMatchObject({ agent: true });
     expect(normalizeWelcomeLayout([choice(false)])[0]).not.toHaveProperty("agent");
+  });
+
+  const part = (formKey: string, questions: string[]): WelcomeBlock => ({ type: "form", formKey, questions });
+
+  it("splits one form across screens, each part a step of its own", () => {
+    const layout = [text("Hi"), part("intake", ["q1", "q2"]), next, text("A bit more"), part("intake", ["q3"]), next, lesson("l1")];
+    expect(welcomeLayoutIssue(layout)).toBeNull();
+    expect(welcomeScreens(layout).map((screen) => screen.step)).toEqual([part("intake", ["q1", "q2"]), part("intake", ["q3"]), lesson("l1")]);
+    expect(welcomeLayoutSteps(layout).formKeys).toEqual(["intake"]);
+  });
+
+  it("joins two parts of a form with nothing between them, and drops an empty part", () => {
+    expect(normalizeWelcomeLayout([part("a", ["q1"]), part("a", [" q2 "]), next, part("a", [])])).toEqual([part("a", ["q1", "q2"])]);
+  });
+
+  it("refuses a split form that shows a question twice, or a part without its questions", () => {
+    expect(welcomeLayoutIssue([part("a", ["q1"]), next, part("a", ["q1"])])).toBe("welcome_form_parts_invalid");
+    expect(welcomeLayoutIssue([part("a", ["q1"]), next, form("a")])).toBe("welcome_step_duplicate");
+  });
+
+  it("knows which part sends the form in, and gives the last part any question the parts don't place", () => {
+    const layout = [part("a", ["q1"]), next, part("a", ["q3"]), next, form("b")];
+    const questions = [{ key: "q1" }, { key: "q2" }, { key: "q3" }];
+    expect(welcomeFormPartPlace(layout, part("a", ["q1"]) as never)).toEqual({ index: 0, count: 2, last: false });
+    expect(welcomeFormPartPlace(layout, part("a", ["q3"]) as never)).toEqual({ index: 1, count: 2, last: true });
+    expect(welcomeFormPartQuestions(layout, part("a", ["q1"]) as never, questions).map((q) => q.key)).toEqual(["q1"]);
+    expect(welcomeFormPartQuestions(layout, part("a", ["q3"]) as never, questions).map((q) => q.key)).toEqual(["q2", "q3"]);
+    expect(welcomeFormPartQuestions(layout, form("b") as never, questions)).toHaveLength(3);
   });
 });

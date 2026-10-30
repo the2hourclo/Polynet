@@ -88,7 +88,7 @@ export type LessonEditorProps = {
   /** Buttons, checklists, quizzes and forms work only in lessons; other pages don't offer them. */
   followAlong?: boolean;
   /** Blocks the page around the editor adds, offered in the "/" menu after the
-   * editor's own (the welcome page's Choice, Form, Lesson and Next page). */
+   * editor's own (the welcome page's Question, Choice, Form, Lesson and Page break). */
   pageBlocks?: { label: string; items: LessonEditorPageBlock[] };
 };
 

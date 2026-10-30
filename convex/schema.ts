@@ -1370,7 +1370,7 @@ export default defineSchema({
       layout: v.optional(v.array(v.union(
         v.object({ type: v.literal("text"), markdown: v.string() }),
         v.object({ type: v.literal("choice"), prompt: v.string(), options: v.array(v.object({ label: v.string(), hint: v.string(), markdown: v.string(), icon: v.optional(v.string()) })), agent: v.optional(v.boolean()) }),
-        v.object({ type: v.literal("form"), formKey: v.string() }),
+        v.object({ type: v.literal("form"), formKey: v.string(), questions: v.optional(v.array(v.string())) }),
         v.object({ type: v.literal("lesson"), resourceId: v.string() }),
         v.object({ type: v.literal("next") }),
       ))),

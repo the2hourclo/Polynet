@@ -1,20 +1,21 @@
-import { BookOpen, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Maximize2, Monitor, PanelTop, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, CircleHelp, ClipboardList, Eye, GripVertical, Image as ImageIcon, LayoutGrid, Maximize2, Merge, Monitor, PanelTop, Plus, RotateCcw, Smartphone, SplitSquareVertical, Trash2, Type, X } from "lucide-react";
 import {
-  lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
+  Fragment, lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
   type DragEvent, type KeyboardEvent, type MutableRefObject, type ReactNode, type TextareaHTMLAttributes,
 } from "react";
 import type { CloudCommunityMemberWorkflowBoard, CloudCommunityWelcomePageDraft } from "../../../../shared/cloudCommunityMemberWorkflowsGateway";
 import {
   WELCOME_BLOCKS_MAX, WELCOME_CHOICE_HINT_MAX, WELCOME_CHOICE_LABEL_MAX, WELCOME_CHOICE_OPTIONS_MAX, WELCOME_CHOICE_PROMPT_MAX,
   WELCOME_CHOICE_TEXT_MAX, WELCOME_CHOICES_MAX, WELCOME_FORMS_MAX, WELCOME_LESSONS_MAX, WELCOME_TEXT_MAX,
-  legacyWelcomeLayout, normalizeWelcomeLayout, welcomeLayoutSteps, welcomeLayoutWithForms, welcomeScreens,
+  legacyWelcomeLayout, normalizeWelcomeLayout, welcomeFormPartPlace, welcomeFormPartQuestions, welcomeLayoutSteps, welcomeLayoutWithForms, welcomeScreens,
   type WelcomeBlock, type WelcomeChoiceOption, type WelcomeStep,
 } from "../../../../shared/communityWelcomeLayout";
 import { CONTENT_MARKDOWN_OPTIONS, CONTENT_PROSE_CLASS, renderMarkdown } from "../../../../shared/markdownUi";
 import type { WelcomeLessonOption } from "../controllers/useWebCommunityWorkflowsController";
 import type { CommunityFormsGateway } from "../controllers/useWebCommunityFormsGateway";
-import type { CommunityFormDraft } from "../../../../shared/communityForms";
+import { blankCommunityFormQuestion, communityFormValidationIssue, COMMUNITY_FORM_MAX_QUESTIONS, type CommunityFormDraft, type CommunityFormQuestion } from "../../../../shared/communityForms";
 import { MemberFormRunner } from "./WebCommunityNextStep";
+import { WelcomeFormPage } from "./WelcomeFormPage";
 import { ChoiceIconMark, WelcomeScreenView, welcomeMediaMarkdown } from "./WebCommunityWelcome";
 import "./WebCommunityWelcomeSettings.css";
 import type { LessonEditorProps } from "./lessonEditor/LessonEditor";
@@ -41,7 +42,10 @@ type Props = {
 };
 
 type EditorBlock = WelcomeBlock & { uid: string };
-type Draft = { title: string; layout: EditorBlock[] };
+/** The questions of each form on the page, written here; Publish saves and publishes the ones that changed. */
+type FormContent = { name: string; questions: CommunityFormQuestion[] };
+type Draft = { title: string; layout: EditorBlock[]; forms: Record<string, FormContent> };
+type FormPart = Extract<WelcomeBlock, { type: "form" }>;
 let nextUid = 0;
 const withUid = (block: WelcomeBlock): EditorBlock => ({ ...block, uid: `b${++nextUid}` });
 const stripUid = ({ uid: _uid, ...block }: EditorBlock): WelcomeBlock => block as WelcomeBlock;
@@ -66,6 +70,64 @@ function savedLayout(board: CloudCommunityMemberWorkflowBoard | null): WelcomeBl
   return withBreaks(welcomeLayoutWithForms(layout, forms));
 }
 
+/** Opens every form on the page as questions written in place: a form placed
+ * whole (one question at a time) becomes a page per question, which is how
+ * members already go through it, and a split form's last part takes any
+ * question added in Forms since. */
+function splitForms(layout: WelcomeBlock[], rows: Map<string, CommunityFormDraft> | null): WelcomeBlock[] {
+  if (!rows) return layout;
+  const out: WelcomeBlock[] = [];
+  for (const block of layout) {
+    const row = block.type === "form" ? rows.get(block.formKey) : undefined;
+    if (block.type === "form" && !block.questions && row?.questions.length) {
+      row.questions.forEach((question, index) => {
+        if (index) out.push({ type: "next" });
+        out.push({ type: "form", formKey: block.formKey, questions: [question.key] });
+      });
+    } else out.push(block.type === "form" && block.questions ? { ...block, questions: [...block.questions] } : block);
+  }
+  for (const [formKey, row] of rows) {
+    const parts = out.filter((block): block is FormPart => block.type === "form" && block.formKey === formKey && Boolean(block.questions));
+    if (!parts.length) continue;
+    const keys = new Set(row.questions.map((question) => question.key));
+    for (const part of parts) part.questions = part.questions!.filter((key) => keys.has(key));
+    const placed = new Set(parts.flatMap((part) => part.questions!));
+    parts[parts.length - 1].questions!.push(...row.questions.filter((question) => !placed.has(question.key)).map((question) => question.key));
+  }
+  return out.filter((block) => block.type !== "form" || !block.questions || block.questions.length);
+}
+
+/** Two parts of one form with nothing between them are one part. */
+function joinParts<T extends WelcomeBlock>(layout: T[]): T[] {
+  const out: T[] = [];
+  for (const block of layout) {
+    const last = out[out.length - 1];
+    if (block.type === "form" && block.questions && last?.type === "form" && last.questions && last.formKey === block.formKey) {
+      out[out.length - 1] = { ...last, questions: [...last.questions, ...block.questions] };
+    } else out.push(block);
+  }
+  return out;
+}
+
+/** A form's questions in the order the page shows them. */
+function pageOrder(layout: WelcomeBlock[], formKey: string, content: FormContent): CommunityFormQuestion[] {
+  const keys = layout.flatMap((block) => (block.type === "form" && block.formKey === formKey ? block.questions ?? [] : []));
+  const byKey = new Map(content.questions.map((question) => [question.key, question]));
+  const ordered = keys.flatMap((key) => (byKey.has(key) ? [byKey.get(key)!] : []));
+  return [...ordered, ...content.questions.filter((question) => !keys.includes(question.key))];
+}
+
+const formContent = (row: CommunityFormDraft): FormContent => ({ name: row.name, questions: row.questions });
+
+const QUESTION_TYPES: { type: CommunityFormQuestion["type"]; label: string; hint: string }[] = [
+  { type: "short_text", label: "Short answer", hint: "A line of text" },
+  { type: "long_text", label: "Long answer", hint: "A few sentences" },
+  { type: "single_choice", label: "One choice", hint: "They pick one option" },
+  { type: "multiple_choice", label: "Several choices", hint: "They tick all that fit" },
+];
+const blankQuestion = (type: CommunityFormQuestion["type"]): CommunityFormQuestion =>
+  ({ ...blankCommunityFormQuestion(), type, options: type.endsWith("choice") ? ["Option 1", "Option 2"] : [] });
+
 /** Shows every screen split: a step that would start a screen of its own gets its "Next" break drawn. */
 function withBreaks<T extends WelcomeBlock>(layout: T[], make: (block: WelcomeBlock) => T = (block) => block as T): T[] {
   const out: T[] = [];
@@ -81,12 +143,15 @@ function withBreaks<T extends WelcomeBlock>(layout: T[], make: (block: WelcomeBl
   return out;
 }
 
-const draftKey = (title: string, layout: WelcomeBlock[]) =>
-  JSON.stringify({ title: title.replace(/\s+/g, " ").trim(), layout: normalizeWelcomeLayout(layout) });
+const draftKey = (title: string, layout: WelcomeBlock[], forms: Record<string, FormContent>) => {
+  const normal = normalizeWelcomeLayout(layout);
+  const placed = welcomeLayoutSteps(normal).formKeys.flatMap((key) => (forms[key] ? [[key, { ...forms[key], questions: pageOrder(normal, key, forms[key]) }]] : []));
+  return JSON.stringify({ title: title.replace(/\s+/g, " ").trim(), layout: normal, forms: Object.fromEntries(placed) });
+};
 
 // "replace" swaps the "/" line typed in a text block (the whole block when that's all it holds) for the new blocks.
 type MenuTarget = { uid: string; mode: "after" } | { uid: string; mode: "replace"; start: number; end: number } | { uid: null; mode: "end" };
-type MenuView = "root" | "form" | "lesson" | "link";
+type MenuView = "root" | "form" | "lesson" | "link" | "question";
 type MenuItem = { key: string; label: string; hint: string; icon: ReactNode };
 
 // The welcome page, written like a page: the headline, then blocks of words,
@@ -94,15 +159,29 @@ type MenuItem = { key: string; label: string; hint: string; icon: ReactNode };
 // through it one screen at a time; Preview plays it the same way.
 export function WebCommunityWelcomeSettings(props: Props) {
   const id = useId();
-  const baseline = useMemo<Draft>(() => ({
-    title: props.board?.welcome_page?.title ?? "", layout: savedLayout(props.board).map(withUid),
-  }), [props.board]);
-  const baselineKey = draftKey(baseline.title, baseline.layout.map(stripUid));
+  const [formRows, setFormRows] = useState<Map<string, CommunityFormDraft> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!props.forms) { setFormRows(new Map()); return; }
+    props.forms.load().then((rows) => { if (alive) setFormRows(new Map(rows.map((row) => [row.key, row]))); })
+      .catch(() => { if (alive) setFormRows(new Map()); });
+    return () => { alive = false; };
+  }, [props.forms]);
+  // Questions are written on the page only where the forms can be saved from here.
+  const canWriteQuestions = Boolean(props.forms);
+  const baseline = useMemo<Draft>(() => {
+    const layout = canWriteQuestions ? splitForms(savedLayout(props.board), formRows) : savedLayout(props.board);
+    return {
+      title: props.board?.welcome_page?.title ?? "", layout: withBreaks(layout).map(withUid),
+      forms: Object.fromEntries([...(formRows?.values() ?? [])].map((row) => [row.key, formContent(row)])),
+    };
+  }, [props.board, formRows, canWriteQuestions]);
+  const baselineKey = draftKey(baseline.title, baseline.layout.map(stripUid), baseline.forms);
   const [draft, setDraft] = useState<Draft>(baseline);
   const [draftBase, setDraftBase] = useState(baselineKey);
   const [saved, setSaved] = useState(false);
   const adoptNext = useRef(false);
-  const currentKey = draftKey(draft.title, draft.layout.map(stripUid));
+  const currentKey = draftKey(draft.title, draft.layout.map(stripUid), draft.forms);
   // Take the server's copy when there are no edits here, or right after a save
   // (the server tidies spacing, so the saved draft may not match it exactly).
   if (draftBase !== baselineKey && (adoptNext.current || currentKey === draftBase)) {
@@ -125,14 +204,6 @@ export function WebCommunityWelcomeSettings(props: Props) {
     props.onLoadWelcomeLessonOptions().then((rows) => { if (alive) setOptions(rows); }).catch(() => { if (alive) setOptions([]); });
     return () => { alive = false; };
   }, [props.onLoadWelcomeLessonOptions]);
-  const [formRows, setFormRows] = useState<Map<string, CommunityFormDraft> | null>(null);
-  useEffect(() => {
-    let alive = true;
-    if (!props.forms) { setFormRows(new Map()); return; }
-    props.forms.load().then((rows) => { if (alive) setFormRows(new Map(rows.map((row) => [row.key, row]))); })
-      .catch(() => { if (alive) setFormRows(new Map()); });
-    return () => { alive = false; };
-  }, [props.forms]);
   const lessonById = useMemo(() => new Map((options ?? []).map((option) => [option.id, option])), [options]);
 
   // Read out after a keyboard move; any other edit clears it.
@@ -140,7 +211,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
   const setLayout = (update: (layout: EditorBlock[]) => EditorBlock[]) => {
     setSaved(false);
     setMoveNote("");
-    setDraft((current) => ({ ...current, layout: withBreaks(update(current.layout), withUid) }));
+    setDraft((current) => ({ ...current, layout: withBreaks(joinParts(update(current.layout)), withUid) }));
   };
   const [editing, setEditing] = useState<string | null>(null);
   const focusBlock = (uid: string) => requestAnimationFrame(() => document.getElementById(`${id}-block-${uid}`)?.focus());
@@ -156,19 +227,22 @@ export function WebCommunityWelcomeSettings(props: Props) {
     if (menu.view === "form") return publishedForms.filter((row) => !placed.formKeys.includes(row.key))
       .map((row) => ({ key: `form:${row.key}`, label: row.name || "Untitled form",
         hint: `${row.questions.length} question${row.questions.length === 1 ? "" : "s"}`, icon: <ClipboardList size={16} aria-hidden="true" /> }));
+    if (menu.view === "question") return QUESTION_TYPES.map((item) => ({ key: `question:${item.type}`, label: item.label, hint: item.hint,
+      icon: <CircleHelp size={16} aria-hidden="true" /> }));
     if (menu.view === "lesson") return (options ?? []).filter((row) => !placed.lessonIds.includes(row.id))
       .map((row) => ({ key: `lesson:${row.id}`, label: row.title, hint: row.course, icon: <BookOpen size={16} aria-hidden="true" /> }));
     const filter = menu.filter.toLowerCase();
     return [
       { key: "text", label: "Text", hint: "Words, lists and links", icon: <Type size={16} aria-hidden="true" /> },
+      ...(canWriteQuestions ? [{ key: "question", label: "Question", hint: "Ask it right here. Questions on one page show together", icon: <CircleHelp size={16} aria-hidden="true" /> }] : []),
       ...(draft.layout.filter((block) => block.type === "choice").length < WELCOME_CHOICES_MAX
         ? [{ key: "choice", label: "Choice", hint: "Cards to pick from, like the app they use. Each shows its own steps", icon: <LayoutGrid size={16} aria-hidden="true" /> }] : []),
       { key: "link", label: "Video or image", hint: "A YouTube, Loom, Vimeo, Wistia or image link", icon: <ImageIcon size={16} aria-hidden="true" /> },
       ...(placed.formKeys.length < WELCOME_FORMS_MAX ? [{ key: "form", label: "Form", hint: "Questions every new member answers", icon: <ClipboardList size={16} aria-hidden="true" /> }] : []),
       ...(placed.lessonIds.length < WELCOME_LESSONS_MAX ? [{ key: "lesson", label: "Lesson", hint: "A lesson they read and mark done", icon: <BookOpen size={16} aria-hidden="true" /> }] : []),
-      { key: "next", label: "Next page", hint: "Start a new screen", icon: <SplitSquareVertical size={16} aria-hidden="true" /> },
+      { key: "next", label: "Page break", hint: "Start a new page here", icon: <SplitSquareVertical size={16} aria-hidden="true" /> },
     ].filter((item) => item.label.toLowerCase().includes(filter));
-  }, [menu, publishedForms, options, placed, draft.layout]);
+  }, [menu, publishedForms, options, placed, draft.layout, canWriteQuestions]);
   const full = draft.layout.length >= WELCOME_BLOCKS_MAX;
   const openMenu = (target: MenuTarget, view: MenuView = "root", filter = "") => { setLink(""); setMenu({ target, view, filter, active: 0 }); };
   const closeMenu = () => {
@@ -195,9 +269,67 @@ export function WebCommunityWelcomeSettings(props: Props) {
     if (last.type === "text" && !last.markdown) editText(last.uid);
     else { setEditing(null); focusBlock(last.uid); }
   };
+  // Questions written on the page. A new one joins the nearest form above it
+  // (its answers land in the same form); with none above, the page gets a form of its own.
+  const [focusQuestion, setFocusQuestion] = useState<string | null>(null);
+  const setForm = (formKey: string, update: (content: FormContent) => FormContent) => {
+    setSaved(false);
+    setDraft((current) => current.forms[formKey] ? { ...current, forms: { ...current.forms, [formKey]: update(current.forms[formKey]) } } : current);
+  };
+  const addQuestion = (target: MenuTarget, type: CommunityFormQuestion["type"]) => {
+    const question = blankQuestion(type);
+    const at = target.uid ? draft.layout.findIndex((block) => block.uid === target.uid) : draft.layout.length - 1;
+    const here = draft.layout[at];
+    const above = [...draft.layout.slice(0, at + 1)].reverse().find((block): block is EditorBlock & FormPart => block.type === "form" && Boolean(block.questions));
+    let formKey = above?.formKey;
+    if (formKey && (draft.forms[formKey]?.questions.length ?? 0) >= COMMUNITY_FORM_MAX_QUESTIONS) formKey = undefined;
+    if (!formKey && placed.formKeys.length >= WELCOME_FORMS_MAX) { setMenu(null); return; }
+    const newForm = !formKey;
+    const key = formKey ?? `welcome-${crypto.randomUUID().slice(0, 8)}`;
+    setSaved(false);
+    setDraft((current) => ({ ...current, forms: { ...current.forms,
+      [key]: newForm ? { name: "Welcome questions", questions: [question] } : { ...current.forms[key], questions: [...current.forms[key].questions, question] } } }));
+    if (here?.type === "form" && here.formKey === key && here.questions) {
+      setLayout((layout) => layout.map((block) => (block.uid === here.uid && block.type === "form" ? { ...block, questions: [...(block.questions ?? []), question.key] } : block)));
+      setMenu(null);
+    } else insertAt(target, [{ type: "form", formKey: key, questions: [question.key] }]);
+    setFocusQuestion(question.key);
+  };
+  const updateQuestion = (formKey: string, questionKey: string, patch: Partial<CommunityFormQuestion>) =>
+    setForm(formKey, (content) => ({ ...content, questions: content.questions.map((question) => (question.key === questionKey ? { ...question, ...patch } : question)) }));
+  const removeQuestion = (uid: string, formKey: string, questionKey: string) => {
+    setForm(formKey, (content) => ({ ...content, questions: content.questions.filter((question) => question.key !== questionKey) }));
+    setLayout((layout) => layout.flatMap((block) => {
+      if (block.uid !== uid || block.type !== "form") return [block];
+      const questions = (block.questions ?? []).filter((key) => key !== questionKey);
+      return questions.length ? [{ ...block, questions }] : [];
+    }));
+  };
+  const moveQuestion = (uid: string, from: number, to: number) => setLayout((layout) => layout.map((block) => {
+    if (block.uid !== uid || block.type !== "form" || !block.questions || to < 0 || to >= block.questions.length) return block;
+    const questions = [...block.questions];
+    const [moved] = questions.splice(from, 1);
+    questions.splice(to, 0, moved);
+    return { ...block, questions };
+  }));
+  // A page break anywhere: between two blocks, or between two questions of a form.
+  const splitPart = (uid: string, at: number) => setLayout((layout) => layout.flatMap((block) => {
+    if (block.uid !== uid || block.type !== "form" || !block.questions) return [block];
+    return [{ ...block, questions: block.questions.slice(0, at) }, withUid({ type: "next" }), withUid({ type: "form", formKey: block.formKey, questions: block.questions.slice(at) })];
+  }));
+  // Joining takes the break out; two parts of one form that meet become one page of questions.
+  const joinPages = (uid: string) => {
+    const at = draft.layout.findIndex((block) => block.uid === uid);
+    const before = draft.layout[at - 1];
+    setLayout((layout) => layout.filter((block) => block.uid !== uid));
+    if (before) focusBlock(before.uid);
+  };
+  const splitAfter = (uid: string) => setLayout((layout) => layout.flatMap((block) => (block.uid === uid ? [block, withUid({ type: "next" })] : [block])));
+
   const choose = (key: string) => {
     if (!menu) return;
-    if (key === "form" || key === "lesson" || key === "link") { setLink(""); setMenu({ ...menu, view: key, filter: "", active: 0 }); return; }
+    if (key === "form" || key === "lesson" || key === "link" || key === "question") { setLink(""); setMenu({ ...menu, view: key, filter: "", active: 0 }); return; }
+    if (key.startsWith("question:")) { addQuestion(menu.target, key.slice(9) as CommunityFormQuestion["type"]); return; }
     if (key === "text") return insert([{ type: "text", markdown: "" }]);
     if (key === "choice") return insert([{ type: "choice", prompt: "Which one are you using?", options: [
       { label: "Option 1", hint: "", markdown: "" }, { label: "Option 2", hint: "", markdown: "" },
@@ -246,7 +378,9 @@ export function WebCommunityWelcomeSettings(props: Props) {
         icon: <ClipboardList />, onPick: () => { setEditing(null); openMenu({ uid, mode: "after" }, "form"); } }] : []),
       ...(placed.lessonIds.length < WELCOME_LESSONS_MAX ? [{ key: "lesson", title: "Lesson", hint: "A lesson they read and mark done", keywords: "lesson course",
         icon: <BookOpen />, onPick: () => { setEditing(null); openMenu({ uid, mode: "after" }, "lesson"); } }] : []),
-      { key: "next", title: "Next page", hint: "Start a new screen", keywords: "next page break screen", icon: <SplitSquareVertical />,
+      ...(canWriteQuestions ? [{ key: "question", title: "Question", hint: "Ask it right here, on this page", keywords: "question ask form answer",
+        icon: <CircleHelp />, onPick: () => { setEditing(null); openMenu({ uid, mode: "after" }, "question"); } }] : []),
+      { key: "next", title: "Page break", hint: "Start a new page here", keywords: "next page break screen split", icon: <SplitSquareVertical />,
         onPick: () => insertAt({ uid, mode: "after" }, [{ type: "next" }, { type: "text", markdown: "" }]) },
     ],
   };
@@ -259,6 +393,11 @@ export function WebCommunityWelcomeSettings(props: Props) {
     if (neighbour?.type === "text") editText(neighbour.uid);
     else if (neighbour) focusBlock(neighbour.uid);
     else requestAnimationFrame(() => document.getElementById(`${id}-add`)?.focus());
+  };
+  // A group of questions leaves the page with its questions, which come out of the form too.
+  const removePart = (uid: string, formKey: string, questionKeys: string[]) => {
+    setForm(formKey, (content) => ({ ...content, questions: content.questions.filter((question) => !questionKeys.includes(question.key)) }));
+    remove(uid);
   };
   const move = (uid: string, to: number) => setLayout((layout) => {
     const from = layout.findIndex((block) => block.uid === uid);
@@ -284,10 +423,48 @@ export function WebCommunityWelcomeSettings(props: Props) {
     setDragging(null); setDropAt(null);
   };
 
+  // Publish: first the forms whose questions changed here (saved, then
+  // published, so members get them), then the page that places them.
+  const [formError, setFormError] = useState<string | null>(null);
+  const [publishingForms, setPublishingForms] = useState(false);
+  const publishForms = async (layout: WelcomeBlock[]): Promise<boolean> => {
+    if (!props.forms) return true;
+    const rows = new Map(formRows ?? []);
+    for (const formKey of welcomeLayoutSteps(layout).formKeys) {
+      const edited = draft.forms[formKey];
+      if (!edited || !layout.some((block) => block.type === "form" && block.formKey === formKey && block.questions)) continue;
+      const content = { name: edited.name.trim() || "Welcome questions", questions: pageOrder(layout, formKey, edited) };
+      const row = rows.get(formKey);
+      if (row && row.publishedRevision === row.revision && JSON.stringify(formContent(row)) === JSON.stringify(content)) continue;
+      const issue = communityFormValidationIssue(content, true);
+      if (issue) {
+        const question = issue.questionIndex !== undefined ? content.questions[issue.questionIndex] : null;
+        setFormError(question ? `${question.title.trim() ? `“${question.title.trim()}”` : "A question"}: ${issue.message}` : issue.message);
+        if (question) setFocusQuestion(question.key);
+        return false;
+      }
+      try {
+        const savedRow = await props.forms.save({ ...(row ?? { key: formKey, revision: 0, publishedRevision: null }), ...content });
+        rows.set(formKey, await props.forms.publish(savedRow));
+      } catch (error) {
+        setFormError(String(error).includes("conflict")
+          ? `“${content.name}” was changed somewhere else (in Forms or by an agent). Discard to load the latest, then make your change again.`
+          : `“${content.name}” could not be published. Nothing on the page changed. Try again.`);
+        setFormRows(rows);
+        return false;
+      }
+    }
+    setFormRows(rows);
+    return true;
+  };
   const save = async () => {
     if (!props.onSaveWelcomePage) return;
-    adoptNext.current = true;
+    setFormError(null);
     const layout = normalizeWelcomeLayout(draft.layout.map(stripUid));
+    setPublishingForms(true);
+    const formsOk = await publishForms(layout).finally(() => setPublishingForms(false));
+    if (!formsOk) return;
+    adoptNext.current = true;
     const ok = await props.onSaveWelcomePage({ title: draft.title, message: "", mediaUrl: "", lessonIds: welcomeLayoutSteps(layout).lessonIds, layout });
     if (!ok) adoptNext.current = false;
     setSaved(ok);
@@ -313,7 +490,7 @@ export function WebCommunityWelcomeSettings(props: Props) {
         <div className="welcome-settings-column welcome-settings-bar-inner">
           <div className="welcome-settings-bar-title">
             <h1>Welcome page</h1>
-            <p>What new members see first, one screen at a time.</p>
+            <p>What new members see first, one page at a time. Split a page anywhere.</p>
           </div>
           {/* Saving goes straight to members, so it reads as Publish, like Forms
               and the sales page (2026-10-28 review #13). */}
@@ -324,8 +501,8 @@ export function WebCommunityWelcomeSettings(props: Props) {
             </button>
             <button type="button" className="workflow-secondary-button" disabled={!dirty || props.isSaving}
               onClick={() => { setSaved(false); setMenu(null); setEditing(null); setDraft(baseline); setDraftBase(baselineKey); }}>Discard</button>
-            <button type="button" className={`platform-save-button${dirty ? " is-dirty" : ""}`} disabled={!dirty || props.isSaving || !props.onSaveWelcomePage}
-              onClick={() => void save()}>{props.isSaving ? "Publishing…" : "Publish"}</button>
+            <button type="button" className={`platform-save-button${dirty ? " is-dirty" : ""}`} disabled={!dirty || props.isSaving || publishingForms || !props.onSaveWelcomePage}
+              onClick={() => void save()}>{props.isSaving || publishingForms ? "Publishing…" : "Publish"}</button>
           </div>
         </div>
       </header>
@@ -357,12 +534,12 @@ export function WebCommunityWelcomeSettings(props: Props) {
           </div>
         </div>
       </section>
-      {props.actionError ? <p className="workflow-error welcome-settings-error" role="alert">{props.actionError}</p> : null}
+      {formError ?? props.actionError ? <p className="workflow-error welcome-settings-error" role="alert">{formError ?? props.actionError}</p> : null}
 
       <div className="welcome-settings-canvas">
         <article className="community-welcome welcome-settings-page" aria-label="Welcome page editor">
           {draft.layout.some((block) => block.type === "next")
-            ? <div className="welcome-settings-break welcome-settings-break-first" aria-hidden="true"><span>Screen 1</span></div> : null}
+            ? <div className="welcome-settings-break welcome-settings-break-first" aria-hidden="true"><span>Page 1</span></div> : null}
           <div className="community-welcome-intro">
             <small>Welcome</small>
             <AutoSizeTextarea id={`${id}-title`} className="welcome-settings-headline" value={draft.title} maxLength={TITLE_MAX} rows={1} aria-label="Headline"
@@ -378,7 +555,10 @@ export function WebCommunityWelcomeSettings(props: Props) {
 
           <ol className="welcome-settings-blocks" onDragOver={(event) => { if (dragging) event.preventDefault(); }} onDrop={drop}>
             {draft.layout.map((block, index) => {
-              const label = block.type === "text" ? "text" : block.type === "next" ? "page break" : block.type;
+              const label = block.type === "text" ? "text" : block.type === "next" ? "page break" : block.type === "form" && block.questions ? "group of questions" : block.type;
+              const following = draft.layout[index + 1];
+              // A break can go after any block that isn't already followed by one.
+              const canSplit = block.type !== "next" && following !== undefined && following.type !== "next";
               if (block.type === "next") screenNumber += 1;
               const menuHere = Boolean(menu && menu.target.uid === block.uid);
               const classes = ["welcome-settings-block", `is-${block.type}`, dragging === block.uid ? "is-dragging" : "",
@@ -420,16 +600,30 @@ export function WebCommunityWelcomeSettings(props: Props) {
                         ? <TextView id={`${id}-block-${block.uid}`} markdown={block.markdown} onEdit={() => editText(block.uid)} />
                         : <button type="button" id={`${id}-block-${block.uid}`} className="welcome-settings-text-empty" onClick={() => editText(block.uid)}
                           onKeyDown={(event) => { if (event.key === "Backspace" && draft.layout.length > 1) { event.preventDefault(); remove(block.uid); } }}>
-                          {draft.layout.length === 1 ? "Say hello. Type / for headings, callouts, code, a choice, a form, a lesson or a Next page." : "Type / to add a block"}
+                          {draft.layout.length === 1 ? "Say hello. Type / for headings, callouts, code, a question, a choice, a lesson or a page break." : "Type / to add a block"}
                         </button>
                     ) : block.type === "choice" ? (
                       <ChoiceEditor id={`${id}-block-${block.uid}`} prompt={block.prompt} options={block.options} agent={Boolean(block.agent)}
                         onAgent={(agent) => updateChoice(block.uid, (current) => ({ ...current, agent: agent || undefined }))}
                         onChange={(prompt, choiceOptions) => updateChoice(block.uid, (current) => ({ ...current, prompt, options: choiceOptions }))} />
                     ) : block.type === "next" ? (
-                      <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break" aria-label={`New page: screen ${screenNumber} starts here`}>
-                        <span>Screen {screenNumber}</span>
+                      <div id={`${id}-block-${block.uid}`} tabIndex={-1} className="welcome-settings-break" aria-label={`Page break: page ${screenNumber} starts here`}>
+                        <span>Page {screenNumber}</span>
+                        <button type="button" className="welcome-settings-join" onClick={() => joinPages(block.uid)}>
+                          <Merge size={13} aria-hidden="true" /> Join with page {screenNumber - 1}
+                        </button>
                       </div>
+                    ) : block.type === "form" && block.questions && draft.forms[block.formKey] ? (
+                      <FormPartEditor id={`${id}-block-${block.uid}`} formKey={block.formKey} questionKeys={block.questions}
+                        content={draft.forms[block.formKey]} part={welcomeFormPartPlace(plain, block)}
+                        usedElsewhere={Boolean(formRows?.get(block.formKey)?.usedIn?.some((use) => use.kind === "automation"))}
+                        isNew={!formRows?.has(block.formKey)} focusQuestion={focusQuestion} onFocused={() => setFocusQuestion(null)}
+                        onRename={(name) => setForm(block.formKey, (content) => ({ ...content, name }))}
+                        onChange={(questionKey, patch) => updateQuestion(block.formKey, questionKey, patch)}
+                        onRemove={(questionKey) => removeQuestion(block.uid, block.formKey, questionKey)}
+                        onMove={(from, to) => moveQuestion(block.uid, from, to)}
+                        onSplit={(at) => splitPart(block.uid, at)}
+                        onAdd={(type) => addQuestion({ uid: block.uid, mode: "after" }, type)} />
                     ) : block.type === "form" ? (
                       <StepCard id={`${id}-block-${block.uid}`} kind="Form" icon={<ClipboardList size={18} aria-hidden="true" />}
                         title={formRows?.get(block.formKey)?.name || (formRows ? "This form was removed" : "Loading…")}
@@ -446,9 +640,11 @@ export function WebCommunityWelcomeSettings(props: Props) {
                     {menuHere ? renderMenu(menu?.target.mode !== "replace") : null}
                   </div>
                   <div className="welcome-settings-block-end">
-                    <button type="button" className="welcome-settings-icon-button" aria-label={`Remove this ${label}`} title="Remove"
-                      onClick={() => remove(block.uid)}><Trash2 size={15} aria-hidden="true" /></button>
+                    {block.type === "next" ? null : <button type="button" className="welcome-settings-icon-button" aria-label={`Remove this ${label}`} title="Remove"
+                      onClick={() => (block.type === "form" && block.questions ? removePart(block.uid, block.formKey, block.questions) : remove(block.uid))}><Trash2 size={15} aria-hidden="true" /></button>}
                   </div>
+                  {canSplit ? <button type="button" className="welcome-settings-split" onClick={() => splitAfter(block.uid)}
+                    aria-label={`Split the page after this ${label}`}><SplitSquareVertical size={13} aria-hidden="true" /> Split page here</button> : null}
                 </li>
               );
             })}
@@ -461,21 +657,24 @@ export function WebCommunityWelcomeSettings(props: Props) {
           </div>
           <p className="welcome-settings-help">
             {afterLastStep ? "Members go into the community right after the last step, so screens after it aren't shown. " : ""}
-            Forms on this page are the ones new members answer when they join. What happens after a form is set in{" "}
+            Questions on one page show together; split a page wherever you want a new one. Their answers go to the form named above them, which is
+            sent to every new member when they join. What happens after a form is set in{" "}
             <button type="button" className="welcome-settings-link" onClick={props.onOpenWorkflows}>Workflows</button>.
           </p>
         </article>
       </div>
 
-      {previewing ? <WelcomePreview title={headline} layout={plain} formRows={formRows} lessonById={lessonById}
+      {previewing ? <WelcomePreview title={headline} layout={plain} formRows={previewForms(formRows, draft.forms, plain)} lessonById={lessonById}
         onClose={() => { setPreviewing(false); requestAnimationFrame(() => previewButton.current?.focus()); }} /> : null}
     </div>
   );
 }
 
-function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & { value: string; onChange: (value: string) => void }) {
-  const { onChange, value, ...rest } = props;
-  const ref = useRef<HTMLTextAreaElement>(null);
+function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & {
+  value: string; onChange: (value: string) => void; inputRef?: MutableRefObject<HTMLTextAreaElement | null>;
+}) {
+  const { onChange, value, inputRef, ...rest } = props;
+  const ref = useRef<HTMLTextAreaElement | null>(null);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -488,7 +687,7 @@ function AutoSizeTextarea(props: Omit<TextareaHTMLAttributes<HTMLTextAreaElement
     observer.observe(element);
     return () => observer.disconnect();
   }, [value]);
-  return <textarea ref={ref} value={value} onChange={(event) => onChange(event.target.value)} {...rest} />;
+  return <textarea ref={(element) => { ref.current = element; if (inputRef) inputRef.current = element; }} value={value} onChange={(event) => onChange(event.target.value)} {...rest} />;
 }
 
 // Words show as the member reads them (videos play inline); a click puts the cursor back in.
@@ -589,6 +788,94 @@ function ChoiceEditor(props: {
   </div>;
 }
 
+// A group of questions on one page, written where members read them (Tally
+// style): each question's words, its answer, and a page break between any two.
+function FormPartEditor(props: {
+  id: string; formKey: string; questionKeys: string[]; content: FormContent; part: { index: number; count: number; last: boolean };
+  usedElsewhere: boolean; isNew: boolean; focusQuestion: string | null; onFocused: () => void;
+  onRename: (name: string) => void; onChange: (questionKey: string, patch: Partial<CommunityFormQuestion>) => void;
+  onRemove: (questionKey: string) => void; onMove: (from: number, to: number) => void; onSplit: (at: number) => void;
+  onAdd: (type: CommunityFormQuestion["type"]) => void;
+}) {
+  const byKey = new Map(props.content.questions.map((question) => [question.key, question]));
+  const questions = props.questionKeys.flatMap((key) => (byKey.has(key) ? [byKey.get(key)!] : []));
+  const [adding, setAdding] = useState(false);
+  return <div id={props.id} tabIndex={-1} className="welcome-settings-form">
+    <div className="welcome-settings-form-head">
+      <ClipboardList size={14} aria-hidden="true" />
+      {props.part.index === 0
+        ? <input className="welcome-settings-form-name" value={props.content.name} maxLength={120} aria-label="Form name (members don't see it)"
+          placeholder="Welcome questions" onChange={(event) => props.onRename(event.target.value)} />
+        : <span>{props.content.name || "Welcome questions"}</span>}
+      <small>{props.part.count > 1 ? `Part ${props.part.index + 1} of ${props.part.count}` : props.isNew ? "New form" : "Form"}
+        {props.part.last ? " · sent in on this page" : ""}</small>
+    </div>
+    {props.usedElsewhere && props.part.index === 0
+      ? <p className="welcome-settings-form-note">A Workflow sends this form too, so edits here show there as well.</p> : null}
+    {questions.map((question, index) => <Fragment key={question.key}>
+      {index > 0 ? <button type="button" className="welcome-settings-split is-between" onClick={() => props.onSplit(index)}
+        aria-label={`Split the page before question ${index + 1}`}><SplitSquareVertical size={13} aria-hidden="true" /> Split page here</button> : null}
+      <QuestionEditor question={question} index={index} count={questions.length} autoFocus={props.focusQuestion === question.key} onFocused={props.onFocused}
+        onChange={(patch) => props.onChange(question.key, patch)} onRemove={() => props.onRemove(question.key)}
+        onMove={(to) => props.onMove(index, to)} />
+    </Fragment>)}
+    <div className="welcome-settings-form-add">
+      {adding ? <div className="welcome-settings-question-types" role="group" aria-label="Add a question">
+        {QUESTION_TYPES.map((item) => <button key={item.type} type="button" onClick={() => { setAdding(false); props.onAdd(item.type); }}>{item.label}</button>)}
+        <button type="button" className="welcome-settings-link" onClick={() => setAdding(false)}>Cancel</button>
+      </div> : <button type="button" className="welcome-settings-link" onClick={() => setAdding(true)}><Plus size={14} aria-hidden="true" /> Add a question to this page</button>}
+    </div>
+  </div>;
+}
+
+function QuestionEditor(props: {
+  question: CommunityFormQuestion; index: number; count: number; autoFocus: boolean; onFocused: () => void;
+  onChange: (patch: Partial<CommunityFormQuestion>) => void; onRemove: () => void; onMove: (to: number) => void;
+}) {
+  const q = props.question;
+  const title = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    if (!props.autoFocus) return;
+    requestAnimationFrame(() => title.current?.focus());
+    props.onFocused();
+  }, [props.autoFocus]);
+  const choice = q.type.endsWith("choice");
+  const setOption = (at: number, value: string) => props.onChange({ options: q.options.map((option, index) => (index === at ? value : option)) });
+  return <div className="welcome-settings-question" role="group" aria-label={`Question ${props.index + 1}`}>
+    <AutoSizeTextarea inputRef={title} className="welcome-settings-question-title" value={q.title} rows={1} maxLength={500} aria-label="Question"
+      placeholder="Type your question" onChange={(value) => props.onChange({ title: value.replace(/\n/g, " ") })} />
+    <AutoSizeTextarea className="welcome-settings-question-help" value={q.description} rows={1} maxLength={2000} aria-label="Help text (optional)"
+      placeholder="Add a note under it (optional)" onChange={(value) => props.onChange({ description: value })} />
+    {choice ? <ul className="welcome-settings-question-options">
+      {q.options.map((option, index) => <li key={index}>
+        <span className={`welcome-settings-question-mark${q.type === "multiple_choice" ? " is-box" : ""}`} aria-hidden="true" />
+        <input value={option} maxLength={200} aria-label={`Option ${index + 1}`} placeholder={`Option ${index + 1}`} onChange={(event) => setOption(index, event.target.value)}
+          onKeyDown={(event) => { if (event.key === "Enter" && q.options.length < 12) { event.preventDefault(); props.onChange({ options: [...q.options, ""] }); } }} />
+        {q.options.length > 2 ? <button type="button" className="welcome-settings-icon-button" aria-label={`Remove option ${index + 1}`}
+          onClick={() => props.onChange({ options: q.options.filter((_, at) => at !== index) })}><X size={13} aria-hidden="true" /></button> : null}
+      </li>)}
+      {q.options.length < 12 ? <li><button type="button" className="welcome-settings-link" onClick={() => props.onChange({ options: [...q.options, ""] })}>Add an option</button></li> : null}
+    </ul> : <div className={`welcome-settings-question-answer${q.type === "long_text" ? " is-long" : ""}`} aria-hidden="true">
+      {q.type === "long_text" ? "Their answer, a few sentences" : "Their answer"}</div>}
+    <div className="welcome-settings-question-tools">
+      <select value={q.type} aria-label="Answer type" onChange={(event) => {
+        const type = event.target.value as CommunityFormQuestion["type"];
+        props.onChange({ type, options: type.endsWith("choice") ? (q.options.length >= 2 ? q.options : ["Option 1", "Option 2"]) : [] });
+      }}>
+        {QUESTION_TYPES.map((item) => <option key={item.type} value={item.type}>{item.label}</option>)}
+      </select>
+      <label className="welcome-settings-question-required">
+        <input type="checkbox" checked={q.required} onChange={(event) => props.onChange({ required: event.target.checked })} /> Required
+      </label>
+      <span className="welcome-settings-question-move">
+        <button type="button" className="welcome-settings-icon-button" aria-label="Move question up" disabled={props.index === 0} onClick={() => props.onMove(props.index - 1)}><ChevronUp size={15} aria-hidden="true" /></button>
+        <button type="button" className="welcome-settings-icon-button" aria-label="Move question down" disabled={props.index === props.count - 1} onClick={() => props.onMove(props.index + 1)}><ChevronDown size={15} aria-hidden="true" /></button>
+        <button type="button" className="welcome-settings-icon-button" aria-label="Delete question" onClick={props.onRemove}><Trash2 size={14} aria-hidden="true" /></button>
+      </span>
+    </div>
+  </div>;
+}
+
 function StepCard(props: { id: string; kind: string; icon: ReactNode; title: string; detail: string[]; note: string; unavailable: boolean }) {
   return <div id={props.id} tabIndex={-1} className={`welcome-settings-step${props.unavailable ? " is-unavailable" : ""}`}>
     <span className="welcome-settings-step-icon">{props.icon}</span>
@@ -622,7 +909,7 @@ function BlockMenu(props: {
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, []);
-  const title = props.view === "form" ? "Choose a form" : props.view === "lesson" ? "Choose a lesson" : props.view === "link" ? "Video or image" : "Add a block";
+  const title = props.view === "form" ? "Choose a form" : props.view === "question" ? "Ask a question" : props.view === "lesson" ? "Choose a lesson" : props.view === "link" ? "Video or image" : "Add a block";
   return <div ref={ref} className="welcome-settings-menu" role="dialog" aria-label={title} tabIndex={-1} onKeyDown={(event) => { props.onKeys(event); }}>
     <div className="welcome-settings-menu-head">
       {props.view !== "root" ? <button type="button" className="welcome-settings-link" onClick={props.onBack}>Back</button> : null}
@@ -651,6 +938,17 @@ function BlockMenu(props: {
   </div>;
 }
 
+/** The forms as they stand in the editor, so the preview plays the questions as written, before Publish. */
+function previewForms(rows: Map<string, CommunityFormDraft> | null, forms: Record<string, FormContent>, layout: WelcomeBlock[]) {
+  if (!rows) return null;
+  const out = new Map(rows);
+  for (const [key, content] of Object.entries(forms)) {
+    const row = rows.get(key) ?? { key, revision: 0, publishedRevision: 0, ...content };
+    out.set(key, { ...row, name: content.name, questions: pageOrder(layout, key, content) });
+  }
+  return out;
+}
+
 // Plays the page the way a member goes through it: one screen at a time, the
 // real form runner (answers aren't saved), at a desktop or phone width.
 function WelcomePreview(props: {
@@ -677,6 +975,13 @@ function WelcomePreview(props: {
     }
     const form = props.formRows?.get(step.formKey);
     const request = form?.questions.length ? { id: `preview:${form.key}`, name: form.name, questions: form.questions, answers: {}, revision: form.revision } : null;
+    if (step.questions && request) {
+      const normal = normalizeWelcomeLayout(props.layout);
+      const place = welcomeFormPartPlace(normal, step);
+      return <WelcomeFormPage key={`${request.id}:${step.questions[0]}:${run}`} preview={request} requestId={request.id} communityId=""
+        pick={(questions) => welcomeFormPartQuestions(normal, step, questions)} last={place.last} onPageDone={advance}
+        submitLabel={index === lastStep ? "Finish and open the community" : "Next"} />;
+    }
     return <div className="member-form-dialog community-welcome-form">
       {request ? <MemberFormRunner key={`${request.id}:${run}`} preview={request} requestId={request.id} communityId=""
         session={null as never} ensureSession={async () => null} onClose={advance} />
@@ -696,7 +1001,7 @@ function WelcomePreview(props: {
     <div className="welcome-settings-preview-panel">
       <div className="welcome-settings-preview-bar">
         <h2>Preview</h2>
-        <span className="welcome-settings-preview-where">{finished ? "Done" : `Screen ${index + 1} of ${screens.length}`}</span>
+        <span className="welcome-settings-preview-where">{finished ? "Done" : `Page ${index + 1} of ${screens.length}`}</span>
         <div className="welcome-settings-device" role="group" aria-label="Preview size">
           <button type="button" aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}><Monitor size={15} aria-hidden="true" /> Desktop</button>
           <button type="button" aria-pressed={device === "phone"} onClick={() => setDevice("phone")}><Smartphone size={15} aria-hidden="true" /> Phone</button>

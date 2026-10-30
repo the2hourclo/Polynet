@@ -575,6 +575,10 @@
 [data-community-theme] .community-welcome-connector-text small {
   font-size: var(--pn-type-small);
 }
+[data-community-theme] .welcome-form-question input:not([type=radio]):not([type=checkbox]),
+[data-community-theme] .welcome-form-question textarea {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
 [data-community-theme] .pn-offer-chooser legend {
   font-size: var(--pn-type-small);
 }
@@ -1207,6 +1211,27 @@
 }
 [data-community-theme] .welcome-settings-text-done {
   font-size: var(--pn-type-small);
+}
+[data-community-theme] .welcome-settings-form-name {
+  border-radius: calc(6px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-question {
+  border-radius: calc(12px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-question :is(.welcome-settings-question-title, .welcome-settings-question-help):focus-visible {
+  border-radius: calc(4px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-question-answer {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-question-options input {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-question-mark.is-box {
+  border-radius: calc(4px * var(--pn-radius-scale, 1));
+}
+[data-community-theme] .welcome-settings-question-tools select {
+  border-radius: calc(8px * var(--pn-radius-scale, 1));
 }
 [data-community-theme] .pn-wf-tabs > button[aria-selected="true"]::after {
   border-radius: calc(1px * var(--pn-radius-scale, 1));

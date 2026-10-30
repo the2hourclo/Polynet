@@ -4,6 +4,7 @@ import { X, ArrowRight } from "lucide-react";
 import type { AuthSession } from "../auth";
 import { getMemberForm, saveMemberForm, subscribeMemberForms, type MemberFormSummary, type MemberFormRequest } from "../../../../shared/cloudCommunityFormRequestsGateway";
 import { formAnswersIssue, formQuestionAnswered, type FormAnswers } from "../../../../shared/communityFormAnswers";
+import type { CommunityFormQuestion } from "../../../../shared/communityForms";
 import { communityClientAnswerFormatIssue } from "../../../../shared/communityClients";
 import "./WebCommunityNextStep.css";
 import { createMemberFormSave, type FormSaveIntent } from "./memberFormSave";
@@ -58,7 +59,19 @@ function MemberFormDialog(props: Props & { rows: MemberFormSummary[]; hasMore: b
       {props.hasMore ? <button className="member-form-list-row" onClick={props.onLoadMore}>Load more</button> : null}</>}
   </div></div>, document.body);
 }
-const FORMAT_HINTS = { number: "Answer with a number.", date: "Answer with a date, like 2026-11-01.", url: "Answer with a full link, starting with https://." } as const;
+/** One question's answer field: choices, a long answer or a short one. The form runner and the welcome page's form pages share it. */
+export function MemberFormQuestionInput(props: { question: CommunityFormQuestion; answers: FormAnswers; setAnswers: (update: (answers: FormAnswers) => FormAnswers) => void;
+  disabled: boolean; field: Record<string, unknown> }) {
+  const { question: q, answers, setAnswers, disabled: locked, field } = props;
+  return <>
+      {q.type.endsWith("choice") ? <fieldset className="member-form-choices" {...field}>{q.options.map((option, i) => <label key={i}><input disabled={locked} name={q.key} type={q.type === "single_choice" ? "radio" : "checkbox"}
+        checked={q.type === "single_choice" ? answers[q.key] === String(i) : ((answers[q.key] as string[]) ?? []).includes(String(i))}
+        onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) ?? []), String(i)] : ((a[q.key] as string[]) ?? []).filter(v => v !== String(i)) }))} />{option}</label>)}</fieldset>
+        : q.type === "long_text" ? <textarea {...field} aria-required={q.required} rows={5} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers(a => ({ ...a, [q.key]: e.target.value }))} />
+        : <input {...field} aria-required={q.required} maxLength={10000} inputMode={q.answerFormat === "number" ? "decimal" : q.answerFormat === "url" ? "url" : undefined} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers(a => ({ ...a, [q.key]: e.target.value }))} />}
+  </>;
+}
+export const FORMAT_HINTS = { number: "Answer with a number.", date: "Answer with a date, like 2026-11-01.", url: "Answer with a full link, starting with https://." } as const;
 /** Where a form's answers live when they aren't an assigned form request: a Form shared in a post. */
 export type MemberFormSource = {
   load: (session: AuthSession) => Promise<MemberFormRequest>;
@@ -160,11 +173,7 @@ export function MemberFormRunner(props: Props & { requestId: string; onClose: ()
     {done ? <section ref={questionSection}><h2>Submitted</h2><p>You’re all set.</p><button onClick={props.onClose}>Done</button></section> : q ? <section ref={questionSection} onChange={() => setValidation(null)}>
       <div className="member-form-progress" aria-hidden="true"><span style={{ width: `${((index + 1) / request!.questions.length) * 100}%` }} /></div><small id={`${fieldId}-count`}>{index + 1} of {request!.questions.length}{q.required ? " · Required" : " · Optional"}</small><h2 id={`${fieldId}-title`}>{q.title}</h2>{q.description ? <p id={`${fieldId}-help`}>{q.description}</p> : null}
       {q.answerFormat ? <p id={`${fieldId}-format`} className="member-form-format">{FORMAT_HINTS[q.answerFormat]}</p> : null}
-      {q.type.endsWith("choice") ? <fieldset className="member-form-choices" {...field}>{q.options.map((option, i) => <label key={i}><input disabled={locked} name={q.key} type={q.type === "single_choice" ? "radio" : "checkbox"}
-        checked={q.type === "single_choice" ? answers[q.key] === String(i) : ((answers[q.key] as string[]) ?? []).includes(String(i))}
-        onChange={e => setAnswers(a => ({ ...a, [q.key]: q.type === "single_choice" ? String(i) : e.target.checked ? [...((a[q.key] as string[]) ?? []), String(i)] : ((a[q.key] as string[]) ?? []).filter(v => v !== String(i)) }))} />{option}</label>)}</fieldset>
-        : q.type === "long_text" ? <textarea {...field} aria-required={q.required} rows={5} maxLength={10000} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />
-        : <input {...field} aria-required={q.required} maxLength={10000} inputMode={q.answerFormat === "number" ? "decimal" : q.answerFormat === "url" ? "url" : undefined} disabled={locked} value={(answers[q.key] as string) ?? ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} />}
+      <MemberFormQuestionInput question={q} answers={answers} setAnswers={setAnswers} disabled={locked} field={field} />
       {/* Right under the answer, so it's seen without scrolling and read out with the field. */}
       {validation ? <p role="alert" id={`${fieldId}-issue`} className="member-form-issue">{validation}</p> : null}
       <footer><button disabled={locked || !!error || index === 0} onClick={() => { setIndex(index - 1); setValidation(null); }}>Back</button><button disabled={locked || !!error} onClick={async () => {

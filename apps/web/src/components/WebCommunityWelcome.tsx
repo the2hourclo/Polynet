@@ -5,9 +5,10 @@ import type { AuthSession } from "../auth";
 import { getMemberWelcomePage, subscribeMemberForms, type MemberFormSummary, type MemberWelcomePage } from "../../../../shared/cloudCommunityFormRequestsGateway";
 import { setCloudOwnResourceProgress } from "../../../../shared/cloudCommunityResourceProgressGateway";
 import { CONTENT_MARKDOWN_OPTIONS, CONTENT_PROSE_CLASS, renderMarkdown } from "../../../../shared/markdownUi";
-import { legacyWelcomeLayout, welcomeLayoutWithForms, welcomeScreens, type WelcomeBlock, type WelcomeChoiceOption, type WelcomeScreen, type WelcomeStep } from "../../../../shared/communityWelcomeLayout";
+import { legacyWelcomeLayout, welcomeFormPartPlace, welcomeFormPartQuestions, welcomeLayoutWithForms, welcomeScreens, type WelcomeBlock, type WelcomeChoiceOption, type WelcomeScreen, type WelcomeStep } from "../../../../shared/communityWelcomeLayout";
 import { useWebCommunityLessonProgress } from "../controllers/useWebCommunityLessonProgress";
 import { MemberFormRunner } from "./WebCommunityNextStep";
+import { WelcomeFormPage } from "./WelcomeFormPage";
 import { WebCommunityResourceViewerContent, type WebLessonActivity } from "./WebCommunityResourceViewerContent";
 import type { CommunityResource } from "./communityResourcesContracts";
 import "./WebCommunityNextStep.css";
@@ -179,6 +180,13 @@ export function memberWelcomeLayout(page: { message?: string | null; media_url?:
 }
 
 const seenKey = (communityId: string) => `polynet:welcome-seen:${communityId}`;
+// The earlier pages of a split form the member has finished, by form and first question.
+const partsKey = (communityId: string) => `polynet:welcome-parts:${communityId}`;
+export const welcomePartId = (step: WelcomeStep) => (step.type === "form" ? `${step.formKey}:${step.questions?.[0] ?? ""}` : "");
+function readParts(communityId: string): string[] {
+  try { const value = JSON.parse(localStorage.getItem(partsKey(communityId)) ?? "[]"); return Array.isArray(value) ? value.filter((item) => typeof item === "string") : []; }
+  catch { return []; }
+}
 function readSeen(communityId: string): number[] {
   try { const value = JSON.parse(localStorage.getItem(seenKey(communityId)) ?? "[]"); return Array.isArray(value) ? value.filter(Number.isInteger) : []; }
   catch { return []; }
@@ -266,11 +274,20 @@ export function WebCommunityWelcome(props: Props) {
   const lessonById = useMemo(() => new Map(lessons.map((row) => [row.id, row])), [lessons]);
   // Owed forms by key; rows without a key (older servers) take the next form screen.
   const owedKeys = useMemo(() => (rows ?? []).map((row) => row.form_key ?? `request:${row.id}`), [rows]);
-  const screens = useMemo(() => welcomeScreens(memberWelcomeLayout(page, owedKeys, props.lessonIds)), [page, owedKeys, props.lessonIds]);
+  const layout = useMemo(() => memberWelcomeLayout(page, owedKeys, props.lessonIds), [page, owedKeys, props.lessonIds]);
+  const screens = useMemo(() => welcomeScreens(layout), [layout]);
   const [seen, setSeen] = useState<number[]>(() => readSeen(props.communityId));
+  const [partsDone, setPartsDone] = useState<string[]>(() => readParts(props.communityId));
+  // A split form's earlier page is owed until the member finishes it here; its last page until the form is sent in.
   const stepOwed = (step: WelcomeStep) => step.type === "form"
     ? (rows === null ? formsOwed : owedKeys.includes(step.formKey))
+      && (!step.questions || welcomeFormPartPlace(layout, step).last || !partsDone.includes(welcomePartId(step)))
     : props.lessonIds.includes(step.resourceId) && lessonById.has(step.resourceId);
+  const finishPart = (step: WelcomeStep) => {
+    const next = [...partsDone.filter((item) => item !== welcomePartId(step)), welcomePartId(step)];
+    setPartsDone(next);
+    try { localStorage.setItem(partsKey(props.communityId), JSON.stringify(next)); } catch { /* the page still moves on */ }
+  };
   const index = page ? screens.findIndex((screen, at) => (screen.step ? stepOwed(screen.step) : !seen.includes(at))) : -1;
   // Text screens before the next step are read once; past the last step the community opens.
   const lastOwed = screens.reduce((last, screen, at) => (screen.step && stepOwed(screen.step) ? at : last), -1);
@@ -321,6 +338,15 @@ export function WebCommunityWelcome(props: Props) {
       </div>;
     }
     const row = rows?.find((r) => (r.form_key ?? `request:${r.id}`) === step.formKey);
+    if (step.questions) {
+      const place = welcomeFormPartPlace(layout, step);
+      return row ? <WelcomeFormPage key={`${row.id}:${welcomePartId(step)}`} communityId={props.communityId} session={props.session} ensureSession={props.ensureSession}
+        requestId={row.id} pick={(questions) => welcomeFormPartQuestions(layout, step, questions)} last={place.last}
+        submitLabel={lastStep ? "Finish and open the community" : "Next"}
+        onPageDone={() => { if (!place.last) finishPart(step); }} />
+        : error ? <div role="alert"><p>Your welcome steps could not be loaded.</p><button type="button" onClick={() => { setRetry((n) => n + 1); onFinished.current(); }}>Retry</button></div>
+        : <p role="status">{rows ? "Opening your next step…" : "Loading…"}</p>;
+    }
     return <div className="member-form-dialog community-welcome-form">
       {row ? <MemberFormRunner key={`${row.id}:${runner}`} communityId={props.communityId} session={props.session} ensureSession={props.ensureSession}
         requestId={row.id} onClose={() => setRunner((n) => n + 1)} />

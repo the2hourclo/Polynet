@@ -111,7 +111,8 @@ function goTo(path: string | undefined) {
 /** The welcome page can open with screens of words before a step: read on past them, as a member would. */
 async function passWelcomeScreens(cursor: Cursor, pace: number) {
   for (let turn = 0; turn < 20; turn += 1) {
-    const next = Array.from(document.querySelectorAll(".community-welcome-next button")).filter(shown)[0];
+    // A page of a split form isn't read past: its questions are answered first.
+    const next = Array.from(document.querySelectorAll(".community-welcome-next button")).filter(shown).filter((button) => !button.closest(".welcome-form-page"))[0];
     if (!next) return;
     await sleep(pace / 2);
     await cursor.click(next);
@@ -122,6 +123,7 @@ async function passWelcomeScreens(cursor: Cursor, pace: number) {
 async function fillForm(cursor: Cursor, step: Extract<CloudAutoplayScreenStep, { kind: "form" }>, pace: number) {
   await passWelcomeScreens(cursor, pace);
   const name = step.formName.trim().toLowerCase();
+  if (await fillWelcomeFormPages(cursor, step, pace)) return;
   const formOpen = () => Array.from(document.querySelectorAll(".member-form-dialog")).filter(shown)
     .find((dialog) => words(dialog.querySelector("header h2") ?? dialog).startsWith(name)) ?? null;
   let dialog = formOpen();
@@ -156,6 +158,40 @@ async function fillForm(cursor: Cursor, step: Extract<CloudAutoplayScreenStep, {
     await cursor.click(next);
     await waitFor(() => { const now = form.querySelector("section h2"); return now && words(now) !== heading ? now : null; }, 8_000);
   }
+}
+
+/** A form split across the welcome page: every question on a page shows at once, so each page is answered, then Next. */
+async function fillWelcomeFormPages(cursor: Cursor, step: Extract<CloudAutoplayScreenStep, { kind: "form" }>, pace: number): Promise<boolean> {
+  const name = step.formName.trim().toLowerCase();
+  const page = () => Array.from(document.querySelectorAll<HTMLElement>(".welcome-form-page[data-form]")).filter(shown)
+    .find((element) => (element.dataset.form ?? "").trim().toLowerCase() === name) ?? null;
+  let current = await waitFor(page, 1_500);
+  if (!current) return false;
+  for (let turn = 0; current && turn <= step.questions.length + 1; turn += 1) {
+    for (const block of Array.from(current.querySelectorAll<HTMLElement>(".welcome-form-question[data-question]"))) {
+      const question = step.questions.find((q) => q.key === block.dataset.question);
+      if (!question) continue;
+      const answer = step.answers[question.key];
+      if (question.type.endsWith("choice")) {
+        const labels = Array.from(block.querySelectorAll("fieldset label")).filter(shown);
+        for (const index of Array.isArray(answer) ? answer : answer ? [answer] : []) {
+          const label = labels[Number(index)];
+          if (label && !label.querySelector<HTMLInputElement>("input")?.checked) await cursor.click(label);
+        }
+      } else if (typeof answer === "string") {
+        const field = need(block.querySelector<HTMLInputElement | HTMLTextAreaElement>("textarea, input:not([type=radio]):not([type=checkbox])"), "no answer box");
+        if (field.value !== answer) await cursor.type(field, answer);
+      }
+    }
+    await sleep(pace / 2);
+    const before = current;
+    await cursor.click(need(current.querySelector<HTMLElement>("footer button"), "no Next button"));
+    await waitFor(() => (before.isConnected ? null : true), 8_000);
+    // Words can sit between two pages of the form.
+    if (!page()) await passWelcomeScreens(cursor, pace);
+    current = await waitFor(page, 1_500);
+  }
+  return true;
 }
 
 /** Opens the lesson, unless it's already on screen (the welcome page shows it directly). */

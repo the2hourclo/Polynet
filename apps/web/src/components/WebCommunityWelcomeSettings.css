@@ -268,3 +268,79 @@
   background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .welcome-settings-text-done:hover { background: color-mix(in srgb, var(--text-primary) 6%, var(--bg-card)); }
+
+/* Questions written on the page (Tally style): each reads as the member sees
+   it, with its answer type and Required beside it on hover. */
+.welcome-settings-form { margin: 2px 0 2px 8px; padding: 10px 0 6px; outline: 0; display: flex; flex-direction: column; gap: 6px; }
+.welcome-settings-form-head { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
+.welcome-settings-form-head > span, .welcome-settings-form-name { font-weight: 600; color: var(--text-secondary); }
+.welcome-settings-form-name { min-width: 0; width: 22ch; padding: 2px 6px; margin-left: -6px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-weight: 600; }
+.welcome-settings-form-name:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+.welcome-settings-form-name:focus-visible { outline: 2px solid var(--focus-ring); }
+.welcome-settings-form-head small { margin-left: auto; font-size: var(--pn-type-meta, 12px); }
+.welcome-settings-form-note { margin: 0; color: var(--text-secondary); font-size: var(--pn-type-small, 13px); }
+.welcome-settings-question { position: relative; padding: 12px 14px 10px; margin: 0 -14px; border-radius: 12px; border: 1px solid transparent; }
+.welcome-settings-question:hover, .welcome-settings-question:focus-within { border-color: var(--border-default); background: var(--bg-card, transparent); }
+.welcome-settings-question-title, .welcome-settings-question-help {
+  display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 0; resize: none; overflow: hidden; border: 0; outline: 0; background: transparent; color: var(--text-primary); font-family: inherit;
+}
+.welcome-settings-question-title { font-size: var(--pn-type-title, 22px); font-weight: 700; line-height: 1.3; }
+.welcome-settings-question-help { margin-top: 4px; font-size: var(--pn-type-body, 15px); line-height: 1.5; color: var(--text-secondary); }
+.welcome-settings-question :is(.welcome-settings-question-title, .welcome-settings-question-help)::placeholder { color: var(--text-faint, var(--text-secondary)); opacity: 1; }
+.welcome-settings-question :is(.welcome-settings-question-title, .welcome-settings-question-help):focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 55%, transparent); border-radius: 4px; }
+.welcome-settings-question-answer {
+  margin-top: 12px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-faint, var(--text-secondary));
+  font-size: var(--pn-type-body, 15px); background: var(--surface-workspace, transparent);
+}
+.welcome-settings-question-answer.is-long { min-height: 72px; }
+.welcome-settings-question-options { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.welcome-settings-question-options li { display: flex; align-items: center; gap: 10px; }
+.welcome-settings-question-options input {
+  flex: 1; min-width: 0; min-height: 40px; padding: 8px 12px; box-sizing: border-box; border: 1px solid var(--border-default); border-radius: 8px;
+  background: var(--surface-workspace, transparent); color: var(--text-primary); font: inherit; font-size: var(--pn-type-body, 15px);
+}
+.welcome-settings-question-options input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.welcome-settings-question-mark { flex-shrink: 0; width: 16px; height: 16px; border: 1.5px solid var(--text-faint, var(--text-secondary)); border-radius: 999px; }
+.welcome-settings-question-mark.is-box { border-radius: 4px; }
+.welcome-settings-question-options li > .welcome-settings-link { margin-left: 26px; }
+.welcome-settings-question-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: var(--pn-type-small, 13px); color: var(--text-secondary); opacity: 0; transition: opacity .12s ease; }
+.welcome-settings-question:is(:hover, :focus-within) .welcome-settings-question-tools { opacity: 1; }
+.welcome-settings-question-tools select { min-height: 30px; padding: 0 8px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-workspace, transparent); color: var(--text-primary); font: inherit; }
+.welcome-settings-question-required { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.welcome-settings-question-required input { margin: 0; accent-color: var(--accent-brand, var(--accent-primary)); }
+.welcome-settings-question-move { margin-left: auto; display: inline-flex; gap: 2px; }
+.welcome-settings-question-move .welcome-settings-icon-button:disabled { opacity: .35; }
+.welcome-settings-form-add { padding: 4px 0 0; }
+.welcome-settings-form-add > .welcome-settings-link { display: inline-flex; align-items: center; gap: 6px; }
+.welcome-settings-question-types { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.welcome-settings-question-types button:not(.welcome-settings-link) {
+  min-height: 32px; padding: 0 12px; border: 1px solid var(--border-default); border-radius: 999px; background: var(--bg-card, transparent); color: var(--text-primary); font: inherit; font-size: var(--pn-type-small, 13px); cursor: pointer;
+}
+.welcome-settings-question-types button:not(.welcome-settings-link):hover { border-color: var(--border-strong, var(--border-default)); }
+
+/* "Split page here": a line between any two blocks or questions, shown on hover or keyboard focus. */
+.welcome-settings-split {
+  position: absolute; z-index: 2; left: 50%; bottom: -13px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border: 1px dashed var(--border-strong, var(--border-default)); border-radius: 999px; background: var(--surface-workspace, var(--bg-workspace));
+  color: var(--text-secondary); font: inherit; font-size: var(--pn-type-meta, 12px); font-weight: 600; cursor: pointer; opacity: 0; transition: opacity .12s ease;
+}
+.welcome-settings-block > .welcome-settings-split { left: calc(72px + (100% - 112px) / 2); }
+.welcome-settings-block:hover > .welcome-settings-split, .welcome-settings-split:focus-visible { opacity: 1; }
+.welcome-settings-split:hover { color: var(--text-primary); border-style: solid; }
+.welcome-settings-split:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.welcome-settings-split.is-between { position: relative; left: auto; bottom: auto; transform: none; align-self: center; margin: -4px 0; }
+.welcome-settings-form:hover .welcome-settings-split.is-between { opacity: 1; }
+/* A page break says which page starts there, and can be joined back. */
+.welcome-settings-block .welcome-settings-break { position: relative; }
+.welcome-settings-join {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: inline-flex; background: var(--surface-workspace, var(--bg-workspace)) !important; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid transparent; border-radius: 999px;
+  color: var(--text-secondary); font: inherit; font-size: var(--pn-type-meta, 12px); cursor: pointer; opacity: 0; transition: opacity .12s ease;
+}
+.welcome-settings-block:is(:hover, :focus-within) .welcome-settings-join, .welcome-settings-join:focus-visible { opacity: 1; }
+.welcome-settings-join:hover { color: var(--text-primary); border-color: var(--border-default); }
+@media (hover: none) { .welcome-settings-split, .welcome-settings-join, .welcome-settings-question-tools { opacity: 1; } .welcome-settings-split:not(.is-between) { position: static; transform: none; margin: 4px auto; grid-column: 2; } }
+@media (prefers-reduced-motion: reduce) { .welcome-settings-split, .welcome-settings-join, .welcome-settings-question-tools { transition: none; } }
+.welcome-settings-question-options .welcome-settings-icon-button { opacity: 0; transition: opacity .12s ease; }
+.welcome-settings-question:is(:hover, :focus-within) .welcome-settings-question-options .welcome-settings-icon-button { opacity: 1; }
+.welcome-settings-form :is(.welcome-settings-link) { text-decoration: none; font-size: var(--pn-type-small, 13px); font-weight: 600; }
+.welcome-settings-form .welcome-settings-link:hover { text-decoration: underline; }
