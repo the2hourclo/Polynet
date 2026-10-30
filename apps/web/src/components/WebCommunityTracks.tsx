@@ -349,6 +349,21 @@ export function WebCommunityTrackShelf(props: {
           </span>
         </span>
       </button>
+      {/* Where am I in this track: one dot per module, in order, each in its module's colour. */}
+      <ol className="track-path" aria-label="Your place in this track">
+        {props.modules.map(({ stage }, index) => {
+          const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
+          const here = !done && !stage.locked && props.modules.findIndex((item) => !item.stage.locked && item.stage.done_count < item.stage.step_count) === index;
+          return (
+            <li key={stage.name} data-stage={(index % 6) + 1} data-state={done ? "done" : here ? "here" : stage.locked ? "locked" : "open"}
+              aria-current={here ? "step" : undefined}>
+              <span className="track-path-dot" aria-hidden="true">{done ? <Check size={12} /> : stage.locked ? <Lock size={11} /> : null}</span>
+              <span className="track-path-name">{stage.name}</span>
+              {here ? <span className="track-path-here">You're here</span> : null}
+            </li>
+          );
+        })}
+      </ol>
       <section className="track-group" aria-label="Modules">
         <div className="track-group-head">
           <h2>Modules</h2>
@@ -367,7 +382,7 @@ export function WebCommunityTrackShelf(props: {
               ? track.stages.findIndex((candidate) => candidate.steps.some((step) => step.ref === stage.blocked_by))
               : -1;
             return (
-              <li key={stage.name} className="track-card track-module-card" data-status={status}>
+              <li key={stage.name} className="track-card track-module-card" data-status={status} data-stage={(index % 6) + 1}>
                 <button type="button" className="track-card-main" onClick={onOpen} disabled={stage.locked}>
                   <span className="track-card-art" data-style={cover ? "image" : "route"}>
                     {cover ? <img className="track-art-image" src={cover} alt="" /> : <span className="track-module-number" aria-hidden="true">{index + 1}</span>}
