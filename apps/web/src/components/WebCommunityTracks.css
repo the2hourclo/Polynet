@@ -327,51 +327,35 @@
 }
 .track-shelf-back:hover { color: var(--text-primary); }
 .track-shelf .track-continue:disabled { cursor: default; }
-/* Modules read like a Substack archive: one row each, words on the left, the
-   course cover as a 16:9 thumbnail on the right, hairlines between rows. */
+/* A track's modules are cards like the tracks home (Rashid, 2026-10-30: keep
+   the Classroom feel), on a wider page, three across. */
 .community-knowledge-page:has(.track-shelf) { max-width: 72rem; }
-.track-module-list { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--border-default); }
-.track-module-row { position: relative; border-bottom: 1px solid var(--border-default); }
-.track-module-main {
-  display: grid; grid-template-columns: minmax(0, 1fr) clamp(140px, 26%, 240px); align-items: center; gap: 28px;
-  width: 100%; padding: 22px 12px; border: 0; border-radius: 0; font: inherit; text-align: left;
-  color: var(--text-primary); background: transparent; cursor: pointer; transition: background 120ms ease;
-}
-.track-module-main:hover { background: var(--hover-overlay); }
-.track-module-main:focus-visible { outline: 2px solid var(--focus-ring, var(--accent-brand)); outline-offset: -2px; }
-.track-module-main:disabled { cursor: default; }
-.track-module-main:disabled:hover { background: transparent; }
-.track-module-copy { display: grid; justify-items: start; gap: 6px; min-width: 0; }
-.track-module-copy strong { font-family: var(--pn-font-heading, inherit); font-size: 21px; font-weight: var(--pn-heading-weight, 700); line-height: 1.25; text-wrap: balance; }
-.track-module-copy .track-bar { justify-self: stretch; max-width: 22rem; margin-top: 2px; }
-.track-module-copy .track-card-action { margin-top: 4px; }
+.track-module-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 24px; }
+/* The cover fills a fixed 16:9 frame and never spills onto the card's words. */
+.track-module-card .track-card-art { height: auto; aspect-ratio: 16 / 9; padding: 0; overflow: hidden; }
+.track-module-card .track-card-art[data-style="image"] { background: #fff; border-bottom: 1px solid var(--border-default); }
+.track-module-card .track-card-art .track-art-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.track-module-card .track-card-body { gap: 6px; padding: 18px 20px 20px; }
+.track-module-card .track-card-action, .track-module-lock { margin-top: auto; padding-top: 8px; }
+.track-module-card .track-bar { margin-top: 4px; }
 .track-module-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
-.track-module-lock { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 14px; color: var(--text-secondary); }
-.track-module-thumb {
-  position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px;
-  border: 1px solid var(--border-default); background: color-mix(in srgb, var(--accent-brand) 9%, var(--surface-card, transparent));
-}
-.track-module-thumb[data-style="image"] { background: #fff; }
-.track-module-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.track-module-lock { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-secondary); }
 .track-module-number {
-  font-family: var(--pn-font-heading, inherit); font-size: 36px; font-weight: var(--pn-heading-weight, 700);
+  font-family: var(--pn-font-heading, inherit); font-size: 44px; font-weight: var(--pn-heading-weight, 700);
   color: color-mix(in srgb, var(--accent-brand) 55%, var(--text-secondary));
 }
-.track-module-row[data-status="locked"] .track-module-thumb { filter: grayscale(0.7); opacity: 0.55; }
-.track-module-row[data-status="locked"] strong { color: var(--text-secondary); }
-/* The owner's Change image sits on the thumbnail, shown on the row under the pointer. */
+.track-module-card .track-card-main:disabled { cursor: default; }
+.track-module-card .track-card-main:disabled:hover { border-color: var(--border-default); box-shadow: none; transform: none; }
+.track-module-card[data-status="locked"] .track-card-art { filter: grayscale(0.6); opacity: 0.6; }
+.track-module-card[data-status="locked"] strong { color: var(--text-secondary); }
+/* The owner's Change image sits on the cover, shown on the card under the pointer. */
 .track-module-image {
-  position: absolute; right: 20px; bottom: 30px; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px;
+  position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px;
   border: 0; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 600; color: #121412; background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18); cursor: pointer; opacity: 0; transition: opacity 120ms ease;
 }
-.track-module-row:hover .track-module-image, .track-module-image:focus-visible { opacity: 1; }
+.track-module-card:hover .track-module-image, .track-module-image:focus-visible { opacity: 1; }
 @media (hover: none) { .track-module-image { opacity: 1; } }
-@media (max-width: 640px) {
-  .track-module-main { grid-template-columns: minmax(0, 1fr) 112px; gap: 16px; padding: 16px 4px; }
-  .track-module-copy strong { font-size: 18px; }
-  .track-module-image { right: 8px; bottom: 20px; padding: 0 8px; font-size: 0; gap: 0; }
-}
 .track-cover-upload { display: flex; flex-wrap: wrap; gap: 8px; }
 .track-cover-upload .track-new { align-self: auto; }
 .track-cover-preview { display: block; width: 100%; max-width: 320px; aspect-ratio: 16 / 9; object-fit: cover; border: 1px solid var(--border-default); border-radius: 10px; }
