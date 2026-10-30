@@ -9197,6 +9197,13 @@ button.chat-reply-quote:hover {
   min-height: 18px;
   align-self: center;
 }
+/* In a course outline the drag handles wait for the pointer, so the lesson
+   list reads clean (Rashid, 2026-10-30); keyboard focus still shows them. */
+@media (hover: hover) {
+  .resource-course-outline .knowledge-resource-drag-handle { opacity: 0; transition: opacity 120ms ease; }
+  .resource-course-outline .knowledge-resource-item:hover .knowledge-resource-drag-handle,
+  .resource-course-outline .knowledge-resource-item:focus-within .knowledge-resource-drag-handle { opacity: 1; }
+}
 
 .knowledge-resource-item-main {
   appearance: none;
