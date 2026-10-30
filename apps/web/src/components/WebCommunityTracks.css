@@ -381,3 +381,6 @@
 .track-cover-upload { display: flex; flex-wrap: wrap; gap: 8px; }
 .track-cover-upload .track-new { align-self: auto; }
 .track-cover-preview { display: block; width: 100%; max-width: 320px; aspect-ratio: 16 / 9; object-fit: cover; border: 1px solid var(--border-default); border-radius: 10px; }
+/* Every card in a row is the same height. */
+.track-module-grid { align-items: stretch; }
+.track-module-card .track-card-main { height: 100%; }
