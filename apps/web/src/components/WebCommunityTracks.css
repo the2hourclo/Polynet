@@ -384,3 +384,49 @@
 /* Every card in a row is the same height. */
 .track-module-grid { align-items: stretch; }
 .track-module-card .track-card-main { height: 100%; }
+
+/* Stage colours (Rashid's Build Board, 2026-10-30). Each module keeps one
+   colour for its dot, cover tint, label, badge and progress. Filled buttons
+   stay the community's accent. Text uses a shade mixed toward the page's own
+   ink, so it reads on light and dark alike. */
+[data-stage="1"] { --stage: #2D8C3C; }
+[data-stage="2"] { --stage: #2563A8; }
+[data-stage="3"] { --stage: #6B46C1; }
+[data-stage="4"] { --stage: #B26B00; }
+[data-stage="5"] { --stage: #A83A6B; }
+[data-stage="6"] { --stage: #C2410C; }
+[data-stage] { --stage-ink: color-mix(in srgb, var(--stage) 74%, var(--text-primary)); }
+.track-module-card[data-stage] .track-card-main { border-top: 3px solid var(--stage); }
+.track-module-card[data-stage] .track-card-art { background: color-mix(in srgb, var(--stage) 12%, var(--surface-card, #fff)); }
+.track-module-card[data-stage] .track-module-eyebrow { color: var(--stage-ink); }
+.track-module-card[data-stage] .track-bar i { background: var(--stage); }
+.track-module-card[data-stage] .track-bar { background: color-mix(in srgb, var(--stage) 16%, var(--border-default)); }
+.track-module-card[data-stage] .track-module-badge:is([data-status="in_progress"], [data-status="done"]) {
+  color: var(--stage-ink); background: color-mix(in srgb, var(--stage) 11%, transparent); border-color: color-mix(in srgb, var(--stage) 35%, transparent);
+}
+.track-module-card[data-stage] .track-card-main:not(:disabled):hover { border-color: color-mix(in srgb, var(--stage) 50%, var(--border-default)); border-top-color: var(--stage); }
+.track-module-card[data-stage]:not([data-status="locked"]) .track-card-main:hover .track-module-title svg { color: var(--stage-ink); }
+
+/* The path strip: where am I in this track. */
+.track-path { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; margin: 4px 0 0; padding: 0; list-style: none; }
+.track-path li { position: relative; display: grid; justify-items: center; align-content: start; gap: 6px; min-width: 0; padding: 0 4px; text-align: center; }
+.track-path li::before {
+  content: ""; position: absolute; top: 11px; left: calc(-50% + 14px); right: calc(50% + 14px); height: 3px; border-radius: 2px;
+  background: var(--border-default);
+}
+.track-path li:first-child::before { display: none; }
+.track-path li[data-state="done"]::before, .track-path li[data-state="here"]::before { background: color-mix(in srgb, var(--stage) 60%, var(--border-default)); }
+.track-path-dot {
+  display: grid; place-items: center; width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%;
+  border: 3px solid var(--stage); background: var(--surface-card, #fff); color: #fff;
+}
+.track-path li[data-state="done"] .track-path-dot { background: var(--stage); }
+.track-path li[data-state="here"] .track-path-dot { box-shadow: 0 0 0 5px color-mix(in srgb, var(--stage) 22%, transparent); }
+.track-path li[data-state="locked"] .track-path-dot { border-color: var(--border-default); color: var(--text-secondary); }
+.track-path-name { overflow: hidden; max-width: 100%; font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.track-path li[data-state="here"] .track-path-name, .track-path li[data-state="done"] .track-path-name { color: var(--stage-ink); }
+.track-path-here { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--stage-ink); }
+@media (max-width: 640px) {
+  .track-path-name { display: none; }
+  .track-path li[data-state="here"] .track-path-name { display: block; white-space: normal; }
+}
