@@ -382,7 +382,7 @@ export function WebCommunityTrackShelf(props: {
                       <span>{plural(stage.step_count, "lesson")}</span>
                       <span className="track-module-badge" data-status={status}>
                         {stage.locked ? <Lock size={12} aria-hidden="true" /> : done ? <Check size={12} aria-hidden="true" /> : <i aria-hidden="true" />}
-                        {stage.locked ? "Locked" : done ? "Completed" : going ? "In progress" : "Not started"}
+                        {stage.locked ? (blocker >= 0 ? `Opens after Module ${blocker + 1}` : "Locked") : done ? "Completed" : going ? "In progress" : "Not started"}
                       </span>
                     </span>
                     {going ? (
@@ -391,7 +391,6 @@ export function WebCommunityTrackShelf(props: {
                         <em>{modulePercent}%</em>
                       </span>
                     ) : null}
-                    {stage.locked && blocker >= 0 ? <span className="track-module-lock">Opens after Module {blocker + 1}</span> : null}
                   </span>
                 </button>
                 {onChangeImage ? (
