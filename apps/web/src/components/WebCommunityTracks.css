@@ -430,3 +430,69 @@
   .track-path-name { display: none; }
   .track-path li[data-state="here"] .track-path-name { display: block; white-space: normal; }
 }
+
+/* Cards | Board switch on a track page. */
+.track-shape { display: inline-flex; gap: 2px; padding: 2px; margin-left: auto; align-self: center; border: 1px solid var(--border-default); border-radius: 999px; }
+.track-shape button {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border: 0; border-radius: 999px;
+  font: inherit; font-size: 13px; color: var(--text-secondary); background: transparent; cursor: pointer;
+}
+.track-shape button[aria-pressed="true"] { color: var(--text-primary); background: var(--hover-overlay); font-weight: 600; }
+
+/* The track as a board: a column per module, in its colour (after Rashid's Build Board). */
+.track-board {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+}
+.track-board-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.track-board-head { display: flex; align-items: center; gap: 8px; padding: 0 2px; min-height: 28px; }
+.track-board-pill {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 10px; border-radius: 8px;
+  font-size: 13px; font-weight: 700; color: var(--stage-ink);
+  background: color-mix(in srgb, var(--stage) 13%, transparent); border: 1px solid color-mix(in srgb, var(--stage) 30%, transparent);
+}
+.track-board-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--stage); flex-shrink: 0; }
+.track-board-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track-board-state { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--text-secondary); }
+.track-board-col[data-state="here"] .track-board-state { color: var(--stage-ink); }
+.track-board-cards {
+  list-style: none; margin: 0; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 64px;
+  background: color-mix(in srgb, var(--stage) 5%, var(--surface-card, #fff));
+  border: 1px solid var(--border-default); border-top: 3px solid var(--stage); border-radius: 12px;
+}
+.track-board-col[data-state="here"] .track-board-cards { border-color: color-mix(in srgb, var(--stage) 40%, var(--border-default)); border-top-color: var(--stage); box-shadow: 0 0 0 1px color-mix(in srgb, var(--stage) 25%, transparent); }
+.track-board-col[data-state="locked"] .track-board-cards { opacity: 0.7; }
+.track-board-card button {
+  display: flex; align-items: flex-start; gap: 9px; width: 100%; padding: 9px 10px; text-align: left;
+  font: inherit; color: var(--text-primary); background: var(--surface-card, #fff);
+  border: 1px solid var(--border-default); border-radius: 9px; cursor: pointer;
+  transition: border-color 0.13s, transform 0.13s;
+}
+.track-board-card button:not(:disabled):hover { border-color: color-mix(in srgb, var(--stage) 50%, var(--border-default)); transform: translateY(-1px); }
+.track-board-card button:disabled { cursor: default; }
+.track-board-card[data-next] button { border-color: color-mix(in srgb, var(--stage) 55%, var(--border-default)); background: color-mix(in srgb, var(--stage) 7%, var(--surface-card, #fff)); }
+.track-board-tick {
+  flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; display: grid; place-items: center;
+  border: 1.5px solid var(--border-strong, var(--border-default)); color: var(--text-secondary);
+}
+.track-board-card[data-done] .track-board-tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+.track-board-card[data-next] .track-board-tick { border-color: var(--stage); }
+.track-board-text { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.track-board-text strong { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.track-board-card[data-done] .track-board-text strong { color: var(--text-secondary); font-weight: 500; }
+.track-board-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.track-board-tags:empty { display: none; }
+.track-board-tags em {
+  font-style: normal; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px;
+  color: var(--text-secondary); background: var(--hover-overlay); border: 1px solid var(--border-default);
+}
+.track-board-tags em[data-kind="checkpoint"] { border-style: dashed; }
+.track-board-tags em[data-kind="next"] { color: var(--stage-ink); background: color-mix(in srgb, var(--stage) 12%, transparent); border-color: color-mix(in srgb, var(--stage) 35%, transparent); }
+@media (max-width: 640px) {
+  .track-board { grid-template-columns: 1fr; }
+  .track-shape { margin-left: 0; }
+}
+.track-library { margin-top: 8px; }
+.track-library .track-new { margin-left: auto; }
+.track-library-icon { color: var(--text-secondary); }
+.track-library .track-card-art[data-style="route"] { display: grid; place-items: center; background: var(--hover-overlay); }

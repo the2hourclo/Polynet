@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, ArrowUpRight, BadgeCheck, Check, Image as ImageIcon, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, ArrowUpRight, BadgeCheck, BookOpen, Check, Columns3, Image as ImageIcon, LayoutGrid, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   COMMUNITY_MAIN_TRACK_KEY,
   type CommunityTrackRule,
@@ -323,8 +323,16 @@ export function WebCommunityTrackShelf(props: {
   onContinue: () => void;
   onAllTracks?: () => void;
   ownerActions?: ReactNode;
+  // The Board view: what kind of lesson a step is, and opening one step.
+  lessonTag?: (resourceId: string) => string;
+  onOpenStep?: (resourceId: string) => void;
 }) {
   const { track } = props;
+  const [shape, setShape] = useState<"cards" | "board">(() => readShelfShape());
+  const pickShape = (next: "cards" | "board") => {
+    setShape(next);
+    try { window.localStorage.setItem(SHELF_SHAPE_KEY, next); } catch { /* the pick just isn't remembered */ }
+  };
   const percent = track.step_count ? Math.round((track.done_count / track.step_count) * 100) : 0;
   const started = track.done_count > 0 || track.status === "in_progress";
   return (
@@ -369,7 +377,16 @@ export function WebCommunityTrackShelf(props: {
           <h2>Modules</h2>
           <span className="track-group-note">{trackFacts(track)}</span>
           {props.ownerActions}
+          {props.onOpenStep ? (
+            <div className="track-shape" role="group" aria-label="Show modules as">
+              <button type="button" aria-pressed={shape === "cards"} onClick={() => pickShape("cards")}><LayoutGrid size={14} aria-hidden="true" /> Cards</button>
+              <button type="button" aria-pressed={shape === "board"} onClick={() => pickShape("board")}><Columns3 size={14} aria-hidden="true" /> Board</button>
+            </div>
+          ) : null}
         </div>
+        {shape === "board" && props.onOpenStep ? (
+          <TrackModuleBoard modules={props.modules} lessonTag={props.lessonTag} onOpenStep={props.onOpenStep} />
+        ) : (
         <ul className="track-grid track-module-grid">
           {props.modules.map(({ stage, cover, onOpen, onChangeImage }, index) => {
             const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
@@ -417,8 +434,99 @@ export function WebCommunityTrackShelf(props: {
             );
           })}
         </ul>
+        )}
       </section>
     </div>
+  );
+}
+
+export type CommunityTrackLibraryCourse = { id: string; title: string; cover: string | null; lessonCount: number; onOpen: () => void };
+
+/** Courses that sit on no track, under the Roadmap, so nothing outside a track is lost. */
+export function WebCommunityTrackLibrary(props: { courses: readonly CommunityTrackLibraryCourse[]; onBrowseAll: () => void }) {
+  return (
+    <section className="track-group track-library" aria-label="Library">
+      <div className="track-group-head">
+        <h2>Library</h2>
+        <span className="track-group-note">Courses that sit outside the tracks</span>
+        <button type="button" className="track-new" onClick={props.onBrowseAll}>See everything <ArrowRight size={14} aria-hidden="true" /></button>
+      </div>
+      <ul className="track-grid track-module-grid">
+        {props.courses.map((course) => (
+          <li key={course.id} className="track-card track-module-card" data-status="open">
+            <button type="button" className="track-card-main" onClick={course.onOpen}>
+              <span className="track-card-art" data-style={course.cover ? "image" : "route"}>
+                {course.cover ? <img className="track-art-image" src={course.cover} alt="" /> : <BookOpen className="track-library-icon" size={28} aria-hidden="true" />}
+              </span>
+              <span className="track-card-body">
+                <span className="track-module-eyebrow">Course</span>
+                <span className="track-module-title"><strong>{course.title}</strong><ArrowUpRight size={20} aria-hidden="true" /></span>
+                <span className="track-module-meta"><span>{plural(course.lessonCount, "lesson")}</span></span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const SHELF_SHAPE_KEY = "polynet.knowledge.trackShape";
+function readShelfShape(): "cards" | "board" {
+  try { return window.localStorage.getItem(SHELF_SHAPE_KEY) === "board" ? "board" : "cards"; } catch { return "cards"; }
+}
+
+/**
+ * The track as a board: one column per module of this track, in its module's
+ * colour, and one card per lesson (Rashid, 2026-10-30, after his Build Board).
+ * The column with the member's next lesson is marked, and a card opens its lesson.
+ */
+function TrackModuleBoard(props: {
+  modules: readonly CommunityTrackShelfModule[];
+  lessonTag?: (resourceId: string) => string;
+  onOpenStep: (resourceId: string) => void;
+}) {
+  const hereIndex = props.modules.findIndex(({ stage }) => !stage.locked && stage.done_count < stage.step_count);
+  return (
+    <ol className="track-board" aria-label="Modules as a board">
+      {props.modules.map(({ stage }, index) => {
+        const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
+        const here = index === hereIndex;
+        const nextStep = here ? stage.steps.find((step) => !step.done && !step.locked) : undefined;
+        return (
+          <li key={stage.name} className="track-board-col" data-stage={(index % 6) + 1}
+            data-state={done ? "done" : here ? "here" : stage.locked ? "locked" : "open"} aria-current={here ? "step" : undefined}>
+            <div className="track-board-head">
+              <span className="track-board-pill"><i aria-hidden="true" /><span>{stage.name}</span></span>
+              <span className="track-board-state">
+                {stage.locked ? <><Lock size={11} aria-hidden="true" /> Locked</> : done ? <><Check size={12} aria-hidden="true" /> Done</> : here ? "You're here" : `${stage.done_count}/${stage.step_count}`}
+              </span>
+            </div>
+            <ul className="track-board-cards">
+              {stage.steps.map((step) => {
+                const tag = props.lessonTag?.(step.resource_id) ?? "";
+                const isNext = step === nextStep;
+                return (
+                  <li key={step.ref} className="track-board-card" data-done={step.done ? "" : undefined} data-next={isNext ? "" : undefined}>
+                    <button type="button" onClick={() => props.onOpenStep(step.resource_id)} disabled={step.locked || stage.locked}
+                      aria-label={`${step.title}${step.done ? ", done" : step.locked || stage.locked ? ", locked" : ""}`}>
+                      <span className="track-board-tick" aria-hidden="true">{step.done ? <Check size={11} /> : step.locked || stage.locked ? <Lock size={10} /> : null}</span>
+                      <span className="track-board-text">
+                        <strong>{step.title}</strong>
+                        <span className="track-board-tags">
+                          {step.checkpoint ? <em data-kind="checkpoint">Checkpoint</em> : tag ? <em>{tag}</em> : null}
+                          {isNext ? <em data-kind="next">Up next</em> : null}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
