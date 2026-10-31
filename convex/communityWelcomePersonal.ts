@@ -6,6 +6,7 @@ import { getUniqueCommunityMembershipByPair, requireCommunityChatAccess, require
 import { getCommunityMemberWorkflowByCommunity } from "./communityMemberWorkflowReadCore";
 import { resolveCommunityInferenceFundingForAction } from "./founderInferenceRuntime";
 import { startFundedInferenceRun } from "./fundedInferenceGateway";
+import { readCommunityInferenceProvider } from "./communityInferenceProvider";
 import { communityFormQuestionValidator } from "./communityFormValidators";
 import { formQuestionAnswered } from "../shared/communityFormAnswers";
 import type { CommunityFormQuestion } from "../shared/communityForms";
@@ -24,7 +25,9 @@ import { WELCOME_PERSONAL_BACKUP_MAX, WELCOME_PERSONAL_GOAL_MAX, type WelcomePer
 // ends the page.
 
 const MAX_OUTPUT_TOKENS = 600;
-const AGENT_TIME_LIMIT_MS = 12_000;
+// A local Claude Code turn (the claude_code_local bridge) takes 10 to 16
+// seconds, so it gets longer before the backup is asked.
+const agentTimeLimitMs = () => (readCommunityInferenceProvider() === "claude_code_local" ? 30_000 : 12_000);
 const scope = { communityId: v.id("communities"), authSubject: v.optional(v.string()) };
 const answersValidator = v.record(v.string(), v.union(v.string(), v.array(v.string())));
 const readEnv = (name: string) => { const value = (globalThis as any)?.process?.env?.[name]; return typeof value === "string" ? value.trim() : ""; };
@@ -125,7 +128,7 @@ async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorU
     });
   } catch { return null; }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AGENT_TIME_LIMIT_MS);
+  const timer = setTimeout(() => controller.abort(), agentTimeLimitMs());
   try {
     const completion: any = await fundedRun.request({
       messages: [
