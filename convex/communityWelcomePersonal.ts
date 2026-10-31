@@ -27,7 +27,8 @@ import { WELCOME_PERSONAL_BACKUP_MAX, WELCOME_PERSONAL_GOAL_MAX, type WelcomePer
 const MAX_OUTPUT_TOKENS = 600;
 // A local Claude Code turn (the claude_code_local bridge) takes 10 to 16
 // seconds, so it gets longer before the backup is asked.
-const agentTimeLimitMs = () => (readCommunityInferenceProvider() === "claude_code_local" ? 30_000 : 12_000);
+// A retry (a reply with no tool call) can take a second turn, so the limit covers both.
+const agentTimeLimitMs = () => (readCommunityInferenceProvider() === "claude_code_local" ? 40_000 : 15_000);
 const scope = { communityId: v.id("communities"), authSubject: v.optional(v.string()) };
 const answersValidator = v.record(v.string(), v.union(v.string(), v.array(v.string())));
 const readEnv = (name: string) => { const value = (globalThis as any)?.process?.env?.[name]; return typeof value === "string" ? value.trim() : ""; };
@@ -129,19 +130,33 @@ async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorU
   } catch { return null; }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), agentTimeLimitMs());
+  const base = [
+    { role: "system", content: welcomePersonalPrompt(args.asked, args.max) },
+    { role: "user", content: JSON.stringify({ community: args.community, owner_goal: args.goal,
+      member_answers_on_earlier_pages: args.answers, your_questions_on_this_page_and_their_answers: args.askedHere, ...(args.persona ? { member_described_as: args.persona } : {}) }, null, 2) },
+  ];
+  const ask = (nudge: string | null, force: boolean) => fundedRun.request({
+    messages: nudge ? [...base, { role: "user", content: nudge }] : base,
+    maxTokens: MAX_OUTPUT_TOKENS, tools: (force ? WELCOME_PERSONAL_TOOLS.filter((tool) => tool.name === "ask_question") : WELCOME_PERSONAL_TOOLS) as any,
+    ...(force ? { toolChoice: { type: "function", name: "ask_question" } } : {}),
+    parallelToolCalls: false, signal: controller.signal,
+    apiKeyOverride: readEnv("OPENAI_API_KEY") || readEnv("ARX_OPENAI_API_KEY") || undefined,
+  } as any);
+  const read = (completion: any) => readWelcomePersonalTurn(completion, () => crypto.randomUUID());
   try {
-    const completion: any = await fundedRun.request({
-      messages: [
-        { role: "system", content: welcomePersonalPrompt(args.asked, args.max) },
-        { role: "user", content: JSON.stringify({ community: args.community, owner_goal: args.goal,
-          member_answers_on_earlier_pages: args.answers, your_questions_on_this_page_and_their_answers: args.askedHere, ...(args.persona ? { member_described_as: args.persona } : {}) }, null, 2) },
-      ],
-      maxTokens: MAX_OUTPUT_TOKENS, tools: WELCOME_PERSONAL_TOOLS as any, parallelToolCalls: false, signal: controller.signal,
-      apiKeyOverride: readEnv("OPENAI_API_KEY") || readEnv("ARX_OPENAI_API_KEY") || undefined,
-    });
+    let completion: any = await ask(null, false);
     if (!completion.ok) { await fundedRun.fail(completion.code ?? "welcome_personal_unreadable"); return null; }
+    let turn = read(completion);
+    // One retry: a plain-text reply with no tool call, or a finish that names parts of the goal still unanswered.
+    const open = turn?.kind === "finish" ? turn.openParts ?? [] : [];
+    if (!turn || (open.length && args.asked < args.max)) {
+      console.log(`welcome_personal: retrying after ${turn ? `finish with open parts ${JSON.stringify(open)}` : "a reply with no tool call"}`);
+      const retry: any = await ask(turn
+        ? `You finished, but you listed these parts of the goal as unanswered: ${open.join("; ")}. Ask the member about one of them now.`
+        : "Your last reply had no tool call. Answer only by calling ask_question or finish.", Boolean(turn));
+      if (retry.ok) { completion = retry; turn = read(retry) ?? turn; }
+    }
     if (!(await fundedRun.settle("provider_completed"))) return null;
-    let turn = readWelcomePersonalTurn(completion, () => crypto.randomUUID());
     // A question it already asked here (reworded or as a checklist) ends the page instead of repeating.
     if (turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, args.askedHere.map((item) => item.question), args.goal)) {
       console.log(`welcome_personal: dropped a repeat question: ${JSON.stringify(turn.question.title)}`);

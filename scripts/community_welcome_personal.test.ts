@@ -14,8 +14,10 @@ describe("personalized welcome questions", () => {
   });
 
   it("finishes when the agent calls finish, and reads a JSON reply from an engine without tools", () => {
-    expect(readWelcomePersonalTurn({ ok: true, type: "tool_call", toolName: "finish", arguments: { reason: "enough" } }, key)).toEqual({ kind: "finish" });
-    expect(readWelcomePersonalTurn({ ok: true, type: "assistant", assistantText: '{"finish": true}' }, key)).toEqual({ kind: "finish" });
+    expect(readWelcomePersonalTurn({ ok: true, type: "tool_call", toolName: "finish", arguments: { covered_parts: ["tool"], open_parts: [] } }, key)).toEqual({ kind: "finish", openParts: [] });
+    expect(readWelcomePersonalTurn({ ok: true, type: "tool_call", toolName: "finish", arguments: { covered_parts: ["tool"], open_parts: ["how they'd know it worked"] } }, key))
+      .toEqual({ kind: "finish", openParts: ["how they'd know it worked"] });
+    expect(readWelcomePersonalTurn({ ok: true, type: "assistant", assistantText: '{"finish": true}' }, key)).toEqual({ kind: "finish", openParts: [] });
     expect(readWelcomePersonalTurn({ ok: true, type: "assistant", assistantText: 'Here: {"ask": {"title": "What do you sell?", "type": "short_text", "options": []}}' }, key))
       .toMatchObject({ kind: "ask", question: { title: "What do you sell?", type: "short_text" } });
   });

@@ -13,7 +13,7 @@ import { WELCOME_PERSONAL_QUESTIONS_MAX } from "./communityWelcomeLayout";
 /** One earlier answer the agent reads: the question as the member saw it, and their answer in words. */
 export type WelcomePersonalAnswer = { question: string; answer: string };
 /** The agent's turn: the next question, or done. */
-export type WelcomePersonalTurn = { kind: "ask"; question: CommunityFormQuestion } | { kind: "finish" };
+export type WelcomePersonalTurn = { kind: "ask"; question: CommunityFormQuestion } | { kind: "finish"; openParts?: string[] };
 
 const QUESTION_TYPES = ["short_text", "long_text", "single_choice", "multiple_choice"];
 
@@ -34,8 +34,11 @@ export const WELCOME_PERSONAL_TOOLS = [
   },
   {
     type: "function" as const, name: "finish", strict: true,
-    description: "Stop asking: you have what the owner's goal needs, or another question would only repeat what the member said.",
-    parameters: { type: "object", additionalProperties: false, required: ["reason"], properties: { reason: { type: "string", maxLength: 300 } } },
+    description: "Stop asking: every part of the owner's goal is answered, or another question would only repeat what the member said.",
+    parameters: { type: "object", additionalProperties: false, required: ["covered_parts", "open_parts"], properties: {
+      covered_parts: { type: "array", maxItems: 8, items: { type: "string", maxLength: 200 }, description: "Each part of the goal their answers already cover." },
+      open_parts: { type: "array", maxItems: 8, items: { type: "string", maxLength: 200 }, description: "Each part of the goal with no answer yet; empty when all are covered." },
+    } },
   },
 ];
 
@@ -49,7 +52,8 @@ export function welcomePersonalPrompt(asked: number, max: number): string {
     asked === 0 ? "This is your first question, so ask one." : `You have asked ${asked}; you may ask ${left} more at most. Finish once every part of the goal is answered, or when another question wouldn't add something new.`,
     "Never ask again something you already asked on this page, even reworded or as a list of options: take their answer as given and go one step further, or finish.",
     "Ask only what their answers don't already tell you. Each question is answered in seconds. No advice, no selling, no compliments.",
-    'If you can\'t call tools, reply with JSON only: {"ask": {"title": "…", "description": "", "type": "short_text", "options": []}} or {"finish": true}.',
+    "Always answer with a tool call, never with plain text.",
+    'If you can\'t call tools, reply with JSON only: {"ask": {"title": "…", "description": "", "type": "short_text", "options": []}} or {"finish": true, "covered_parts": ["…"], "open_parts": []}.',
   ].join("\n");
 }
 
@@ -70,11 +74,13 @@ export function normalizeWelcomePersonalQuestion(raw: unknown, newKey: () => str
   } catch { return null; }
 }
 
+const openParts = (value: unknown) => (Array.isArray(value) ? value : []).filter((item): item is string => typeof item === "string" && item.trim() !== "").slice(0, 8);
+
 /** Reads the agent's turn from a tool call, or from a JSON reply when the engine has no tools; null when it says nothing usable. */
 export function readWelcomePersonalTurn(completion: any, newKey: () => string): WelcomePersonalTurn | null {
   const calls = completion?.type === "tool_call" ? [completion] : completion?.type === "tool_calls" ? completion.toolCalls ?? [] : [];
   for (const call of calls) {
-    if (call?.toolName === "finish") return { kind: "finish" };
+    if (call?.toolName === "finish") return { kind: "finish", openParts: openParts(call.arguments?.open_parts) };
     if (call?.toolName === "ask_question") {
       const question = normalizeWelcomePersonalQuestion(call.arguments, newKey);
       if (question) return { kind: "ask", question };
@@ -83,7 +89,7 @@ export function readWelcomePersonalTurn(completion: any, newKey: () => string): 
   if (completion?.type !== "assistant") return null;
   const reply = parseJson(String(completion.assistantText ?? ""));
   if (!reply) return null;
-  if (reply.finish) return { kind: "finish" };
+  if (reply.finish) return { kind: "finish", openParts: openParts(reply.open_parts) };
   const raw = reply.ask ?? (Array.isArray(reply.questions) ? reply.questions[0] : null);
   const question = raw ? normalizeWelcomePersonalQuestion(raw, newKey) : null;
   return question ? { kind: "ask", question } : null;
