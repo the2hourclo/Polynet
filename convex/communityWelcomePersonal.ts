@@ -143,7 +143,10 @@ async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorU
     if (!(await fundedRun.settle("provider_completed"))) return null;
     let turn = readWelcomePersonalTurn(completion, () => crypto.randomUUID());
     // A question it already asked here (reworded or as a checklist) ends the page instead of repeating.
-    if (turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, args.askedHere.map((item) => item.question))) turn = { kind: "finish" };
+    if (turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, args.askedHere.map((item) => item.question), args.goal)) {
+      console.log(`welcome_personal: dropped a repeat question: ${JSON.stringify(turn.question.title)}`);
+      turn = { kind: "finish" };
+    }
     // The first move must be a question; a finish before asking anything means the backup is asked.
     return turn?.kind === "finish" && args.asked === 0 ? null : turn;
   } catch {

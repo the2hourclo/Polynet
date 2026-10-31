@@ -45,7 +45,8 @@ export function welcomePersonalPrompt(asked: number, max: number): string {
     "You are the guide of an online community, welcoming one new member through a few questions, one at a time.",
     "The owner tells you what they want to learn (owner_goal). You see what this member answered on earlier pages, and the questions you already asked on this page with their answers.",
     "Choose your next move with a tool: ask_question for the one question that moves furthest toward the goal, built on their own words, or finish once the goal is met.",
-    asked === 0 ? "This is your first question, so ask one." : `You have asked ${asked}; you may ask ${left} more at most. Finish as soon as another question wouldn't add something new.`,
+    "The goal may have several parts (for example what they want, what stops them, how they'd know it worked). Before you finish, check each part against their answers; while any part has no answer yet and you have questions left, ask about that part.",
+    asked === 0 ? "This is your first question, so ask one." : `You have asked ${asked}; you may ask ${left} more at most. Finish once every part of the goal is answered, or when another question wouldn't add something new.`,
     "Never ask again something you already asked on this page, even reworded or as a list of options: take their answer as given and go one step further, or finish.",
     "Ask only what their answers don't already tell you. Each question is answered in seconds. No advice, no selling, no compliments.",
     'If you can\'t call tools, reply with JSON only: {"ask": {"title": "…", "description": "", "type": "short_text", "options": []}} or {"finish": true}.',
@@ -88,15 +89,19 @@ export function readWelcomePersonalTurn(completion: any, newKey: () => string): 
   return question ? { kind: "ask", question } : null;
 }
 
-const words = (text: string) => new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((word) => word.length > 3));
-/** True when a new question mostly repeats one already asked on the page (most of its longer words are the same). */
-export function welcomePersonalRepeats(title: string, earlier: string[]): boolean {
-  const mine = words(title);
-  if (mine.size === 0) return earlier.some((item) => item.trim().toLowerCase() === title.trim().toLowerCase());
+const COMMON = new Set(["what", "which", "would", "could", "your", "you're", "that", "this", "those", "these", "with", "from", "have", "about", "today", "right", "know", "they", "them", "when", "does", "into", "most", "more", "much", "many"]);
+const words = (text: string, skip: Set<string>) => new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+  .filter((word) => word.length > 3 && !COMMON.has(word) && !skip.has(word)));
+/** True when a new question repeats one already asked on the page. Words from the owner's goal don't count, since every question shares the topic. */
+export function welcomePersonalRepeats(title: string, earlier: string[], goal = ""): boolean {
+  const same = (a: string, b: string) => a.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ") === b.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  if (earlier.some((item) => same(item, title))) return true;
+  const topic = words(goal, new Set());
+  const mine = words(title, topic);
   return earlier.some((item) => {
-    const theirs = words(item);
+    const theirs = words(item, topic);
     const shared = [...mine].filter((word) => theirs.has(word)).length;
-    return shared / Math.min(mine.size, theirs.size || 1) >= 0.7;
+    return shared >= 3 && shared / Math.max(mine.size, theirs.size) >= 0.8;
   });
 }
 

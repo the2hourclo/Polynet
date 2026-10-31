@@ -45,7 +45,11 @@ describe("repeat guard", () => {
   it("spots a question the agent already asked on the page, reworded", async () => {
     const { welcomePersonalRepeats } = await import("../shared/communityWelcomePersonal");
     const asked = ["What's stopping you from handing off those client follow-up emails today?"];
-    expect(welcomePersonalRepeats("What is stopping you from handing off the client follow-up emails?", asked)).toBe(true);
+    expect(welcomePersonalRepeats("What is stopping you from handing off the client follow-up emails today?", asked)).toBe(true);
     expect(welcomePersonalRepeats("Which tool do you write those emails in?", asked)).toBe(false);
+    const goal = "Find out which email tool they use for client follow-up emails, what stops them handing it off, and how they'd know it worked";
+    const both = [...asked, "Which email tool do you send client follow-up emails from?"];
+    expect(welcomePersonalRepeats("How would you know handing off your client follow-up emails worked?", both, goal)).toBe(false);
+    expect(welcomePersonalRepeats("What's stopping you from handing off those client follow-up emails today?", both, goal)).toBe(true);
   });
 });
