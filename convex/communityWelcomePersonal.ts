@@ -11,7 +11,7 @@ import { communityFormQuestionValidator } from "./communityFormValidators";
 import { formQuestionAnswered } from "../shared/communityFormAnswers";
 import type { CommunityFormQuestion } from "../shared/communityForms";
 import {
-  readWelcomePersonalTurn, welcomeAnswerWords, welcomePersonalRepeats, welcomePersonalBackup, welcomePersonalLimit, welcomePersonalPrompt,
+  readWelcomePersonalTurn, welcomeAnswerWords, welcomeGoalPartsOpen, welcomePersonalQuoteFound, welcomePersonalRepeats, welcomePersonalBackup, welcomePersonalLimit, welcomePersonalPrompt,
   WELCOME_PERSONAL_TOOLS, type WelcomePersonalAnswer, type WelcomePersonalTurn,
 } from "../shared/communityWelcomePersonal";
 import { WELCOME_PERSONAL_BACKUP_MAX, WELCOME_PERSONAL_GOAL_MAX, type WelcomePersonalBlock } from "../shared/communityWelcomeLayout";
@@ -153,6 +153,21 @@ async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorU
     let completion: any = await ask(null, false);
     if (!completion.ok) { note(`the engine failed (${completion.code ?? "unknown"})`); await fundedRun.fail(completion.code ?? "welcome_personal_unreadable"); return null; }
     let turn = read(completion);
+    // A covered part needs the member's own words; one it can't quote is still open.
+    const said = [...args.answers, ...args.askedHere].map((item) => item.answer);
+    const check = (next: WelcomePersonalTurn | null): WelcomePersonalTurn | null => {
+      if (next?.kind !== "finish") return next;
+      const covered = next.covered ?? [];
+      const proven = covered.filter((item) => welcomePersonalQuoteFound(item.quote, said));
+      const unproven = covered.filter((item) => !proven.includes(item)).map((item) => item.part);
+      // The server reads the goal's parts too, so a part the agent skipped silently still counts as open.
+      const skipped = welcomeGoalPartsOpen(args.goal, proven.map((item) => item.part))
+        .filter((part) => !(next.openParts ?? []).includes(part));
+      note(`finish claimed covered ${JSON.stringify(covered.map((item) => `${item.part} ← "${item.quote}"`))}, open ${JSON.stringify(next.openParts ?? [])}`
+        + `${unproven.length ? `; no matching answer for ${JSON.stringify(unproven)}` : ""}${skipped.length ? `; goal parts not covered ${JSON.stringify(skipped)}` : ""}`);
+      return { ...next, openParts: [...new Set([...(next.openParts ?? []), ...unproven, ...skipped])] };
+    };
+    turn = check(turn);
     // One retry, for: a reply with no tool call; a finish naming parts of the goal still unanswered; a repeat of an earlier question.
     const open = turn?.kind === "finish" ? turn.openParts ?? [] : [];
     const repeat = turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, earlier, known) ? turn.question.title : null;
@@ -168,7 +183,7 @@ async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorU
       const again = retry.ok ? read(retry) : null;
       if (!retry.ok) note(`the retry failed (${retry.code ?? "unknown"})`);
       else if (!again) note(`the retry gave ${describe(retry)}`);
-      if (again) { completion = retry; turn = again; }
+      if (again) { completion = retry; turn = check(again); }
     }
     if (!(await fundedRun.settle("provider_completed"))) { note("the run could not be settled"); return null; }
     // A question it already asked here (reworded or as a checklist) ends the page instead of repeating.

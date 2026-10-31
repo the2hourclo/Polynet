@@ -14,10 +14,11 @@ describe("personalized welcome questions", () => {
   });
 
   it("finishes when the agent calls finish, and reads a JSON reply from an engine without tools", () => {
-    expect(readWelcomePersonalTurn({ ok: true, type: "tool_call", toolName: "finish", arguments: { covered_parts: ["tool"], open_parts: [] } }, key)).toEqual({ kind: "finish", openParts: [] });
-    expect(readWelcomePersonalTurn({ ok: true, type: "tool_call", toolName: "finish", arguments: { covered_parts: ["tool"], open_parts: ["how they'd know it worked"] } }, key))
-      .toEqual({ kind: "finish", openParts: ["how they'd know it worked"] });
-    expect(readWelcomePersonalTurn({ ok: true, type: "assistant", assistantText: '{"finish": true}' }, key)).toEqual({ kind: "finish", openParts: [] });
+    expect(readWelcomePersonalTurn({ ok: true, type: "tool_call", toolName: "finish", arguments: { covered_parts: [{ part: "tool", answer_quote: "Gmail" }], open_parts: [] } }, key))
+      .toEqual({ kind: "finish", openParts: [], covered: [{ part: "tool", quote: "Gmail" }] });
+    expect(readWelcomePersonalTurn({ ok: true, type: "tool_call", toolName: "finish", arguments: { covered_parts: [], open_parts: ["how they'd know it worked"] } }, key))
+      .toEqual({ kind: "finish", openParts: ["how they'd know it worked"], covered: [] });
+    expect(readWelcomePersonalTurn({ ok: true, type: "assistant", assistantText: '{"finish": true}' }, key)).toEqual({ kind: "finish", openParts: [], covered: [] });
     expect(readWelcomePersonalTurn({ ok: true, type: "assistant", assistantText: 'Here: {"ask": {"title": "What do you sell?", "type": "short_text", "options": []}}' }, key))
       .toMatchObject({ kind: "ask", question: { title: "What do you sell?", type: "short_text" } });
   });
@@ -60,5 +61,16 @@ describe("repeat guard", () => {
     const asked = ["Which email tool do you write client follow-up emails in?", "What's stopping you from handing those follow-ups off?"];
     const known = "Find out their email tool, what stops them, and how they'd know it worked Gmail I never wrote down how I write client follow-up emails";
     expect(welcomePersonalRepeats("How would you know the follow-up emails were going out well without you?", asked, known)).toBe(false);
+  });
+
+  it("needs a real quote for each covered part, and reads the goal's own parts", async () => {
+    const { welcomePersonalQuoteFound, welcomeGoalParts, welcomeGoalPartsOpen } = await import("../shared/communityWelcomePersonal");
+    const answers = ["Gmail, and I write every follow-up by hand.", "I don't trust AI with client details yet, and I don't know where to start."];
+    expect(welcomePersonalQuoteFound("I write every follow-up by hand", answers)).toBe(true);
+    expect(welcomePersonalQuoteFound("I'd know because replies go out the same day", answers)).toBe(false);
+    const goal = "Find out which email tool they use, what stops them handing off follow-ups, and how they'd know it worked";
+    expect(welcomeGoalParts(goal)).toEqual(["which email tool they use", "what stops them handing off follow-ups", "how they'd know it worked"]);
+    expect(welcomeGoalPartsOpen(goal, ["email tool", "what stops them handing off"])).toEqual(["how they'd know it worked"]);
+    expect(welcomeGoalPartsOpen("Find out what they want to automate first", ["automate"])).toEqual([]);
   });
 });

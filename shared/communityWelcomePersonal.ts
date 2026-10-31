@@ -13,7 +13,9 @@ import { WELCOME_PERSONAL_QUESTIONS_MAX } from "./communityWelcomeLayout";
 /** One earlier answer the agent reads: the question as the member saw it, and their answer in words. */
 export type WelcomePersonalAnswer = { question: string; answer: string };
 /** The agent's turn: the next question, or done. */
-export type WelcomePersonalTurn = { kind: "ask"; question: CommunityFormQuestion } | { kind: "finish"; openParts?: string[] };
+/** A part of the goal the agent says is answered, with the member's words it points to. */
+export type WelcomePersonalCovered = { part: string; quote: string };
+export type WelcomePersonalTurn = { kind: "ask"; question: CommunityFormQuestion } | { kind: "finish"; openParts?: string[]; covered?: WelcomePersonalCovered[] };
 
 const QUESTION_TYPES = ["short_text", "long_text", "single_choice", "multiple_choice"];
 
@@ -36,7 +38,9 @@ export const WELCOME_PERSONAL_TOOLS = [
     type: "function" as const, name: "finish", strict: true,
     description: "Stop asking: every part of the owner's goal is answered, or another question would only repeat what the member said.",
     parameters: { type: "object", additionalProperties: false, required: ["covered_parts", "open_parts"], properties: {
-      covered_parts: { type: "array", maxItems: 8, items: { type: "string", maxLength: 200 }, description: "Each part of the goal their answers already cover." },
+      covered_parts: { type: "array", maxItems: 8, description: "Each part of the goal their answers already cover, with the member's own words that answer it, quoted exactly.",
+        items: { type: "object", additionalProperties: false, required: ["part", "answer_quote"], properties: {
+          part: { type: "string", maxLength: 200 }, answer_quote: { type: "string", maxLength: 300 } } } },
       open_parts: { type: "array", maxItems: 8, items: { type: "string", maxLength: 200 }, description: "Each part of the goal with no answer yet; empty when all are covered." },
     } },
   },
@@ -49,11 +53,12 @@ export function welcomePersonalPrompt(asked: number, max: number): string {
     "The owner tells you what they want to learn (owner_goal). You see what this member answered on earlier pages, and the questions you already asked on this page with their answers.",
     "Choose your next move with a tool: ask_question for the one question that moves furthest toward the goal, built on their own words, or finish once the goal is met.",
     "The goal may have several parts (for example what they want, what stops them, how they'd know it worked). Before you finish, check each part against their answers; while any part has no answer yet and you have questions left, ask about that part.",
+    "finish needs proof: for each covered part, quote the member's exact words that answer it. A part you can't quote an answer for is open.",
     asked === 0 ? "This is your first question, so ask one." : `You have asked ${asked}; you may ask ${left} more at most. Finish once every part of the goal is answered, or when another question wouldn't add something new.`,
     "Never ask again something you already asked on this page, even reworded or as a list of options: take their answer as given and go one step further, or finish.",
     "Ask only what their answers don't already tell you. Each question is answered in seconds. No advice, no selling, no compliments.",
     "Always answer with a tool call, never with plain text.",
-    'If you can\'t call tools, reply with JSON only: {"ask": {"title": "…", "description": "", "type": "short_text", "options": []}} or {"finish": true, "covered_parts": ["…"], "open_parts": []}.',
+    'If you can\'t call tools, reply with JSON only: {"ask": {"title": "…", "description": "", "type": "short_text", "options": []}} or {"finish": true, "covered_parts": [{"part": "…", "answer_quote": "their exact words"}], "open_parts": []}.',
   ].join("\n");
 }
 
@@ -76,11 +81,43 @@ export function normalizeWelcomePersonalQuestion(raw: unknown, newKey: () => str
 
 const openParts = (value: unknown) => (Array.isArray(value) ? value : []).filter((item): item is string => typeof item === "string" && item.trim() !== "").slice(0, 8);
 
+const coveredParts = (value: unknown): WelcomePersonalCovered[] => (Array.isArray(value) ? value : []).slice(0, 8).flatMap((item: any) =>
+  typeof item === "string" ? [{ part: item.slice(0, 200), quote: "" }]
+    : item && typeof item.part === "string" ? [{ part: item.part.slice(0, 200), quote: typeof item.answer_quote === "string" ? item.answer_quote.slice(0, 300) : "" }] : []);
+
+const plain = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+/** True when the quote is really the member's: found in one of their answers, or most of its words are. */
+export function welcomePersonalQuoteFound(quote: string, answers: string[]): boolean {
+  const said = plain(quote);
+  if (said.length < 2) return false;
+  return answers.some((answer) => {
+    const theirs = plain(answer);
+    if (theirs.includes(said)) return true;
+    const mine = said.split(" ").filter((word) => word.length > 2);
+    const pool = new Set(theirs.split(" "));
+    return mine.length > 0 && mine.filter((word) => pool.has(word)).length / mine.length >= 0.75;
+  });
+}
+
+const partWords = (text: string) => new Set(plain(text).split(" ").filter((word) => word.length > 3 && !["find", "what", "them", "their", "they", "which", "with", "from", "that", "this", "would", "could"].includes(word)));
+/** The owner's goal in parts, split on commas, semicolons and "and": "which tool, what stops them, and how they'd know it worked" is three. */
+export function welcomeGoalParts(goal: string): string[] {
+  return goal.split(/[,;.]|\band\b/i).map((part) => part.replace(/^\s*(find out|learn|ask|understand)\s+/i, "").trim())
+    .filter((part) => part.split(/\s+/).length >= 2 && partWords(part).size > 0).slice(0, 8);
+}
+/** Goal parts with no proven covered part sharing a word with them: the agent hasn't shown an answer for these yet. */
+export function welcomeGoalPartsOpen(goal: string, provenParts: string[]): string[] {
+  const parts = welcomeGoalParts(goal);
+  if (parts.length < 2) return [];
+  const claimed = provenParts.map(partWords);
+  return parts.filter((part) => { const mine = partWords(part); return !claimed.some((theirs) => [...mine].some((word) => theirs.has(word))); });
+}
+
 /** Reads the agent's turn from a tool call, or from a JSON reply when the engine has no tools; null when it says nothing usable. */
 export function readWelcomePersonalTurn(completion: any, newKey: () => string): WelcomePersonalTurn | null {
   const calls = completion?.type === "tool_call" ? [completion] : completion?.type === "tool_calls" ? completion.toolCalls ?? [] : [];
   for (const call of calls) {
-    if (call?.toolName === "finish") return { kind: "finish", openParts: openParts(call.arguments?.open_parts) };
+    if (call?.toolName === "finish") return { kind: "finish", openParts: openParts(call.arguments?.open_parts), covered: coveredParts(call.arguments?.covered_parts) };
     if (call?.toolName === "ask_question") {
       const question = normalizeWelcomePersonalQuestion(call.arguments, newKey);
       if (question) return { kind: "ask", question };
@@ -89,7 +126,7 @@ export function readWelcomePersonalTurn(completion: any, newKey: () => string): 
   if (completion?.type !== "assistant") return null;
   const reply = parseJson(String(completion.assistantText ?? ""));
   if (!reply) return null;
-  if (reply.finish) return { kind: "finish", openParts: openParts(reply.open_parts) };
+  if (reply.finish) return { kind: "finish", openParts: openParts(reply.open_parts), covered: coveredParts(reply.covered_parts) };
   const raw = reply.ask ?? (Array.isArray(reply.questions) ? reply.questions[0] : null);
   const question = raw ? normalizeWelcomePersonalQuestion(raw, newKey) : null;
   return question ? { kind: "ask", question } : null;
