@@ -11,7 +11,7 @@ import { communityFormQuestionValidator } from "./communityFormValidators";
 import { formQuestionAnswered } from "../shared/communityFormAnswers";
 import type { CommunityFormQuestion } from "../shared/communityForms";
 import {
-  readWelcomePersonalTurn, welcomeAnswerWords, welcomePersonalBackup, welcomePersonalLimit, welcomePersonalPrompt,
+  readWelcomePersonalTurn, welcomeAnswerWords, welcomePersonalRepeats, welcomePersonalBackup, welcomePersonalLimit, welcomePersonalPrompt,
   WELCOME_PERSONAL_TOOLS, type WelcomePersonalAnswer, type WelcomePersonalTurn,
 } from "../shared/communityWelcomePersonal";
 import { WELCOME_PERSONAL_BACKUP_MAX, WELCOME_PERSONAL_GOAL_MAX, type WelcomePersonalBlock } from "../shared/communityWelcomeLayout";
@@ -88,7 +88,7 @@ export const personalContextInternal = internalQuery({
     if (row && (row.answeredAt || waiting(row))) return { userId, membershipId, existing: project(row) };
     const block = await personalBlock(ctx, args.communityId, args.blockKey);
     return { userId, membershipId, existing: null, row: row ? project(row) : null, block,
-      community: await communityContext(ctx, args.communityId), answers: [...await memberAnswers(ctx, membershipId), ...ownAnswers(row)] };
+      community: await communityContext(ctx, args.communityId), answers: await memberAnswers(ctx, membershipId), askedHere: ownAnswers(row) };
   },
 });
 
@@ -114,7 +114,7 @@ export const storePersonalTurnInternal = internalMutation({
 
 /** The agent's next move from the goal and everything answered so far; null when it can't say in time. */
 async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorUserId: Id<"users">; goal: string; asked: number; max: number;
-  community: unknown; answers: WelcomePersonalAnswer[]; persona?: string }): Promise<WelcomePersonalTurn | null> {
+  community: unknown; answers: WelcomePersonalAnswer[]; askedHere: WelcomePersonalAnswer[]; persona?: string }): Promise<WelcomePersonalTurn | null> {
   if (args.asked >= args.max) return { kind: "finish" };
   const requestId = crypto.randomUUID();
   let fundedRun: Awaited<ReturnType<typeof startFundedInferenceRun>>;
@@ -134,14 +134,16 @@ async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorU
       messages: [
         { role: "system", content: welcomePersonalPrompt(args.asked, args.max) },
         { role: "user", content: JSON.stringify({ community: args.community, owner_goal: args.goal,
-          member_answers: args.answers, ...(args.persona ? { member_described_as: args.persona } : {}) }, null, 2) },
+          member_answers_on_earlier_pages: args.answers, your_questions_on_this_page_and_their_answers: args.askedHere, ...(args.persona ? { member_described_as: args.persona } : {}) }, null, 2) },
       ],
       maxTokens: MAX_OUTPUT_TOKENS, tools: WELCOME_PERSONAL_TOOLS as any, parallelToolCalls: false, signal: controller.signal,
       apiKeyOverride: readEnv("OPENAI_API_KEY") || readEnv("ARX_OPENAI_API_KEY") || undefined,
     });
     if (!completion.ok) { await fundedRun.fail(completion.code ?? "welcome_personal_unreadable"); return null; }
     if (!(await fundedRun.settle("provider_completed"))) return null;
-    const turn = readWelcomePersonalTurn(completion, () => crypto.randomUUID());
+    let turn = readWelcomePersonalTurn(completion, () => crypto.randomUUID());
+    // A question it already asked here (reworded or as a checklist) ends the page instead of repeating.
+    if (turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, args.askedHere.map((item) => item.question))) turn = { kind: "finish" };
     // The first move must be a question; a finish before asking anything means the backup is asked.
     return turn?.kind === "finish" && args.asked === 0 ? null : turn;
   } catch {
@@ -160,7 +162,7 @@ export const askMyWelcomePersonalQuestions = action({
     const asked = context.row?.questions.length ?? 0;
     const backupAsked = context.row?.source === "backup";
     const turn = backupAsked ? { kind: "finish" as const } : await nextTurn(ctx, { communityId: args.communityId, actorUserId: context.userId, goal: block.goal,
-      asked, max: welcomePersonalLimit(block.count), community: context.community, answers: context.answers });
+      asked, max: welcomePersonalLimit(block.count), community: context.community, answers: context.answers, askedHere: context.askedHere });
     // No answer from the agent: the backup opens the page, and a later question ends it.
     const question = turn?.kind === "ask" ? turn.question : !turn && asked === 0 ? welcomePersonalBackup(block.backup, `backup-${args.blockKey}`) : null;
     return await ctx.runMutation((internal as any).communityWelcomePersonal.storePersonalTurnInternal, {
@@ -213,14 +215,16 @@ export const previewContextInternal = internalQuery({
 /** The owner's preview: the agent's next move for a pretend member. Nothing is saved; replied with no question means it would finish; no reply means the backup (first) or the end. */
 export const previewWelcomePersonalQuestions = action({
   args: { ...scope, goal: v.string(), count: v.number(), persona: v.string(), asked: v.optional(v.number()),
-    answers: v.array(v.object({ question: v.string(), answer: v.string() })) },
+    answers: v.array(v.object({ question: v.string(), answer: v.string() })),
+    askedHere: v.optional(v.array(v.object({ question: v.string(), answer: v.string() }))) },
   handler: async (ctx, args): Promise<{ question: CommunityFormQuestion | null; replied: boolean }> => {
     const goal = args.goal.trim().slice(0, WELCOME_PERSONAL_GOAL_MAX);
     if (!goal) throw new Error("welcome_personal_invalid");
     const context: any = await ctx.runQuery((internal as any).communityWelcomePersonal.previewContextInternal, { communityId: args.communityId, authSubject: args.authSubject });
     const turn = await nextTurn(ctx, { communityId: args.communityId, actorUserId: context.userId, goal,
-      asked: Math.max(0, Math.round(args.asked ?? 0)), max: welcomePersonalLimit(args.count), community: context.community,
+      asked: Math.max(0, Math.round(args.asked ?? 0), args.askedHere?.length ?? 0), max: welcomePersonalLimit(args.count), community: context.community,
       answers: args.answers.slice(0, 40).map((item) => ({ question: item.question.slice(0, 500), answer: item.answer.slice(0, 1_500) })),
+      askedHere: (args.askedHere ?? []).slice(0, 10).map((item) => ({ question: item.question.slice(0, 500), answer: item.answer.slice(0, 1_500) })),
       persona: args.persona.trim().slice(0, WELCOME_PERSONAL_BACKUP_MAX) || undefined });
     return { question: turn?.kind === "ask" ? turn.question : null, replied: Boolean(turn) };
   },

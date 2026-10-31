@@ -1076,7 +1076,7 @@ function WelcomePreview(props: {
           const asked = page.questions.length;
           const turn = page.source === "backup" || asked >= step.count ? { question: null, replied: true }
             : props.previewPersonal && step.goal.trim()
-              ? await props.previewPersonal({ goal: step.goal, count: step.count, persona: "", asked, answers: [...answered.current, ...own()] }).catch(() => ({ question: null, replied: false }))
+              ? await props.previewPersonal({ goal: step.goal, count: step.count, persona: "", asked, answers: answered.current, askedHere: own() }).catch(() => ({ question: null, replied: false }))
               : { question: null, replied: false };
           if (turn.question) page.questions = [...page.questions, turn.question];
           else if (!turn.replied && asked === 0) { page.questions = [welcomePersonalBackup(step.backup, "backup")]; page.source = "backup"; }

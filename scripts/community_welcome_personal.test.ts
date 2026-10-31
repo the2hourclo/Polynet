@@ -40,3 +40,12 @@ describe("personalized welcome questions", () => {
     expect(welcomeAnswerWords({ ...question, type: "single_choice" }, "1")).toBe("Codex");
   });
 });
+
+describe("repeat guard", () => {
+  it("spots a question the agent already asked on the page, reworded", async () => {
+    const { welcomePersonalRepeats } = await import("../shared/communityWelcomePersonal");
+    const asked = ["What's stopping you from handing off those client follow-up emails today?"];
+    expect(welcomePersonalRepeats("What is stopping you from handing off the client follow-up emails?", asked)).toBe(true);
+    expect(welcomePersonalRepeats("Which tool do you write those emails in?", asked)).toBe(false);
+  });
+});

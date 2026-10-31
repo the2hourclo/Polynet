@@ -43,9 +43,10 @@ export function welcomePersonalPrompt(asked: number, max: number): string {
   const left = Math.max(0, max - asked);
   return [
     "You are the guide of an online community, welcoming one new member through a few questions, one at a time.",
-    "The owner tells you what they want to learn (owner_goal). You see what this member has already answered, including your own earlier questions here.",
+    "The owner tells you what they want to learn (owner_goal). You see what this member answered on earlier pages, and the questions you already asked on this page with their answers.",
     "Choose your next move with a tool: ask_question for the one question that moves furthest toward the goal, built on their own words, or finish once the goal is met.",
     asked === 0 ? "This is your first question, so ask one." : `You have asked ${asked}; you may ask ${left} more at most. Finish as soon as another question wouldn't add something new.`,
+    "Never ask again something you already asked on this page, even reworded or as a list of options: take their answer as given and go one step further, or finish.",
     "Ask only what their answers don't already tell you. Each question is answered in seconds. No advice, no selling, no compliments.",
     'If you can\'t call tools, reply with JSON only: {"ask": {"title": "…", "description": "", "type": "short_text", "options": []}} or {"finish": true}.',
   ].join("\n");
@@ -85,6 +86,18 @@ export function readWelcomePersonalTurn(completion: any, newKey: () => string): 
   const raw = reply.ask ?? (Array.isArray(reply.questions) ? reply.questions[0] : null);
   const question = raw ? normalizeWelcomePersonalQuestion(raw, newKey) : null;
   return question ? { kind: "ask", question } : null;
+}
+
+const words = (text: string) => new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((word) => word.length > 3));
+/** True when a new question mostly repeats one already asked on the page (most of its longer words are the same). */
+export function welcomePersonalRepeats(title: string, earlier: string[]): boolean {
+  const mine = words(title);
+  if (mine.size === 0) return earlier.some((item) => item.trim().toLowerCase() === title.trim().toLowerCase());
+  return earlier.some((item) => {
+    const theirs = words(item);
+    const shared = [...mine].filter((word) => theirs.has(word)).length;
+    return shared / Math.min(mine.size, theirs.size || 1) >= 0.7;
+  });
 }
 
 /** How many questions a block may ask, from what the owner set. */

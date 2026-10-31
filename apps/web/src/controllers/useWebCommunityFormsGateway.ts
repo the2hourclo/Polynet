@@ -8,7 +8,7 @@ import { fetchCloudMemberProgressReport, type CommunityMemberProgressReport } fr
 import { previewWelcomePersonalQuestions } from "../../../../shared/cloudCommunityWelcomePersonalGateway";
 import type { WelcomePersonalAnswer } from "../../../../shared/communityWelcomePersonal";
 
-export type PersonalPreviewDraft = { goal: string; count: number; persona: string; asked: number; answers: WelcomePersonalAnswer[] };
+export type PersonalPreviewDraft = { goal: string; count: number; persona: string; asked: number; answers: WelcomePersonalAnswer[]; askedHere?: WelcomePersonalAnswer[] };
 export type CommunityFormsGateway = {
   responses?: (membershipId: string) => ReturnType<typeof listCloudCommunityFormResponses>;
   // The member's course progress and lesson answers, beside their form answers.
