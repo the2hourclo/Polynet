@@ -31,10 +31,13 @@ export function WelcomePersonalPage(props: Props) {
   const saved = useRef("{}");
   const question = set ? set.questions[set.questions.length - 1] : undefined;
 
+  // One ask at a time: React's dev double-mount (and a fast double tap) would otherwise ask the agent twice.
+  const inflight = useRef<Promise<WelcomePersonalQuestions> | null>(null);
   const load = async () => {
     setError(null); setSet(null);
     try {
-      const next = await props.load();
+      const pending = inflight.current ??= props.load().finally(() => { inflight.current = null; });
+      const next = await pending;
       if (!alive.current) return;
       if (next.answered) { props.onDone(); return; }
       setSet(next); setAnswers(next.answers); saved.current = JSON.stringify(next.answers); setIssue(null);

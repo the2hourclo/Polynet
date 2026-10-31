@@ -1058,7 +1058,8 @@ function WelcomePreview(props: {
   const advance = () => setIndex((n) => n + 1);
   // What the pretend member answered so far, so personal questions build on it as they would for a member.
   const answered = useRef<WelcomePersonalAnswer[]>([]);
-  const personalRuns = useRef<Record<string, WelcomePersonalQuestions>>({});
+  // One run per personal page; `pending` keeps a second load from asking the agent again while one is out.
+  const personalRuns = useRef<Record<string, WelcomePersonalQuestions & { pending?: Promise<WelcomePersonalQuestions> }>>({});
   const [agentNotes, setAgentNotes] = useState<string[]>([]);
   const heard = (questions: CommunityFormQuestion[], answers: Record<string, string | string[]>) => {
     const keys = new Set(questions.map((question) => question.title));
@@ -1071,9 +1072,9 @@ function WelcomePreview(props: {
       const page = personalRuns.current[`${step.key}:${run}`] ??= { questions: [], answers: {}, source: "agent", answered: false };
       const own = () => page.questions.map((question) => ({ question: question.title, answer: welcomeAnswerWords(question, page.answers[question.key]) }));
       return <WelcomePersonalPage key={`${step.key}:${run}`} preview onDone={advance}
-        load={async () => {
+        load={() => page.pending ??= (async () => {
           const last = page.questions[page.questions.length - 1];
-          if (page.answered || (last && !page.answers[last.key])) return { ...page };
+          if (page.answered || (last && !page.answers[last.key])) return { questions: page.questions, answers: page.answers, source: page.source, answered: page.answered };
           const asked = page.questions.length;
           const turn = page.source === "backup" || asked >= step.count ? { question: null, replied: true }
             : props.previewPersonal && step.goal.trim()
@@ -1086,8 +1087,8 @@ function WelcomePreview(props: {
           if (turn.question) page.questions = [...page.questions, turn.question];
           else if (!turn.replied && asked === 0) { page.questions = [welcomePersonalBackup(step.backup, "backup")]; page.source = "backup"; }
           else page.answered = true;
-          return { ...page };
-        }}
+          return { questions: page.questions, answers: page.answers, source: page.source, answered: page.answered };
+        })().finally(() => { page.pending = undefined; })}
         save={async (answers) => { page.answers = { ...answers }; }} />;
     }
     if (step.type === "lesson") {
