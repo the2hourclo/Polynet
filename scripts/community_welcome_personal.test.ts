@@ -54,4 +54,11 @@ describe("repeat guard", () => {
     expect(welcomePersonalRepeats("How would you know handing off your client follow-up emails worked?", both, goal)).toBe(false);
     expect(welcomePersonalRepeats("What's stopping you from handing off those client follow-up emails today?", both, goal)).toBe(true);
   });
+
+  it("doesn't count words the member used in their answers", async () => {
+    const { welcomePersonalRepeats } = await import("../shared/communityWelcomePersonal");
+    const asked = ["Which email tool do you write client follow-up emails in?", "What's stopping you from handing those follow-ups off?"];
+    const known = "Find out their email tool, what stops them, and how they'd know it worked Gmail I never wrote down how I write client follow-up emails";
+    expect(welcomePersonalRepeats("How would you know the follow-up emails were going out well without you?", asked, known)).toBe(false);
+  });
 });

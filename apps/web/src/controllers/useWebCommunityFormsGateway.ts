@@ -37,7 +37,7 @@ export type CommunityFormsGateway = {
     decline: (proposalId: string) => Promise<CommunitySettingProposal>;
   };
   /** The welcome page's personal questions: the agent's next move for a pretend member (replied with no question means it finishes). */
-  previewPersonal?: (draft: PersonalPreviewDraft) => Promise<{ question: CommunityFormDraft["questions"][number] | null; replied: boolean }>;
+  previewPersonal?: (draft: PersonalPreviewDraft) => Promise<{ question: CommunityFormDraft["questions"][number] | null; replied: boolean; notes?: string[] }>;
   /** Client properties a question can fill. */
   clientProperties?: () => Promise<CloudCommunityClientProperty[]>;
 };

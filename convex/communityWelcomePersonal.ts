@@ -115,7 +115,10 @@ export const storePersonalTurnInternal = internalMutation({
 
 /** The agent's next move from the goal and everything answered so far; null when it can't say in time. */
 async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorUserId: Id<"users">; goal: string; asked: number; max: number;
-  community: unknown; answers: WelcomePersonalAnswer[]; askedHere: WelcomePersonalAnswer[]; persona?: string }): Promise<WelcomePersonalTurn | null> {
+  community: unknown; answers: WelcomePersonalAnswer[]; askedHere: WelcomePersonalAnswer[]; persona?: string;
+  /** What happened on this turn, in words, for the owner's Preview (and the server log). */
+  notes?: string[] }): Promise<WelcomePersonalTurn | null> {
+  const note = (text: string) => { args.notes?.push(text); console.log(`welcome_personal: ${text}`); };
   if (args.asked >= args.max) return { kind: "finish" };
   const requestId = crypto.randomUUID();
   let fundedRun: Awaited<ReturnType<typeof startFundedInferenceRun>>;
@@ -143,25 +146,38 @@ async function nextTurn(ctx: any, args: { communityId: Id<"communities">; actorU
     apiKeyOverride: readEnv("OPENAI_API_KEY") || readEnv("ARX_OPENAI_API_KEY") || undefined,
   } as any);
   const read = (completion: any) => readWelcomePersonalTurn(completion, () => crypto.randomUUID());
+  const earlier = args.askedHere.map((item) => item.question);
+  const known = [args.goal, ...args.answers.map((item) => item.answer), ...args.askedHere.map((item) => item.answer)].join(" ");
+  const describe = (completion: any) => completion?.type === "assistant" ? `a reply with no tool call: ${JSON.stringify(String(completion.assistantText ?? "").slice(0, 200))}` : `an unusable ${completion?.type ?? "reply"}`;
   try {
     let completion: any = await ask(null, false);
-    if (!completion.ok) { await fundedRun.fail(completion.code ?? "welcome_personal_unreadable"); return null; }
+    if (!completion.ok) { note(`the engine failed (${completion.code ?? "unknown"})`); await fundedRun.fail(completion.code ?? "welcome_personal_unreadable"); return null; }
     let turn = read(completion);
-    // One retry: a plain-text reply with no tool call, or a finish that names parts of the goal still unanswered.
+    // One retry, for: a reply with no tool call; a finish naming parts of the goal still unanswered; a repeat of an earlier question.
     const open = turn?.kind === "finish" ? turn.openParts ?? [] : [];
-    if (!turn || (open.length && args.asked < args.max)) {
-      console.log(`welcome_personal: retrying after ${turn ? `finish with open parts ${JSON.stringify(open)}` : "a reply with no tool call"}`);
-      const retry: any = await ask(turn
-        ? `You finished, but you listed these parts of the goal as unanswered: ${open.join("; ")}. Ask the member about one of them now.`
-        : "Your last reply had no tool call. Answer only by calling ask_question or finish.", Boolean(turn));
-      if (retry.ok) { completion = retry; turn = read(retry) ?? turn; }
+    const repeat = turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, earlier, known) ? turn.question.title : null;
+    const left = args.asked < args.max;
+    if (!turn || (left && (open.length || repeat))) {
+      note(!turn ? `retrying after ${describe(completion)}`
+        : repeat ? `retrying: ${JSON.stringify(repeat)} repeats an earlier question`
+          : `retrying: finished with open parts ${JSON.stringify(open)}`);
+      const nudge = !turn ? "Your last reply had no tool call. Answer only by calling ask_question or finish."
+        : repeat ? `Don't repeat yourself: you already asked something like "${repeat}". ${open.length ? `Ask about one of these instead: ${open.join("; ")}.` : "Ask about a part of the goal their answers don't cover yet, or finish."}`
+          : `You finished, but you listed these parts of the goal as unanswered: ${open.join("; ")}. Ask the member about one of them now.`;
+      const retry: any = await ask(nudge, Boolean(turn) && !repeat);
+      const again = retry.ok ? read(retry) : null;
+      if (!retry.ok) note(`the retry failed (${retry.code ?? "unknown"})`);
+      else if (!again) note(`the retry gave ${describe(retry)}`);
+      if (again) { completion = retry; turn = again; }
     }
-    if (!(await fundedRun.settle("provider_completed"))) return null;
+    if (!(await fundedRun.settle("provider_completed"))) { note("the run could not be settled"); return null; }
     // A question it already asked here (reworded or as a checklist) ends the page instead of repeating.
-    if (turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, args.askedHere.map((item) => item.question), args.goal)) {
-      console.log(`welcome_personal: dropped a repeat question: ${JSON.stringify(turn.question.title)}`);
+    if (turn?.kind === "ask" && welcomePersonalRepeats(turn.question.title, earlier, known)) {
+      note(`dropped ${JSON.stringify(turn.question.title)}: it repeats an earlier question`);
       turn = { kind: "finish" };
     }
+    if (turn?.kind === "finish") note(`finished${turn.openParts?.length ? `, open parts ${JSON.stringify(turn.openParts)}` : ""}`);
+    else if (!turn) note("no usable question, so the page ends (the backup on the first turn)");
     // The first move must be a question; a finish before asking anything means the backup is asked.
     return turn?.kind === "finish" && args.asked === 0 ? null : turn;
   } catch {
@@ -235,15 +251,16 @@ export const previewWelcomePersonalQuestions = action({
   args: { ...scope, goal: v.string(), count: v.number(), persona: v.string(), asked: v.optional(v.number()),
     answers: v.array(v.object({ question: v.string(), answer: v.string() })),
     askedHere: v.optional(v.array(v.object({ question: v.string(), answer: v.string() }))) },
-  handler: async (ctx, args): Promise<{ question: CommunityFormQuestion | null; replied: boolean }> => {
+  handler: async (ctx, args): Promise<{ question: CommunityFormQuestion | null; replied: boolean; notes: string[] }> => {
     const goal = args.goal.trim().slice(0, WELCOME_PERSONAL_GOAL_MAX);
     if (!goal) throw new Error("welcome_personal_invalid");
     const context: any = await ctx.runQuery((internal as any).communityWelcomePersonal.previewContextInternal, { communityId: args.communityId, authSubject: args.authSubject });
-    const turn = await nextTurn(ctx, { communityId: args.communityId, actorUserId: context.userId, goal,
+    const notes: string[] = [];
+    const turn = await nextTurn(ctx, { notes, communityId: args.communityId, actorUserId: context.userId, goal,
       asked: Math.max(0, Math.round(args.asked ?? 0), args.askedHere?.length ?? 0), max: welcomePersonalLimit(args.count), community: context.community,
       answers: args.answers.slice(0, 40).map((item) => ({ question: item.question.slice(0, 500), answer: item.answer.slice(0, 1_500) })),
       askedHere: (args.askedHere ?? []).slice(0, 10).map((item) => ({ question: item.question.slice(0, 500), answer: item.answer.slice(0, 1_500) })),
       persona: args.persona.trim().slice(0, WELCOME_PERSONAL_BACKUP_MAX) || undefined });
-    return { question: turn?.kind === "ask" ? turn.question : null, replied: Boolean(turn) };
+    return { question: turn?.kind === "ask" ? turn.question : null, replied: Boolean(turn), notes };
   },
 });

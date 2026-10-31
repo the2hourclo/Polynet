@@ -98,11 +98,12 @@ export function readWelcomePersonalTurn(completion: any, newKey: () => string): 
 const COMMON = new Set(["what", "which", "would", "could", "your", "you're", "that", "this", "those", "these", "with", "from", "have", "about", "today", "right", "know", "they", "them", "when", "does", "into", "most", "more", "much", "many"]);
 const words = (text: string, skip: Set<string>) => new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
   .filter((word) => word.length > 3 && !COMMON.has(word) && !skip.has(word)));
-/** True when a new question repeats one already asked on the page. Words from the owner's goal don't count, since every question shares the topic. */
-export function welcomePersonalRepeats(title: string, earlier: string[], goal = ""): boolean {
+/** True when a new question repeats one already asked on the page. Words from `known` (the goal and the member's
+ * answers) don't count, since every question naturally echoes the topic and what the member said. */
+export function welcomePersonalRepeats(title: string, earlier: string[], known = ""): boolean {
   const same = (a: string, b: string) => a.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ") === b.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
   if (earlier.some((item) => same(item, title))) return true;
-  const topic = words(goal, new Set());
+  const topic = words(known, new Set());
   const mine = words(title, topic);
   return earlier.some((item) => {
     const theirs = words(item, topic);

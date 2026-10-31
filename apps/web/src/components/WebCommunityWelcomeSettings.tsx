@@ -1059,6 +1059,7 @@ function WelcomePreview(props: {
   // What the pretend member answered so far, so personal questions build on it as they would for a member.
   const answered = useRef<WelcomePersonalAnswer[]>([]);
   const personalRuns = useRef<Record<string, WelcomePersonalQuestions>>({});
+  const [agentNotes, setAgentNotes] = useState<string[]>([]);
   const heard = (questions: CommunityFormQuestion[], answers: Record<string, string | string[]>) => {
     const keys = new Set(questions.map((question) => question.title));
     answered.current = [...answered.current.filter((item) => !keys.has(item.question)),
@@ -1076,8 +1077,12 @@ function WelcomePreview(props: {
           const asked = page.questions.length;
           const turn = page.source === "backup" || asked >= step.count ? { question: null, replied: true }
             : props.previewPersonal && step.goal.trim()
-              ? await props.previewPersonal({ goal: step.goal, count: step.count, persona: "", asked, answers: answered.current, askedHere: own() }).catch(() => ({ question: null, replied: false }))
-              : { question: null, replied: false };
+              ? await props.previewPersonal({ goal: step.goal, count: step.count, persona: "", asked, answers: answered.current, askedHere: own() })
+                .catch(() => ({ question: null, replied: false, notes: ["the preview call failed"] }))
+              : { question: null, replied: false, notes: [props.previewPersonal ? "the block has no goal" : "no AI engine in this preview"] };
+          // What the agent did on this turn, for the owner only (members never see it).
+          const said = "notes" in turn ? turn.notes ?? [] : asked >= step.count ? [`reached the limit of ${step.count}`] : [];
+          setAgentNotes((all) => [...all, ...said.map((text) => `Question ${asked + 1}: ${text}`)].slice(-6));
           if (turn.question) page.questions = [...page.questions, turn.question];
           else if (!turn.replied && asked === 0) { page.questions = [welcomePersonalBackup(step.backup, "backup")]; page.source = "backup"; }
           else page.answered = true;
@@ -1126,10 +1131,14 @@ function WelcomePreview(props: {
           <button type="button" aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}><Monitor size={15} aria-hidden="true" /> Desktop</button>
           <button type="button" aria-pressed={device === "phone"} onClick={() => setDevice("phone")}><Smartphone size={15} aria-hidden="true" /> Phone</button>
         </div>
-        <button type="button" className="workflow-secondary-button" onClick={() => { setIndex(0); setRun((n) => n + 1); answered.current = []; }}><RotateCcw size={14} aria-hidden="true" /> Start over</button>
+        <button type="button" className="workflow-secondary-button" onClick={() => { setIndex(0); setRun((n) => n + 1); answered.current = []; setAgentNotes([]); }}><RotateCcw size={14} aria-hidden="true" /> Start over</button>
         <button type="button" ref={close} className="welcome-settings-icon-button" aria-label="Close preview" onClick={props.onClose}><X size={16} aria-hidden="true" /></button>
       </div>
       <p className="welcome-settings-help">Click through it as a new member would. Answers aren't saved.</p>
+      {agentNotes.length ? <details className="welcome-settings-preview-notes">
+        <summary>What your agent did ({agentNotes.length})</summary>
+        <ul>{agentNotes.map((text, n) => <li key={n}>{text}</li>)}</ul>
+      </details> : null}
       <div className="welcome-settings-preview-scroll">
         <ScaledPreview width={device === "desktop" ? 960 : 390}>
           <section className="community-welcome community-welcome-preview" aria-label="What a new member sees">

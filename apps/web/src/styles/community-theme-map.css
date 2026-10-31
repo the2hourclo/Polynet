@@ -1246,6 +1246,9 @@
 [data-community-theme] .welcome-settings-personal-tried ol {
   font-size: var(--pn-type-ui);
 }
+[data-community-theme] .welcome-settings-preview-notes {
+  font-size: var(--pn-type-label);
+}
 [data-community-theme] .pn-wf-tabs > button[aria-selected="true"]::after {
   border-radius: calc(1px * var(--pn-radius-scale, 1));
 }

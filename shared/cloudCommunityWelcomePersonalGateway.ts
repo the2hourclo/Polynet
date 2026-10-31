@@ -18,7 +18,7 @@ export async function saveMyWelcomePersonalAnswers(session: unknown, communityId
 }
 /** The owner's preview: the agent's next move for a pretend member. replied with no question means it finishes. */
 export async function previewWelcomePersonalQuestions(session: unknown, communityId: string,
-  draft: { goal: string; count: number; persona: string; asked: number; answers: WelcomePersonalAnswer[]; askedHere?: WelcomePersonalAnswer[] }): Promise<{ question: CommunityFormQuestion | null; replied: boolean }> {
+  draft: { goal: string; count: number; persona: string; asked: number; answers: WelcomePersonalAnswer[]; askedHere?: WelcomePersonalAnswer[] }): Promise<{ question: CommunityFormQuestion | null; replied: boolean; notes?: string[] }> {
   const { client, authSubject } = await bootstrapConvexAuthenticatedClient(session);
   return client.action(api.communityWelcomePersonal.previewWelcomePersonalQuestions, { authSubject, communityId: communityId as Id<"communities">, ...draft });
 }
