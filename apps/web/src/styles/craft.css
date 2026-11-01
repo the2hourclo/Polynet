@@ -21,8 +21,7 @@
 [data-community-theme] .community-posts-list > .community-post-card,
 .community-posts-list > .community-post-card {
   gap: 0.625rem;
-  /* The same inset as the composer's own contents, so avatars line up. */
-  padding: 1.25rem 1rem;
+  padding: 1.25rem 0.5rem;
   border: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--border-default) 80%, transparent);
   border-radius: 0;
@@ -49,9 +48,6 @@
 /* Counts show only once there is something to count (the markup drops the
    zero); an icon alone needs no reserved width. */
 .community-posts-list .community-post-card-action { min-width: 0; }
-/* The like slot keeps one width with or without a count, so the comment
-   icon sits in the same place down the whole list. */
-.community-posts-list .community-post-card-like { min-width: 3.75rem; }
 
 /* Knowledge track page: "What you'll be able to do" heads the list, so it is
    at least the list's size, one weight step up, in sentence case. */
