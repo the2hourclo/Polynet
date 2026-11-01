@@ -232,21 +232,23 @@ function PostCard(props: CommunityPostsFeedProps & { bundle: CommunityInteractio
             <ThumbsUp size={17} aria-hidden="true" />
           </button>
           {/* The count names who liked it: pictures and names, each opening their profile. */}
-          <ReactorsHover target={{ type: "root", id: root.id }} emoji={LIKE} count={likes}
-            signature={`${LIKE}${likes}`} variant="faces">
-            <button
-              type="button"
-              className="community-post-card-like-count"
-              disabled={likes === 0}
-              aria-label={likes === 1 ? "1 like: see who" : `${likes} likes: see who`}
-            >
-              {likes}
-            </button>
-          </ReactorsHover>
+          {/* No "0" beside an untouched post: the count appears with the first like. */}
+          {likes > 0 ? (
+            <ReactorsHover target={{ type: "root", id: root.id }} emoji={LIKE} count={likes}
+              signature={`${LIKE}${likes}`} variant="faces">
+              <button
+                type="button"
+                className="community-post-card-like-count"
+                aria-label={likes === 1 ? "1 like: see who" : `${likes} likes: see who`}
+              >
+                {likes}
+              </button>
+            </ReactorsHover>
+          ) : null}
         </span>
         <button type="button" className="community-post-card-action" aria-label={`${root.reply_count} comments`} onClick={open}>
           <MessageSquare size={17} aria-hidden="true" />
-          <span>{root.reply_count}</span>
+          {root.reply_count > 0 ? <span>{root.reply_count}</span> : null}
         </button>
         {root.last_reply_actor_user_id && root.last_reply_at ? (
           <span className="community-post-card-last-reply">

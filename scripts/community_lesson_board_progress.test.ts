@@ -86,7 +86,8 @@ describe("roadmap progress", () => {
     expect(markup).toMatch(/Module 1<\/span><span class="lesson-step-module-name">Start/);
     expect(markup).toContain("Skill track · 2 modules · 3 lessons");
     expect(markup).toContain("Start here: Map your week");
-    expect(markup).toContain("Module 1 · 1 of 3 done");
+    // The Up next card names the module only; the outline already counts what's done.
+    expect(markup).toContain("Start here: Map your week</strong><span>Module 1</span></span>");
     expect(markup).toContain("Who it&#x27;s for");
     // The module you're on is open; the next one folds to its name.
     expect(markup).toContain("Set up your workspace");

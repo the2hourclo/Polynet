@@ -240,7 +240,8 @@ export function WebCommunityLessonBoard(props: {
             next={nextUp ? {
               title: nextUp.resource.title,
               started: statusOf(nextUp.ref) === "in_progress",
-              where: `Module ${stageNumberOf(nextUp.ref)} · ${doneRefs.size} of ${lessons.length} done`,
+              // The outline beside it already counts what's done; say it once.
+              where: `Module ${stageNumberOf(nextUp.ref)}`,
               onOpen: () => open(nextUp),
             } : null}
             error={progress.error}

@@ -1,0 +1,62 @@
+/* Craft pass (Rashid, 2026-11-01: "try overhauling our UI" with the
+   stageshow skill's craft rules). Layout and restraint only: every colour
+   and font still comes from the community's own theme, so each community
+   keeps its look. Sizes are in rem so the theme map leaves them alone.
+
+   Rules used (stageshow references/craft.md):
+   - "Flat": every object the same weight in the same bordered card leaves
+     the eye nowhere to land. Compose objects, not an inventory of cards.
+   - "Say it once."
+   - Hierarchy from spacing and one weight step; a heading never smaller
+     than the list it heads.
+   - A title over its subtitle reads as one item. */
+
+/* Chat feed: one list, not a stack of boxes. Posts sit on the page with a
+   hairline between them (the Substack reader); the composer stays the one
+   raised surface, so "write something" is where the eye starts. */
+[data-community-theme] .community-posts-list,
+.community-posts-list {
+  gap: 0;
+}
+[data-community-theme] .community-posts-list > .community-post-card,
+.community-posts-list > .community-post-card {
+  gap: 0.625rem;
+  padding: 1.25rem 0.5rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 80%, transparent);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.community-posts-list > .community-post-card:last-child { border-bottom: 0; }
+.community-posts-list > .community-post-card:is(:hover, .selected) {
+  border-color: color-mix(in srgb, var(--border-default) 80%, transparent);
+  box-shadow: none;
+}
+.community-posts-list > .community-post-card:hover .community-post-card-title {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+/* The byline is one quiet line pair beside a smaller avatar, so the post's
+   title, not its author block, is the heaviest thing in the row. */
+.community-posts-list .community-post-card-header { gap: 0.625rem; }
+.community-posts-list .community-post-card-avatar { width: 2rem; height: 2rem; }
+.community-posts-list .community-post-card-byline { gap: 0; }
+
+/* Counts show only once there is something to count (the markup drops the
+   zero); an icon alone needs no reserved width. */
+.community-posts-list .community-post-card-action { min-width: 0; }
+
+/* Knowledge track page: "What you'll be able to do" heads the list, so it is
+   at least the list's size, one weight step up, in sentence case. */
+.roadmap-track-outcomes h3,
+[data-community-theme] .roadmap-track-outcomes h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.roadmap-track-outcomes { gap: 0.625rem; }
