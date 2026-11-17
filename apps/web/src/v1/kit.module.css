@@ -1434,20 +1434,17 @@
 .app .mprop-edit{font-size:13px}
 
 /* Fork look (Rashid, Nov 17): text you can read. Solid greys instead of
-   see-through ones, 15px text, medium weights, Inter, and one colour (the
-   community's green) for what you act on. Fork only, not sent to Neil. */
+   see-through ones, 15px text, medium weights, Inter. Neil's colours stay. Fork only, not sent to Neil. */
 .app{
   --ink:#F1F2F4; --ink1:#E3E5E8; --ink2:#C2C6CC; --ink3:#9CA1A9; --ink4:#666B73;
   --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.16);
-  --acc:#3FAE52; --acc-hover:#4BBC5E; --acc-soft:rgba(63,174,82,.16);
-  --accent:var(--acc); --accent-hover:var(--acc-hover); --go:var(--acc); --go-hover:var(--acc-hover);
+  --acc:var(--accent); --acc-hover:var(--accent-hover);
   font-size:15px;
 }
 .app:is(.light:not(.on-mode-dark),.on-mode-light){
   --ink:#101311; --ink1:#1C201D; --ink2:#3C423E; --ink3:#5F6661; --ink4:#9AA19C;
   --line:rgba(15,18,16,.10); --line2:rgba(15,18,16,.16);
-  --acc:#2D8C3C; --acc-hover:#257A33; --acc-soft:#EAF4EC;
-  --accent:var(--acc); --accent-hover:var(--acc-hover); --go:var(--acc); --go-hover:var(--acc-hover);
+  --acc:var(--accent); --acc-hover:var(--accent-hover);
 }
 .app .btn.go{background:var(--acc);border-color:var(--acc);color:#fff}
 .app .btn.go:hover{background:var(--acc-hover);border-color:var(--acc-hover)}
@@ -1480,9 +1477,9 @@
 .app .kpct em{position:absolute;left:0;top:12px;font-size:13px;line-height:16px;font-weight:500;color:var(--ink3);background:none;padding:0}
 .app .kgen{display:flex;align-items:flex-end;justify-content:flex-start;padding:16px 18px;color:#fff;text-align:left;font-size:21px;line-height:1.18;font-weight:700;letter-spacing:-.02em}
 .app .kgen small{display:block;margin-bottom:6px;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.82}
-.app .kcover.kgen.c2{background:linear-gradient(135deg,#1F6E33,#3FAE52)}
+.app .kcover.kgen.c2{background:linear-gradient(135deg,#3A4296,#6F78D8)}
 .app .kcover.kgen.c3{background:linear-gradient(135deg,#1D4E89,#3D8FD6)}
-.app .kcover.kgen.c4{background:linear-gradient(135deg,#7A3E12,#D7863A)}
+.app .kcover.kgen.c4{background:linear-gradient(135deg,#2B2F3A,#565D6E)}
 .app .kcover.kgen.c5{background:linear-gradient(135deg,#3E2D73,#7E66D0)}
 /* The Continue card: the course's picture on the left, the lesson on the right. */
 .app .kcont.khero{display:grid;grid-template-columns:minmax(220px,300px) 1fr;padding:0;overflow:hidden;max-width:none;border-radius:16px;margin-top:20px}
