@@ -51,13 +51,23 @@ export function courseOrderAfterMove(ids: string[], index: number, by: -1 | 1): 
   return next;
 }
 
-// A course without a cover gets one of three soft tints, the same one every
-// time (from its id), so a shelf never reads as a row of empty boxes.
-const COVER_TINTS = ["c2", "c3", "c4"] as const;
+// A course without a cover gets a strong colour with its name on it, the
+// same one every time (from its id), so a shelf never reads as a row of
+// empty boxes.
+const COVER_TINTS = ["c2", "c3", "c4", "c5"] as const;
 function coverTint(id: string): (typeof COVER_TINTS)[number] {
   let hash = 0;
   for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
   return COVER_TINTS[hash % COVER_TINTS.length];
+}
+
+function CourseCover(props: { course: CommunityResourceModule; className?: string }) {
+  const { course } = props;
+  if (course.banner_url) {
+    return <span className={cx("kcover", props.className)} style={{ backgroundImage: `url(${JSON.stringify(course.banner_url)})`, backgroundSize: "cover",
+      backgroundPosition: `${(course.banner_focus_x ?? 0.5) * 100}% ${(course.banner_focus_y ?? 0.5) * 100}%` }} />;
+  }
+  return <span className={cx("kcover", "kgen", coverTint(course.id), props.className)}><span><small>Course</small>{course.name}</span></span>;
 }
 
 function firstLine(markdown: string | null): string {
@@ -327,42 +337,6 @@ export function KitClassroom(props: {
     </>
   ) : null;
 
-  // The shelf's right column (mock: "Right panels, second pass"): the
-  // guide's brief; the next thing (a member's next lesson; for a builder, a
-  // question nobody answered, to teach); what the community knows; what it
-  // learned lately; and, for a builder, who is learning what.
-  const liveCourses = courses.filter((entry) => entry.course.module_status === "live");
-  const lessonCount = courses.reduce((sum, entry) => sum + entry.lessons.length, 0);
-  const shelfParts: ReactNode[] = [
-    brief ? <BriefPart key="brief" brief={brief} now={now} /> : null,
-    resume ? (
-      <PanelPart key="next" label="Continue" fact={`lesson ${resume.index + 1} of ${resume.total}`}>
-        <PanelNext title={resume.lesson.title} sub={resume.course.name}
-          action={<Btn go onClick={() => { props.onOpenCourse(resume.course.id); chooseLesson(resume.lesson.id); }}>Resume</Btn>} />
-      </PanelPart>
-    ) : canWriteNotes && waiting.length ? (
-      <PanelPart key="next" label="Waiting on an answer" fact={String(waiting.length)}>
-        {waiting.slice(0, 2).map((question, index) => (
-          <PanelLine key={`${question.author}:${index}`}
-            action={<PanelAction onClick={() => setNote({ slug: null, mode: "new", title: question.text.replace(/\s+/g, " ").trim().slice(0, 120) })}>Teach</PanelAction>}>
-            <span title={`${question.author} in #${question.channel}`}>“{question.text}”</span>
-          </PanelLine>
-        ))}
-      </PanelPart>
-    ) : null,
-    <PanelBrain key="brain" map={brain} now={now} onOpen={props.onOpenBrain}>
-      {guideSources.some(sourceFailed) ? <PanelLine fact={String(guideSources.filter(sourceFailed).length)}>Files it couldn't read</PanelLine> : null}
-    </PanelBrain>,
-    props.canManage && liveCourses.length ? (
-      <PanelPart key="learning" label="Learning">
-        {liveCourses.slice(0, 5).map(({ course }) => {
-          const row = summaryBy.get(course.id);
-          return <PanelLine key={course.id} fact={row ? `${row.started} started · ${row.finished} finished` : null}>{course.name}</PanelLine>;
-        })}
-      </PanelPart>
-    ) : null,
-  ].filter(Boolean);
-  const shelfRail = shelfSettled && shelfParts.length ? <>{shelfParts}</> : null;
 
   const moveCourse = async (index: number, by: -1 | 1) => {
     const ids = courseOrderAfterMove(courses.map((entry) => entry.course.id), index, by);
@@ -467,7 +441,8 @@ export function KitClassroom(props: {
   // The right column is what you picked (a note, a course) or, on the shelf,
   // the fast read of Knowledge: the brief, what's next, what the community
   // knows and what it learned lately.
-  const railBody = noteRail ?? courseRail ?? (inGuideMemory ? null : shelfRail);
+  // On the shelf there is no right column: the courses take the width.
+  const railBody = noteRail ?? courseRail;
   const rail = railBody ? (
     <KitApp view="know" host={props.canManage} part="rail" className="kit-page-rail">
       <Rail index={2} label="Knowledge">{railBody}</Rail>
@@ -605,16 +580,24 @@ export function KitClassroom(props: {
         ) : null}
 
         {resume ? (
-          <button type="button" className={cx("card kcont")} onClick={() => { props.onOpenCourse(resume.course.id); chooseLesson(resume.lesson.id); }}>
-            <div className={cx("meta")}><span>Continue · {resume.course.name}</span><span>Lesson {resume.index + 1} of {resume.total}</span></div>
-            <h2>{resume.lesson.title}</h2>
-            <div className={cx("kprog")}><div className={cx("bar")}><i style={{ width: `${Math.round((resume.index / resume.total) * 100)}%` }} /></div></div>
-            <div className={cx("acts")}><span className={cx("btn go")}><Icon name="play" />Continue</span></div>
+          <button type="button" className={cx("card kcont khero")} onClick={() => { props.onOpenCourse(resume.course.id); chooseLesson(resume.lesson.id); }}>
+            <CourseCover course={resume.course} className="khero-cover" />
+            <span className={cx("khero-body")}>
+              <span className={cx("khero-eyebrow")}>Continue · lesson {resume.index + 1} of {resume.total}</span>
+              <h2>{resume.lesson.title}</h2>
+              <span className={cx("khero-sub")}>{resume.course.name}</span>
+              <span className={cx("khero-row")}>
+                <span className={cx("bar")}><i style={{ width: `${Math.round((resume.index / resume.total) * 100)}%` }} /></span>
+                <em>{resume.index} of {resume.total} done</em>
+                <span className={cx("btn go")}>Continue<Icon name="arrow" /></span>
+              </span>
+            </span>
           </button>
         ) : null}
 
         <div className={cx("khead")}>
           <span className={cx("lab")}>Courses</span>
+          {courses.length && !arranging ? <span className={cx("khead-n")}>{courses.length} {courses.length === 1 ? "course" : "courses"}</span> : null}
           {arranging ? <span className={cx("sub")} style={{ marginLeft: 10 }}>Members see them in this order.</span> : null}
           <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
             {props.onReorderCourses && props.canManage && courses.length > 1 ? (
@@ -644,9 +627,7 @@ export function KitClassroom(props: {
             // not open, so a slip of the hand never leaves the shelf.
             if (arranging) return (
               <div key={course.id} className={cx("kcourse", "karr")}>
-                <span className={cx("kcover", course.banner_url ? "" : coverTint(course.id))} style={course.banner_url ? { backgroundImage: `url(${JSON.stringify(course.banner_url)})`, backgroundSize: "cover", backgroundPosition: `${(course.banner_focus_x ?? 0.5) * 100}% ${(course.banner_focus_y ?? 0.5) * 100}%` } : undefined}>
-                  {course.banner_url ? null : <Icon name="book" />}
-                </span>
+                <CourseCover course={course} />
                 <span className={cx("kmove")}>
                   <button type="button" aria-label={`Move ${course.name} earlier`} disabled={movingCourse || position === 0} onClick={() => void moveCourse(position, -1)}><Icon name="back" /></button>
                   <button type="button" aria-label={`Move ${course.name} later`} disabled={movingCourse || position === courses.length - 1} onClick={() => void moveCourse(position, 1)}><Icon name="arrow" /></button>
@@ -657,9 +638,7 @@ export function KitClassroom(props: {
             );
             return (
               <button key={course.id} type="button" className={cx("kcourse")} onClick={() => props.onOpenCourse(course.id)}>
-                <span className={cx("kcover", course.banner_url ? "" : coverTint(course.id))} style={course.banner_url ? { backgroundImage: `url(${JSON.stringify(course.banner_url)})`, backgroundSize: "cover", backgroundPosition: `${(course.banner_focus_x ?? 0.5) * 100}% ${(course.banner_focus_y ?? 0.5) * 100}%` } : undefined}>
-                  {course.banner_url ? null : <Icon name="book" />}
-                </span>
+                <CourseCover course={course} />
                 <b>{course.name}{course.module_status === "draft" ? <span className={cx("tag")} style={{ marginLeft: 8 }}>draft</span> : null}</b>
                 <span className={cx("s")}>{firstLine(course.description_md) || `${lessons.length} ${lessons.length === 1 ? "lesson" : "lessons"}`}</span>
                 {props.canManage ? (

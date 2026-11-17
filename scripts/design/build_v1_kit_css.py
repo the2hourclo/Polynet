@@ -82,9 +82,9 @@ def split_top(s: str) -> list[str]:
 src = re.sub(r"/\* frame:.*?/\* /frame \*/", "", src, flags=re.S)
 # Comments go first: left in, they glue onto the next selector.
 css = convert_block(re.sub(r"/\*.*?\*/", "", src, flags=re.S))
-css = css.replace("--sans:'Geist','Inter',system-ui,sans-serif", "--sans:'Geist Variable','Geist','Inter',system-ui,sans-serif")
+css = css.replace("--sans:'Geist','Inter',system-ui,sans-serif", "--sans:'Inter Variable','Inter',system-ui,sans-serif")
 css = css.replace("--serif:'Newsreader',Georgia,serif", "--serif:'Newsreader Variable','Newsreader',Georgia,serif")
-css = css.replace("font-family:'Geist','Inter',sans-serif", "font-family:'Geist Variable','Geist','Inter',sans-serif")
+css = css.replace("font-family:'Geist','Inter',sans-serif", "font-family:'Inter Variable','Inter',sans-serif")
 # The mock's sample course cover is a file beside the mock; the app has it in public/.
 css = css.replace("url(./polynet-earth.webp)", "url(/design-lab/polynet-earth.webp)")
 css += """
@@ -868,6 +868,71 @@ css += """
 .app .mdetail select{padding-left:4px}
 .app .mchips button{font-size:13px}
 .app .mprop-edit{font-size:13px}
+"""
+css += """
+/* Fork look (Rashid, Nov 17): text you can read. Solid greys instead of
+   see-through ones, 15px text, medium weights, Inter, and one colour (the
+   community's green) for what you act on. Fork only, not sent to Neil. */
+.app{
+  --ink:#F1F2F4; --ink1:#E3E5E8; --ink2:#C2C6CC; --ink3:#9CA1A9; --ink4:#666B73;
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.16);
+  --acc:#3FAE52; --acc-hover:#4BBC5E; --acc-soft:rgba(63,174,82,.16);
+  --accent:var(--acc); --accent-hover:var(--acc-hover); --go:var(--acc); --go-hover:var(--acc-hover);
+  font-size:15px;
+}
+.app:is(.light:not(.on-mode-dark),.on-mode-light){
+  --ink:#101311; --ink1:#1C201D; --ink2:#3C423E; --ink3:#5F6661; --ink4:#9AA19C;
+  --line:rgba(15,18,16,.10); --line2:rgba(15,18,16,.16);
+  --acc:#2D8C3C; --acc-hover:#257A33; --acc-soft:#EAF4EC;
+  --accent:var(--acc); --accent-hover:var(--acc-hover); --go:var(--acc); --go-hover:var(--acc-hover);
+}
+.app .btn.go{background:var(--acc);border-color:var(--acc);color:#fff}
+.app .btn.go:hover{background:var(--acc-hover);border-color:var(--acc-hover)}
+.app .bar{height:6px;border-radius:3px;background:var(--s3)}.app .bar i{background:var(--acc);border-radius:3px}
+/* Left column: 15px rows at a medium weight, darker icons, bold group labels. */
+.app .row{height:36px;font-size:15px;font-weight:500;color:var(--ink1)}
+.app .row .ic{color:var(--ink2);width:17px;height:17px}
+.app .row:hover .ic,.app .on .ic{color:var(--ink)}
+.app .row .hint,.app .row .count{font-size:13px}
+.app .on{font-weight:600}
+.app .grp{margin:22px 10px 6px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3)}
+.app .me b{font-size:14px;font-weight:600}.app .me div span{font-size:13px}
+/* Search sits on the rows' grid: same height, same left edge for its icon. */
+.app .find{height:36px;padding:0 10px;font-size:14px;color:var(--ink3)}
+.app .find .ic{width:17px;height:17px}
+/* Knowledge without the right column: one centred column, 1120 wide. */
+/* (the column itself is widened in design-v1.css) */
+.app .kgrid{grid-template-columns:repeat(auto-fill,minmax(max(240px,calc((100% - 40px) / 3)),1fr));gap:20px}
+.app .ask.kask-btn{height:48px;max-width:none;border-radius:12px;font-size:15px;color:var(--ink3)}
+.app .ask.kask-btn .ic{width:17px;height:17px}
+.app .khead{display:flex;align-items:baseline;gap:10px;margin-top:40px}
+.app .khead>.lab{font-size:22px;line-height:28px;font-weight:700;letter-spacing:-.015em}
+.app .khead-n{font-size:14px;color:var(--ink3)}
+.app .kcourse{border:1px solid var(--line2);border-radius:14px;background:var(--card-bg)}
+.app .kcover{height:auto;aspect-ratio:16/9;border-radius:0}
+.app .kcourse>b{font-size:17px;font-weight:650}
+.app .kcourse>.s{font-size:14.5px;line-height:21px;color:var(--ink2)}
+.app .kpct{height:6px;border-radius:3px;background:var(--s3);position:relative;margin-bottom:24px;overflow:visible}
+.app .kpct i{background:var(--acc);border-radius:3px}
+.app .kpct em{position:absolute;left:0;top:12px;font-size:13px;line-height:16px;font-weight:500;color:var(--ink3);background:none;padding:0}
+.app .kgen{display:flex;align-items:flex-end;justify-content:flex-start;padding:16px 18px;color:#fff;text-align:left;font-size:21px;line-height:1.18;font-weight:700;letter-spacing:-.02em}
+.app .kgen small{display:block;margin-bottom:6px;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.82}
+.app .kcover.kgen.c2{background:linear-gradient(135deg,#1F6E33,#3FAE52)}
+.app .kcover.kgen.c3{background:linear-gradient(135deg,#1D4E89,#3D8FD6)}
+.app .kcover.kgen.c4{background:linear-gradient(135deg,#7A3E12,#D7863A)}
+.app .kcover.kgen.c5{background:linear-gradient(135deg,#3E2D73,#7E66D0)}
+/* The Continue card: the course's picture on the left, the lesson on the right. */
+.app .kcont.khero{display:grid;grid-template-columns:minmax(220px,300px) 1fr;padding:0;overflow:hidden;max-width:none;border-radius:16px;margin-top:20px}
+.app .khero .khero-cover{aspect-ratio:auto;height:100%;min-height:180px}
+.app .khero .kgen{font-size:22px}
+.app .khero-body{display:flex;flex-direction:column;gap:6px;padding:22px 26px}
+.app .khero-eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
+.app .khero h2{margin:0;font-size:24px;line-height:30px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+.app .khero-sub{font-size:15px;color:var(--ink2)}
+.app .khero-row{display:flex;align-items:center;gap:16px;margin-top:auto;padding-top:14px}
+.app .khero-row .bar{flex:1}
+.app .khero-row em{font-style:normal;font-size:14px;color:var(--ink3);white-space:nowrap}
+.app .khero-row .btn.go{height:40px;padding:0 18px;border-radius:20px;font-size:15px;font-weight:600;gap:6px}
 """
 header = "/* Generated by scripts/design/build_v1_kit_css.py from docs/design/hifi-mock/style.css.\n   Do not edit by hand: change the mock, then run the script. */\n"
 if "--stdout" in sys.argv:

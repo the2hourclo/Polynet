@@ -3182,7 +3182,7 @@
   --bg-button-hover: #7d86e2;
   /* A plain hairline under headers, and a quiet border (no halo) on focus. */
   /* No serif. */
-  --font-voice: "Geist Variable", "Geist", system-ui, sans-serif;
+  --font-voice: "Inter Variable", "Inter", system-ui, sans-serif;
   --header-line-glow: rgba(255, 255, 255, 0.06);
   --accent-act-edge: rgba(255, 255, 255, 0.16);
   --accent-act-halo: transparent;
@@ -3198,7 +3198,7 @@
   --bg-input: #f7f8f9;
   --bg-button: #5e6ad2;
   --bg-button-hover: #4f5bc4;
-  --font-voice: "Geist Variable", "Geist", system-ui, sans-serif;
+  --font-voice: "Inter Variable", "Inter", system-ui, sans-serif;
   --header-line-glow: rgba(13, 17, 23, 0.07);
   --accent-act-edge: rgba(13, 17, 23, 0.18);
   --accent-act-halo: transparent;
@@ -3859,7 +3859,7 @@
 :root[data-design="v1"] .community-channel-header h1,
 :root[data-design="v1"] .community-channel-header .community-channel-header-identity h1 {
   color: var(--header-title);
-  font-family: "Geist Variable", "Geist", "Inter", system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -4486,6 +4486,12 @@
    .page), 920px at most. */
 :root[data-design="v1"]:where(:not([data-layout="phone"])) .community-page-body > .community-tab-scroll > .web-community-centered-pane:has(> .community-knowledge-page):not(:has(.kit-brain-fill)) {
   margin-inline: auto;
+}
+
+/* Fork look (Nov 17): the course shelf has no right column, so it takes a
+   wider column, 1120px, with three courses across. */
+:root[data-design="v1"]:where(:not([data-layout="phone"])) .community-page-body:has(.community-knowledge-page [class*="_kgrid_"]) {
+  --content-wide: 1120px;
 }
 
 /* A lesson reads like a Substack post: a 720px column, a 32px title, 19px
