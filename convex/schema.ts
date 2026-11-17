@@ -1174,6 +1174,40 @@ export default defineSchema({
   // Member properties (shared/communityMemberProperties.ts): fields a host
   // defines about their members and fills in on each record. The host's own
   // records, apart from memberFacts; members never read them.
+  // Skill tracks (convex/communityLessonTracks.ts): an owner's paths over the
+  // lesson library, read on Knowledge. Fork only (ported from the old build).
+  communityLessonTracks: defineTable({
+    communityId: v.id("communities"),
+    key: v.string(),
+    title: v.string(),
+    summary: v.optional(v.string()),
+    coverUrl: v.optional(v.string()),
+    coverStyle: v.optional(v.union(v.literal("route"), v.literal("diagram"), v.literal("terminal"))),
+    outcomes: v.optional(v.array(v.string())),
+    audience: v.optional(v.string()),
+    order: v.number(),
+    show: v.union(v.literal("always"), v.literal("when_open")),
+    opensWhen: v.array(v.union(
+      v.object({ type: v.literal("after_track"), track: v.string() }),
+      v.object({ type: v.literal("after_checkpoint"), resource_id: v.string() }),
+      v.object({ type: v.literal("workflow_stage"), milestone_key: v.string() }),
+      v.object({ type: v.literal("client_property"), property: v.string(), equals: v.union(v.string(), v.number(), v.boolean()) }),
+      v.object({ type: v.literal("offer"), offer: v.string() }),
+    )),
+    stages: v.array(v.object({
+      name: v.string(),
+      steps: v.array(v.object({ resource_id: v.string(), checkpoint: v.optional(v.boolean()), minutes: v.optional(v.number()) })),
+    })),
+    revision: v.number(),
+    archivedAt: v.optional(v.number()),
+    createdByUserId: v.id("users"),
+    updatedByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_key", ["communityId", "key"]),
+
   communityMemberProperties: defineTable({
     communityId: v.id("communities"),
     key: v.string(),

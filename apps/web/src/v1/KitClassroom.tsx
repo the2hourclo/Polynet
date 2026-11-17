@@ -39,6 +39,9 @@ import { KitCourseEdit, type CourseEditPatch } from "./KitCourseEdit";
 import { askInApp } from "../../../../shared/inAppConfirm";
 import { KitKnowledgeAddButtons, KitKnowledgeList, type KnowledgeAddResult } from "./KitKnowledgeList";
 import { useCommunityAgentOn } from "../controllers/communityAgentOn";
+import { computeCommunityTracks } from "../../../../shared/communityLessonTracks";
+import { fetchCommunityLessonTracks, type CommunityTracksRead } from "../../../../shared/cloudCommunityLessonTracksGateway";
+import { KitTrackHome, KitTrackShelf, type TrackLibraryCourse, type TrackModule } from "./KitTracks";
 
 const SHELF = 6;
 
@@ -449,6 +452,46 @@ export function KitClassroom(props: {
     </KitApp>
   ) : null;
 
+  // ---------- tracks (fork only): the old build's Roadmap, on the new page
+  const [tracksRead, setTracksRead] = useState<CommunityTracksRead | null>(null);
+  const [openTrack, setOpenTrack] = useState<string | null>(null);
+  const [allCourses, setAllCourses] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCommunityLessonTracks({ session: props.session, communityId: props.communityId })
+      .then((read) => { if (!cancelled) setTracksRead(read); })
+      // Without tracks (or before they exist on this server) the shelf is the page.
+      .catch(() => { if (!cancelled) setTracksRead(null); });
+    return () => { cancelled = true; };
+  }, [props.session, props.communityId, lessonSetKey]);
+  const stepMinutes = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const track of tracksRead?.tracks ?? []) for (const stage of track.stages) for (const step of stage.steps) if (step.minutes) map.set(step.resource_id, step.minutes);
+    return map;
+  }, [tracksRead]);
+  const trackViews = useMemo(() => {
+    if (!tracksRead?.tracks.length) return [];
+    const lessons = tracksRead.lessons.map((lesson) => ({ id: lesson.id, title: lesson.title, lesson: { minutes: stepMinutes.get(lesson.id) } }));
+    return computeCommunityTracks({ tracks: tracksRead.tracks, lessons, doneRefs: new Set([...done].map((id) => `resource:${id}`)) }).tracks;
+  }, [tracksRead, stepMinutes, done]);
+  const courseOfLesson = useMemo(() => new Map(props.resources.map((resource) => [resource.id, resource.module_id])), [props.resources]);
+  const openStep = (resourceId: string) => {
+    const moduleId = courseOfLesson.get(resourceId);
+    if (!moduleId) return;
+    props.onOpenCourse(moduleId);
+    chooseLesson(resourceId);
+  };
+  const shownTrack = trackViews.find((track) => track.key === openTrack) ?? null;
+  const onTrack = new Set(trackViews.flatMap((track) => track.stages.flatMap((stage) => stage.steps.map((step) => step.resource_id))));
+  const library: TrackLibraryCourse[] = courses
+    .filter(({ lessons }) => lessons.length > 0 && lessons.every((lesson) => !onTrack.has(lesson.id)))
+    .map(({ course, lessons }) => ({ id: course.id, title: course.name, cover: course.banner_url, lessonCount: lessons.length, onOpen: () => props.onOpenCourse(course.id) }));
+  const trackModules = (track: NonNullable<typeof shownTrack>): TrackModule[] => track.stages.map((stage) => {
+    const first = stage.steps.find((step) => !step.done && !step.locked) ?? stage.steps[0];
+    const course = courses.find((entry) => entry.course.id === courseOfLesson.get(stage.steps[0]?.resource_id ?? ""))?.course ?? null;
+    return { stage, cover: course?.banner_url ?? null, onOpen: () => { if (first) openStep(first.resource_id); } };
+  });
+
   // ---------- the page
   // Below 1024px there is no right column (design-v1.css), so what it holds
   // is drawn in the page instead: a picked note takes the page's place, and a
@@ -551,12 +594,30 @@ export function KitClassroom(props: {
         ) : null}
       </div>
     );
+  } else if (trackViews.length && !allCourses && !arranging && courseName === null) {
+    page = (
+      <div className={cx("page")} style={{ padding: 0, overflow: "visible" }}>
+        {shownTrack ? (
+          <KitTrackShelf track={shownTrack} modules={trackModules(shownTrack)} onAllTracks={() => setOpenTrack(null)}
+            onContinue={() => { if (shownTrack.next) openStep(shownTrack.next.resource_id); }}
+            onOpenStep={openStep} minutesOf={(id) => stepMinutes.get(id) ?? null} />
+        ) : (
+          <KitTrackHome tracks={trackViews} onOpenTrack={setOpenTrack}
+            onContinue={(track) => { setOpenTrack(track.key); if (track.next) openStep(track.next.resource_id); }}
+            library={library} onBrowseAll={() => setAllCourses(true)}
+            tools={props.canManage && props.onCreateCourse ? <button type="button" className={cx("btn sm")} onClick={() => { setAllCourses(true); newCourse(); }}><Icon name="plus" />New course</button> : null} />
+        )}
+      </div>
+    );
   } else {
     // Adding a course is a button beside "Courses", so hosts' pages hold six too.
     const shelf = pageOf(courses, shelfPage, SHELF);
     const learning = summary.reduce((total, row) => total + row.started, 0);
     page = (
       <div className={cx("page")} style={{ padding: 0, overflow: "visible" }}>
+        {trackViews.length && allCourses ? (
+          <button type="button" className={cx("kback", "tback")} onClick={() => { setAllCourses(false); setCourseName(null); setArranging(false); }}><Icon name="back" />Tracks</button>
+        ) : null}
         <p className={cx("lead")} style={{ marginTop: 0 }}>{agentOn ? <span className={cx("aura")}><Icon name="spark" /></span> : null}
           {!props.loaded ? " " : props.canManage
             ? hostLead(courses.map((entry) => entry.course), learning)
