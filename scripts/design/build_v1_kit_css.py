@@ -943,7 +943,7 @@ css += """
 .app .tart{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:150px;background:color-mix(in srgb,var(--accent) 12%,var(--card-bg));color:var(--accent);--troute-ink:var(--card-bg);overflow:hidden}
 .app .tart.img{background-size:cover;background-position:center}
 .app .tart .ic{width:30px;height:30px}
-.app .tart.tnum{flex-direction:column;align-items:flex-start;justify-content:space-between;padding:18px 20px;color:var(--acc-ink);background:color-mix(in srgb,var(--acc) 14%,var(--card-bg))}
+.app .tart.tnum{flex-direction:column;align-items:flex-start;justify-content:space-between;padding:18px 20px;color:var(--acc-ink);background:color-mix(in srgb,var(--acc) 22%,var(--card-bg))}
 .app .tnum-n{font-size:44px;line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .app .tdots{display:flex;flex-wrap:wrap;gap:6px}.app .tdots i{width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--acc-ink) 28%,transparent)}.app .tdots i.on{background:var(--acc-ink)}
 .app .tart.tnum.is-locked{color:var(--ink3);background:var(--s2)}.app .tart.tnum.is-locked .tdots i{background:var(--line2)}
@@ -996,7 +996,7 @@ css += """
 .app .kseg li[data-state="here"]{background:color-mix(in srgb,var(--acc-ink) 55%,transparent)}
 .app .tart.lockart{color:var(--ink3);background:var(--s2)}
 .app .troute{max-width:86%;height:auto}
-.app .teyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--stage,var(--acc-ink))}
+.app .teyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc-ink)}
 .app .teyebrow.plain{color:var(--ink3)}
 .app button.thero{display:grid;grid-template-columns:minmax(220px,320px) 1fr;width:100%;max-width:none;margin-top:4px;padding:0;overflow:hidden;border-radius:16px;text-align:left;cursor:pointer}
 .app .thero>.tart{min-height:220px}
@@ -1031,27 +1031,27 @@ css += """
 .app .tmod-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:10px;font-size:14px;color:var(--ink3)}
 .app .tpill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;border:1px solid var(--line2);font-size:12.5px;font-weight:600;color:var(--ink2)}
 .app .tpill .ic{width:12px;height:12px}.app .tpill i{width:6px;height:6px;border-radius:50%;background:var(--ink4)}
-.app .tpill.is-done{color:var(--stage);border-color:color-mix(in srgb,var(--stage) 40%,transparent);background:color-mix(in srgb,var(--stage) 10%,transparent)}
-.app .tpill.is-going i{background:var(--stage)}
-.app .tmod-prog{display:flex;align-items:center;gap:10px}.app .tmod-prog .bar{flex:1}.app .tmod-prog .bar i{background:var(--stage)}.app .tmod-prog em{font-style:normal;font-size:13px;color:var(--ink3)}
+.app .tpill.is-done{color:var(--acc-ink);border-color:color-mix(in srgb,var(--acc-ink) 40%,transparent);background:color-mix(in srgb,var(--acc-ink) 10%,transparent)}
+.app .tpill.is-going i{background:var(--acc-ink)}
+.app .tmod-prog{display:flex;align-items:center;gap:10px}.app .tmod-prog .bar{flex:1}.app .tmod-prog .bar i{background:var(--acc-ink)}.app .tmod-prog em{font-style:normal;font-size:13px;color:var(--ink3)}
 .app .ttoday-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:stretch}
 
 .app .card.ttoday,.app .card.tbuild{max-width:none;margin:0;padding:24px 26px;border-radius:16px;display:flex;flex-direction:column;gap:8px}
-.app .card.ttoday{border-top:3px solid var(--stage)}
+.app .card.ttoday{border-top:3px solid var(--acc-ink)}
 .app .ttoday-note{font-size:15px;color:var(--ink2)}
-.app .tpath{display:flex;gap:6px;margin:10px 0 0;padding:0;list-style:none}
-.app .tpath li{flex:1;max-width:56px;height:6px;border-radius:3px;background:var(--s3)}
-.app .tpath li[data-state="done"]{background:var(--stage)}
-.app .tpath li[data-state="here"]{background:color-mix(in srgb,var(--stage) 45%,transparent)}
+.app .tpath{display:flex;gap:6px;width:100%;margin:10px 0 0;padding:0;list-style:none}
+.app .tpath li{flex:1;height:6px;border-radius:3px;background:var(--s3)}
+.app .tpath li[data-state="done"]{background:var(--acc)}
+.app .tpath li[data-state="here"]{background:color-mix(in srgb,var(--acc-ink) 55%,transparent)}
 .app .ttoday-foot{display:flex;align-items:center;gap:16px;padding-top:18px}.app .ttoday-foot em{font-style:normal;font-size:15px;color:var(--ink2)}
 .app .ttoday .btn.go.tgo{background:var(--acc);border-color:var(--acc)}
 .app .tbuild h2{font-size:22px;line-height:28px}
 .app .tparts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 0;padding:0;list-style:none}
 .app .tparts li{position:relative;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid var(--line2);overflow:hidden;
-  background:linear-gradient(90deg,color-mix(in srgb,var(--stage) 12%,transparent) var(--fill),transparent var(--fill))}
-.app .tparts li[data-state="done"]{border-color:color-mix(in srgb,var(--stage) 45%,transparent)}
+  background:linear-gradient(90deg,color-mix(in srgb,var(--acc-ink) 12%,transparent) var(--fill),transparent var(--fill))}
+.app .tparts li[data-state="done"]{border-color:color-mix(in srgb,var(--acc-ink) 45%,transparent)}
 .app .tparts li[data-state="locked"]{opacity:.55}
-.app .tpart-mark{flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:12.5px;font-weight:700;color:var(--stage);background:color-mix(in srgb,var(--stage) 14%,transparent)}
+.app .tpart-mark{flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:12.5px;font-weight:700;color:var(--acc-ink);background:color-mix(in srgb,var(--acc-ink) 14%,transparent)}
 .app .tparts li[data-state="done"] .tpart-mark{color:#fff;background:var(--acc)}
 .app .tpart-mark .ic{width:13px;height:13px}
 .app .tpart-text{display:flex;flex-direction:column;min-width:0}
@@ -1059,15 +1059,15 @@ css += """
 .app .tpart-text small{font-size:12.5px;color:var(--ink3)}
 .app .tboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));align-items:start;gap:14px;margin:0;padding:0;list-style:none}
 .app .tcol{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}
-.app .tcol[data-state="here"]{border-color:color-mix(in srgb,var(--stage) 50%,transparent)}
+.app .tcol[data-state="here"]{border-color:color-mix(in srgb,var(--acc-ink) 50%,transparent)}
 .app .tcol[data-state="locked"]{opacity:.6}
 .app .tcol-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
 .app .tcol-pill{display:inline-flex;align-items:center;gap:7px;min-width:0;font-size:14px;font-weight:700;color:var(--ink)}
-.app .tcol-pill i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--stage)}
+.app .tcol-pill i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--acc-ink)}
 .app .tcol-state{flex:none;font-size:12.5px;color:var(--ink3)}
 .app button.tstep{display:flex;align-items:flex-start;gap:10px;width:100%;padding:10px 12px;text-align:left;border-radius:10px;border:1px solid var(--line2);background:var(--card-bg);cursor:pointer}
 .app button.tstep:disabled{cursor:default}
-.app button.tstep.is-next{border-color:var(--stage);box-shadow:inset 3px 0 0 var(--stage)}
+.app button.tstep.is-next{border-color:var(--acc-ink);box-shadow:inset 3px 0 0 var(--acc-ink)}
 .app .tstep-tick{flex:none;display:flex;align-items:center;justify-content:center;width:18px;height:18px;margin-top:1px;border-radius:50%;border:1.5px solid var(--line2);color:var(--ink3)}
 .app .tstep.is-done .tstep-tick{border-color:var(--acc);background:var(--acc);color:#fff}
 .app .tstep-tick .ic{width:11px;height:11px}
@@ -1075,7 +1075,7 @@ css += """
 .app .tstep-text b{font-size:14px;line-height:19px;font-weight:550;color:var(--ink)}
 .app .tstep.is-done .tstep-text b{color:var(--ink3)}
 .app .tstep-text em{align-self:flex-start;font-style:normal;font-size:12px;font-weight:600;color:var(--ink3)}
-.app .tstep-text em.is-next{color:var(--stage)}
+.app .tstep-text em.is-next{color:var(--acc-ink)}
 @container (max-width:900px){.app .ttoday-row{grid-template-columns:1fr}.app button.thero{grid-template-columns:1fr}}
 """
 header = "/* Generated by scripts/design/build_v1_kit_css.py from docs/design/hifi-mock/style.css.\n   Do not edit by hand: change the mock, then run the script. */\n"
