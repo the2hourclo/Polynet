@@ -809,11 +809,9 @@ css += """
 .app .msg p{font-size:15px;line-height:1.55}
 .app .msg p a{color:#9AA1EA;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .app:is(.light:not(.on-mode-dark),.on-mode-light) .msg p a{color:#4651B5}
-/* Guide replies at the same size as people's, lines capped near 70
-   characters, a little more room between turns, clearer date dividers
+/* Guide replies at the same size as people's, a little more room between turns, clearer date dividers
    and badges. */
 .app .msg.g p{font-size:15px;line-height:1.55}
-.app .msg p{max-width:70ch}
 .app .msg:not(.cont){margin-top:4px}
 .app .day{font-size:13px;font-weight:500;color:var(--ink2)}
 .app .msg .tag{font-size:12px;font-weight:600}
