@@ -950,11 +950,31 @@ css += """
 /* A cover made of words, for tracks and courses with no picture: Neil's accent, deep to light. */
 .app .tart.tgen{flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:4px;padding:18px 20px;text-align:left;color:#fff;background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 55%,#0b0c14),var(--acc));--troute-ink:color-mix(in srgb,var(--acc) 70%,#0b0c14)}
 .app .tart.tgen.is-course{background:linear-gradient(135deg,#2B2F3A,#4A5060);--troute-ink:#2B2F3A}
-.app .tart.tgen .troute{position:absolute;top:10px;right:10px;color:rgba(255,255,255,.75);opacity:.55}
 .app .tgen-kicker{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.82)}
 .app .tgen-title{max-width:88%;font-size:21px;line-height:26px;font-weight:700;letter-spacing:-.015em;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .app .tart.tgen.is-hero .tgen-title{font-size:28px;line-height:34px;-webkit-line-clamp:3}
-.app .tgen-meta{font-size:13px;font-weight:500;color:rgba(255,255,255,.82)}
+/* Your AI Employee: a quiet stepper, one row per module, joined by a line. */
+.app .tsteps{position:relative;display:flex;flex-direction:column;margin:10px 0 0;padding:0;list-style:none}
+.app .tsteps li{position:relative}
+.app .tsteps li+li::before{content:"";position:absolute;left:21px;top:-9px;width:2px;height:18px;background:var(--line2)}
+.app .tsteps li[data-state="done"]+li::before{background:var(--acc)}
+.app button.tsteps-row{display:flex;align-items:center;gap:12px;width:100%;min-height:42px;padding:6px 8px;border:0;border-radius:10px;background:none;text-align:left;cursor:pointer;color:var(--ink1)}
+.app button.tsteps-row:hover:not(:disabled){background:var(--s2)}
+.app button.tsteps-row:disabled{cursor:default}
+.app .tsteps-dot{position:relative;z-index:1;flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:13px;font-weight:700;color:var(--ink2);background:var(--card-bg);border:2px solid var(--line2)}
+.app .tsteps-dot .ic{width:13px;height:13px}
+.app .tsteps li[data-state="done"] .tsteps-dot{color:#fff;background:var(--acc);border-color:var(--acc)}
+.app .tsteps li[data-state="here"] .tsteps-dot{color:var(--acc-ink);border-color:var(--acc-ink);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 18%,transparent)}
+.app .tsteps li[data-state="locked"] .tsteps-dot{color:var(--ink4);border-style:dashed}
+.app .tsteps-name{flex:1;min-width:0;font-size:15px;font-weight:500;line-height:20px}
+.app .tsteps li[data-state="here"] .tsteps-name{font-weight:700;color:var(--ink)}
+.app .tsteps li[data-state="locked"] .tsteps-name{color:var(--ink3)}
+.app .tsteps-count{flex:none;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink3)}
+/* A course's lessons as marks, in the lesson page's right column. */
+.app .kseg{display:flex;gap:4px;margin:8px 0 0;padding:0;list-style:none}
+.app .kseg li{flex:1;height:6px;border-radius:3px;background:var(--s3)}
+.app .kseg li[data-state="done"]{background:var(--acc)}
+.app .kseg li[data-state="here"]{background:color-mix(in srgb,var(--acc-ink) 55%,transparent)}
 .app .tart.lockart{color:var(--ink3);background:var(--s2)}
 .app .troute{max-width:86%;height:auto}
 .app .teyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--stage,var(--acc-ink))}
@@ -995,7 +1015,8 @@ css += """
 .app .tpill.is-done{color:var(--stage);border-color:color-mix(in srgb,var(--stage) 40%,transparent);background:color-mix(in srgb,var(--stage) 10%,transparent)}
 .app .tpill.is-going i{background:var(--stage)}
 .app .tmod-prog{display:flex;align-items:center;gap:10px}.app .tmod-prog .bar{flex:1}.app .tmod-prog .bar i{background:var(--stage)}.app .tmod-prog em{font-style:normal;font-size:13px;color:var(--ink3)}
-.app .ttoday-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:start}
+.app .ttoday-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:stretch}
+.app .card.ttoday{justify-content:center}
 .app .card.ttoday,.app .card.tbuild{max-width:none;margin:0;padding:24px 26px;border-radius:16px;display:flex;flex-direction:column;gap:8px}
 .app .card.ttoday{border-top:3px solid var(--stage)}
 .app .ttoday-note{font-size:15px;color:var(--ink2)}
@@ -1003,7 +1024,7 @@ css += """
 .app .tpath li{flex:1;max-width:56px;height:6px;border-radius:3px;background:var(--s3)}
 .app .tpath li[data-state="done"]{background:var(--stage)}
 .app .tpath li[data-state="here"]{background:color-mix(in srgb,var(--stage) 45%,transparent)}
-.app .ttoday-foot{display:flex;align-items:center;gap:16px;margin-top:auto;padding-top:18px}.app .ttoday-foot em{font-style:normal;font-size:15px;color:var(--ink2)}
+.app .ttoday-foot{display:flex;align-items:center;gap:16px;padding-top:18px}.app .ttoday-foot em{font-style:normal;font-size:15px;color:var(--ink2)}
 .app .ttoday .btn.go.tgo{background:var(--acc);border-color:var(--acc)}
 .app .tbuild h2{font-size:22px;line-height:28px}
 .app .tparts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 0;padding:0;list-style:none}

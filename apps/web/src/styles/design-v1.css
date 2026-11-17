@@ -4625,3 +4625,16 @@
 /* Rail text solid, not see-through (it read washed out over the grey panel). */
 :root[data-design="v1"]:not([data-theme="light"]) { --nav-ink: #D2D5DA; }
 :root[data-design="v1"][data-theme="light"] { --nav-ink: #2A2F36; }
+/* Search or ask on the rows' grid: same height, size, icon and left edge. */
+:root[data-design="v1"] .community-nav-tools .community-search-ask {
+  height: 36px;
+  padding-inline: 10px;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--nav-ink);
+}
+:root[data-design="v1"] .community-nav-tools .community-search-ask svg:first-child {
+  width: 16px;
+  height: 16px;
+}

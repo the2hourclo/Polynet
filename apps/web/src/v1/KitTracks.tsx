@@ -6,7 +6,7 @@
 // the modules as cards or as a board. Progress is worked out here, from the
 // member's own lesson progress (shared/communityLessonTracks.ts).
 // Fork only: not sent to Neil.
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   COMMUNITY_MAIN_TRACK_KEY,
   type CommunityTrackStageView,
@@ -35,54 +35,23 @@ export function continueTrack(tracks: readonly CommunityTrackView[]) {
 
 const ACTION: Record<CommunityTrackView["status"], string> = { locked: "Locked", open: "Start", in_progress: "Continue", done: "Review" };
 
-/**
- * The route: one dot per module along a dotted path, done ones filled, the one
- * you're on ringed, the finish a check.
- */
-function TrackRoute({ track, width = 220, height = 96 }: { track: CommunityTrackView; width?: number; height?: number }) {
-  const sections = track.stages.length ? track.stages : [{ done_count: 0, step_count: 1, locked: false }];
-  const count = Math.min(sections.length, 9);
-  const pick = (index: number) => sections[Math.round((index * (sections.length - 1)) / Math.max(count - 1, 1))];
-  const pad = 14;
-  const slots = Math.max(count, 2);
-  const points = Array.from({ length: slots }, (_, index) => ({
-    x: pad + ((width - pad * 2) * index) / (slots - 1),
-    y: [height - pad - 4, height / 2, pad + 4, height / 2][index % 4],
-  }));
-  const path = points.reduce((d: string, point, index) => {
-    if (index === 0) return `M${point.x} ${point.y}`;
-    const before = points[index - 1];
-    const mid = (point.x - before.x) / 2;
-    return `${d} C${before.x + mid} ${before.y} ${point.x - mid} ${point.y} ${point.x} ${point.y}`;
-  }, "");
-  const currentAt = Array.from({ length: count }, (_, index) => pick(index)).findIndex((stage) => stage.done_count < stage.step_count && !stage.locked);
-  return (
-    <svg className={cx("troute")} viewBox={`0 0 ${width} ${height}`} width={width} height={height} aria-hidden="true">
-      <path d={path} fill="none" stroke="currentColor" strokeOpacity="0.45" strokeWidth="3" strokeDasharray="2 8" strokeLinecap="round" />
-      {points.slice(0, count).map((point, index) => {
-        const stage = pick(index);
-        const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
-        if (index === count - 1 && count > 1 && (track.status === "done" || done)) {
-          return <g key={index}><circle cx={point.x} cy={point.y} r="10" fill="currentColor" /><path d={`M${point.x - 4.5} ${point.y}l3 3 6-6.5`} fill="none" stroke="var(--troute-ink)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></g>;
-        }
-        if (done) return <circle key={index} cx={point.x} cy={point.y} r="7.5" fill="currentColor" />;
-        if (index === currentAt) return <circle key={index} cx={point.x} cy={point.y} r="9" fill="var(--troute-ink)" stroke="currentColor" strokeWidth="3.5" />;
-        return <circle key={index} cx={point.x} cy={point.y} r="6" fill="var(--troute-ink)" stroke="currentColor" strokeWidth="2" />;
-      })}
-    </svg>
-  );
-}
-
 function TrackArt({ track, hero }: { track: CommunityTrackView; hero?: boolean }) {
   if (track.cover_url) return <span className={cx("tart", "img")} style={{ backgroundImage: `url(${JSON.stringify(track.cover_url)})` }} />;
-  // No picture: a cover made of words in Neil's accent, like a book spine,
-  // with the track's route drawn faintly in the corner.
+  // No picture: a cover made of words in Neil's accent. The hero names the
+  // module you're on (its own body already names the track).
+  if (hero) {
+    const at = track.next ? track.stages.findIndex((stage) => stage.name === track.next?.stage) : -1;
+    return (
+      <span className={cx("tart", "tgen", "is-hero")}>
+        <span className={cx("tgen-kicker")}>{at >= 0 ? `Module ${at + 1} of ${track.stages.length}` : track.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track"}</span>
+        <b className={cx("tgen-title")}>{at >= 0 ? track.stages[at].name : track.title}</b>
+      </span>
+    );
+  }
   return (
-    <span className={cx("tart", "tgen", hero && "is-hero")}>
-      <TrackRoute track={track} width={hero ? 260 : 180} height={hero ? 104 : 72} />
+    <span className={cx("tart", "tgen")}>
       <span className={cx("tgen-kicker")}>{track.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track"}</span>
       <b className={cx("tgen-title")}>{track.title}</b>
-      <span className={cx("tgen-meta")}>{plural(track.stages.length, "module")} · {plural(track.step_count, "lesson")}</span>
     </span>
   );
 }
@@ -145,7 +114,7 @@ export function KitTrackHome(props: {
             <button key={track.key} type="button" className={cx("tcard")} onClick={() => props.onOpenTrack(track.key)}>
               <span className={cx("tcard-art")}>
                 <TrackArt track={track} />
-                {track.key === COMMUNITY_MAIN_TRACK_KEY ? <span className={cx("tbadge")}>Core track</span> : null}
+                {track.cover_url && track.key === COMMUNITY_MAIN_TRACK_KEY ? <span className={cx("tbadge")}>Core track</span> : null}
               </span>
               <span className={cx("tcard-body")}>
                 <b>{track.title}</b>
@@ -187,7 +156,7 @@ export function KitTrackHome(props: {
             {props.library.map((course) => (
               <button key={course.id} type="button" className={cx("tcard", "tmod")} onClick={course.onOpen}>
                 <span className={cx("tcard-art")}>
-                  {course.cover ? <span className={cx("tart", "img")} style={{ backgroundImage: `url(${JSON.stringify(course.cover)})` }} /> : <span className={cx("tart", "tgen", "is-course")}><span className={cx("tgen-kicker")}>Course</span><b className={cx("tgen-title")}>{course.title}</b><span className={cx("tgen-meta")}>{plural(course.lessonCount, "lesson")}</span></span>}
+                  {course.cover ? <span className={cx("tart", "img")} style={{ backgroundImage: `url(${JSON.stringify(course.cover)})` }} /> : <span className={cx("tart", "tgen", "is-course")}><span className={cx("tgen-kicker")}>Course</span><b className={cx("tgen-title")}>{course.title}</b></span>}
                 </span>
                 <span className={cx("tcard-body")}>
                   <span className={cx("tmod-eyebrow")}>Course</span>
@@ -315,24 +284,29 @@ function TodayCard(props: { track: CommunityTrackView; modules: readonly TrackMo
 
 function BuildPanel(props: { track: CommunityTrackView; modules: readonly TrackModule[] }) {
   const built = props.modules.filter(({ stage }) => stage.step_count > 0 && stage.done_count >= stage.step_count).length;
+  const here = props.modules.findIndex(({ stage }) => !stage.locked && stage.done_count < stage.step_count);
   const core = props.track.key === COMMUNITY_MAIN_TRACK_KEY;
+  // A quiet stepper: one row per module, a line joining them, the module
+  // you're on lifted out. No bars, no tiles.
   return (
     <section className={cx("card tbuild")} aria-label={core ? "Your AI Employee" : "What you're building"}>
       <span className={cx("teyebrow", "plain")}>{core ? "Your AI Employee" : "What you're building"}</span>
-      <h2>{built} of {props.modules.length} parts built</h2>
-      <ul className={cx("tparts")}>
-        {props.modules.map(({ stage }, index) => {
+      <h2>{built} of {plural(props.modules.length, "part")} built</h2>
+      <ol className={cx("tsteps")}>
+        {props.modules.map(({ stage, onOpen }, index) => {
           const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
-          const fill = stage.step_count ? Math.round((stage.done_count / stage.step_count) * 100) : 0;
-          const state = done ? "done" : stage.done_count ? "building" : stage.locked ? "locked" : "todo";
+          const state = done ? "done" : index === here ? "here" : stage.locked ? "locked" : "todo";
           return (
-            <li key={stage.name} data-stage={stageNo(index)} data-state={state} style={{ "--fill": `${fill}%` } as CSSProperties}>
-              <span className={cx("tpart-mark")}>{done ? <Icon name="check" /> : stage.locked ? <Icon name="lock" /> : index + 1}</span>
-              <span className={cx("tpart-text")}><b>{stage.name}</b><small>{done ? "Built" : stage.done_count ? `${fill}%` : stage.locked ? "Locked" : "Not yet"}</small></span>
+            <li key={stage.name} data-state={state}>
+              <button type="button" className={cx("tsteps-row")} onClick={onOpen} disabled={stage.locked}>
+                <span className={cx("tsteps-dot")}>{done ? <Icon name="check" /> : stage.locked ? <Icon name="lock" /> : index + 1}</span>
+                <span className={cx("tsteps-name")}>{stage.name}</span>
+                <span className={cx("tsteps-count")}>{done ? "Built" : stage.locked ? "" : `${stage.done_count}/${stage.step_count}`}</span>
+              </button>
             </li>
           );
         })}
-      </ul>
+      </ol>
     </section>
   );
 }

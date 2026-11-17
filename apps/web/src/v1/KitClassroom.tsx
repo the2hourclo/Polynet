@@ -425,8 +425,11 @@ export function KitClassroom(props: {
           <div className={cx("kline")}><span>{summaryBy.get(open.course.id)?.started ?? 0} started</span><em>{summaryBy.get(open.course.id)?.finished ?? 0} finished</em></div>
         ) : (
           <>
-            <div className={cx("kline")}><span>{openProgress.done} of {openProgress.total} lessons</span><em>{openProgress.percent}%</em></div>
-            <div className={cx("bar")}><i style={{ width: `${openProgress.percent}%` }} /></div>
+            {/* One mark per lesson instead of a bar: done ones filled, the open one lifted. */}
+            <div className={cx("kline")}><span>{openProgress.done} of {openProgress.total} lessons done</span></div>
+            <ol className={cx("kseg")} aria-hidden="true">
+              {open.lessons.map((lesson) => <li key={lesson.id} data-state={done.has(lesson.id) ? "done" : lesson.id === lessonId ? "here" : "todo"} />)}
+            </ol>
           </>
         )}
       </Sec>
