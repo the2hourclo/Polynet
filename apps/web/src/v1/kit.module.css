@@ -1362,3 +1362,7 @@
 .app .row .hint,.app .row .count{font-size:13px}
 .app .find{height:36px;padding:0 10px;font-size:15px}
 .app .find .ic{width:17px;height:17px}
+/* Filled buttons one shade deeper so white text reads. */
+.app .btn.go{background:#5560C8;border-color:#5560C8;color:#fff}.app .btn.go:hover{background:#4F59C0;border-color:#4F59C0}
+.app:is(.light:not(.on-mode-dark),.on-mode-light) .btn.go{background:#4F59C0;border-color:#4F59C0}
+.app:is(.light:not(.on-mode-dark),.on-mode-light) .btn.go:hover{background:#4A54B8;border-color:#4A54B8}

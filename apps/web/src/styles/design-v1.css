@@ -3178,8 +3178,9 @@
   --bg-card-solid: #141516;
   --bg-card-hover: #1a1b1d;
   --bg-input: #141516;
-  --bg-button: #6f78d8;
-  --bg-button-hover: #7d86e2;
+  /* One shade deeper so white button text reads (5.4:1, was 3.9:1). */
+  --bg-button: #5560c8;
+  --bg-button-hover: #4f59c0;
   /* A plain hairline under headers, and a quiet border (no halo) on focus. */
   /* No serif. */
   --font-voice: "Inter Variable", "Inter", system-ui, sans-serif;
@@ -3196,8 +3197,8 @@
   --bg-card-solid: #f7f8f9;
   --bg-card-hover: #eff0f2;
   --bg-input: #f7f8f9;
-  --bg-button: #5e6ad2;
-  --bg-button-hover: #4f5bc4;
+  --bg-button: #4f59c0;
+  --bg-button-hover: #4a54b8;
   --font-voice: "Inter Variable", "Inter", system-ui, sans-serif;
   --header-line-glow: rgba(13, 17, 23, 0.07);
   --accent-act-edge: rgba(13, 17, 23, 0.18);
@@ -4502,4 +4503,25 @@
 :root[data-design="v1"] .community-nav-tools .community-search-ask svg:first-child {
   width: 16px;
   height: 16px;
+}
+
+/* Small aids to finding your way, in the one accent: each top-level page
+   title carries its icon in a soft chip, and the rail's open page shows its
+   icon in the accent. */
+:root[data-design="v1"]:not([data-theme="light"]) { --accent-icon: #9aa1ea; }
+:root[data-design="v1"][data-theme="light"] { --accent-icon: #4651b5; }
+:root[data-design="v1"] .community-page-header-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-right: 2px;
+  border-radius: 8px;
+  color: var(--accent-icon);
+  background: color-mix(in srgb, var(--accent-icon) 16%, transparent);
+}
+:root[data-design="v1"] .community-nav .nav-item.active .nav-icon,
+:root[data-design="v1"] .community-nav .nav-item.active .nav-icon svg {
+  color: var(--accent-icon);
 }
