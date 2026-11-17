@@ -937,16 +937,28 @@ css += """
 /* Knowledge as tracks (fork only, ported from the old build, Nov 17): the
    Roadmap home and a track's page (apps/web/src/v1/KitTracks.tsx). Module
    colours use Neil's single accent. */
-.app [data-stage]{--stage:var(--acc-ink)}
+/* Each module has its own soft colour and icon (Rashid Nov 17, option B).
+   Buttons and progress bars stay Neil's purple. */
+.app [data-stage="1"]{--stage:#3FAE6A}.app [data-stage="2"]{--stage:#5B9BE8}.app [data-stage="3"]{--stage:#A97BEB}
+.app [data-stage="4"]{--stage:#E0A13A}.app [data-stage="5"]{--stage:#E8718A}.app [data-stage="6"]{--stage:#3BB3B8}
+.app:is(.light:not(.on-mode-dark),.on-mode-light) [data-stage="1"]{--stage:#23874A}.app:is(.light:not(.on-mode-dark),.on-mode-light) [data-stage="2"]{--stage:#2563B8}
+.app:is(.light:not(.on-mode-dark),.on-mode-light) [data-stage="3"]{--stage:#7B45C9}.app:is(.light:not(.on-mode-dark),.on-mode-light) [data-stage="4"]{--stage:#A05F00}
+.app:is(.light:not(.on-mode-dark),.on-mode-light) [data-stage="5"]{--stage:#C23E5E}.app:is(.light:not(.on-mode-dark),.on-mode-light) [data-stage="6"]{--stage:#0F7F84}
+.app .tchip{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:9px;color:var(--stage,var(--acc-ink));background:color-mix(in srgb,var(--stage,var(--acc-ink)) 16%,transparent)}
+.app .tchip .ic{width:18px;height:18px}
+.app .tchip.big{width:52px;height:52px;border-radius:14px}.app .tchip.big .ic{width:26px;height:26px}
+.app .tchip.sm{width:24px;height:24px;border-radius:7px}.app .tchip.sm .ic{width:14px;height:14px}
+.app .ttoday-head{display:flex;align-items:flex-start;gap:16px}.app .ttoday-text{display:flex;flex-direction:column;gap:6px;min-width:0}
 .app .thome{display:flex;flex-direction:column}
 .app .tback{align-self:flex-start;margin-bottom:14px}
 .app .tart{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:150px;background:color-mix(in srgb,var(--accent) 12%,var(--card-bg));color:var(--accent);--troute-ink:var(--card-bg);overflow:hidden}
 .app .tart.img{background-size:cover;background-position:center}
 .app .tart .ic{width:30px;height:30px}
-.app .tart.tnum{flex-direction:column;align-items:flex-start;justify-content:space-between;padding:18px 20px;color:var(--acc-ink);background:color-mix(in srgb,var(--acc) 14%,var(--card-bg))}
+.app .tart.tnum{flex-direction:column;align-items:flex-start;justify-content:space-between;padding:18px 20px;color:var(--stage);background:color-mix(in srgb,var(--stage) 13%,var(--card-bg))}
+.app .tart.tnum .tchip.big{background:color-mix(in srgb,var(--stage) 22%,transparent)}
 .app .tnum-n{font-size:44px;line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.app .tdots{display:flex;flex-wrap:wrap;gap:6px}.app .tdots i{width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--acc-ink) 28%,transparent)}.app .tdots i.on{background:var(--acc-ink)}
-.app .tart.tnum.is-locked{color:var(--ink3);background:var(--s2)}.app .tart.tnum.is-locked .tdots i{background:var(--line2)}
+.app .tdots{display:flex;flex-wrap:wrap;gap:6px}.app .tdots i{width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--stage) 30%,transparent)}.app .tdots i.on{background:var(--stage)}
+.app .tart.tnum.is-locked{filter:saturate(.3);opacity:.8}
 /* A cover made of words, for tracks and courses with no picture: Neil's accent, deep to light. */
 .app .tart.tgen{flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:4px;padding:18px 20px;text-align:left;color:#fff;background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 55%,#0b0c14),var(--acc));--troute-ink:color-mix(in srgb,var(--acc) 70%,#0b0c14)}
 .app .tart.tgen.is-course{background:linear-gradient(135deg,#2B2F3A,#4A5060);--troute-ink:#2B2F3A}
@@ -954,18 +966,26 @@ css += """
 .app .tgen-title{max-width:88%;font-size:21px;line-height:26px;font-weight:700;letter-spacing:-.015em;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .app .tart.tgen.is-hero .tgen-title{font-size:28px;line-height:34px;-webkit-line-clamp:3}
 /* Your AI Employee: a quiet stepper, one row per module, joined by a line. */
+/* Lesson list beside a lesson: done ticks in the accent, the open lesson's dot in the accent (not blue), rings readable. */
+.app .kl .ic{color:var(--acc-ink)}.app .kl.d .ic{color:var(--acc-ink)}
+.app .kl i{border:1.5px solid var(--ink4)}
+.app .kl.on i{border-color:var(--acc-ink);background:var(--acc-ink);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent)}
+/* Today's step: what comes after it in this module, so the card isn't empty beside the stepper. */
+.app .tthen{list-style:none;margin:14px 0 0;padding:12px 0 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.app .tthen li.tthen-label{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3)}
+.app .tthen li{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--ink2)}
+.app .tthen li .ic{flex:none;width:15px;height:15px;color:var(--stage)}
+.app .tthen li em{margin-left:auto;font-style:normal;font-size:13px;color:var(--ink3);font-variant-numeric:tabular-nums}
 .app .tsteps{position:relative;display:flex;flex-direction:column;margin:10px 0 0;padding:0;list-style:none}
 .app .tsteps li{position:relative}
-.app .tsteps li+li::before{content:"";position:absolute;left:21px;top:-9px;width:2px;height:18px;background:var(--line2)}
+.app .tsteps li+li::before{content:"";position:absolute;left:23px;top:-8px;width:2px;height:16px;background:var(--line2)}
+.app .tsteps li[data-state="locked"] .tchip{opacity:.5}
+.app .tsteps li[data-state="here"] .tchip{box-shadow:0 0 0 3px color-mix(in srgb,var(--stage) 30%,transparent)}
+.app .tsteps-count .ic{width:14px;height:14px;color:var(--ink4)}
 .app .tsteps li[data-state="done"]+li::before{background:var(--acc)}
-.app button.tsteps-row{display:flex;align-items:center;gap:12px;width:100%;min-height:42px;padding:6px 8px;border:0;border-radius:10px;background:none;text-align:left;cursor:pointer;color:var(--ink1)}
+.app button.tsteps-row{display:flex;align-items:center;gap:12px;width:100%;min-height:38px;padding:3px 8px;border:0;border-radius:10px;background:none;text-align:left;cursor:pointer;color:var(--ink1)}
 .app button.tsteps-row:hover:not(:disabled){background:var(--s2)}
 .app button.tsteps-row:disabled{cursor:default}
-.app .tsteps-dot{position:relative;z-index:1;flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:13px;font-weight:700;color:var(--ink2);background:var(--card-bg);border:2px solid var(--line2)}
-.app .tsteps-dot .ic{width:13px;height:13px}
-.app .tsteps li[data-state="done"] .tsteps-dot{color:#fff;background:var(--acc);border-color:var(--acc)}
-.app .tsteps li[data-state="here"] .tsteps-dot{color:var(--acc-ink);border-color:var(--acc-ink);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 18%,transparent)}
-.app .tsteps li[data-state="locked"] .tsteps-dot{color:var(--ink4);border-style:dashed}
 .app .tsteps-name{flex:1;min-width:0;font-size:15px;font-weight:500;line-height:20px}
 .app .tsteps li[data-state="here"] .tsteps-name{font-weight:700;color:var(--ink)}
 .app .tsteps li[data-state="locked"] .tsteps-name{color:var(--ink3)}
@@ -1016,7 +1036,7 @@ css += """
 .app .tpill.is-going i{background:var(--stage)}
 .app .tmod-prog{display:flex;align-items:center;gap:10px}.app .tmod-prog .bar{flex:1}.app .tmod-prog .bar i{background:var(--stage)}.app .tmod-prog em{font-style:normal;font-size:13px;color:var(--ink3)}
 .app .ttoday-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:stretch}
-.app .card.ttoday{justify-content:center}
+
 .app .card.ttoday,.app .card.tbuild{max-width:none;margin:0;padding:24px 26px;border-radius:16px;display:flex;flex-direction:column;gap:8px}
 .app .card.ttoday{border-top:3px solid var(--stage)}
 .app .ttoday-note{font-size:15px;color:var(--ink2)}
