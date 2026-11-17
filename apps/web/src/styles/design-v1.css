@@ -4601,3 +4601,27 @@
   /* The back arrow hangs left of the column, so the title lines up with the text. */
   padding-inline: max(56px, calc((100% - 720px) / 2 - 32px)) max(56px, calc((100% - 720px) / 2));
 }
+
+/* Fork look (Nov 17): the left rail Rashid sees is .community-nav, not the
+   kit's .row, so the bigger type goes here. Inter, 15px, 36px rows. */
+:root[data-design="v1"] .community-nav :is(.nav-item, button.nav-item, a.nav-item) {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+}
+:root[data-design="v1"] .community-nav .nav-item .nav-icon svg {
+  width: 16px;
+  height: 16px;
+}
+:root[data-design="v1"] .community-nav :is(.nav-item-count, .nav-item-hint) {
+  font-size: 13px;
+}
+:root[data-design="v1"] .community-nav-section-label {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+}
+/* Rail text solid, not see-through (it read washed out over the grey panel). */
+:root[data-design="v1"]:not([data-theme="light"]) { --nav-ink: #D2D5DA; }
+:root[data-design="v1"][data-theme="light"] { --nav-ink: #2A2F36; }

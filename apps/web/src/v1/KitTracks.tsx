@@ -75,7 +75,28 @@ function TrackRoute({ track, width = 220, height = 96 }: { track: CommunityTrack
 
 function TrackArt({ track, hero }: { track: CommunityTrackView; hero?: boolean }) {
   if (track.cover_url) return <span className={cx("tart", "img")} style={{ backgroundImage: `url(${JSON.stringify(track.cover_url)})` }} />;
-  return <span className={cx("tart")}>{hero ? <TrackRoute track={track} width={300} height={120} /> : <TrackRoute track={track} />}</span>;
+  // No picture: a cover made of words in Neil's accent, like a book spine,
+  // with the track's route drawn faintly in the corner.
+  return (
+    <span className={cx("tart", "tgen", hero && "is-hero")}>
+      <TrackRoute track={track} width={hero ? 260 : 180} height={hero ? 104 : 72} />
+      <span className={cx("tgen-kicker")}>{track.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track"}</span>
+      <b className={cx("tgen-title")}>{track.title}</b>
+      <span className={cx("tgen-meta")}>{plural(track.stages.length, "module")} · {plural(track.step_count, "lesson")}</span>
+    </span>
+  );
+}
+
+/** A module's cover: its number and one dot per lesson, filled when done. */
+function ModuleArt({ stage, index }: { stage: CommunityTrackStageView; index: number }) {
+  return (
+    <span className={cx("tart", "tnum", stage.locked && "is-locked")}>
+      <span className={cx("tnum-n")}>{String(index + 1).padStart(2, "0")}</span>
+      <span className={cx("tdots")} aria-hidden="true">
+        {stage.steps.map((step) => <i key={step.ref} className={cx(step.done && "on")} />)}
+      </span>
+    </span>
+  );
 }
 
 export type TrackLibraryCourse = { id: string; title: string; cover: string | null; lessonCount: number; onOpen: () => void };
@@ -116,7 +137,6 @@ export function KitTrackHome(props: {
       <div className={cx("thead")}>
         <h3>Your tracks</h3>
         {yours.length > 1 ? <span>{yours.length} open · start any of them</span> : null}
-        {props.tools ? <span className={cx("thead-tools")}>{props.tools}</span> : null}
       </div>
       <div className={cx("tgrid")}>
         {yours.map((track) => {
@@ -157,17 +177,17 @@ export function KitTrackHome(props: {
         </>
       ) : null}
 
-      {props.library.length ? (
+      {props.library.length || props.tools ? (
         <>
           <div className={cx("thead")}>
             <h3>Library</h3><span>Courses that sit outside the tracks</span>
-            <span className={cx("thead-tools")}><button type="button" className={cx("btn sm txt")} onClick={props.onBrowseAll}>See everything<Icon name="arrow" /></button></span>
+            <span className={cx("thead-tools")}>{props.tools}<button type="button" className={cx("btn sm txt")} onClick={props.onBrowseAll}>See everything<Icon name="arrow" /></button></span>
           </div>
-          <div className={cx("tgrid")}>
+          {props.library.length ? <div className={cx("tgrid")}>
             {props.library.map((course) => (
               <button key={course.id} type="button" className={cx("tcard", "tmod")} onClick={course.onOpen}>
                 <span className={cx("tcard-art")}>
-                  {course.cover ? <span className={cx("tart", "img")} style={{ backgroundImage: `url(${JSON.stringify(course.cover)})` }} /> : <span className={cx("tart")}><Icon name="book" /></span>}
+                  {course.cover ? <span className={cx("tart", "img")} style={{ backgroundImage: `url(${JSON.stringify(course.cover)})` }} /> : <span className={cx("tart", "tgen", "is-course")}><span className={cx("tgen-kicker")}>Course</span><b className={cx("tgen-title")}>{course.title}</b><span className={cx("tgen-meta")}>{plural(course.lessonCount, "lesson")}</span></span>}
                 </span>
                 <span className={cx("tcard-body")}>
                   <span className={cx("tmod-eyebrow")}>Course</span>
@@ -176,7 +196,7 @@ export function KitTrackHome(props: {
                 </span>
               </button>
             ))}
-          </div>
+          </div> : null}
         </>
       ) : null}
     </div>
@@ -227,7 +247,7 @@ export function KitTrackShelf(props: {
       </div>
       {shape === "board" ? <ModuleBoard modules={props.modules} onOpenStep={props.onOpenStep} /> : (
         <div className={cx("tgrid")}>
-          {props.modules.map(({ stage, cover, onOpen }, index) => {
+          {props.modules.map(({ stage, onOpen }, index) => {
             const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
             const going = !done && stage.done_count > 0;
             const percent = stage.step_count ? Math.round((stage.done_count / stage.step_count) * 100) : 0;
@@ -236,7 +256,7 @@ export function KitTrackShelf(props: {
             return (
               <button key={stage.name} type="button" className={cx("tcard", "tmod", stage.locked && "tlocked")} data-stage={stageNo(index)} onClick={onOpen} disabled={stage.locked}>
                 <span className={cx("tcard-art")}>
-                  {cover ? <span className={cx("tart", "img")} style={{ backgroundImage: `url(${JSON.stringify(cover)})` }} /> : <span className={cx("tart", "tnum")}>{index + 1}</span>}
+                  <ModuleArt stage={stage} index={index} />
                 </span>
                 <span className={cx("tcard-body")}>
                   <span className={cx("tmod-eyebrow")}>Module {index + 1}</span>

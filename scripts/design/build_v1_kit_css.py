@@ -875,13 +875,15 @@ css += """
 .app{
   --ink:#F1F2F4; --ink1:#E3E5E8; --ink2:#C2C6CC; --ink3:#9CA1A9; --ink4:#666B73;
   --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.16);
-  --acc:var(--accent); --acc-hover:var(--accent-hover);
+  /* Neil's purple, one shade deeper for buttons (white text 5.4:1) and one
+     lighter for small purple words (7.3:1). Same hue, still one accent. */
+  --acc:#5560C8; --acc-hover:#4F59C0; --acc-ink:#9AA1EA;
   font-size:15px;
 }
 .app:is(.light:not(.on-mode-dark),.on-mode-light){
-  --ink:#101311; --ink1:#1C201D; --ink2:#3C423E; --ink3:#5F6661; --ink4:#9AA19C;
-  --line:rgba(15,18,16,.10); --line2:rgba(15,18,16,.16);
-  --acc:var(--accent); --acc-hover:var(--accent-hover);
+  --ink:#101318; --ink1:#1C2026; --ink2:#3B4048; --ink3:#525862; --ink4:#8A9099;
+  --line:rgba(15,18,24,.10); --line2:rgba(15,18,24,.16);
+  --acc:#4F59C0; --acc-hover:#4A54B8; --acc-ink:#4651B5;
 }
 .app .btn.go{background:var(--acc);border-color:var(--acc);color:#fff}
 .app .btn.go:hover{background:var(--acc-hover);border-color:var(--acc-hover)}
@@ -935,19 +937,30 @@ css += """
 /* Knowledge as tracks (fork only, ported from the old build, Nov 17): the
    Roadmap home and a track's page (apps/web/src/v1/KitTracks.tsx). Module
    colours use Neil's single accent. */
-.app [data-stage]{--stage:var(--accent)}
+.app [data-stage]{--stage:var(--acc-ink)}
 .app .thome{display:flex;flex-direction:column}
 .app .tback{align-self:flex-start;margin-bottom:14px}
 .app .tart{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:150px;background:color-mix(in srgb,var(--accent) 12%,var(--card-bg));color:var(--accent);--troute-ink:var(--card-bg);overflow:hidden}
 .app .tart.img{background-size:cover;background-position:center}
 .app .tart .ic{width:30px;height:30px}
-.app .tart.tnum{font-size:44px;font-weight:700;color:var(--stage,var(--accent));background:color-mix(in srgb,var(--stage,var(--accent)) 12%,var(--card-bg))}
+.app .tart.tnum{flex-direction:column;align-items:flex-start;justify-content:space-between;padding:18px 20px;color:var(--acc-ink);background:color-mix(in srgb,var(--acc) 14%,var(--card-bg))}
+.app .tnum-n{font-size:44px;line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.app .tdots{display:flex;flex-wrap:wrap;gap:6px}.app .tdots i{width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--acc-ink) 28%,transparent)}.app .tdots i.on{background:var(--acc-ink)}
+.app .tart.tnum.is-locked{color:var(--ink3);background:var(--s2)}.app .tart.tnum.is-locked .tdots i{background:var(--line2)}
+/* A cover made of words, for tracks and courses with no picture: Neil's accent, deep to light. */
+.app .tart.tgen{flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:4px;padding:18px 20px;text-align:left;color:#fff;background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 55%,#0b0c14),var(--acc));--troute-ink:color-mix(in srgb,var(--acc) 70%,#0b0c14)}
+.app .tart.tgen.is-course{background:linear-gradient(135deg,#2B2F3A,#4A5060);--troute-ink:#2B2F3A}
+.app .tart.tgen .troute{position:absolute;top:10px;right:10px;color:rgba(255,255,255,.75);opacity:.55}
+.app .tgen-kicker{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.82)}
+.app .tgen-title{max-width:88%;font-size:21px;line-height:26px;font-weight:700;letter-spacing:-.015em;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.app .tart.tgen.is-hero .tgen-title{font-size:28px;line-height:34px;-webkit-line-clamp:3}
+.app .tgen-meta{font-size:13px;font-weight:500;color:rgba(255,255,255,.82)}
 .app .tart.lockart{color:var(--ink3);background:var(--s2)}
 .app .troute{max-width:86%;height:auto}
-.app .teyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--stage,var(--accent))}
+.app .teyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--stage,var(--acc-ink))}
 .app .teyebrow.plain{color:var(--ink3)}
 .app button.thero{display:grid;grid-template-columns:minmax(220px,320px) 1fr;width:100%;max-width:none;margin-top:4px;padding:0;overflow:hidden;border-radius:16px;text-align:left;cursor:pointer}
-.app .thero>.tart{--troute-ink:var(--accent);background:var(--accent);color:#fff;min-height:200px}
+.app .thero>.tart{min-height:220px}
 .app .thero>.tart.img{background-color:var(--s2)}
 .app .thero-body{display:flex;flex-direction:column;gap:6px;padding:24px 28px}
 .app .thero h2,.app .ttoday h2,.app .tbuild h2{margin:0;font-size:26px;line-height:32px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
@@ -966,12 +979,12 @@ css += """
 .app .tcard.tmod{border-top:3px solid var(--stage,var(--line2))}
 .app .tcard-art{position:relative;display:block;aspect-ratio:16/9;border-bottom:1px solid var(--line)}
 .app .tcard-art>.tart{position:absolute;inset:0;min-height:0}
-.app .tbadge{position:absolute;top:12px;left:12px;padding:3px 10px;border-radius:999px;background:var(--card-bg);color:var(--accent);font-size:12.5px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.app .tbadge{position:absolute;top:12px;left:12px;padding:3px 10px;border-radius:999px;background:var(--card-bg);color:var(--acc-ink);font-size:12.5px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .app .tcard-body{display:flex;flex-direction:column;gap:6px;flex:1;padding:16px 18px 18px}
 .app .tcard-body>b{font-size:18px;line-height:24px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
 .app .tcard-sum{font-size:14.5px;line-height:21px;color:var(--ink2)}
 .app .tcard-meta{margin-top:auto;padding-top:8px;font-size:14px;color:var(--ink3)}
-.app .tcard-go{display:inline-flex;align-items:center;gap:6px;font-size:15px;font-weight:600;color:var(--accent)}.app .tcard-go .ic{width:15px;height:15px}
+.app .tcard-go{display:inline-flex;align-items:center;gap:6px;font-size:15px;font-weight:600;color:var(--acc-ink)}.app .tcard-go .ic{width:15px;height:15px}
 .app .tcard.tlocked{opacity:.7}
 .app .tmod-eyebrow{font-size:13.5px;font-weight:600;color:var(--stage,var(--ink3))}
 .app .tmod-title{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:20px;line-height:26px;font-weight:700;letter-spacing:-.015em;color:var(--ink)}
@@ -982,7 +995,7 @@ css += """
 .app .tpill.is-done{color:var(--stage);border-color:color-mix(in srgb,var(--stage) 40%,transparent);background:color-mix(in srgb,var(--stage) 10%,transparent)}
 .app .tpill.is-going i{background:var(--stage)}
 .app .tmod-prog{display:flex;align-items:center;gap:10px}.app .tmod-prog .bar{flex:1}.app .tmod-prog .bar i{background:var(--stage)}.app .tmod-prog em{font-style:normal;font-size:13px;color:var(--ink3)}
-.app .ttoday-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px}
+.app .ttoday-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:start}
 .app .card.ttoday,.app .card.tbuild{max-width:none;margin:0;padding:24px 26px;border-radius:16px;display:flex;flex-direction:column;gap:8px}
 .app .card.ttoday{border-top:3px solid var(--stage)}
 .app .ttoday-note{font-size:15px;color:var(--ink2)}
@@ -991,7 +1004,7 @@ css += """
 .app .tpath li[data-state="done"]{background:var(--stage)}
 .app .tpath li[data-state="here"]{background:color-mix(in srgb,var(--stage) 45%,transparent)}
 .app .ttoday-foot{display:flex;align-items:center;gap:16px;margin-top:auto;padding-top:18px}.app .ttoday-foot em{font-style:normal;font-size:15px;color:var(--ink2)}
-.app .ttoday .btn.go.tgo{background:var(--stage);border-color:var(--stage)}
+.app .ttoday .btn.go.tgo{background:var(--acc);border-color:var(--acc)}
 .app .tbuild h2{font-size:22px;line-height:28px}
 .app .tparts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 0;padding:0;list-style:none}
 .app .tparts li{position:relative;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid var(--line2);overflow:hidden;
@@ -999,12 +1012,12 @@ css += """
 .app .tparts li[data-state="done"]{border-color:color-mix(in srgb,var(--stage) 45%,transparent)}
 .app .tparts li[data-state="locked"]{opacity:.55}
 .app .tpart-mark{flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:12.5px;font-weight:700;color:var(--stage);background:color-mix(in srgb,var(--stage) 14%,transparent)}
-.app .tparts li[data-state="done"] .tpart-mark{color:#fff;background:var(--stage)}
+.app .tparts li[data-state="done"] .tpart-mark{color:#fff;background:var(--acc)}
 .app .tpart-mark .ic{width:13px;height:13px}
 .app .tpart-text{display:flex;flex-direction:column;min-width:0}
-.app .tpart-text b{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app .tpart-text b{font-size:14px;line-height:18px;font-weight:600;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .app .tpart-text small{font-size:12.5px;color:var(--ink3)}
-.app .tboard{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:14px;margin:0;padding:0 0 8px;list-style:none;overflow-x:auto}
+.app .tboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));align-items:start;gap:14px;margin:0;padding:0;list-style:none}
 .app .tcol{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}
 .app .tcol[data-state="here"]{border-color:color-mix(in srgb,var(--stage) 50%,transparent)}
 .app .tcol[data-state="locked"]{opacity:.6}
@@ -1016,7 +1029,7 @@ css += """
 .app button.tstep:disabled{cursor:default}
 .app button.tstep.is-next{border-color:var(--stage);box-shadow:inset 3px 0 0 var(--stage)}
 .app .tstep-tick{flex:none;display:flex;align-items:center;justify-content:center;width:18px;height:18px;margin-top:1px;border-radius:50%;border:1.5px solid var(--line2);color:var(--ink3)}
-.app .tstep.is-done .tstep-tick{border-color:var(--stage);background:var(--stage);color:#fff}
+.app .tstep.is-done .tstep-tick{border-color:var(--acc);background:var(--acc);color:#fff}
 .app .tstep-tick .ic{width:11px;height:11px}
 .app .tstep-text{display:flex;flex-direction:column;gap:4px;min-width:0}
 .app .tstep-text b{font-size:14px;line-height:19px;font-weight:550;color:var(--ink)}
