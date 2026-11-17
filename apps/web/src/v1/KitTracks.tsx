@@ -12,7 +12,7 @@ import {
   type CommunityTrackStageView,
   type CommunityTrackView,
 } from "../../../../shared/communityLessonTracks";
-import { cx, Icon, type IconName } from "./kit";
+import { cx, Icon } from "./kit";
 
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
@@ -31,23 +31,6 @@ function trackFacts(track: CommunityTrackView) {
 /** The track a member most likely wants: the one they're in, else the first open one. */
 export function continueTrack(tracks: readonly CommunityTrackView[]) {
   return tracks.find((track) => track.status === "in_progress" && track.next) ?? tracks.find((track) => track.open && track.next) ?? null;
-}
-
-/** A module's icon, from words in its name; otherwise one from a fixed set. */
-const ICON_WORDS: Array<[RegExp, IconName]> = [
-  [/set ?up|install|connect|start/i, "plug"],
-  [/map|x-?ray|diagnos/i, "map"],
-  [/first skill|skill$/i, "wand"],
-  [/system|layer|stack/i, "layers"],
-  [/reliab|safe|check|test/i, "shield"],
-  [/employee|agent|bot/i, "bot"],
-  [/claude|code|terminal|cli/i, "terminal"],
-  [/goal|offer|target/i, "target"],
-  [/launch|ship/i, "rocket"],
-];
-const ICON_CYCLE: IconName[] = ["flag", "target", "layers", "wand", "shield", "rocket"];
-export function moduleIcon(name: string, index: number): IconName {
-  return ICON_WORDS.find(([pattern]) => pattern.test(name))?.[1] ?? ICON_CYCLE[index % ICON_CYCLE.length];
 }
 
 const ACTION: Record<CommunityTrackView["status"], string> = { locked: "Locked", open: "Start", in_progress: "Continue", done: "Review" };
@@ -73,11 +56,11 @@ function TrackArt({ track, hero }: { track: CommunityTrackView; hero?: boolean }
   );
 }
 
-/** A module's cover: its icon in its own colour, and one dot per lesson. */
+/** A module's cover: its number and one dot per lesson, filled when done. */
 function ModuleArt({ stage, index }: { stage: CommunityTrackStageView; index: number }) {
   return (
     <span className={cx("tart", "tnum", stage.locked && "is-locked")}>
-      <span className={cx("tchip", "big")}><Icon name={moduleIcon(stage.name, index)} /></span>
+      <span className={cx("tnum-n")}>{String(index + 1).padStart(2, "0")}</span>
       <span className={cx("tdots")} aria-hidden="true">
         {stage.steps.map((step) => <i key={step.ref} className={cx(step.done && "on")} />)}
       </span>
@@ -285,14 +268,9 @@ function TodayCard(props: { track: CommunityTrackView; modules: readonly TrackMo
   const upcoming = stage && at >= 0 ? stage.steps.slice(at + 1).filter((step) => !step.done).slice(0, 3) : [];
   return (
     <section className={cx("card ttoday")} data-stage={index >= 0 ? stageNo(index) : "1"} aria-label="Today's step">
-      <div className={cx("ttoday-head")}>
-        {index >= 0 ? <span className={cx("tchip", "big")}><Icon name={moduleIcon(next.stage, index)} /></span> : null}
-        <div className={cx("ttoday-text")}>
-          <span className={cx("teyebrow")}>{props.started ? "Today's step" : "Start here"}{minutes ? ` · about ${formatTrackMinutes(minutes)}` : ""}</span>
-          <h2>{next.title}</h2>
-          <span className={cx("ttoday-note")}>{index >= 0 ? `Module ${index + 1} · ${next.stage}` : next.stage} · {track.title}</span>
-        </div>
-      </div>
+      <span className={cx("teyebrow")}>{props.started ? "Today's step" : "Start here"}{minutes ? ` · about ${formatTrackMinutes(minutes)}` : ""}</span>
+      <h2>{next.title}</h2>
+      <span className={cx("ttoday-note")}>{index >= 0 ? `Module ${index + 1} · ${next.stage}` : next.stage} · {track.title}</span>
       {stage ? (
         <ol className={cx("tpath")} aria-label={`${stage.done_count} of ${stage.step_count} lessons done in this module`}>
           {stage.steps.map((step) => <li key={step.ref} data-state={step.done ? "done" : step.resource_id === next.resource_id ? "here" : "todo"} title={step.title} />)}
@@ -332,9 +310,9 @@ function BuildPanel(props: { track: CommunityTrackView; modules: readonly TrackM
           return (
             <li key={stage.name} data-state={state}>
               <button type="button" className={cx("tsteps-row")} onClick={onOpen} disabled={stage.locked}>
-                <span className={cx("tchip")} data-stage={stageNo(index)}><Icon name={done ? "check" : moduleIcon(stage.name, index)} /></span>
+                <span className={cx("tsteps-dot")}>{done ? <Icon name="check" /> : stage.locked ? <Icon name="lock" /> : index + 1}</span>
                 <span className={cx("tsteps-name")}>{stage.name}</span>
-                <span className={cx("tsteps-count")}>{done ? "Built" : stage.locked ? <Icon name="lock" /> : `${stage.done_count}/${stage.step_count}`}</span>
+                <span className={cx("tsteps-count")}>{done ? "Built" : stage.locked ? "" : `${stage.done_count}/${stage.step_count}`}</span>
               </button>
             </li>
           );
@@ -354,7 +332,7 @@ function ModuleBoard(props: { modules: readonly TrackModule[]; onOpenStep: (reso
         return (
           <li key={stage.name} className={cx("tcol")} data-stage={stageNo(index)} data-state={done ? "done" : index === here ? "here" : stage.locked ? "locked" : "open"}>
             <div className={cx("tcol-head")}>
-              <span className={cx("tcol-pill")}><span className={cx("tchip", "sm")}><Icon name={moduleIcon(stage.name, index)} /></span>{stage.name}</span>
+              <span className={cx("tcol-pill")}><i />{stage.name}</span>
               <span className={cx("tcol-state")}>{stage.locked ? "Locked" : done ? "Done" : index === here ? "You're here" : `${stage.done_count}/${stage.step_count}`}</span>
             </div>
             {stage.steps.map((step) => (
