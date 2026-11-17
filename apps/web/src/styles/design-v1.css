@@ -4465,3 +4465,133 @@
   border-radius: 12px;
   overflow-x: hidden;
 }
+
+/* ---------- Readability (Nov 17) ----------
+   The frame's half of the kit's Readability block (scripts/design/
+   build_v1_kit_css.py): the same Substack-measured scale. Nothing a person
+   reads is under 13px; counters and key hints stay at 12. */
+:root[data-design="v1"] .community-nav-section-label,
+:root[data-design="v1"] .community-nav-section-label.has-action,
+:root[data-design="v1"] .account-menu-role {
+  font-size: 13px;
+}
+:root[data-design="v1"] .community-search-ask kbd,
+:root[data-design="v1"] .community-nav-tools .community-search-ask kbd {
+  font-size: 12px;
+}
+
+/* Knowledge sits in the middle of the space beside the left column, so on a
+   wide window it does not hug the left edge. The guide's line, the Continue
+   card, the Courses heading and the grid share one left edge (the kit's
+   .page), 920px at most. */
+:root[data-design="v1"]:where(:not([data-layout="phone"])) .community-page-body > .community-tab-scroll > .web-community-centered-pane:has(> .community-knowledge-page):not(:has(.kit-brain-fill)) {
+  margin-inline: auto;
+}
+
+/* A lesson reads like a Substack post: a 720px column, a 32px title, 19px
+   text at 1.6, headings in proportion, images the column's width. The
+   editor uses the same column and the same text, so editing matches reading. */
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-title {
+  font-family: var(--font-sans);
+  font-size: 32px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.022em;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-header {
+  padding: 0 0 12px;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content {
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose p,
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose li,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content p,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content li {
+  font-size: inherit;
+  line-height: inherit;
+  color: color-mix(in srgb, var(--text-primary) 90%, transparent);
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose .md-paragraph,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content .md-paragraph {
+  margin: 0 0 22px;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose h1.md-header,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content h1 {
+  margin: 40px 0 14px;
+  font-size: 28px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose h2.md-header,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content h2 {
+  margin: 36px 0 12px;
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 650;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose h3.md-header,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content h3 {
+  margin: 30px 0 10px;
+  font-size: 21px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+/* Small headings are sentence case, like every label (spec: no uppercase). */
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose :is(h4, h5, h6).md-header,
+:root[data-design="v1"] .kit-lesson-editor .lesson-editor-content :is(h4, h5, h6) {
+  margin: 26px 0 8px;
+  font-size: 19px;
+  line-height: 1.4;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose .md-header:first-child {
+  margin-top: 0;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose .md-list {
+  margin-bottom: 22px;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose img,
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose .md-media-embed {
+  width: 100%;
+  margin: 28px 0;
+}
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose .md-inline-code,
+:root[data-design="v1"] .kit-lesson-body .resource-viewer-prose .md-code-block {
+  font-size: 0.84em;
+}
+:root[data-design="v1"] .kit-lesson-editor {
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+/* Page titles: 24/28 600 (the Substack scale), on every page's header line,
+   up from the finish's 16/500. The line about a channel stays 14px beside it. */
+:root[data-design="v1"] .community-channel-header h1,
+:root[data-design="v1"] .community-channel-header .community-channel-header-identity h1 {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.018em;
+}
+:root[data-design="v1"] .community-channel-header h1 .community-channel-header-description {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+/* Knowledge's header line starts on the same edge as its centred column: the
+   shelf's 920px, or a lesson's 720px reading column. On a 1440 window both
+   land on the usual 56px gutter, so nothing moves there. */
+:root[data-design="v1"]:where(:not([data-layout="phone"])) .community-page-body:has(.community-knowledge-page):not(:has(.kit-brain-fill)) > .community-page-header {
+  padding-inline: max(56px, calc((100% - var(--content-wide)) / 2));
+}
+:root[data-design="v1"]:where(:not([data-layout="phone"])) .community-page-body:has(.community-knowledge-page :is([class*="_klesson_"], .kit-lesson-editor)) > .community-page-header {
+  /* The back arrow hangs left of the column, so the title lines up with the text. */
+  padding-inline: max(56px, calc((100% - 720px) / 2 - 32px)) max(56px, calc((100% - 720px) / 2));
+}

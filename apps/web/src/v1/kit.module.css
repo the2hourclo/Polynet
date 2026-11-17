@@ -1375,3 +1375,60 @@
 .app .mprop-add{align-self:flex-start;margin-top:6px;font-size:13px;color:var(--blue-ink);cursor:pointer}
 .app .mprop-edit{font-size:12px;color:var(--ink3);cursor:pointer;margin-left:auto}
 .app .mprop-edit:hover{color:var(--ink)}
+
+/* ---------- Readability (Nov 17) ----------
+   Rashid: "things need to be readable", "font size for readability". One type
+   scale, measured on Substack (our study, substack-lessons.md): page title
+   24/28, card and section titles 17/24, body and fields 15/22, table cells
+   14/20, labels 13/20, muted help 13/20. Nothing a person reads is under
+   13px; tiny tags, counters and key hints stay at 12. Muted text goes back
+   to the spec's labels-and-times strength (52% dark, 62% light): the finish
+   had lowered it to 44%, which read faint. Sizes only: no new colours. */
+.app{--ink3:rgba(230,231,233,.54)}
+.app:is(.light:not(.on-mode-dark),.on-mode-light){--ink3:rgba(22,23,26,.62)}
+.app .lab,.app .rz>.lab,.app .rail .lab,.app .mdrawer .lab{font-size:13px;line-height:20px}
+.app .tag,.app .mrow .h .tag{font-size:12px}
+.app kbd{font-size:12px}
+.app .sub,.app .rail p,.app .rail .sub,.app .kres>.sub,.app .khint{font-size:13px;line-height:20px}
+.app .link{font-size:13px}
+.app .btn{font-size:13px}
+.app .need .btn,.app .krow .from .btn.sm{font-size:13px}
+.app .chip{font-size:13px}
+.app .eyebrow,.app .card .meta{font-size:13px}
+.app .day{font-size:13px}
+.app .msg .h time,.app .mrow .h time,.app .tmsg .h time{font-size:13px}
+/* The right column: its rows are read, so they get body-small sizes. */
+.app .ln{font-size:14px;line-height:20px}.app .ln>em{font-size:13px}
+.app .kline{font-size:14px}.app .kline em{font-size:13px}
+.app .kl{font-size:14px;line-height:20px}.app .kl em{font-size:13px}
+.app .kl-move button{font-size:13px}
+.app .kprog{font-size:13px}
+.app .kresrow em{font-size:13px}
+/* Knowledge: the course shelf. A course card reads like a Substack post card:
+   a 17px title, a two-line 14px description, the progress as a 13px line. */
+.app .khead{margin-top:36px}
+.app .khead>.lab{font-size:17px;line-height:24px;font-weight:600;color:var(--ink)}
+.app .kgrid{grid-template-columns:repeat(auto-fill,minmax(max(150px,calc((100% - 16px) / 2)),1fr));gap:16px;margin-top:14px}
+.app .kcourse>b{margin-top:14px;font-size:17px;line-height:24px;font-weight:600}
+.app .kcourse>.s{margin-top:2px;font-size:14px;line-height:20px;min-height:40px;color:var(--ink2)}
+.app .kpct{height:24px;border-radius:12px}.app .kpct i{border-radius:12px}
+.app .kpct em{font-size:13px;line-height:24px;font-weight:550}
+/* A lesson: one reading column, as on Substack. Its tools and its Next
+   button sit on the same column (the lesson text itself is sized in
+   design-v1.css, where the lesson reader's global classes live). */
+/* Page titles in the kit's own header line (Members, Inbox, Events): 24/28 600. */
+.app .top h1{font-size:24px;font-weight:600;line-height:28px;letter-spacing:-.018em}
+.app .top h1 small{font-size:14px;letter-spacing:0}
+.app .kcrumb,.app .klesson{max-width:720px}
+.app .klesson>.ktitle .lab{font-size:14px}
+.app .klesson .acts{margin-top:32px}
+/* Members: table cells 14px, headers 13px, the record's rows 14px. */
+.app .mrow2{font-size:14px}
+.app .mrow2.mhead{font-size:13px}
+.app .mrow2.mhead>span{white-space:normal;line-height:16px}
+.app .mwho small,.app .mreq small{font-size:13px}
+.app .mmenu em{font-size:13px}
+.app .mdetail input,.app .mdetail select{font-size:14px}
+.app .mdetail select{padding-left:4px}
+.app .mchips button{font-size:13px}
+.app .mprop-edit{font-size:13px}
