@@ -1366,16 +1366,16 @@
 .app .btn.go{background:#5560C8;border-color:#5560C8;color:#fff}.app .btn.go:hover{background:#4F59C0;border-color:#4F59C0}
 .app:is(.light:not(.on-mode-dark),.on-mode-light) .btn.go{background:#4F59C0;border-color:#4F59C0}
 .app:is(.light:not(.on-mode-dark),.on-mode-light) .btn.go:hover{background:#4A54B8;border-color:#4A54B8}
-/* Chat that's easier to read: names and times a step larger, messages at
-   16px with a little more line space, links that look like links. */
-.app .msg .h b{font-size:15px}.app .msg .h time{font-size:13px}
-.app .msg p{font-size:16px;line-height:1.6}
+/* Chat that's easier to read: names and times a half step larger, messages at
+   15px, links that look like links. */
+.app .msg .h b{font-size:14px}.app .msg .h time{font-size:12.5px}
+.app .msg p{font-size:15px;line-height:1.55}
 .app .msg p a{color:#9AA1EA;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .app:is(.light:not(.on-mode-dark),.on-mode-light) .msg p a{color:#4651B5}
 /* Guide replies at the same size as people's, lines capped near 70
    characters, a little more room between turns, clearer date dividers
    and badges. */
-.app .msg.g p{font-size:16px;line-height:1.6}
+.app .msg.g p{font-size:15px;line-height:1.55}
 .app .msg p{max-width:70ch}
 .app .msg:not(.cont){margin-top:4px}
 .app .day{font-size:13px;font-weight:500;color:var(--ink2)}
