@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "@fontsource-variable/geist/wght.css";
+import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/geist-mono/wght.css";
 import "./index.css";
 import { isLoginTrampolinePathname, LoginTrampolineRoute } from "./auth/loginTrampoline";

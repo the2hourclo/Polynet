@@ -3182,7 +3182,7 @@
   --bg-button-hover: #7d86e2;
   /* A plain hairline under headers, and a quiet border (no halo) on focus. */
   /* No serif. */
-  --font-voice: "Geist Variable", "Geist", system-ui, sans-serif;
+  --font-voice: "Inter Variable", "Inter", system-ui, sans-serif;
   --header-line-glow: rgba(255, 255, 255, 0.06);
   --accent-act-edge: rgba(255, 255, 255, 0.16);
   --accent-act-halo: transparent;
@@ -3198,7 +3198,7 @@
   --bg-input: #f7f8f9;
   --bg-button: #5e6ad2;
   --bg-button-hover: #4f5bc4;
-  --font-voice: "Geist Variable", "Geist", system-ui, sans-serif;
+  --font-voice: "Inter Variable", "Inter", system-ui, sans-serif;
   --header-line-glow: rgba(13, 17, 23, 0.07);
   --accent-act-edge: rgba(13, 17, 23, 0.18);
   --accent-act-halo: transparent;
@@ -3859,7 +3859,7 @@
 :root[data-design="v1"] .community-channel-header h1,
 :root[data-design="v1"] .community-channel-header .community-channel-header-identity h1 {
   color: var(--header-title);
-  font-family: "Geist Variable", "Geist", "Inter", system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -4464,4 +4464,42 @@
   padding: 0;
   border-radius: 12px;
   overflow-x: hidden;
+}
+
+/* A readable left rail: bigger, solid,
+   easier-to-read type. Inter, 15px, 36px rows. */
+:root[data-design="v1"] .community-nav :is(.nav-item, button.nav-item, a.nav-item) {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+}
+:root[data-design="v1"] .community-nav .nav-item .nav-icon svg {
+  width: 16px;
+  height: 16px;
+}
+:root[data-design="v1"] .community-nav :is(.nav-item-count, .nav-item-hint) {
+  font-size: 13px;
+}
+:root[data-design="v1"] .community-nav-section-label {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+}
+/* Rail text solid, not see-through (it read washed out over the grey panel). */
+:root[data-design="v1"]:not([data-theme="light"]) { --nav-ink: #D2D5DA; }
+:root[data-design="v1"][data-theme="light"] { --nav-ink: #2A2F36; }
+
+/* Search or ask on the rows' grid: same height, size, icon and left edge. */
+:root[data-design="v1"] .community-nav-tools .community-search-ask {
+  height: 36px;
+  padding-inline: 10px;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--nav-ink);
+}
+:root[data-design="v1"] .community-nav-tools .community-search-ask svg:first-child {
+  width: 16px;
+  height: 16px;
 }

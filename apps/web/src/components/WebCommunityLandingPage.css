@@ -20,7 +20,7 @@
   box-sizing: border-box;
   background: var(--cl-bg);
   color: var(--cl-ink);
-  font-family: "Geist Variable", "Geist", "Inter", system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;

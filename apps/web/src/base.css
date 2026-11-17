@@ -1,5 +1,5 @@
 :root {
-  --font-sans: "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
   font-family: var(--font-sans);
   --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", monospace;
   color-scheme: dark;
@@ -86,8 +86,8 @@
   /* Chat has its own semantic ladder so identity, content, and metadata stay
      distinct without changing the platform-wide text hierarchy. */
   --chat-author-text: color-mix(in srgb, var(--text-primary) 98%, var(--surface-workspace) 2%);
-  --chat-body-text: color-mix(in srgb, var(--text-primary) 82%, var(--surface-workspace) 18%);
-  --chat-meta-text: color-mix(in srgb, var(--text-primary) 70%, var(--surface-workspace) 30%);
+  --chat-body-text: color-mix(in srgb, var(--text-primary) 94%, var(--surface-workspace) 6%);
+  --chat-meta-text: color-mix(in srgb, var(--text-primary) 78%, var(--surface-workspace) 22%);
   --chat-system-text: color-mix(in srgb, var(--text-primary) 62%, var(--surface-workspace) 38%);
 
   /* Borders */
