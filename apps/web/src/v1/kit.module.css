@@ -1496,9 +1496,8 @@
 
 /* Knowledge as tracks (fork only, ported from the old build, Nov 17): the
    Roadmap home and a track's page (apps/web/src/v1/KitTracks.tsx). Module
-   colours are Rashid's Build Board six. */
-.app [data-stage="1"]{--stage:#2D8C3C}.app [data-stage="2"]{--stage:#2563A8}.app [data-stage="3"]{--stage:#6B46C1}
-.app [data-stage="4"]{--stage:#B26B00}.app [data-stage="5"]{--stage:#A83A6B}.app [data-stage="6"]{--stage:#C2410C}
+   colours use Neil's single accent. */
+.app [data-stage]{--stage:var(--accent)}
 .app .thome{display:flex;flex-direction:column}
 .app .tback{align-self:flex-start;margin-bottom:14px}
 .app .tart{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:150px;background:color-mix(in srgb,var(--accent) 12%,var(--card-bg));color:var(--accent);--troute-ink:var(--card-bg);overflow:hidden}
