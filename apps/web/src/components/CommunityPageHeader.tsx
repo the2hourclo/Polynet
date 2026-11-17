@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, BarChart3, BookOpen, CalendarDays, Compass, Inbox, Search, Settings, Users, type LucideIcon } from "lucide-react";
 import { isDesignV1Active } from "../../../../shared/designSystem";
 import { openGuideFromSearch } from "./guideSearch";
 import { useCommunityAgentOn } from "../controllers/communityAgentOn";
@@ -77,6 +77,13 @@ export function CommunityPageRail(props: { label: string; children: ReactNode })
 // One level in (a course inside Knowledge, a pod's room): the header is an
 // arrow back and the name of what you're in, nothing else (Neil, Nov 14). No
 // word beside the arrow, and no second line under the header.
+// Fork only (Rashid, Nov 17: "a lot of it is just text"): each top-level
+// page's title carries its icon, in the community's one accent colour.
+const PAGE_ICONS: Record<string, LucideIcon> = {
+  Knowledge: BookOpen, Events: CalendarDays, Pods: Users, Members: Users,
+  Analytics: BarChart3, Discover: Compass, Settings, Inbox,
+};
+
 export function CommunityPageHeader(props: {
   title: string;
   actions?: ReactNode;
@@ -96,6 +103,7 @@ export function CommunityPageHeader(props: {
               <ArrowLeft size={16} strokeWidth={1.8} aria-hidden="true" />
             </button>
           ) : null}
+          {!props.back && PAGE_ICONS[props.title] ? (() => { const PageIcon = PAGE_ICONS[props.title]; return <span className="community-page-header-icon" aria-hidden="true"><PageIcon size={17} strokeWidth={2} /></span>; })() : null}
           <h1>{props.title}</h1>
         </div>,
         slot,

@@ -6,7 +6,7 @@
 // the modules as cards or as a board. Progress is worked out here, from the
 // member's own lesson progress (shared/communityLessonTracks.ts).
 // Fork only: not sent to Neil.
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   COMMUNITY_MAIN_TRACK_KEY,
   type CommunityTrackStageView,
@@ -104,7 +104,7 @@ export function KitTrackHome(props: {
       ) : null}
 
       <div className={cx("thead")}>
-        <h3>Your tracks</h3>
+        <h3><Icon name="route" />Your tracks</h3>
         {yours.length > 1 ? <span>{yours.length} open · start any of them</span> : null}
       </div>
       <div className={cx("tgrid")}>
@@ -130,7 +130,7 @@ export function KitTrackHome(props: {
 
       {coming.length ? (
         <>
-          <div className={cx("thead")}><h3>Unlock next</h3><span>Each one opens as you go</span></div>
+          <div className={cx("thead")}><h3><Icon name="lock" />Unlock next</h3><span>Each one opens as you go</span></div>
           <div className={cx("tgrid")}>
             {coming.map((track) => (
               <button key={track.key} type="button" className={cx("tcard", "tlocked")} onClick={() => props.onOpenTrack(track.key)}>
@@ -149,7 +149,7 @@ export function KitTrackHome(props: {
       {props.library.length || props.tools ? (
         <>
           <div className={cx("thead")}>
-            <h3>Library</h3><span>Courses that sit outside the tracks</span>
+            <h3><Icon name="book" />Library</h3><span>Courses that sit outside the tracks</span>
             <span className={cx("thead-tools")}>{props.tools}<button type="button" className={cx("btn sm txt")} onClick={props.onBrowseAll}>See everything<Icon name="arrow" /></button></span>
           </div>
           {props.library.length ? <div className={cx("tgrid")}>
@@ -175,12 +175,7 @@ export function KitTrackHome(props: {
 /** One module of a track: its course's cover, and what opening it does. */
 export type TrackModule = { stage: CommunityTrackStageView; cover: string | null; onOpen: () => void };
 
-const SHAPE_KEY = "polynet.knowledge.trackShape";
-function readShape(): "cards" | "board" {
-  try { return window.localStorage.getItem(SHAPE_KEY) === "board" ? "board" : "cards"; } catch { return "cards"; }
-}
 
-const stageNo = (index: number) => String((index % 6) + 1);
 
 /** A track's page: Today's step, what you're building, and the modules. */
 export function KitTrackShelf(props: {
@@ -192,58 +187,41 @@ export function KitTrackShelf(props: {
   minutesOf: (resourceId: string) => number | null;
 }) {
   const { track } = props;
-  const [shape, setShape] = useState<"cards" | "board">(() => readShape());
-  const pickShape = (next: "cards" | "board") => {
-    setShape(next);
-    try { window.localStorage.setItem(SHAPE_KEY, next); } catch { /* not remembered, that's all */ }
-  };
   const started = track.done_count > 0 || track.status === "in_progress";
   return (
     <div className={cx("thome")}>
       <button type="button" className={cx("kback", "tback")} onClick={props.onAllTracks}><Icon name="back" />All tracks</button>
-      <div className={cx("ttoday-row")}>
-        <TodayCard track={track} modules={props.modules} started={started} minutesOf={props.minutesOf} onContinue={props.onContinue} />
-        <BuildPanel track={track} modules={props.modules} />
-      </div>
+      <TodayCard track={track} modules={props.modules} started={started} minutesOf={props.minutesOf} onContinue={props.onContinue} />
       <div className={cx("thead")}>
-        <h3>Modules</h3><span>{trackFacts(track)}</span>
-        <span className={cx("thead-tools")}>
-          <span className={cx("seg")} role="group" aria-label="Show modules as">
-            <button type="button" className={cx(shape === "cards" && "on")} aria-pressed={shape === "cards"} onClick={() => pickShape("cards")}>Cards</button>
-            <button type="button" className={cx(shape === "board" && "on")} aria-pressed={shape === "board"} onClick={() => pickShape("board")}>Board</button>
-          </span>
-        </span>
+        <h3><Icon name="layers" />Modules</h3><span>{trackFacts(track)}</span>
       </div>
-      {shape === "board" ? <ModuleBoard modules={props.modules} onOpenStep={props.onOpenStep} /> : (
-        <div className={cx("tgrid")}>
-          {props.modules.map(({ stage, onOpen }, index) => {
-            const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
-            const going = !done && stage.done_count > 0;
-            const percent = stage.step_count ? Math.round((stage.done_count / stage.step_count) * 100) : 0;
-            const firstLocked = stage.locked && props.modules.find((item) => item.stage.locked)?.stage === stage;
-            const blocker = firstLocked && stage.blocked_by ? track.stages.findIndex((candidate) => candidate.steps.some((step) => step.ref === stage.blocked_by)) : -1;
-            return (
-              <button key={stage.name} type="button" className={cx("tcard", "tmod", stage.locked && "tlocked")} data-stage={stageNo(index)} onClick={onOpen} disabled={stage.locked}>
-                <span className={cx("tcard-art")}>
-                  <ModuleArt stage={stage} index={index} />
+      <div className={cx("tgrid")}>
+        {props.modules.map(({ stage, onOpen }, index) => {
+          const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
+          const firstLocked = stage.locked && props.modules.find((item) => item.stage.locked)?.stage === stage;
+          const blocker = firstLocked && stage.blocked_by ? track.stages.findIndex((candidate) => candidate.steps.some((step) => step.ref === stage.blocked_by)) : -1;
+          // One status line per card: what's done, or what opens it.
+          const status = stage.locked
+            ? (blocker >= 0 ? `Opens after Module ${blocker + 1}` : "Locked")
+            : done ? `All ${plural(stage.step_count, "lesson")} done`
+            : stage.done_count ? `${stage.done_count} of ${plural(stage.step_count, "lesson")} done`
+            : plural(stage.step_count, "lesson");
+          return (
+            <button key={stage.name} type="button" className={cx("tcard", "tmod", stage.locked && "tlocked")} onClick={onOpen} disabled={stage.locked}>
+              <span className={cx("tcard-art")}>
+                <ModuleArt stage={stage} index={index} />
+              </span>
+              <span className={cx("tcard-body")}>
+                <span className={cx("tmod-eyebrow")}>Module {index + 1}</span>
+                <b className={cx("tmod-title")}>{stage.name}</b>
+                <span className={cx("tmod-status", done && "is-done")}>
+                  <Icon name={stage.locked ? "lock" : done ? "check" : "book"} />{status}
                 </span>
-                <span className={cx("tcard-body")}>
-                  <span className={cx("tmod-eyebrow")}>Module {index + 1}</span>
-                  <b className={cx("tmod-title")}>{stage.name}{stage.locked ? null : <span className={cx("tmod-arrow")}>↗</span>}</b>
-                  <span className={cx("tmod-meta")}>
-                    <span>{plural(stage.step_count, "lesson")}</span>
-                    <span className={cx("tpill", done ? "is-done" : going ? "is-going" : stage.locked ? "is-locked" : "")}>
-                      {stage.locked ? <Icon name="lock" /> : done ? <Icon name="check" /> : <i />}
-                      {stage.locked ? (blocker >= 0 ? `Opens after Module ${blocker + 1}` : "Locked") : done ? "Completed" : going ? "In progress" : "Not started"}
-                    </span>
-                  </span>
-                  {going ? <span className={cx("tmod-prog")}><span className={cx("bar")}><i style={{ width: `${percent}%` }} /></span><em>{percent}%</em></span> : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -253,7 +231,7 @@ function TodayCard(props: { track: CommunityTrackView; modules: readonly TrackMo
   const next = track.next;
   if (!next) {
     return (
-      <section className={cx("card ttoday")} data-stage="1" aria-label="Today's step">
+      <section className={cx("card ttoday")} aria-label="Today's step">
         <span className={cx("teyebrow")}>{track.key === COMMUNITY_MAIN_TRACK_KEY ? "Core track" : "Skill track"} · {track.title}</span>
         <h2>Every lesson is done</h2>
         <span className={cx("ttoday-note")}>{track.done_count} of {track.step_count} lessons. Nice work.</span>
@@ -267,7 +245,7 @@ function TodayCard(props: { track: CommunityTrackView; modules: readonly TrackMo
   const at = stage ? stage.steps.findIndex((step) => step.resource_id === next.resource_id) : -1;
   const upcoming = stage && at >= 0 ? stage.steps.slice(at + 1).filter((step) => !step.done).slice(0, 3) : [];
   return (
-    <section className={cx("card ttoday")} data-stage={index >= 0 ? stageNo(index) : "1"} aria-label="Today's step">
+    <section className={cx("card ttoday")} aria-label="Today's step">
       <span className={cx("teyebrow")}>{props.started ? "Today's step" : "Start here"}{minutes ? ` · about ${formatTrackMinutes(minutes)}` : ""}</span>
       <h2>{next.title}</h2>
       <span className={cx("ttoday-note")}>{index >= 0 ? `Module ${index + 1} · ${next.stage}` : next.stage} · {track.title}</span>
@@ -293,60 +271,4 @@ function TodayCard(props: { track: CommunityTrackView; modules: readonly TrackMo
   );
 }
 
-function BuildPanel(props: { track: CommunityTrackView; modules: readonly TrackModule[] }) {
-  const built = props.modules.filter(({ stage }) => stage.step_count > 0 && stage.done_count >= stage.step_count).length;
-  const here = props.modules.findIndex(({ stage }) => !stage.locked && stage.done_count < stage.step_count);
-  const core = props.track.key === COMMUNITY_MAIN_TRACK_KEY;
-  // A quiet stepper: one row per module, a line joining them, the module
-  // you're on lifted out. No bars, no tiles.
-  return (
-    <section className={cx("card tbuild")} aria-label={core ? "Your AI Employee" : "What you're building"}>
-      <span className={cx("teyebrow", "plain")}>{core ? "Your AI Employee" : "What you're building"}</span>
-      <h2>{built} of {plural(props.modules.length, "part")} built</h2>
-      <ol className={cx("tsteps")}>
-        {props.modules.map(({ stage, onOpen }, index) => {
-          const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
-          const state = done ? "done" : index === here ? "here" : stage.locked ? "locked" : "todo";
-          return (
-            <li key={stage.name} data-state={state}>
-              <button type="button" className={cx("tsteps-row")} onClick={onOpen} disabled={stage.locked}>
-                <span className={cx("tsteps-dot")}>{done ? <Icon name="check" /> : stage.locked ? <Icon name="lock" /> : index + 1}</span>
-                <span className={cx("tsteps-name")}>{stage.name}</span>
-                <span className={cx("tsteps-count")}>{done ? "Built" : stage.locked ? "" : `${stage.done_count}/${stage.step_count}`}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
-}
 
-function ModuleBoard(props: { modules: readonly TrackModule[]; onOpenStep: (resourceId: string) => void }) {
-  const here = props.modules.findIndex(({ stage }) => !stage.locked && stage.done_count < stage.step_count);
-  return (
-    <ol className={cx("tboard")} aria-label="Modules as a board">
-      {props.modules.map(({ stage }, index) => {
-        const done = stage.step_count > 0 && stage.done_count >= stage.step_count;
-        const nextStep = index === here ? stage.steps.find((step) => !step.done && !step.locked) : undefined;
-        return (
-          <li key={stage.name} className={cx("tcol")} data-stage={stageNo(index)} data-state={done ? "done" : index === here ? "here" : stage.locked ? "locked" : "open"}>
-            <div className={cx("tcol-head")}>
-              <span className={cx("tcol-pill")}><i />{stage.name}</span>
-              <span className={cx("tcol-state")}>{stage.locked ? "Locked" : done ? "Done" : index === here ? "You're here" : `${stage.done_count}/${stage.step_count}`}</span>
-            </div>
-            {stage.steps.map((step) => (
-              <button key={step.ref} type="button" className={cx("tstep", step.done && "is-done", step === nextStep && "is-next")} disabled={step.locked || stage.locked} onClick={() => props.onOpenStep(step.resource_id)}>
-                <span className={cx("tstep-tick")}>{step.done ? <Icon name="check" /> : step.locked || stage.locked ? <Icon name="lock" /> : null}</span>
-                <span className={cx("tstep-text")}>
-                  <b>{step.title}</b>
-                  {step.checkpoint ? <em>Checkpoint</em> : step === nextStep ? <em className={cx("is-next")}>Up next</em> : null}
-                </span>
-              </button>
-            ))}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}

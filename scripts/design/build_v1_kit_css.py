@@ -964,6 +964,15 @@ css += """
 .app .tthen li{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--ink2)}
 .app .tthen li .ic{flex:none;width:15px;height:15px;color:var(--acc-ink)}
 .app .tthen li em{margin-left:auto;font-style:normal;font-size:13px;color:var(--ink3);font-variant-numeric:tabular-nums}
+/* Simple track page (Rashid Nov 17, "work for anyone"): one Today card, one
+   status line per module, section titles with an icon in the accent. */
+.app .thead h3{display:inline-flex;align-items:center;gap:9px}
+.app .thead h3 .ic{width:18px;height:18px;color:var(--acc-ink)}
+.app .tmod-status{display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ink3)}
+.app .tmod-status .ic{width:15px;height:15px;color:var(--ink3)}
+.app .tmod-status.is-done,.app .tmod-status.is-done .ic{color:var(--acc-ink)}
+.app .tcard.tlocked{opacity:.85}
+.app .tcard.tlocked .tart.tnum{background:var(--s2);color:var(--ink3)}
 .app .tsteps{position:relative;display:flex;flex-direction:column;margin:10px 0 0;padding:0;list-style:none}
 .app .tsteps li{position:relative}
 .app .tsteps li+li::before{content:"";position:absolute;left:21px;top:-9px;width:2px;height:18px;background:var(--line2)}

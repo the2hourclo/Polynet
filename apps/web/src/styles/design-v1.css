@@ -4638,3 +4638,23 @@
   width: 16px;
   height: 16px;
 }
+/* Icons in the community's one accent (Rashid Nov 17: icons around the UI,
+   kept simple so they suit any community). Page titles get their icon in a
+   soft chip; the rail's open page shows its icon in the accent. */
+:root[data-design="v1"]:not([data-theme="light"]) { --fork-acc-ink: #9AA1EA; }
+:root[data-design="v1"][data-theme="light"] { --fork-acc-ink: #4651B5; }
+:root[data-design="v1"] .community-page-header-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-right: 2px;
+  border-radius: 8px;
+  color: var(--fork-acc-ink);
+  background: color-mix(in srgb, var(--fork-acc-ink) 16%, transparent);
+}
+:root[data-design="v1"] .community-nav .nav-item.active .nav-icon,
+:root[data-design="v1"] .community-nav .nav-item.active .nav-icon svg {
+  color: var(--fork-acc-ink);
+}
