@@ -4525,3 +4525,24 @@
 :root[data-design="v1"] .community-nav .nav-item.active .nav-icon svg {
   color: var(--accent-icon);
 }
+
+/* Chat that's easier to read: names and times a step larger, people's
+   messages at 16px with a little more line space, and links that look like
+   links. */
+:root[data-design="v1"] .community-chat .community-interaction-author {
+  font-size: 15px;
+}
+:root[data-design="v1"] .community-chat .community-interaction-meta-row {
+  font-size: 13px;
+  color: var(--chat-meta-text);
+}
+:root[data-design="v1"] .community-chat [data-actor-type="human"] .community-interaction-body {
+  font-size: 16px;
+  line-height: 1.6;
+}
+:root[data-design="v1"] .community-chat .community-interaction-body a {
+  color: var(--accent-icon);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
