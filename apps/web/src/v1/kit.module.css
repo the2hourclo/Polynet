@@ -1092,7 +1092,7 @@
 .app .mbulk{position:sticky;z-index:4;bottom:16px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:fit-content;max-width:100%;margin:14px auto 0;padding:8px 10px 8px 16px;border-radius:12px;border:1px solid rgba(var(--au),.45);background:var(--panel2,var(--bg));box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .app .mbulk b{margin-right:6px;font-size:13.5px;font-weight:550;color:var(--ink)}
 .app .mtbl{margin-top:12px;border:1px solid var(--line2);border-radius:12px;overflow:hidden;container-type:inline-size}
-.app .mrow2{display:grid;grid-template-columns:20px minmax(150px,1.7fr) 116px minmax(0,.9fr) 92px 108px 16px;gap:0 16px;align-items:center;min-height:58px;padding:0 16px;font-size:13.5px;color:var(--ink2);cursor:pointer;outline:0}
+.app .mrow2{display:grid;grid-template-columns:20px minmax(150px,1.7fr) 116px minmax(0,.9fr) 92px 108px var(--mprops,) 16px;gap:0 16px;align-items:center;min-height:58px;padding:0 16px;font-size:13.5px;color:var(--ink2);cursor:pointer;outline:0}
 .app .mrow2+.mrow2{border-top:1px solid var(--line)}
 .app .mrow2:not(.mhead):hover,.app .mrow2:focus-visible{background:var(--s1)}
 .app .mrow2.sel,.app .mrow2.tick{background:var(--s2)}
@@ -1346,3 +1346,32 @@
 @media (max-width:760px){.app .startc{grid-template-columns:1fr}.app .startc-side{border-left:0;border-top:1px solid var(--line)}}
 :where(:root[data-layout="phone"]) .app .startc{grid-template-columns:1fr}
 :where(:root[data-layout="phone"]) .app .startc-side{border-left:0;border-top:1px solid var(--line)}
+
+/* Member properties: the host's own fields about members. Up to three show
+   as columns in the Members table (after Last active; gone in narrow tables),
+   and all of them as a Details list on a member's record. */
+@container (max-width:900px){.app .mrow2>.mprop{display:none}.app .mrow2{--mprops: }}
+.app .mrow2>.mprop{color:var(--ink2)}
+.app .mrow2>.mprop.none{color:var(--ink4)}
+.app .mdetails{display:flex;flex-direction:column;gap:2px}
+.app .mdetail{display:grid;grid-template-columns:minmax(0,120px) minmax(0,1fr);gap:12px;align-items:center;min-height:34px;padding:2px 8px;margin:0 -8px;border-radius:8px}
+.app .mdetail:hover{background:var(--s1)}
+.app .mdetail>span{font-size:13px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app .mdetail input,.app .mdetail select{width:100%;min-width:0;height:30px;padding:0 8px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--ink);font:inherit;font-size:14px;outline:0}
+.app .mdetail input:hover,.app .mdetail select:hover{border-color:var(--line)}
+.app .mdetail input:focus,.app .mdetail select:focus{border-color:var(--line2);background:var(--field)}
+.app .mdetail input::placeholder{color:var(--ink4)}
+.app .mdetail input[type=checkbox]{width:16px;height:16px;justify-self:start;accent-color:var(--blue)}
+.app .mdetail select option{background:var(--bg);color:var(--ink)}
+.app .mchips{display:flex;flex-wrap:wrap;gap:4px;padding:4px 0}
+.app .mchips button{height:24px;padding:0 9px;border-radius:12px;border:1px solid var(--line2);font-size:12.5px;color:var(--ink2);cursor:pointer}
+.app .mchips button.on{border-color:var(--blue);background:rgba(29,155,240,.12);color:var(--ink)}
+.app .mprop-form{display:flex;flex-direction:column;gap:8px;margin-top:8px;padding:12px;border:1px solid var(--line2);border-radius:12px;background:var(--s1)}
+.app .mprop-form input,.app .mprop-form select{width:100%;height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;font-size:14px;outline:0}
+.app .mprop-form input:focus,.app .mprop-form select:focus{border-color:var(--line2)}
+.app .mprop-form label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2)}
+.app .mprop-form label input{width:16px;height:16px;accent-color:var(--blue)}
+.app .mprop-form .acts{display:flex;gap:6px}
+.app .mprop-add{align-self:flex-start;margin-top:6px;font-size:13px;color:var(--blue-ink);cursor:pointer}
+.app .mprop-edit{font-size:12px;color:var(--ink3);cursor:pointer;margin-left:auto}
+.app .mprop-edit:hover{color:var(--ink)}

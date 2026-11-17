@@ -139,3 +139,59 @@ export async function getCloudCommunityMemberProfile<SessionT>(params: { session
     ...(params.membershipId ? { membershipId: params.membershipId } : {}),
   }) as CloudMemberProfile | null;
 }
+
+// Member properties: the host's own fields about members (communityMemberProperties).
+export type CloudMemberProperty = {
+  key: string;
+  name: string;
+  type: import("./communityMemberProperties").MemberPropertyType;
+  options: string[];
+  in_table: boolean;
+};
+type PropertyValue = import("./communityMemberProperties").MemberPropertyValue;
+
+export async function listCloudCommunityMemberProperties<SessionT>(params: { session: SessionT; communityId: string }): Promise<CloudMemberProperty[]> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.query("communityMemberProperties:listCommunityMemberProperties" as any, { authSubject, communityId: params.communityId }) as CloudMemberProperty[];
+}
+
+export async function createCloudCommunityMemberProperty<SessionT>(params: { session: SessionT; communityId: string; name: string; type: string; options?: string[]; inTable?: boolean }): Promise<{ key: string }> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.mutation("communityMemberProperties:createCommunityMemberProperty" as any, {
+    authSubject, communityId: params.communityId, name: params.name, type: params.type,
+    ...(params.options ? { options: params.options } : {}), ...(params.inTable !== undefined ? { inTable: params.inTable } : {}),
+  }) as { key: string };
+}
+
+export async function updateCloudCommunityMemberProperty<SessionT>(params: { session: SessionT; communityId: string; key: string; name?: string; options?: string[]; inTable?: boolean }): Promise<void> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  await client.mutation("communityMemberProperties:updateCommunityMemberProperty" as any, {
+    authSubject, communityId: params.communityId, key: params.key,
+    ...(params.name !== undefined ? { name: params.name } : {}), ...(params.options ? { options: params.options } : {}),
+    ...(params.inTable !== undefined ? { inTable: params.inTable } : {}),
+  });
+}
+
+export async function archiveCloudCommunityMemberProperty<SessionT>(params: { session: SessionT; communityId: string; key: string }): Promise<void> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  await client.mutation("communityMemberProperties:archiveCommunityMemberProperty" as any, { authSubject, communityId: params.communityId, key: params.key });
+}
+
+export async function setCloudCommunityMemberPropertyValue<SessionT>(params: { session: SessionT; communityId: string; membershipId: string; key: string; value: PropertyValue | null }): Promise<void> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  await client.mutation("communityMemberProperties:setCommunityMemberPropertyValue" as any, {
+    authSubject, communityId: params.communityId, membershipId: params.membershipId, key: params.key, value: params.value,
+  });
+}
+
+export async function getCloudCommunityMemberPropertyValues<SessionT>(params: { session: SessionT; communityId: string; membershipId: string }): Promise<Record<string, PropertyValue>> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.query("communityMemberProperties:getCommunityMemberPropertyValues" as any, {
+    authSubject, communityId: params.communityId, membershipId: params.membershipId,
+  }) as Record<string, PropertyValue>;
+}
+
+export async function listCloudCommunityMemberTableValues<SessionT>(params: { session: SessionT; communityId: string; all?: boolean }): Promise<Record<string, Record<string, PropertyValue>>> {
+  const { client, authSubject } = await bootstrapConvexAuthenticatedClient(params.session);
+  return await client.query("communityMemberProperties:listCommunityMemberTableValues" as any, { authSubject, communityId: params.communityId, ...(params.all ? { all: true } : {}) }) as Record<string, Record<string, PropertyValue>>;
+}

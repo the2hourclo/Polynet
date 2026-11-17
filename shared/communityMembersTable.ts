@@ -53,8 +53,9 @@ export function compableMembers<T extends Pick<MemberTableRow, "membership_id" |
   return rows.filter((row) => row.membership_id && row.plan.kind === "free");
 }
 
-export function membersCsv(rows: MemberTableRow[]): string {
+// `extra` adds columns after the standard ones (the host's member properties).
+export function membersCsv<T extends MemberTableRow>(rows: T[], extra?: { head: string[]; cells: (row: T) => string[] }): string {
   const cell = (value: string | null) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-  const head = ["Name", "Handle", "Role", "Plan", "Standing", "Joined", "Last active", "Working on"];
-  return [head.map(cell).join(","), ...rows.map((row) => [row.name, row.handle, row.role, row.plan.label, row.money?.label ?? "", row.joined_at, row.last_active_at, row.working_on].map(cell).join(","))].join("\n");
+  const head = ["Name", "Handle", "Role", "Plan", "Standing", "Joined", "Last active", "Working on", ...(extra?.head ?? [])];
+  return [head.map(cell).join(","), ...rows.map((row) => [row.name, row.handle, row.role, row.plan.label, row.money?.label ?? "", row.joined_at, row.last_active_at, row.working_on, ...(extra ? extra.cells(row) : [])].map(cell).join(","))].join("\n");
 }

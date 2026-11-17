@@ -16,6 +16,14 @@ import {
   getCloudCommunityMemberRecord,
   getCloudCommunityMemberSummary,
   listCloudCommunityMemberRecordsPage,
+  archiveCloudCommunityMemberProperty,
+  createCloudCommunityMemberProperty,
+  getCloudCommunityMemberPropertyValues,
+  listCloudCommunityMemberProperties,
+  listCloudCommunityMemberTableValues,
+  setCloudCommunityMemberPropertyValue,
+  updateCloudCommunityMemberProperty,
+  type CloudMemberProperty,
   type CloudMemberRecord,
   type CloudMemberRecordRow,
   type CloudMemberSummary,
@@ -28,6 +36,8 @@ import type { CommunityAdmissionJoinRequest } from "../components/CommunityJoinR
 import { askInApp } from "../../../../shared/inAppConfirm";
 import { compableMembers, matchesMemberSearch, memberKey, membersCsv, toggleAllShown } from "../../../../shared/communityMembersTable";
 import { Btn, cx, Icon, KitApp, Rail, Sep, Sec, Top, View } from "./kit";
+import { MemberDetails, type MemberPropertyActions } from "./KitMemberProperties";
+import { memberPropertyCell, type MemberPropertyValue } from "../../../../shared/communityMemberProperties";
 import { Face, JoinRequestsDrawer, JoinRequestsLine, MembersBulkBar, MembersTable, MembersToolbar, type MembersFilter, type MembersSortKey } from "./KitMembersTable";
 
 type MembersView = "everyone" | `price:${string}` | "on_hold" | "cancelling" | "comped" | "know_little" | "past";
@@ -104,6 +114,11 @@ export function KitMembersPage(props: {
   const [tableVersion, setTableVersion] = useState(0);
   const [payments, setPayments] = useState<{ membershipId: string; history: CloudCommunityMemberBillingHistory | null } | null>(null);
   const [now] = useState(Date.now);
+  // Member properties: the host's own fields, their table columns and the open record's values.
+  const [properties, setProperties] = useState<CloudMemberProperty[]>([]);
+  const [propertiesVersion, setPropertiesVersion] = useState(0);
+  const [tableValues, setTableValues] = useState<Record<string, Record<string, MemberPropertyValue>>>({});
+  const [recordValues, setRecordValues] = useState<{ membershipId: string; values: Record<string, MemberPropertyValue> } | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
 
@@ -196,6 +211,65 @@ export function KitMembersPage(props: {
     return () => { cancelled = true; };
   }, [scope?.session, scope?.communityId, openKey, recordVersion, props.refreshKey]);
 
+  useEffect(() => {
+    if (!scope) return;
+    let cancelled = false;
+    listCloudCommunityMemberProperties({ session: scope.session, communityId: scope.communityId })
+      .then((next) => { if (!cancelled) setProperties(next); }).catch(() => undefined);
+    listCloudCommunityMemberTableValues({ session: scope.session, communityId: scope.communityId })
+      .then((next) => { if (!cancelled) setTableValues(next); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [scope?.session, scope?.communityId, propertiesVersion, tableVersion]);
+  const valuesFor = record?.membership_id ?? null;
+  useEffect(() => {
+    if (!scope || !valuesFor) { setRecordValues(null); return; }
+    let cancelled = false;
+    getCloudCommunityMemberPropertyValues({ session: scope.session, communityId: scope.communityId, membershipId: valuesFor })
+      .then((values) => { if (!cancelled) setRecordValues({ membershipId: valuesFor, values }); })
+      .catch(() => { if (!cancelled) setRecordValues({ membershipId: valuesFor, values: {} }); });
+    return () => { cancelled = true; };
+  }, [scope?.session, scope?.communityId, valuesFor, propertiesVersion]);
+  const propertyActions: MemberPropertyActions = {
+    onSetValue: async (key, value) => {
+      if (!scope || !valuesFor) return;
+      await setCloudCommunityMemberPropertyValue({ session: scope.session, communityId: scope.communityId, membershipId: valuesFor, key, value });
+      setRecordValues((last) => {
+        if (!last || last.membershipId !== valuesFor) return last;
+        const values = { ...last.values };
+        if (value === null) delete values[key]; else values[key] = value;
+        return { membershipId: valuesFor, values };
+      });
+      setTableValues((last) => {
+        const row = { ...(last[valuesFor] ?? {}) };
+        if (value === null) delete row[key]; else row[key] = value;
+        return { ...last, [valuesFor]: row };
+      });
+    },
+    onCreate: async (draft) => {
+      if (!scope) return;
+      await createCloudCommunityMemberProperty({ session: scope.session, communityId: scope.communityId, ...draft });
+      setPropertiesVersion((version) => version + 1);
+    },
+    onUpdate: async (key, patch) => {
+      if (!scope) return;
+      await updateCloudCommunityMemberProperty({ session: scope.session, communityId: scope.communityId, key, ...patch });
+      setPropertiesVersion((version) => version + 1);
+    },
+    onArchive: async (key) => {
+      if (!scope) return;
+      await archiveCloudCommunityMemberProperty({ session: scope.session, communityId: scope.communityId, key });
+      setPropertiesVersion((version) => version + 1);
+    },
+  };
+  const tableColumns = properties.filter((property) => property.in_table);
+  // The export carries every field, after the table's own columns.
+  const exportCsvOf = async (list: CloudMemberRecordRow[]) => {
+    if (!scope || !properties.length) return membersCsv(list);
+    const values = await listCloudCommunityMemberTableValues({ session: scope.session, communityId: scope.communityId, all: true }).catch(() => ({} as Record<string, Record<string, MemberPropertyValue>>));
+    return membersCsv(list, { head: properties.map((property) => property.name),
+      cells: (row) => properties.map((property) => memberPropertyCell(property, row.membership_id ? values[row.membership_id]?.[property.key] : undefined)) });
+  };
+
   // Their payments: what the billing history already records.
   const paymentsFor = record?.membership_id ?? null;
   useEffect(() => {
@@ -280,7 +354,7 @@ export function KitMembersPage(props: {
         if (page.isDone) break;
         cursor = page.continueCursor;
       }
-      download(membersCsv(all), "members");
+      download(await exportCsvOf(all), "members");
     } finally {
       setExporting(false);
     }
@@ -303,7 +377,8 @@ export function KitMembersPage(props: {
                 onToggleAll={() => setSelected((last) => toggleAllShown(last, rows.map(keyOf)))}
                 openKey={side === "record" ? openKey : null} onOpen={openRecord}
                 empty={loading ? "Loading…" : search.trim() ? `No one matches "${search.trim()}".` : "No one here."}
-                getAvatarColor={props.getAvatarColor} getInitials={props.getInitials} />
+                getAvatarColor={props.getAvatarColor} getInitials={props.getInitials}
+                columns={tableColumns} valuesOf={(row) => { const id = (row as CloudMemberRecordRow).membership_id; return id ? tableValues[id] : undefined; }} />
             ) : null}
             {loaded && view === "past" ? (
               <div className={cx("tbl mpast")} role="table" aria-label="Past members">
@@ -322,7 +397,7 @@ export function KitMembersPage(props: {
             ) : null}
             {view !== "past" ? (
               <MembersBulkBar count={chosen.length} compable={compableMembers(chosen).length} busy={bulkBusy}
-                onExport={() => download(membersCsv(chosen), "selected")} onComp={() => void compSelected()} onClear={() => setSelected(new Set())} />
+                onExport={() => void exportCsvOf(chosen).then((csv) => download(csv, "selected"))} onComp={() => void compSelected()} onClear={() => setSelected(new Set())} />
             ) : null}
             <div ref={sentinelRef} aria-hidden="true" style={{ height: 1 }} />
             {loading ? <p className={cx("none")} style={{ marginTop: 14, fontSize: 13 }}>Loading more…</p> : null}
@@ -356,6 +431,10 @@ export function KitMembersPage(props: {
             setRecordVersion((version) => version + 1);
           }}
           payments={payments && payments.membershipId === record.membership_id ? payments.history : null}
+          details={record.membership_id && !record.out ? (
+            <MemberDetails properties={properties} canEdit
+              values={recordValues && recordValues.membershipId === record.membership_id ? recordValues.values : {}} actions={propertyActions} />
+          ) : null}
           onComp={record.membership_id && record.plan.kind === "free" && !record.out ? async () => {
             if (!scope) return;
             await compCloudCommunityMember({ session: scope.session, communityId: scope.communityId, membershipId: record.membership_id! });
@@ -394,6 +473,8 @@ function MemberRecordView(props: {
   payments: CloudCommunityMemberBillingHistory | null;
   // Only for someone in for free: comping a paying member is never offered.
   onComp?: () => Promise<void>;
+  // The host's own fields about them (KitMemberProperties).
+  details?: ReactNode;
 }) {
   const [comping, setComping] = useState(false);
   const { record } = props;
@@ -468,6 +549,7 @@ function MemberRecordView(props: {
           </div>
         </>
       ) : null}
+      {props.details ? <><Sep />{props.details}</> : null}
       <Sep />
       <Sec label="Here">
         <div className={cx("src")}><Icon name="spark" />Last active<em>{memberTimeFor(record.last_active_at, props.now)}</em></div>

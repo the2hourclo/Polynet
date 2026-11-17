@@ -1171,6 +1171,46 @@ export default defineSchema({
 
   // A host's notes on a member (docs/design/members-invariants.md): only the
   // people who manage members read or write them; the member never sees them.
+  // Member properties (shared/communityMemberProperties.ts): fields a host
+  // defines about their members and fills in on each record. The host's own
+  // records, apart from memberFacts; members never read them.
+  communityMemberProperties: defineTable({
+    communityId: v.id("communities"),
+    key: v.string(),
+    name: v.string(),
+    type: v.union(
+      v.literal("text"),
+      v.literal("number"),
+      v.literal("select"),
+      v.literal("multi_select"),
+      v.literal("date"),
+      v.literal("checkbox"),
+      v.literal("url"),
+    ),
+    options: v.array(v.string()),
+    position: v.number(),
+    // Shown as a column in the host's Members table (at most three).
+    inTable: v.boolean(),
+    archivedAt: v.optional(v.number()),
+    createdByUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_key", ["communityId", "key"]),
+
+  communityMemberPropertyValues: defineTable({
+    communityId: v.id("communities"),
+    membershipId: v.id("communityMemberships"),
+    propertyKey: v.string(),
+    value: v.union(v.string(), v.number(), v.boolean(), v.array(v.string())),
+    updatedByUserId: v.id("users"),
+    updatedAt: v.number(),
+  })
+    .index("by_membership", ["membershipId"])
+    .index("by_membership_property", ["membershipId", "propertyKey"])
+    .index("by_community_property", ["communityId", "propertyKey"]),
+
   communityMemberNotes: defineTable({
     communityId: v.id("communities"),
     subjectUserId: v.id("users"),

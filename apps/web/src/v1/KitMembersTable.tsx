@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { Check, ChevronRight, Download, Plus, Search, X } from "lucide-react";
 import { UserAvatar } from "../../../../shared/UserAvatar";
 import { memberKey, memberStatus, type MemberTableRow } from "../../../../shared/communityMembersTable";
+import { memberPropertyText, type MemberPropertyDefinition, type MemberPropertyValue } from "../../../../shared/communityMemberProperties";
 import type { CommunityAdmissionJoinRequest } from "../components/CommunityJoinRequestReview";
 import { Btn, cx } from "./kit";
 
@@ -104,7 +105,11 @@ export function MembersTable(props: Avatars & {
   openKey: string | null;
   onOpen: (key: string) => void;
   empty: string;
+  // The host's own fields shown as columns (at most three), and each row's values.
+  columns?: MemberPropertyDefinition[];
+  valuesOf?: (row: MemberTableRow) => Record<string, MemberPropertyValue> | undefined;
 }) {
+  const columns = props.columns ?? [];
   const keys = props.rows.map(memberKey);
   const ticked = keys.filter((key) => props.selected.has(key)).length;
   const head = (key: MembersSortKey, label: string) => (
@@ -113,7 +118,8 @@ export function MembersTable(props: Avatars & {
     </button>
   );
   return (
-    <div className={cx("mtbl")} role="table" aria-label="Members">
+    <div className={cx("mtbl")} role="table" aria-label="Members"
+      style={columns.length ? ({ "--mprops": columns.map(() => "minmax(0,.9fr)").join(" ") } as CSSProperties) : undefined}>
       <div className={cx("mrow2 mhead")} role="row">
         <Tick on={keys.length > 0 && ticked === keys.length} some={ticked > 0 && ticked < keys.length} label="Select everyone shown" onToggle={props.onToggleAll} />
         {head("name", "Member")}
@@ -121,6 +127,7 @@ export function MembersTable(props: Avatars & {
         {head("plan", "Plan")}
         {head("joined", "Joined")}
         {head("active", "Last active")}
+        {columns.map((column) => <span key={column.key} className={cx("mth mprop")} title={column.name}>{column.name}</span>)}
         <span />
       </div>
       {props.rows.map((row) => {
@@ -141,6 +148,10 @@ export function MembersTable(props: Avatars & {
             <span>{row.plan.label}</span>
             <span>{props.dayFor(row.joined_at, props.now) ?? "—"}</span>
             <span>{props.timeFor(row.last_active_at, props.now)}</span>
+            {columns.map((column) => {
+              const text = memberPropertyText(column, props.valuesOf?.(row)?.[column.key]);
+              return <span key={column.key} className={cx("mprop", !text && "none")} title={text || undefined}>{text || "—"}</span>;
+            })}
             <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className={cx("mchev")} />
           </div>
         );
